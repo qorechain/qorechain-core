@@ -1,0 +1,131 @@
+package keeper
+
+import (
+	"encoding/json"
+
+	"cosmossdk.io/log"
+	storetypes "cosmossdk.io/store/types"
+
+	"github.com/cosmos/cosmos-sdk/codec"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+
+	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
+	"github.com/qorechain/qorechain-core/x/qca/types"
+)
+
+// Keeper manages the x/qca module state.
+type Keeper struct {
+	cdc              codec.Codec
+	storeKey         storetypes.StoreKey
+	reputationKeeper reputationkeeper.Keeper
+	selector         types.ValidatorSelector
+	logger           log.Logger
+}
+
+// NewKeeper creates a new QCA keeper.
+func NewKeeper(
+	cdc codec.Codec,
+	storeKey storetypes.StoreKey,
+	reputationKeeper reputationkeeper.Keeper,
+	selector types.ValidatorSelector,
+	logger log.Logger,
+) Keeper {
+	return Keeper{
+		cdc:              cdc,
+		storeKey:         storeKey,
+		reputationKeeper: reputationKeeper,
+		selector:         selector,
+		logger:           logger.With("module", types.ModuleName),
+	}
+}
+
+func (k Keeper) Logger() log.Logger { return k.logger }
+
+// ---- Config ----
+
+func (k Keeper) GetConfig(ctx sdk.Context) types.QCAConfig {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.ConfigKey)
+	if bz == nil {
+		return types.DefaultQCAConfig()
+	}
+	var cfg types.QCAConfig
+	if err := json.Unmarshal(bz, &cfg); err != nil {
+		return types.DefaultQCAConfig()
+	}
+	return cfg
+}
+
+func (k Keeper) SetConfig(ctx sdk.Context, cfg types.QCAConfig) error {
+	store := ctx.KVStore(k.storeKey)
+	bz, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+	store.Set(types.ConfigKey, bz)
+	return nil
+}
+
+// ---- Stats ----
+
+func (k Keeper) GetStats(ctx sdk.Context) types.QCAStats {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.StatsKey)
+	if bz == nil {
+		return types.QCAStats{}
+	}
+	var stats types.QCAStats
+	if err := json.Unmarshal(bz, &stats); err != nil {
+		return types.QCAStats{}
+	}
+	return stats
+}
+
+func (k Keeper) SetStats(ctx sdk.Context, stats types.QCAStats) {
+	store := ctx.KVStore(k.storeKey)
+	bz, _ := json.Marshal(stats)
+	store.Set(types.StatsKey, bz)
+}
+
+// GetReputationWeightedProposer selects the next block proposer using reputation weighting.
+func (k Keeper) GetReputationWeightedProposer(
+	ctx sdk.Context,
+	validators []types.ValidatorInfo,
+) string {
+	config := k.GetConfig(ctx)
+
+	// Get reputation scores for all validators
+	scores := make(map[string]float64)
+	for _, val := range validators {
+		scores[val.Address] = k.reputationKeeper.CalculateReputation(ctx, val.Address)
+	}
+
+	var selected string
+	if config.UseReputationWeighting {
+		blockHash := ctx.BlockHeader().LastBlockId.Hash
+		selected = k.selector.SelectProposer(validators, scores, blockHash, ctx.BlockHeight())
+
+		stats := k.GetStats(ctx)
+		stats.ProposerSelections++
+		stats.ReputationWeighted++
+		k.SetStats(ctx, stats)
+	}
+
+	return selected
+}
+
+// ---- Genesis ----
+
+func (k Keeper) InitGenesis(ctx sdk.Context, gs types.GenesisState) {
+	if err := k.SetConfig(ctx, gs.Config); err != nil {
+		panic(err)
+	}
+	k.SetStats(ctx, gs.Stats)
+}
+
+func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
+	return &types.GenesisState{
+		Config: k.GetConfig(ctx),
+		Stats:  k.GetStats(ctx),
+	}
+}
