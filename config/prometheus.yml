@@ -1,0 +1,13 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'qorechain-node'
+    static_configs:
+      - targets: ['qorechain-node:26660']
+    metrics_path: /
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

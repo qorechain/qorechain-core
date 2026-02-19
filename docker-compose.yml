@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  # ─────────────────────────────────────────────
+  # QoreChain Node (validator)
+  # ─────────────────────────────────────────────
+  qorechain-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qorechain-validator-1
+    ports:
+      - "26657:26657"   # CometBFT RPC
+      - "26656:26656"   # CometBFT P2P
+      - "1317:1317"     # QoreChain REST API
+      - "9090:9090"     # Cosmos gRPC
+      - "26660:26660"   # Prometheus metrics
+    volumes:
+      - node-data:/root/.qorechaind
+      - ./lib/linux_amd64:/usr/local/lib/qorepqc:ro
+    environment:
+      - CHAIN_ID=qorechain-testnet-1
+      - MONIKER=qorechain-validator-1
+      - AI_SIDECAR_ADDRESS=ai-sidecar:50051
+      - LD_LIBRARY_PATH=/usr/local/lib/qorepqc:/usr/local/lib
+    depends_on:
+      - ai-sidecar
+    networks:
+      - qorechain-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # ─────────────────────────────────────────────
+  # AI Sidecar Service
+  # ─────────────────────────────────────────────
+  ai-sidecar:
+    build:
+      context: ./sidecar
+      dockerfile: Dockerfile
+    container_name: qorechain-ai-sidecar
+    ports:
+      - "50051:50051"   # gRPC
+    environment:
+      - QCAI_REGION=us-east-1
+      - QCAI_ACCESS_KEY_ID=${QCAI_ACCESS_KEY_ID}
+      - QCAI_SECRET_ACCESS_KEY=${QCAI_SECRET_ACCESS_KEY}
+      - BEDROCK_MODEL_ID=us.anthropic.claude-haiku-4-5-20251001-v1:0
+      - LOG_LEVEL=info
+    networks:
+      - qorechain-net
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # Block Indexer (for Explorer API)
+  # ─────────────────────────────────────────────
+  block-indexer:
+    build:
+      context: ./indexer
+      dockerfile: Dockerfile
+    container_name: qorechain-indexer
+    depends_on:
+      - qorechain-node
+      - postgres
+    environment:
+      - RPC_URL=ws://qorechain-node:26657/websocket
+      - REST_URL=http://qorechain-node:1317
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=qorechain_explorer
+      - DB_USER=qorechain
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+    networks:
+      - qorechain-net
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # PostgreSQL (Explorer database)
+  # ─────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: qorechain-postgres
+    environment:
+      - POSTGRES_DB=qorechain_explorer
+      - POSTGRES_USER=qorechain
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./indexer/migrations:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - qorechain-net
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # Prometheus (Metrics collection)
+  # ─────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: qorechain-prometheus
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9091:9090"
+    networks:
+      - qorechain-net
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────
+  # Grafana (Metrics dashboard)
+  # ─────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: qorechain-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+    depends_on:
+      - prometheus
+    networks:
+      - qorechain-net
+    restart: unless-stopped
+
+volumes:
+  node-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
+
+networks:
+  qorechain-net:
+    driver: bridge
