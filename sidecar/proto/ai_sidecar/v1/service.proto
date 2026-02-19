@@ -1,0 +1,252 @@
+syntax = "proto3";
+package qorechain.ai.sidecar.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/sidecar/proto/ai_sidecar/v1;sidecarv1";
+
+service AISidecar {
+    // --- Existing (Phase 1) ---
+
+    // Fast path — embedded heuristics (synchronous, <5ms)
+    rpc AnalyzeTransaction(AnalyzeTxRequest) returns (AnalyzeTxResponse);
+
+    // Slow path — Bedrock deep analysis (async, <30s)
+    rpc DeepAnalyzeContract(DeepAnalyzeRequest) returns (DeepAnalyzeResponse);
+
+    // Network optimization recommendations
+    rpc GetNetworkRecommendations(NetworkStateRequest) returns (NetworkRecommendations);
+
+    // Health check
+    rpc HealthCheck(HealthRequest) returns (HealthResponse);
+
+    // --- Phase 2: AI Enhancements ---
+
+    // Deep fraud analysis via Bedrock
+    rpc DetectFraud(FraudDetectionRequest) returns (FraudDetectionResponse);
+
+    // Fee prediction with congestion modeling
+    rpc EstimateFee(FeeEstimateRequest) returns (FeeEstimateResponse);
+
+    // Contract generation (ported from Lambda qorechain-contract-generator)
+    rpc GenerateContract(ContractGenRequest) returns (ContractGenResponse);
+
+    // Contract security audit (ported from Lambda qorechain-contract-auditor)
+    rpc AuditContract(ContractAuditRequest) returns (ContractAuditResponse);
+
+    // Network parameter optimization via Bedrock
+    rpc OptimizeNetwork(NetworkOptRequest) returns (NetworkOptResponse);
+}
+
+message TxHistoryEntry {
+    int64  timestamp  = 1;
+    uint64 amount     = 2;
+    string tx_type    = 3;
+}
+
+message AnalyzeTxRequest {
+    bytes  tx_bytes       = 1;
+    string sender         = 2;
+    string receiver       = 3;
+    uint64 amount         = 4;
+    string tx_type        = 5;  // "transfer" | "delegate" | "contract_deploy" | "contract_call"
+    repeated TxHistoryEntry sender_history = 6;
+}
+
+message RoutingDecision {
+    string target_pool = 1;  // "high-uptime" | "high-reputation" | "low-load"
+    string reason      = 2;
+    float  confidence  = 3;
+}
+
+message AnomalyResult {
+    bool   is_anomaly    = 1;
+    float  anomaly_score = 2;
+    string rule_triggered = 3;
+    string description    = 4;
+}
+
+message AnalyzeTxResponse {
+    RoutingDecision routing            = 1;
+    AnomalyResult   anomaly            = 2;
+    float           processing_time_ms = 3;
+}
+
+message DeepAnalyzeRequest {
+    bytes  contract_code = 1;
+    string chain         = 2;  // "qorechain" | "ethereum" | etc.
+    string language      = 3;  // "cosmwasm_rust" | "solidity" | etc.
+}
+
+message RiskIssue {
+    string severity    = 1;  // "critical" | "high" | "medium" | "low"
+    string category    = 2;  // "reentrancy" | "overflow" | "access_control" | etc.
+    string description = 3;
+    string location    = 4;
+}
+
+message RiskScore {
+    float           score          = 1;  // 0.0 - 1.0
+    string          severity       = 2;  // "critical" | "high" | "medium" | "low" | "safe"
+    repeated RiskIssue issues      = 3;
+    string          recommendation = 4;
+    bool            pqc_ready      = 5;
+}
+
+message DeepAnalyzeResponse {
+    RiskScore risk                  = 1;
+    string    qcai_model_used    = 2;
+    float     processing_time_ms   = 3;
+}
+
+message NetworkStateRequest {
+    uint64 block_height     = 1;
+    uint32 active_validators = 2;
+    float  avg_block_time   = 3;
+    uint32 pending_tx_count = 4;
+}
+
+message NetworkRecommendations {
+    float  suggested_block_size  = 1;
+    float  suggested_gas_price   = 2;
+    string congestion_level      = 3;  // "low" | "medium" | "high"
+    string recommendation        = 4;
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+    bool   healthy          = 1;
+    string version          = 2;
+    bool   qcai_available = 3;
+    float  uptime_seconds   = 4;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// Phase 2 Messages
+// ═══════════════════════════════════════════════════════════════
+
+// --- Fraud Detection ---
+
+message FraudDetectionRequest {
+    string sender         = 1;
+    string receiver       = 2;
+    uint64 amount         = 3;
+    string tx_type        = 4;
+    uint64 gas_used       = 5;
+    int64  block_height   = 6;
+    repeated TxHistoryEntry recent_history = 7;
+}
+
+message FraudDetectionResponse {
+    string threat_level      = 1;  // "none" | "low" | "medium" | "high" | "critical"
+    string threat_type       = 2;  // "sybil" | "ddos" | "flash_loan" | "exploit" | "unknown"
+    string action            = 3;  // "allow" | "rate_limit" | "circuit_break" | "alert"
+    float  confidence        = 4;
+    string details           = 5;
+    string investigation_id  = 6;
+    string qcai_analysis  = 7;  // Deep analysis from Bedrock (if available)
+    float  processing_time_ms = 8;
+}
+
+// --- Fee Estimation ---
+
+message FeeEstimateRequest {
+    string urgency        = 1;  // "fast" | "normal" | "slow"
+    uint64 block_height   = 2;
+    uint32 pending_tx     = 3;
+    float  current_load   = 4;  // 0.0 - 1.0
+}
+
+message FeeEstimateResponse {
+    uint64 suggested_fee_uqor    = 1;
+    int32  estimated_blocks      = 2;
+    float  current_congestion    = 3;
+    float  predicted_congestion  = 4;
+    float  confidence            = 5;
+    float  processing_time_ms    = 6;
+}
+
+// --- Contract Generation (ported from Lambda) ---
+
+message ContractGenRequest {
+    string prompt          = 1;  // User's contract description
+    string blockchain      = 2;  // "qorechain" | "ethereum" | "solana" | etc. (17 chains)
+    string contract_type   = 3;  // Template type (e.g., "erc20", "pqc_token")
+    string model_tier      = 4;  // "fast" (Haiku) | "balanced" (Sonnet)
+}
+
+message ContractGenResponse {
+    bool   success             = 1;
+    string contract_id         = 2;
+    string contract_name       = 3;
+    string generated_code      = 4;
+    string blockchain          = 5;
+    string language            = 6;
+    string category            = 7;
+    int32  line_count          = 8;
+    int32  tokens_used         = 9;
+    string qcai_model_used  = 10;
+    float  processing_time_ms  = 11;
+    string error               = 12;
+}
+
+// --- Contract Audit (ported from Lambda) ---
+
+message ContractAuditRequest {
+    string code            = 1;  // Smart contract source code
+    string blockchain      = 2;  // "qorechain" | "ethereum" | etc.
+    string contract_name   = 3;  // Optional: contract name
+}
+
+message AuditFinding {
+    string id              = 1;
+    string severity        = 2;  // "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "INFO"
+    string category        = 3;
+    string title           = 4;
+    string description     = 5;
+    string location        = 6;
+    string impact          = 7;
+    string recommendation  = 8;
+}
+
+message ContractAuditResponse {
+    bool   success              = 1;
+    string audit_id             = 2;
+    int32  overall_score        = 3;   // 0-100
+    string risk_level           = 4;   // "CRITICAL" | "HIGH" | "MEDIUM" | "LOW" | "SAFE"
+    string quantum_readiness    = 5;   // "QUANTUM-SAFE" | "HYBRID" | "CLASSICAL-ONLY"
+    string summary              = 6;
+    repeated AuditFinding findings        = 7;
+    repeated string recommendations       = 8;
+    repeated string gas_optimizations     = 9;
+    repeated string best_practices        = 10;
+    repeated string positive_aspects      = 11;
+    string qcai_model_used   = 12;
+    float  processing_time_ms   = 13;
+    string error                = 14;
+}
+
+// --- Network Optimization ---
+
+message NetworkOptRequest {
+    uint64 block_height       = 1;
+    uint32 active_validators  = 2;
+    float  avg_block_time_ms  = 3;
+    float  block_utilization  = 4;
+    float  tx_throughput      = 5;
+    uint32 pending_tx_count   = 6;
+}
+
+message NetworkOptRecommendation {
+    string parameter       = 1;
+    string current_value   = 2;
+    string suggested_value = 3;
+    string expected_impact = 4;
+    float  confidence      = 5;
+    string reasoning       = 6;
+}
+
+message NetworkOptResponse {
+    repeated NetworkOptRecommendation recommendations = 1;
+    string qcai_analysis     = 2;
+    float  processing_time_ms   = 3;
+}
