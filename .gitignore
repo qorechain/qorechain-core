@@ -1,0 +1,52 @@
+# Binaries (root-level only, not cmd/qorechaind/ source directory)
+/qorechaind
+*.exe
+*.so
+*.dylib
+*.dll
+
+# Build artifacts
+build/
+dist/
+vendor/
+
+# Go
+*.test
+*.out
+coverage.txt
+
+# Docker
+.env
+*.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets (CRITICAL — never commit these)
+*.pem
+*.key
+*.enc
+secrets/
+config/ai_config.json
+config/qcai_config.json
+
+# Node data
+testnet-data/
+data/
+*.db
+
+# Compiled PQC libraries (downloaded from releases, not committed)
+lib/linux_amd64/
+lib/linux_arm64/
+lib/darwin_amd64/
+lib/darwin_arm64/
+
+# Rust build artifacts (if any local builds)
+target/

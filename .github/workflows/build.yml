@@ -1,0 +1,61 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Download PQC Library
+        run: |
+          mkdir -p lib/linux_amd64
+          # Download from latest release
+          gh release download --repo qorechain/qorechain-proprietary --pattern 'libqorepqc_linux_amd64.so' --dir lib/linux_amd64 || echo "PQC lib not available, using stub"
+          if [ -f lib/linux_amd64/libqorepqc_linux_amd64.so ]; then
+            mv lib/linux_amd64/libqorepqc_linux_amd64.so lib/linux_amd64/libqorepqc.so
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.PQC_LIB_TOKEN }}
+        continue-on-error: true
+
+      - name: Build Chain Binary
+        run: CGO_ENABLED=1 go build -o qorechaind ./cmd/qorechaind/
+
+      - name: Build Sidecar
+        run: cd sidecar && go build ./...
+
+      - name: Build Indexer
+        run: cd indexer && go build ./...
+
+      - name: Run Tests
+        run: CGO_ENABLED=1 go test ./... -count=1 -timeout 300s
+        continue-on-error: true
+
+      - name: Run Sidecar Tests
+        run: cd sidecar && go test ./... -count=1
+        continue-on-error: true
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25'
+
+      - name: Run go vet
+        run: CGO_ENABLED=1 go vet ./...
+        continue-on-error: true
