@@ -10,10 +10,10 @@ services:
       dockerfile: Dockerfile
     container_name: qorechain-validator-1
     ports:
-      - "26657:26657"   # CometBFT RPC
-      - "26656:26656"   # CometBFT P2P
-      - "1317:1317"     # QoreChain REST API
-      - "9090:9090"     # Cosmos gRPC
+      - "26657:26657"   # QoreChain Consensus Engine RPC
+      - "26656:26656"   # QoreChain Consensus Engine P2P
+      - "1317:1317"     # QoreChain SDK REST API
+      - "9090:9090"     # QoreChain SDK gRPC
       - "26660:26660"   # Prometheus metrics
     volumes:
       - node-data:/root/.qorechaind

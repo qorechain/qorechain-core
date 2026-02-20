@@ -3,7 +3,7 @@
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
 
-QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis** and **AI-native consensus optimization**. Built on Cosmos SDK v0.53 with custom modules for PQC signatures (Dilithium-5, ML-KEM-1024), AI-driven transaction routing, and universal cross-chain bridging.
+QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis** and **AI-native consensus optimization**. Built on QoreChain SDK v0.53 with custom modules for PQC signatures (Dilithium-5, ML-KEM-1024), AI-driven transaction routing, and universal cross-chain bridging.
 
 ## Key Features
 
@@ -11,7 +11,7 @@ QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at ge
 - **AI-Native Consensus** — Reputation-weighted validator selection with AI-driven optimization
 - **Universal Bridge (QCB)** — Cross-chain connectivity to Ethereum, Solana, TON, BSC, Avalanche + native IBC
 - **Fraud Detection** — Real-time anomaly detection with statistical isolation forest and circuit breaker protection
-- **Smart Contract AI** — AI-powered contract generation (17 chains) and security auditing via AWS Bedrock
+- **Smart Contract AI** — AI-powered contract generation (17 chains) and security auditing via QCAI Backend
 
 ## Quick Start
 
@@ -69,7 +69,7 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
       │  ┌────┴────┐              ┌───────┴──────┐
       │  │AI Sidecar│              │  Indexer     │
       │  │ (gRPC)   │              │  (Postgres)  │
-      │  │ Bedrock  │              └──────────────┘
+      │  │ QCAI     │              └──────────────┘
       │  └──────────┘
       │
 ┌─────┴─────────────┐

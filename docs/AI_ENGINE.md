@@ -46,13 +46,13 @@ R(s,a,s') = alpha * DeltaPerformance + beta * DeltaLatency + gamma * DeltaEnergy
 
 ### AI Sidecar
 
-The sidecar extends on-chain AI with AWS Bedrock:
+The sidecar extends on-chain AI with QCAI Backend:
 - **Contract Generation**: Supports 17 blockchain platforms
 - **Contract Auditing**: Hacken-style security audits
-- **Deep Fraud Analysis**: Bedrock-powered threat assessment
+- **Deep Fraud Analysis**: QCAI Backend-powered threat assessment
 - **Network Advice**: AI-driven optimization recommendations
 
-Models: Claude Haiku 4.5 (fast path), Claude Sonnet 4.5 (balanced)
+Models: QCAI Fast (fast path), QCAI Balanced (balanced)
 
 ## API Endpoints
 

@@ -13,7 +13,7 @@ type EnhancedRouterConfig struct {
 	Alpha           float64 `json:"alpha"`              // Latency weight (default 0.4)
 	Beta            float64 `json:"beta"`               // Cost weight (default 0.3)
 	Gamma           float64 `json:"gamma"`              // Security weight (default 0.3)
-	UseSidecar      bool    `json:"use_sidecar"`        // Enable Bedrock-enhanced routing
+	UseSidecar      bool    `json:"use_sidecar"`        // Enable QCAI Backend-enhanced routing
 	CacheTTLSeconds int     `json:"cache_ttl_seconds"`  // Metrics cache TTL
 }
 

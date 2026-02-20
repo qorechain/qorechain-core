@@ -1,3 +1,5 @@
+//go:build proprietary
+
 package ai
 
 import (
@@ -25,7 +27,7 @@ func (d AIAnomalyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 
 	config := d.aiKeeper.GetConfig(ctx)
 
-	// Build transaction info from the Cosmos SDK tx
+	// Build transaction info from the QoreChain SDK tx
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return next(ctx, tx, simulate)

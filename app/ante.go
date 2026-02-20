@@ -8,20 +8,17 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 
-	aimodule "github.com/qorechain/qorechain-core/x/ai"
-	aikeeper "github.com/qorechain/qorechain-core/x/ai/keeper"
-	pqcmodule "github.com/qorechain/qorechain-core/x/pqc"
-	"github.com/qorechain/qorechain-core/x/pqc/ffi"
-	pqckeeper "github.com/qorechain/qorechain-core/x/pqc/keeper"
+	aimod "github.com/qorechain/qorechain-core/x/ai"
+	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 )
 
 // HandlerOptions are the options required for constructing the QoreChain AnteHandler.
 type HandlerOptions struct {
 	ante.HandlerOptions
 	CircuitKeeper circuitante.CircuitBreaker
-	PQCKeeper     *pqckeeper.Keeper
-	PQCClient     ffi.PQCClient
-	AIKeeper      *aikeeper.Keeper
+	PQCKeeper     pqcmod.PQCKeeper
+	PQCClient     pqcmod.PQCClient
+	AIKeeper      aimod.AIKeeper
 }
 
 // NewAnteHandler returns an AnteHandler that checks and increments sequence
@@ -31,7 +28,7 @@ type HandlerOptions struct {
 // AnteHandler chain order (per architecture spec):
 //  1. PQC verify (x/pqc)
 //  2. AI anomaly check (x/ai)
-//  3. Standard Cosmos decorators
+//  3. Standard decorators
 func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 	if options.AccountKeeper == nil {
 		return nil, errors.New("account keeper is required for ante builder")
@@ -48,10 +45,10 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 	anteDecorators := []sdk.AnteDecorator{
 		ante.NewSetUpContextDecorator(),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
-		// PQC signature verification — runs before standard Cosmos sig verify
-		pqcmodule.NewPQCVerifyDecorator(*options.PQCKeeper, options.PQCClient),
+		// PQC signature verification — runs before standard sig verify
+		NewPQCVerifyDecorator(options.PQCKeeper, options.PQCClient),
 		// AI anomaly check — runs after PQC, before standard decorators
-		aimodule.NewAIAnomalyDecorator(*options.AIKeeper),
+		NewAIAnomalyDecorator(options.AIKeeper),
 		ante.NewExtensionOptionsDecorator(options.ExtensionOptionChecker),
 		ante.NewValidateBasicDecorator(),
 		ante.NewTxTimeoutHeightDecorator(),

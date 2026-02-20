@@ -8,12 +8,15 @@ The QoreChain Bridge implements a hub-and-spoke multi-protocol bridge with PQC-s
 
 | Chain | Type | Protocol | Status |
 |-------|------|----------|--------|
-| Ethereum | EVM | Lock-Mint | Testnet |
-| Solana | Solana | Wormhole-compatible | Testnet |
-| TON | TON | Cross-chain messaging | Testnet |
-| BSC | EVM | Lock-Mint | Testnet |
-| Avalanche | EVM | Lock-Mint | Testnet |
-| IBC-compatible chains | IBC | Native IBC + PQC | Testnet |
+| Ethereum | EVM | QCB Native + IBC | Testnet |
+| Solana | Solana | QCB Native + IBC | Testnet |
+| TON | TON | QCB Native + IBC | Testnet |
+| BSC | EVM | QCB Native + IBC | Testnet |
+| Avalanche | EVM | QCB Native + IBC | Testnet |
+| Polygon | EVM (PoS) | QCB Native + IBC | Testnet |
+| Arbitrum | Ethereum L2 | QCB Native + IBC | Testnet |
+| Sui | Move VM | QCB Native + IBC | Testnet |
+| IBC-compatible chains | IBC | QCB Native + IBC | Testnet |
 
 ## Architecture
 
@@ -22,13 +25,19 @@ The QoreChain Bridge implements a hub-and-spoke multi-protocol bridge with PQC-s
       +----------------------------------------------+
       |                                              |
 ETH <-+-> ETH Bridge    +                           |
-      |   (Lock-Mint)   |                           |
+      |   (QCB Native)  |                           |
 SOL <-+-> SOL Bridge    +-> AI Path -> QoreChain    |
-      |   (Wormhole)    |   Optimizer  Hub          |
+      |   (QCB Native)  |   Optimizer  Hub          |
 TON <-+-> TON Bridge    |                           |
-      |   (Messaging)   |                           |
+      |   (QCB Native)  |                           |
 BSC <-+-> EVM Bridge    +                           |
-      |   (Generic)                                  |
+      |   (QCB Native)                               |
+POLY<-+-> Polygon Bridge                             |
+      |   (QCB Native)                               |
+ARB <-+-> Arbitrum Bridge                            |
+      |   (QCB Native)                               |
+SUI <-+-> Sui Bridge                                 |
+      |   (QCB Native)                               |
       |                                              |
 IBC chains <-> IBC Module (native, no bridge needed)     |
       |                                              |

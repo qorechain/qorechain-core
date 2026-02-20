@@ -9,7 +9,7 @@ service AISidecar {
     // Fast path — embedded heuristics (synchronous, <5ms)
     rpc AnalyzeTransaction(AnalyzeTxRequest) returns (AnalyzeTxResponse);
 
-    // Slow path — Bedrock deep analysis (async, <30s)
+    // Slow path — QCAI Backend deep analysis (async, <30s)
     rpc DeepAnalyzeContract(DeepAnalyzeRequest) returns (DeepAnalyzeResponse);
 
     // Network optimization recommendations
@@ -20,7 +20,7 @@ service AISidecar {
 
     // --- Phase 2: AI Enhancements ---
 
-    // Deep fraud analysis via Bedrock
+    // Deep fraud analysis via QCAI Backend
     rpc DetectFraud(FraudDetectionRequest) returns (FraudDetectionResponse);
 
     // Fee prediction with congestion modeling
@@ -32,7 +32,7 @@ service AISidecar {
     // Contract security audit (ported from Lambda qorechain-contract-auditor)
     rpc AuditContract(ContractAuditRequest) returns (ContractAuditResponse);
 
-    // Network parameter optimization via Bedrock
+    // Network parameter optimization via QCAI Backend
     rpc OptimizeNetwork(NetworkOptRequest) returns (NetworkOptResponse);
 }
 
@@ -143,7 +143,7 @@ message FraudDetectionResponse {
     float  confidence        = 4;
     string details           = 5;
     string investigation_id  = 6;
-    string qcai_analysis  = 7;  // Deep analysis from Bedrock (if available)
+    string qcai_analysis  = 7;  // Deep analysis from QCAI Backend (if available)
     float  processing_time_ms = 8;
 }
 
@@ -171,7 +171,7 @@ message ContractGenRequest {
     string prompt          = 1;  // User's contract description
     string blockchain      = 2;  // "qorechain" | "ethereum" | "solana" | etc. (17 chains)
     string contract_type   = 3;  // Template type (e.g., "erc20", "pqc_token")
-    string model_tier      = 4;  // "fast" (Haiku) | "balanced" (Sonnet)
+    string model_tier      = 4;  // "fast" (QCAI Fast) | "balanced" (QCAI Balanced)
 }
 
 message ContractGenResponse {

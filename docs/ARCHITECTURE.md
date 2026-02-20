@@ -2,7 +2,7 @@
 
 ## Overview
 
-QoreChain is a Layer 1 blockchain built on Cosmos SDK v0.53 with three key innovations:
+QoreChain is a Layer 1 blockchain built on QoreChain SDK v0.53 with three key innovations:
 1. Post-quantum cryptography at genesis (not retrofitted)
 2. AI-native consensus optimization
 3. Universal cross-chain bridging with PQC security
@@ -35,7 +35,7 @@ The AI module implements multi-layer intelligence:
 4. **Fee Optimization**: EMA-based congestion prediction with urgency-aware fee estimation
 5. **Network Optimization**: Parameter recommendations using reward function analysis
 
-The AI Sidecar extends capabilities via AWS Bedrock for deep analysis, contract generation, and auditing.
+The AI Sidecar extends capabilities via QCAI Backend for deep analysis, contract generation, and auditing.
 
 ### x/reputation — Validator Reputation
 
@@ -49,7 +49,7 @@ Where:
 
 ### x/qca — Consensus Algorithm
 
-Implements reputation-weighted proposer selection that integrates with CometBFT's PrepareProposal/ProcessProposal ABCI hooks.
+Implements reputation-weighted proposer selection that integrates with QoreChain Consensus Engine's PrepareProposal/ProcessProposal ABCI hooks.
 
 ### x/bridge — Cross-Chain Bridge (QCB)
 
@@ -72,8 +72,8 @@ SetUpContext -> CircuitBreaker -> PQCVerify -> AIAnomaly -> Extension -> Validat
 
 ```
 Docker Compose Stack:
-  - qorechain-node (CometBFT + Cosmos SDK)
-  - ai-sidecar (gRPC + AWS Bedrock)
+  - qorechain-node (QoreChain Consensus Engine + QoreChain SDK)
+  - ai-sidecar (gRPC + QCAI Backend)
   - indexer (WebSocket + Postgres)
   - postgres (Block data storage)
   - prometheus (Metrics collection)

@@ -1,4 +1,4 @@
-//go:build proprietary
+//go:build !proprietary
 
 package ai
 
@@ -17,7 +17,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
-	"github.com/qorechain/qorechain-core/x/ai/keeper"
 	"github.com/qorechain/qorechain-core/x/ai/types"
 )
 
@@ -59,10 +58,10 @@ func (AppModuleBasic) GetQueryCmd() *cobra.Command { return nil }
 
 type AppModule struct {
 	AppModuleBasic
-	keeper keeper.Keeper
+	keeper AIKeeper
 }
 
-func NewAppModule(k keeper.Keeper) AppModule {
+func NewAppModule(k AIKeeper) AppModule {
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{},
 		keeper:         k,

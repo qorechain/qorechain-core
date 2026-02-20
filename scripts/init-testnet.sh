@@ -85,7 +85,7 @@ jq '.app_state.bank.denom_metadata = [
 jq '.consensus.params.block.max_bytes = "4194304"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
 jq '.consensus.params.block.max_gas = "100000000"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
 
-# Step 8: Configure CometBFT
+# Step 8: Configure QoreChain Consensus Engine
 CONFIG="$HOME_DIR/config/config.toml"
 sed -i 's/timeout_commit = .*/timeout_commit = "5s"/' "$CONFIG" 2>/dev/null || \
     sed -i '' 's/timeout_commit = .*/timeout_commit = "5s"/' "$CONFIG"

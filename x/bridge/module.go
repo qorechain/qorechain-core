@@ -1,3 +1,5 @@
+//go:build proprietary
+
 package bridge
 
 import (

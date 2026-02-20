@@ -42,14 +42,14 @@ import (
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
-	aimodule "github.com/qorechain/qorechain-core/x/ai"
-	aikeeper "github.com/qorechain/qorechain-core/x/ai/keeper"
+	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
+	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
+
+	aimod "github.com/qorechain/qorechain-core/x/ai"
 	aitypes "github.com/qorechain/qorechain-core/x/ai/types"
 
-	pqcmodule "github.com/qorechain/qorechain-core/x/pqc"
-	"github.com/qorechain/qorechain-core/x/pqc/ffi"
-	pqckeeper "github.com/qorechain/qorechain-core/x/pqc/keeper"
-	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
+	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
+	bridgetypes "github.com/qorechain/qorechain-core/x/bridge/types"
 
 	reputationmodule "github.com/qorechain/qorechain-core/x/reputation"
 	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
@@ -58,10 +58,6 @@ import (
 	qcamodule "github.com/qorechain/qorechain-core/x/qca"
 	qcakeeper "github.com/qorechain/qorechain-core/x/qca/keeper"
 	qcatypes "github.com/qorechain/qorechain-core/x/qca/types"
-
-	bridgemodule "github.com/qorechain/qorechain-core/x/bridge"
-	bridgekeeper "github.com/qorechain/qorechain-core/x/bridge/keeper"
-	bridgetypes "github.com/qorechain/qorechain-core/x/bridge/types"
 )
 
 const AppName = "QoreChain"
@@ -74,8 +70,8 @@ var (
 	_ servertypes.Application = (*QoreChainApp)(nil)
 )
 
-// QoreChainApp extends an ABCI application with all standard Cosmos SDK modules
-// plus custom QoreChain modules (pqc, ai, reputation, qca).
+// QoreChainApp extends an ABCI application with all standard modules
+// plus custom QoreChain modules (pqc, ai, reputation, qca, bridge).
 type QoreChainApp struct {
 	*runtime.App
 	legacyAmino       *codec.LegacyAmino
@@ -83,7 +79,7 @@ type QoreChainApp struct {
 	txConfig          client.TxConfig
 	interfaceRegistry codectypes.InterfaceRegistry
 
-	// Standard Cosmos SDK keepers
+	// Standard keepers
 	AccountKeeper         authkeeper.AccountKeeper
 	BankKeeper            bankkeeper.BaseKeeper
 	StakingKeeper         *stakingkeeper.Keeper
@@ -102,15 +98,15 @@ type QoreChainApp struct {
 	EpochsKeeper          epochskeeper.Keeper
 	ProtocolPoolKeeper    protocolpoolkeeper.Keeper
 
-	// Custom QoreChain keepers
-	PQCKeeper        pqckeeper.Keeper
-	AIKeeper         aikeeper.Keeper
+	// Custom QoreChain keepers (interface types for open-core architecture)
+	PQCKeeper        pqcmod.PQCKeeper
+	AIKeeper         aimod.AIKeeper
 	ReputationKeeper reputationkeeper.Keeper
 	QCAKeeper        qcakeeper.Keeper
-	BridgeKeeper     bridgekeeper.Keeper
+	BridgeKeeper     bridgemod.BridgeKeeper
 
-	// PQC FFI client
-	pqcClient ffi.PQCClient
+	// PQC client (interface type)
+	pqcClient pqcmod.PQCClient
 
 	// simulation manager
 	sm *module.SimulationManager
@@ -175,27 +171,25 @@ func NewQoreChainApp(
 
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
-	// --- Initialize PQC module (manual, not depinject) ---
+	// --- Initialize PQC module (via factory) ---
 	pqcStoreKey := storetypes.NewKVStoreKey(pqctypes.StoreKey)
 	app.MountStores(pqcStoreKey)
 
-	app.pqcClient = ffi.NewFFIClient()
-	app.PQCKeeper = pqckeeper.NewKeeper(
+	app.pqcClient = NewPQCClient()
+	app.PQCKeeper = NewPQCKeeper(
 		app.appCodec,
 		pqcStoreKey,
 		app.pqcClient,
 		logger,
 	)
 
-	// --- Initialize AI module (manual, not depinject) ---
+	// --- Initialize AI module (via factory) ---
 	aiStoreKey := storetypes.NewKVStoreKey(aitypes.StoreKey)
 	app.MountStores(aiStoreKey)
 
-	aiEngine := aikeeper.NewHeuristicEngine(10) // max 10 tx/min per sender
-	app.AIKeeper = aikeeper.NewKeeper(
+	app.AIKeeper = NewAIKeeper(
 		app.appCodec,
 		aiStoreKey,
-		aiEngine,
 		logger,
 	)
 
@@ -223,11 +217,11 @@ func NewQoreChainApp(
 		logger,
 	)
 
-	// --- Initialize Bridge module (manual, not depinject) ---
+	// --- Initialize Bridge module (via factory) ---
 	bridgeStoreKey := storetypes.NewKVStoreKey(bridgetypes.StoreKey)
 	app.MountStores(bridgeStoreKey)
 
-	app.BridgeKeeper = bridgekeeper.NewKeeper(
+	app.BridgeKeeper = NewBridgeKeeper(
 		app.appCodec,
 		bridgeStoreKey,
 		app.PQCKeeper,
@@ -237,11 +231,11 @@ func NewQoreChainApp(
 	// Register custom modules with both ModuleManager AND basicManager
 	// so they participate in genesis init/export (not just ModuleManager.Modules[])
 	if err := app.RegisterModules(
-		pqcmodule.NewAppModule(app.PQCKeeper),
-		aimodule.NewAppModule(app.AIKeeper),
+		NewPQCAppModule(app.PQCKeeper),
+		NewAIAppModule(app.AIKeeper),
 		reputationmodule.NewAppModule(app.ReputationKeeper),
 		qcamodule.NewAppModule(app.QCAKeeper),
-		bridgemodule.NewAppModule(app.BridgeKeeper),
+		NewBridgeAppModule(app.BridgeKeeper),
 	); err != nil {
 		panic(err)
 	}
@@ -278,9 +272,9 @@ func (app *QoreChainApp) setAnteHandler(txConfig client.TxConfig) {
 				SigGasConsumer:  ante.DefaultSigVerificationGasConsumer,
 			},
 			CircuitKeeper: &app.CircuitKeeper,
-			PQCKeeper:     &app.PQCKeeper,
+			PQCKeeper:     app.PQCKeeper,
 			PQCClient:     app.pqcClient,
-			AIKeeper:      &app.AIKeeper,
+			AIKeeper:      app.AIKeeper,
 		},
 	)
 	if err != nil {

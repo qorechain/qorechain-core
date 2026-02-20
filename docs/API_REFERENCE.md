@@ -1,8 +1,8 @@
 # QoreChain API Reference
 
-## Standard Cosmos SDK Endpoints
+## Standard QoreChain SDK Endpoints
 
-All standard Cosmos SDK REST and gRPC endpoints are available:
+All standard QoreChain SDK REST and gRPC endpoints are available:
 - REST: `http://localhost:1317`
 - gRPC: `localhost:9090`
 - RPC: `http://localhost:26657`
@@ -56,7 +56,7 @@ Port: 50051
 | Service | RPC | Description |
 |---------|-----|-------------|
 | AISidecar | AnalyzeTransaction | Fast-path heuristic analysis |
-| AISidecar | DeepAnalyzeContract | Bedrock-powered contract analysis |
+| AISidecar | DeepAnalyzeContract | QCAI Backend-powered contract analysis |
 | AISidecar | DetectFraud | Deep fraud analysis |
 | AISidecar | EstimateFee | Fee prediction |
 | AISidecar | GenerateContract | AI contract generation (17 chains) |

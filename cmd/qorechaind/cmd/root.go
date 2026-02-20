@@ -23,9 +23,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	"github.com/qorechain/qorechain-core/app"
-	aimodule "github.com/qorechain/qorechain-core/x/ai"
-	bridgemodule "github.com/qorechain/qorechain-core/x/bridge"
-	pqcmodule "github.com/qorechain/qorechain-core/x/pqc"
 	qcamodule "github.com/qorechain/qorechain-core/x/qca"
 	reputationmodule "github.com/qorechain/qorechain-core/x/reputation"
 )
@@ -66,11 +63,15 @@ func NewRootCmd() *cobra.Command {
 
 	// Register custom module basics so they participate in genesis init/export.
 	// These modules are not registered via depinject so we add them here.
-	moduleBasicManager[pqcmodule.AppModuleBasic{}.Name()] = pqcmodule.AppModuleBasic{}
-	moduleBasicManager[aimodule.AppModuleBasic{}.Name()] = aimodule.AppModuleBasic{}
+	// Proprietary modules use factory pattern for open-core architecture.
+	pqcBasic := app.NewPQCModuleBasic()
+	aiBasic := app.NewAIModuleBasic()
+	bridgeBasic := app.NewBridgeModuleBasic()
+	moduleBasicManager[pqcBasic.Name()] = pqcBasic
+	moduleBasicManager[aiBasic.Name()] = aiBasic
 	moduleBasicManager[reputationmodule.AppModuleBasic{}.Name()] = reputationmodule.AppModuleBasic{}
 	moduleBasicManager[qcamodule.AppModuleBasic{}.Name()] = qcamodule.AppModuleBasic{}
-	moduleBasicManager[bridgemodule.AppModuleBasic{}.Name()] = bridgemodule.AppModuleBasic{}
+	moduleBasicManager[bridgeBasic.Name()] = bridgeBasic
 
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",

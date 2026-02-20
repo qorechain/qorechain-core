@@ -1,6 +1,6 @@
-//go:build proprietary
+//go:build !proprietary
 
-package ai
+package bridge
 
 import (
 	"encoding/json"
@@ -17,8 +17,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
-	"github.com/qorechain/qorechain-core/x/ai/keeper"
-	"github.com/qorechain/qorechain-core/x/ai/types"
+	"github.com/qorechain/qorechain-core/x/bridge/types"
 )
 
 var (
@@ -59,10 +58,10 @@ func (AppModuleBasic) GetQueryCmd() *cobra.Command { return nil }
 
 type AppModule struct {
 	AppModuleBasic
-	keeper keeper.Keeper
+	keeper BridgeKeeper
 }
 
-func NewAppModule(k keeper.Keeper) AppModule {
+func NewAppModule(k BridgeKeeper) AppModule {
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{},
 		keeper:         k,
@@ -75,7 +74,7 @@ func (AppModule) IsAppModule()        {}
 func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, data json.RawMessage) {
 	var gs types.GenesisState
 	if err := json.Unmarshal(data, &gs); err != nil {
-		panic(fmt.Sprintf("failed to unmarshal ai genesis state: %v", err))
+		panic(fmt.Sprintf("failed to unmarshal bridge genesis state: %v", err))
 	}
 	am.keeper.InitGenesis(ctx, gs)
 }
@@ -84,7 +83,7 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMe
 	gs := am.keeper.ExportGenesis(ctx)
 	bz, err := json.Marshal(gs)
 	if err != nil {
-		panic(fmt.Sprintf("failed to marshal ai genesis state: %v", err))
+		panic(fmt.Sprintf("failed to marshal bridge genesis state: %v", err))
 	}
 	return bz
 }

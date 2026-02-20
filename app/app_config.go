@@ -97,7 +97,7 @@ var (
 		nft.ModuleName,
 	}
 
-	// ModuleConfig defines the standard Cosmos SDK module configuration for QoreChain.
+	// ModuleConfig defines the standard QoreChain SDK module configuration for QoreChain.
 	// Custom modules (x/pqc, x/ai, x/reputation, x/qca) will be registered manually
 	// after the depinject phase since they require special initialization.
 	ModuleConfig = []*appv1alpha1.ModuleConfig{
