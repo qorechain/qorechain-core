@@ -1,3 +1,5 @@
+//go:build proprietary
+
 package keeper
 
 import (
@@ -45,6 +47,10 @@ func (b *EVMBridge) EstimateConfirmationTime() int64 {
 		return 45 // 15 confirmations × 3s
 	case "avalanche":
 		return 6 // 12 confirmations × 0.5s (C-Chain)
+	case "polygon":
+		return 256 // 128 confirmations × 2s (PoS deep finality)
+	case "arbitrum":
+		return 16 // 64 confirmations × 0.25s (L2 fast blocks)
 	default:
 		return 45
 	}
