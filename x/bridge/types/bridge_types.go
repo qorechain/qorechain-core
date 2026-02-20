@@ -14,6 +14,7 @@ const (
 	ChainTypeEVM      ChainType = "evm"
 	ChainTypeSolana   ChainType = "solana"
 	ChainTypeTON      ChainType = "ton"
+	ChainTypeSui      ChainType = "sui"
 )
 
 // BridgeStatus represents the current status of a bridge.
@@ -132,6 +133,39 @@ func DefaultChainConfigs() []ChainConfig {
 			Status:           BridgeStatusPending,
 			MinConfirmations: 12,
 			SupportedAssets:  []string{"AVAX", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "polygon",
+			Name:             "Polygon PoS",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 128,
+			SupportedAssets:  []string{"POL", "USDC", "USDT", "WETH"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "arbitrum",
+			Name:             "Arbitrum One",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 64,
+			SupportedAssets:  []string{"ETH", "USDC", "ARB", "USDT"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "sui",
+			Name:             "Sui",
+			ChainType:        ChainTypeSui,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 3,
+			SupportedAssets:  []string{"SUI", "USDC"},
 			MaxSingleTransfer: "1000000000000",
 			DailyLimit:       "10000000000000",
 		},
