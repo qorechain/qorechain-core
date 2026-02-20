@@ -11,7 +11,7 @@ QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at ge
 - **AI-Native Consensus** — Reputation-weighted validator selection with AI-driven optimization
 - **Universal Bridge (QCB)** — Cross-chain connectivity to Ethereum, Solana, TON, BSC, Avalanche + native IBC
 - **Fraud Detection** — Real-time anomaly detection with statistical isolation forest and circuit breaker protection
-- **Smart Contract AI** — AI-powered contract generation (17 chains) and security auditing via AI inference
+- **Smart Contract AI** — AI-powered contract generation (17 chains) and security auditing via QCAI Backend
 
 ## Quick Start
 
@@ -69,7 +69,7 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
       │  ┌────┴────┐              ┌───────┴──────┐
       │  │AI Sidecar│              │  Indexer     │
       │  │ (gRPC)   │              │  (Postgres)  │
-      │  │ AI Inference  │              └──────────────┘
+      │  │ QCAI     │              └──────────────┘
       │  └──────────┘
       │
 ┌─────┴─────────────┐

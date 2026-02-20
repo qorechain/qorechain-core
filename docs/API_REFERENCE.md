@@ -56,7 +56,7 @@ Port: 50051
 | Service | RPC | Description |
 |---------|-----|-------------|
 | AISidecar | AnalyzeTransaction | Fast-path heuristic analysis |
-| AISidecar | DeepAnalyzeContract | AI Inference-powered contract analysis |
+| AISidecar | DeepAnalyzeContract | QCAI Backend-powered contract analysis |
 | AISidecar | DetectFraud | Deep fraud analysis |
 | AISidecar | EstimateFee | Fee prediction |
 | AISidecar | GenerateContract | AI contract generation (17 chains) |

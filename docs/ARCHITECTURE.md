@@ -35,7 +35,7 @@ The AI module implements multi-layer intelligence:
 4. **Fee Optimization**: EMA-based congestion prediction with urgency-aware fee estimation
 5. **Network Optimization**: Parameter recommendations using reward function analysis
 
-The AI Sidecar extends capabilities via AI inference for deep analysis, contract generation, and auditing.
+The AI Sidecar extends capabilities via QCAI Backend for deep analysis, contract generation, and auditing.
 
 ### x/reputation — Validator Reputation
 
@@ -49,7 +49,7 @@ Where:
 
 ### x/qca — Consensus Algorithm
 
-Implements reputation-weighted proposer selection that integrates with Consensus Engine's PrepareProposal/ProcessProposal ABCI hooks.
+Implements reputation-weighted proposer selection that integrates with Consensus Engine Engine's PrepareProposal/ProcessProposal ABCI hooks.
 
 ### x/bridge — Cross-Chain Bridge (QCB)
 
@@ -72,8 +72,8 @@ SetUpContext -> CircuitBreaker -> PQCVerify -> AIAnomaly -> Extension -> Validat
 
 ```
 Docker Compose Stack:
-  - qorechain-node (Consensus Engine + QoreChain SDK)
-  - ai-sidecar (gRPC + AI inference)
+  - qorechain-node (Consensus Engine Engine + QoreChain SDK)
+  - ai-sidecar (gRPC + QCAI Backend)
   - indexer (WebSocket + Postgres)
   - postgres (Block data storage)
   - prometheus (Metrics collection)
