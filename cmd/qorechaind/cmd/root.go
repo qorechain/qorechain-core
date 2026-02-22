@@ -72,6 +72,8 @@ func NewRootCmd() *cobra.Command {
 	moduleBasicManager[reputationmodule.AppModuleBasic{}.Name()] = reputationmodule.AppModuleBasic{}
 	moduleBasicManager[qcamodule.AppModuleBasic{}.Name()] = qcamodule.AppModuleBasic{}
 	moduleBasicManager[bridgeBasic.Name()] = bridgeBasic
+	multilayerBasic := app.NewMultilayerModuleBasic()
+	moduleBasicManager[multilayerBasic.Name()] = multilayerBasic
 
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",

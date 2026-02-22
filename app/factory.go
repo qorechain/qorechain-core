@@ -11,6 +11,7 @@ import (
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
+	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 )
 
 // Module factory function variables.
@@ -34,4 +35,9 @@ var (
 	NewBridgeKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, pqcKeeper pqcmod.PQCKeeper, logger log.Logger) bridgemod.BridgeKeeper
 	NewBridgeAppModule   func(keeper bridgemod.BridgeKeeper) module.AppModule
 	NewBridgeModuleBasic func() module.AppModuleBasic
+
+	// Multilayer module factories
+	NewMultilayerKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) multilayermod.MultilayerKeeper
+	NewMultilayerAppModule   func(keeper multilayermod.MultilayerKeeper) module.AppModule
+	NewMultilayerModuleBasic func() module.AppModuleBasic
 )

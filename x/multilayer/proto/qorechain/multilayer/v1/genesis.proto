@@ -1,0 +1,12 @@
+syntax = "proto3";
+package qorechain.multilayer.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/multilayer/types";
+
+import "qorechain/multilayer/v1/layer.proto";
+
+message GenesisState {
+  Params params = 1;
+  repeated LayerConfig layers = 2;
+  repeated StateAnchor anchors = 3;
+}

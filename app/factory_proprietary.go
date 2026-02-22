@@ -13,6 +13,7 @@ import (
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
+	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 )
 
 func init() {
@@ -56,5 +57,16 @@ func init() {
 	}
 	NewBridgeModuleBasic = func() module.AppModuleBasic {
 		return bridgemod.AppModuleBasic{}
+	}
+
+	// Multilayer factories — use real multi-layer architecture implementations
+	NewMultilayerKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) multilayermod.MultilayerKeeper {
+		return multilayermod.RealNewMultilayerKeeper(cdc, storeKey, logger)
+	}
+	NewMultilayerAppModule = func(keeper multilayermod.MultilayerKeeper) module.AppModule {
+		return multilayermod.RealNewAppModule(keeper)
+	}
+	NewMultilayerModuleBasic = func() module.AppModuleBasic {
+		return multilayermod.RealNewModuleBasic()
 	}
 }

@@ -1,0 +1,37 @@
+package types
+
+// Event types for the QoreChain multi-layer architecture module
+const (
+	EventTypeSidechainRegistered = "sidechain_registered"
+	EventTypePaychainRegistered  = "paychain_registered"
+	EventTypeLayerStatusUpdated  = "layer_status_updated"
+	EventTypeStateAnchored       = "state_anchored"
+	EventTypeAnchorChallenged    = "anchor_challenged"
+	EventTypeTransactionRouted   = "transaction_routed"
+	EventTypeCrossLayerMessage   = "cross_layer_message"
+	EventTypeAnchorIntervalWarn  = "anchor_interval_warning"
+
+	AttributeKeyLayerID          = "layer_id"
+	AttributeKeyLayerType        = "layer_type"
+	AttributeKeyStatus           = "status"
+	AttributeKeyChainID          = "chain_id"
+	AttributeKeyCreator          = "creator"
+	AttributeKeyLayerHeight      = "layer_height"
+	AttributeKeyStateRoot        = "state_root"
+	AttributeKeyMainChainHeight  = "main_chain_height"
+	AttributeKeyPQCVerified      = "pqc_verified"
+	AttributeKeyTransactionCount = "transaction_count"
+	AttributeKeySelectedLayer    = "selected_layer"
+	AttributeKeyRoutingReason    = "routing_reason"
+	AttributeKeyConfidence       = "confidence"
+	AttributeKeyGasSavings       = "gas_savings"
+	AttributeKeyLatencyMs        = "latency_ms"
+	AttributeKeyChallenger       = "challenger"
+	AttributeKeyChallengeReason  = "challenge_reason"
+	AttributeKeyResolution       = "resolution"
+	AttributeKeyMessageID        = "message_id"
+	AttributeKeySourceLayer      = "source_layer"
+	AttributeKeyDestLayer        = "destination_layer"
+	AttributeKeySender           = "sender"
+	AttributeKeyReason           = "reason"
+)
