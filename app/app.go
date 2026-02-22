@@ -51,6 +51,9 @@ import (
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	bridgetypes "github.com/qorechain/qorechain-core/x/bridge/types"
 
+	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
+	multilayertypes "github.com/qorechain/qorechain-core/x/multilayer/types"
+
 	reputationmodule "github.com/qorechain/qorechain-core/x/reputation"
 	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
 	reputationtypes "github.com/qorechain/qorechain-core/x/reputation/types"
@@ -99,11 +102,12 @@ type QoreChainApp struct {
 	ProtocolPoolKeeper    protocolpoolkeeper.Keeper
 
 	// Custom QoreChain keepers (interface types for open-core architecture)
-	PQCKeeper        pqcmod.PQCKeeper
-	AIKeeper         aimod.AIKeeper
-	ReputationKeeper reputationkeeper.Keeper
-	QCAKeeper        qcakeeper.Keeper
-	BridgeKeeper     bridgemod.BridgeKeeper
+	PQCKeeper          pqcmod.PQCKeeper
+	AIKeeper           aimod.AIKeeper
+	ReputationKeeper   reputationkeeper.Keeper
+	QCAKeeper          qcakeeper.Keeper
+	BridgeKeeper       bridgemod.BridgeKeeper
+	MultilayerKeeper   multilayermod.MultilayerKeeper
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -228,6 +232,16 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize Multilayer module (via factory) ---
+	multilayerStoreKey := storetypes.NewKVStoreKey(multilayertypes.StoreKey)
+	app.MountStores(multilayerStoreKey)
+
+	app.MultilayerKeeper = NewMultilayerKeeper(
+		app.appCodec,
+		multilayerStoreKey,
+		logger,
+	)
+
 	// Register custom modules with both ModuleManager AND basicManager
 	// so they participate in genesis init/export (not just ModuleManager.Modules[])
 	if err := app.RegisterModules(
@@ -236,6 +250,7 @@ func NewQoreChainApp(
 		reputationmodule.NewAppModule(app.ReputationKeeper),
 		qcamodule.NewAppModule(app.QCAKeeper),
 		NewBridgeAppModule(app.BridgeKeeper),
+		NewMultilayerAppModule(app.MultilayerKeeper),
 	); err != nil {
 		panic(err)
 	}

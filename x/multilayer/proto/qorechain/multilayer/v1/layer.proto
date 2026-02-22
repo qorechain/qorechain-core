@@ -1,0 +1,116 @@
+syntax = "proto3";
+package qorechain.multilayer.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/multilayer/types";
+
+import "google/protobuf/timestamp.proto";
+import "cosmos/base/v1beta1/coin.proto";
+
+// LayerType defines the type of subsidiary layer
+enum LayerType {
+  LAYER_TYPE_UNSPECIFIED = 0;
+  LAYER_TYPE_SIDECHAIN = 1;    // Compute-heavy operations
+  LAYER_TYPE_PAYCHAIN = 2;     // High-frequency microtransactions
+}
+
+// LayerStatus defines the lifecycle status of a layer
+enum LayerStatus {
+  LAYER_STATUS_UNSPECIFIED = 0;
+  LAYER_STATUS_PROPOSED = 1;
+  LAYER_STATUS_ACTIVE = 2;
+  LAYER_STATUS_SUSPENDED = 3;
+  LAYER_STATUS_DECOMMISSIONED = 4;
+}
+
+// LayerConfig defines the configuration for a subsidiary layer
+message LayerConfig {
+  string layer_id = 1;                              // Unique identifier (e.g., "sidechain-defi-1")
+  LayerType layer_type = 2;
+  LayerStatus status = 3;
+  string chain_id = 4;                              // ICS chain ID for sidechains
+  string description = 5;
+
+  // Performance parameters
+  uint64 target_block_time_ms = 6;                  // Target block time in milliseconds
+  uint64 max_transactions_per_block = 7;
+  uint64 max_gas_per_block = 8;
+
+  // Security parameters
+  uint32 min_validators = 9;                        // Minimum validator set size
+  uint64 settlement_interval_blocks = 10;           // How often to anchor state to main chain
+  uint64 challenge_period_seconds = 11;             // Dispute window for state transitions
+
+  // Fee parameters
+  string base_fee_multiplier = 12;                  // Fee multiplier vs main chain (decimal string)
+  bool cross_layer_fee_bundling_enabled = 13;       // CLFB support
+
+  // Capabilities
+  repeated string supported_vm_types = 14;          // ["cosmwasm", "evm"]
+  repeated string supported_domains = 15;           // ["defi", "gaming", "iot"]
+
+  // Timestamps
+  google.protobuf.Timestamp registered_at = 16;
+  google.protobuf.Timestamp last_anchor_at = 17;
+
+  // Creator
+  string creator = 18;                              // bech32 address of layer creator
+}
+
+// StateAnchor represents a state root commitment from a subsidiary chain
+message StateAnchor {
+  string layer_id = 1;
+  uint64 layer_height = 2;                          // Block height on the subsidiary chain
+  bytes state_root = 3;                             // Merkle root of subsidiary chain state
+  bytes validator_set_hash = 4;                     // Hash of the validator set that signed
+  uint64 main_chain_height = 5;                     // Main chain height when anchored
+  google.protobuf.Timestamp anchored_at = 6;
+  bytes pqc_aggregate_signature = 7;                // PQC (Dilithium-5) aggregate sig from validators
+  uint64 transaction_count = 8;                     // Number of TXs since last anchor
+  bytes compressed_state_proof = 9;                 // CST: Compressed state transition proof
+}
+
+// CrossLayerMessage represents a message routed between layers
+message CrossLayerMessage {
+  string message_id = 1;
+  string source_layer = 2;                          // Origin layer ID ("main" for main chain)
+  string destination_layer = 3;                     // Target layer ID
+  bytes payload = 4;                                // Serialized transaction or message
+  repeated cosmos.base.v1beta1.Coin fees = 5;       // Pre-paid cross-layer fees
+  string sender = 6;                                // bech32 address
+  google.protobuf.Timestamp created_at = 7;
+  uint64 timeout_height = 8;                        // Expiry height on destination
+  string routing_decision = 9;                      // QCAI routing rationale
+}
+
+// RoutingDecision captures the QCAI Router's layer selection logic
+message RoutingDecision {
+  string transaction_hash = 1;
+  string selected_layer = 2;
+  string reason = 3;                                // Human-readable reason
+  repeated LayerScore layer_scores = 4;             // Scores per candidate layer
+  uint64 estimated_gas_savings = 5;                 // Gas saved vs main chain execution
+  uint64 estimated_latency_ms = 6;                  // Estimated time to finality on selected layer
+}
+
+// LayerScore represents QCAI's score for a candidate layer
+message LayerScore {
+  string layer_id = 1;
+  string score = 2;                                 // Decimal string 0.0-1.0
+  string congestion_factor = 3;                     // Current congestion 0.0-1.0
+  string capability_match = 4;                      // How well layer matches TX requirements 0.0-1.0
+  string cost_factor = 5;                           // Relative cost vs main chain 0.0-1.0
+}
+
+// Params defines the module parameters
+message Params {
+  uint64 max_sidechains = 1;                        // Maximum number of active sidechains
+  uint64 max_paychains = 2;                         // Maximum number of active paychains
+  uint64 min_anchor_interval = 3;                   // Minimum blocks between state anchors
+  uint64 max_anchor_interval = 4;                   // Maximum blocks between state anchors (force anchor)
+  uint64 default_challenge_period = 5;              // Default challenge period in seconds
+  string min_sidechain_stake = 6;                   // Minimum stake to create a sidechain (uqor)
+  string min_paychain_stake = 7;                    // Minimum stake to create a paychain (uqor)
+  bool routing_enabled = 8;                         // Enable QCAI-based TX routing
+  string routing_confidence_threshold = 9;          // Min confidence for QCAI routing (decimal)
+  bool cross_layer_fee_bundling = 10;               // Global CLFB toggle
+}

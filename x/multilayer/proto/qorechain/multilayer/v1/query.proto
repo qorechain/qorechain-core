@@ -1,0 +1,102 @@
+syntax = "proto3";
+package qorechain.multilayer.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/multilayer/types";
+
+import "google/api/annotations.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "qorechain/multilayer/v1/layer.proto";
+
+service Query {
+  // Layer returns a specific layer configuration
+  rpc Layer(QueryLayerRequest) returns (QueryLayerResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/layer/{layer_id}";
+  }
+
+  // Layers returns all registered layers
+  rpc Layers(QueryLayersRequest) returns (QueryLayersResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/layers";
+  }
+
+  // Anchor returns the latest state anchor for a layer
+  rpc Anchor(QueryAnchorRequest) returns (QueryAnchorResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/anchor/{layer_id}";
+  }
+
+  // Anchors returns state anchor history for a layer
+  rpc Anchors(QueryAnchorsRequest) returns (QueryAnchorsResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/anchors/{layer_id}";
+  }
+
+  // RoutingStats returns QCAI routing statistics
+  rpc RoutingStats(QueryRoutingStatsRequest) returns (QueryRoutingStatsResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/routing/stats";
+  }
+
+  // SimulateRoute simulates QCAI routing for a transaction without executing
+  rpc SimulateRoute(QuerySimulateRouteRequest) returns (QuerySimulateRouteResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/routing/simulate";
+  }
+
+  // Params returns module parameters
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/params";
+  }
+}
+
+message QueryLayerRequest {
+  string layer_id = 1;
+}
+message QueryLayerResponse {
+  LayerConfig layer = 1;
+}
+
+message QueryLayersRequest {
+  LayerType layer_type = 1;                         // Filter by type (0 = all)
+  LayerStatus status = 2;                           // Filter by status (0 = all)
+  cosmos.base.query.v1beta1.PageRequest pagination = 3;
+}
+message QueryLayersResponse {
+  repeated LayerConfig layers = 1;
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryAnchorRequest {
+  string layer_id = 1;
+}
+message QueryAnchorResponse {
+  StateAnchor anchor = 1;
+}
+
+message QueryAnchorsRequest {
+  string layer_id = 1;
+  cosmos.base.query.v1beta1.PageRequest pagination = 2;
+}
+message QueryAnchorsResponse {
+  repeated StateAnchor anchors = 1;
+  cosmos.base.query.v1beta1.PageResponse pagination = 2;
+}
+
+message QueryRoutingStatsRequest {}
+message QueryRoutingStatsResponse {
+  uint64 total_routed = 1;
+  uint64 routed_to_main = 2;
+  uint64 routed_to_sidechains = 3;
+  uint64 routed_to_paychains = 4;
+  string average_gas_savings_percent = 5;
+  string average_latency_improvement_percent = 6;
+}
+
+message QuerySimulateRouteRequest {
+  bytes transaction_payload = 1;
+  uint64 max_latency_ms = 2;
+  string max_fee = 3;
+}
+message QuerySimulateRouteResponse {
+  RoutingDecision decision = 1;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse {
+  Params params = 1;
+}

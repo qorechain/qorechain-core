@@ -1,0 +1,135 @@
+syntax = "proto3";
+package qorechain.multilayer.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/multilayer/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "qorechain/multilayer/v1/layer.proto";
+
+service Msg {
+  // RegisterSidechain creates a new sidechain layer
+  rpc RegisterSidechain(MsgRegisterSidechain) returns (MsgRegisterSidechainResponse);
+
+  // RegisterPaychain creates a new paychain layer
+  rpc RegisterPaychain(MsgRegisterPaychain) returns (MsgRegisterPaychainResponse);
+
+  // AnchorState submits a state root commitment from a subsidiary chain
+  rpc AnchorState(MsgAnchorState) returns (MsgAnchorStateResponse);
+
+  // RouteTransaction requests QCAI routing for a transaction
+  rpc RouteTransaction(MsgRouteTransaction) returns (MsgRouteTransactionResponse);
+
+  // UpdateLayerStatus changes a layer's status (suspend, activate, decommission)
+  rpc UpdateLayerStatus(MsgUpdateLayerStatus) returns (MsgUpdateLayerStatusResponse);
+
+  // ChallengeAnchor disputes a state anchor during the challenge period
+  rpc ChallengeAnchor(MsgChallengeAnchor) returns (MsgChallengeAnchorResponse);
+
+  // UpdateParams updates module parameters (governance only)
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgRegisterSidechain {
+  option (cosmos.msg.v1.signer) = "creator";
+
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string layer_id = 2;
+  string description = 3;
+  uint64 target_block_time_ms = 4;
+  uint64 max_transactions_per_block = 5;
+  uint32 min_validators = 6;
+  uint64 settlement_interval_blocks = 7;
+  repeated string supported_vm_types = 8;
+  repeated string supported_domains = 9;
+}
+
+message MsgRegisterSidechainResponse {
+  string layer_id = 1;
+  string chain_id = 2;                              // Assigned ICS chain ID
+  LayerStatus status = 3;
+}
+
+message MsgRegisterPaychain {
+  option (cosmos.msg.v1.signer) = "creator";
+
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string layer_id = 2;
+  string description = 3;
+  uint64 max_transactions_per_block = 4;
+  uint64 settlement_interval_blocks = 5;            // Batched settlement frequency
+  string base_fee_multiplier = 6;                   // e.g., "0.01" for 1/100th of main chain fees
+}
+
+message MsgRegisterPaychainResponse {
+  string layer_id = 1;
+  LayerStatus status = 2;
+}
+
+message MsgAnchorState {
+  option (cosmos.msg.v1.signer) = "relayer";
+
+  string relayer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string layer_id = 2;
+  uint64 layer_height = 3;
+  bytes state_root = 4;
+  bytes validator_set_hash = 5;
+  bytes pqc_aggregate_signature = 6;
+  uint64 transaction_count = 7;
+  bytes compressed_state_proof = 8;
+}
+
+message MsgAnchorStateResponse {
+  uint64 main_chain_height = 1;
+  bool accepted = 2;
+}
+
+message MsgRouteTransaction {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes transaction_payload = 2;
+  string preferred_layer = 3;                       // Optional hint
+  uint64 max_latency_ms = 4;                        // Max acceptable latency
+  string max_fee = 5;                                // Max fee willing to pay (uqor)
+}
+
+message MsgRouteTransactionResponse {
+  RoutingDecision decision = 1;
+  string cross_layer_message_id = 2;
+}
+
+message MsgUpdateLayerStatus {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string layer_id = 2;
+  LayerStatus new_status = 3;
+  string reason = 4;
+}
+
+message MsgUpdateLayerStatusResponse {}
+
+message MsgChallengeAnchor {
+  option (cosmos.msg.v1.signer) = "challenger";
+
+  string challenger = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string layer_id = 2;
+  uint64 anchor_height = 3;
+  bytes fraud_proof = 4;                            // Proof that the anchor is invalid
+  string challenge_reason = 5;
+}
+
+message MsgChallengeAnchorResponse {
+  bool challenge_accepted = 1;
+  string resolution = 2;
+}
+
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  Params params = 2;
+}
+
+message MsgUpdateParamsResponse {}
