@@ -49,6 +49,49 @@ All standard QoreChain SDK REST and gRPC endpoints are available:
 | `/qorechain/reputation/v1/validators` | GET | All validator reputation scores |
 | `/qorechain/reputation/v1/validators/{address}` | GET | Specific validator score |
 
+### Cross-VM Module
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/crossvm/v1/message/{id}` | GET | Cross-VM message by ID |
+| `/qorechain/crossvm/v1/pending` | GET | Pending cross-VM messages |
+| `/qorechain/crossvm/v1/params` | GET | Module parameters |
+
+### Multilayer Module
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/multilayer/v1/layer/{id}` | GET | Layer info by ID |
+| `/qorechain/multilayer/v1/layers` | GET | All registered layers |
+| `/qorechain/multilayer/v1/anchor/{id}` | GET | State anchor by ID |
+| `/qorechain/multilayer/v1/anchors` | GET | All state anchors |
+| `/qorechain/multilayer/v1/routing-stats` | GET | Routing statistics |
+| `/qorechain/multilayer/v1/params` | GET | Module parameters |
+
+## JSON-RPC (EVM)
+
+Port: 8545 (HTTP), 8546 (WebSocket)
+
+### Standard Ethereum Namespaces
+
+| Namespace | Description |
+|-----------|-------------|
+| `eth_` | Ethereum state, transactions, blocks |
+| `web3_` | Web3 utility methods |
+| `net_` | Network information |
+| `txpool_` | Transaction pool queries |
+
+### Custom `qor_` Namespace
+
+| Method | Parameters | Description |
+|--------|-----------|-------------|
+| `qor_getPQCKeyStatus` | `address` | PQC key registration status |
+| `qor_getAIStats` | (none) | AI module statistics and configuration |
+| `qor_getCrossVMMessage` | `messageId` | Cross-VM message status by ID |
+| `qor_getReputationScore` | `validator` | Validator reputation score breakdown |
+| `qor_getLayerInfo` | `layerId` | Multilayer chain layer information |
+| `qor_getBridgeStatus` | `chainId` | Bridge connection status for a chain |
+
 ## AI Sidecar gRPC
 
 Port: 50051

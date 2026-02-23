@@ -29,6 +29,9 @@ import (
 	vestingmodulev1 "cosmossdk.io/api/cosmos/vesting/module/v1"
 	"cosmossdk.io/core/appconfig"
 	"cosmossdk.io/depinject"
+	"cosmossdk.io/x/tx/signing"
+
+	evmvmtypes "github.com/cosmos/evm/x/vm/types"
 	_ "cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	_ "cosmossdk.io/x/evidence"
@@ -85,6 +88,15 @@ var (
 		{Account: nft.ModuleName},
 		{Account: protocolpooltypes.ModuleName},
 		{Account: protocolpooltypes.ProtocolPoolEscrowAccount},
+		// IBC transfer needs mint/burn for IBC vouchers
+		{Account: "transfer", Permissions: []string{authtypes.Minter, authtypes.Burner}},
+		// EVM modules need mint/burn for gas and token operations
+		{Account: "evm", Permissions: []string{authtypes.Minter, authtypes.Burner}},
+		{Account: "erc20", Permissions: []string{authtypes.Minter, authtypes.Burner}},
+		// PreciseBank wraps bank operations for EVM 18-decimal precision
+		{Account: "precisebank", Permissions: []string{authtypes.Minter, authtypes.Burner}},
+		// CosmWasm wasm module
+		{Account: "wasm", Permissions: []string{authtypes.Burner}},
 	}
 
 	// blockAccAddrs defines blocked module account addresses.
@@ -118,6 +130,9 @@ var (
 					stakingtypes.ModuleName,
 					authz.ModuleName,
 					epochstypes.ModuleName,
+					// EVM: feemarket MUST come before evm
+					"feemarket",
+					"evm",
 				},
 				EndBlockers: []string{
 					govtypes.ModuleName,
@@ -125,6 +140,9 @@ var (
 					feegrant.ModuleName,
 					group.ModuleName,
 					protocolpooltypes.ModuleName,
+					// EVM post-block processing
+					"evm",
+					"feemarket",
 				},
 				OverrideStoreKeys: []*runtimev1alpha1.StoreKeyConfig{
 					{
@@ -154,11 +172,24 @@ var (
 					circuittypes.ModuleName,
 					epochstypes.ModuleName,
 					protocolpooltypes.ModuleName,
+					// IBC modules (before EVM — transfer needs IBC core)
+					"ibc",
+					"transfer",
+					// EVM modules (feemarket before evm, precisebank before evm)
+					"feemarket",
+					"precisebank",
+					"evm",
+					"erc20",
+					// CosmWasm (after IBC modules)
+					"wasm",
 					// QoreChain custom modules
 					"pqc",
 					"ai",
 					"reputation",
 					"qca",
+					"bridge",
+					"crossvm",
+					"multilayer",
 				},
 				ExportGenesis: []string{
 					consensustypes.ModuleName,
@@ -180,11 +211,24 @@ var (
 					vestingtypes.ModuleName,
 					circuittypes.ModuleName,
 					epochstypes.ModuleName,
+					// IBC modules
+					"ibc",
+					"transfer",
+					// EVM modules
+					"feemarket",
+					"precisebank",
+					"evm",
+					"erc20",
+					// CosmWasm
+					"wasm",
 					// QoreChain custom modules
 					"pqc",
 					"ai",
 					"reputation",
 					"qca",
+					"bridge",
+					"crossvm",
+					"multilayer",
 				},
 			}),
 		},
@@ -296,5 +340,16 @@ var (
 				),
 			},
 		),
+		// EVM custom signers — required for MsgEthereumTx and MsgConvertERC20
+		// to be recognized by the InterfaceRegistry signing context.
+		// Provided as functions (depinject collects many-per-container types).
+		depinject.Provide(
+			ProvideEVMCustomGetSigner,
+		),
 	)
 )
+
+func ProvideEVMCustomGetSigner() signing.CustomGetSigner {
+	return evmvmtypes.MsgEthereumTxCustomGetSigner
+}
+
