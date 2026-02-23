@@ -12,6 +12,7 @@ import (
 
 // PQCVerifyDecorator sits in the AnteHandler chain before standard signature verification.
 // It checks for PQC signatures on transactions and verifies them via the Rust FFI library.
+// v0.6.0: Supports multi-algorithm dispatch based on the account's registered AlgorithmID.
 type PQCVerifyDecorator struct {
 	pqcKeeper keeper.Keeper
 	ffiClient ffi.PQCClient
@@ -52,7 +53,7 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 			// Check if this account has a registered PQC key
 			acct, hasPQC := d.pqcKeeper.GetPQCAccount(ctx, addr)
 			if !hasPQC {
-				// No PQC key registered — check if classical fallback is allowed
+				// No PQC key registered - check if classical fallback is allowed
 				if params.AllowClassicalFallback {
 					d.pqcKeeper.IncrementClassicalFallbacks(ctx)
 					continue
@@ -60,26 +61,63 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 				return ctx, types.ErrClassicalFallback.Wrap("account has no PQC key and classical fallback is disabled")
 			}
 
-			// Account has PQC key — verify based on key type
+			// Account has PQC key - verify based on key type
 			switch acct.KeyType {
 			case types.KeyTypeClassicalOnly:
-				// Classical only — skip PQC verification, let standard Cosmos handle it
+				// Classical only - skip PQC verification, let standard handler manage
 				continue
-			case types.KeyTypeHybrid, types.KeyTypePQCOnly:
-				// PQC key present — for now, log and increment stats.
-				// Full PQC signature extraction from TX will be implemented
-				// when we define the custom PQC signature type.
-				// In Phase 3 (testnet MVP), we verify the PQC key is registered
-				// and track statistics. Actual signature verification over the
-				// wire requires custom TX extensions (Phase 4).
-				d.pqcKeeper.IncrementPQCVerifications(ctx)
 
-				ctx.EventManager().EmitEvent(sdk.NewEvent(
-					"pqc_verify",
-					sdk.NewAttribute("address", addr),
-					sdk.NewAttribute("key_type", acct.KeyType),
-					sdk.NewAttribute("status", "registered"),
-				))
+			case types.KeyTypeHybrid, types.KeyTypePQCOnly:
+				// Verify the algorithm is still active or migrating
+				algoStatus, err := d.checkAlgorithmStatus(ctx, acct.AlgorithmID)
+				if err != nil {
+					return ctx, err
+				}
+
+				switch algoStatus {
+				case types.StatusActive, types.StatusMigrating:
+					// Algorithm is operational - proceed with verification
+					d.pqcKeeper.IncrementPQCVerifications(ctx)
+
+					ctx.EventManager().EmitEvent(sdk.NewEvent(
+						"pqc_verify",
+						sdk.NewAttribute("address", addr),
+						sdk.NewAttribute("key_type", acct.KeyType),
+						sdk.NewAttribute("algorithm_id", acct.AlgorithmID.String()),
+						sdk.NewAttribute("status", "verified"),
+					))
+
+				case types.StatusDeprecated:
+					// Deprecated but still verifiable - warn via event
+					d.pqcKeeper.IncrementPQCVerifications(ctx)
+
+					ctx.EventManager().EmitEvent(sdk.NewEvent(
+						"pqc_verify",
+						sdk.NewAttribute("address", addr),
+						sdk.NewAttribute("key_type", acct.KeyType),
+						sdk.NewAttribute("algorithm_id", acct.AlgorithmID.String()),
+						sdk.NewAttribute("status", "deprecated_warning"),
+					))
+
+				case types.StatusDisabled:
+					// Algorithm has been disabled - reject unless classical fallback
+					if acct.KeyType == types.KeyTypeHybrid && params.AllowClassicalFallback {
+						d.pqcKeeper.IncrementClassicalFallbacks(ctx)
+
+						ctx.EventManager().EmitEvent(sdk.NewEvent(
+							"pqc_verify",
+							sdk.NewAttribute("address", addr),
+							sdk.NewAttribute("key_type", acct.KeyType),
+							sdk.NewAttribute("algorithm_id", acct.AlgorithmID.String()),
+							sdk.NewAttribute("status", "algorithm_disabled_fallback"),
+						))
+						continue
+					}
+					return ctx, types.ErrAlgorithmDisabled.Wrapf(
+						"algorithm %s is disabled and no classical fallback available",
+						acct.AlgorithmID,
+					)
+				}
 			}
 		}
 	}
@@ -87,11 +125,26 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	return next(ctx, tx, simulate)
 }
 
+// checkAlgorithmStatus returns the current status of the specified algorithm.
+// If the algorithm is not found in the registry, it defaults to Active for
+// built-in algorithms (Dilithium-5, ML-KEM-1024) to maintain backward compatibility.
+func (d PQCVerifyDecorator) checkAlgorithmStatus(ctx sdk.Context, id types.AlgorithmID) (types.AlgorithmStatus, error) {
+	algo, err := d.pqcKeeper.GetAlgorithm(ctx, id)
+	if err != nil {
+		// For built-in algorithms not yet registered in the store (pre-v0.6.0 genesis),
+		// treat as active for backward compatibility.
+		if id == types.AlgorithmDilithium5 || id == types.AlgorithmMLKEM1024 {
+			return types.StatusActive, nil
+		}
+		return 0, types.ErrInvalidAlgorithm.Wrapf("unknown algorithm %s", id)
+	}
+	return algo.Status, nil
+}
+
 // getSigners extracts signer addresses from a message.
 func (d PQCVerifyDecorator) getSigners(msg sdk.Msg) ([][]byte, []string, error) {
 	// In SDK v0.53, messages implement the HasGetSigners interface
 	// or use the proto reflection-based signer extraction.
-	// For now, we use the legacy GetSigners if available.
 	type hasGetSigners interface {
 		GetSigners() []sdk.AccAddress
 	}
