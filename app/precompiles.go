@@ -121,7 +121,7 @@ func (app *QoreChainApp) registerEVMPrecompiles() {
 			app.TransferKeeper,
 			app.IBCKeeper.ChannelKeeper,
 			app.EVMKeeper,
-			app.GovKeeper,
+			*app.GovKeeper,
 			app.SlashingKeeper,
 			app.EvidenceKeeper,
 			app.appCodec,

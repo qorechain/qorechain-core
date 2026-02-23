@@ -23,11 +23,11 @@ import (
 
 // Keeper manages the cross-VM message store and orchestrates calls between VMs.
 type Keeper struct {
-	cdc        codec.Codec
-	storeKey   storetypes.StoreKey
-	evmKeeper  *evmkeeper.Keeper
-	wasmKeeper *wasmkeeper.Keeper
-	logger     log.Logger
+	cdc            codec.Codec
+	storeKey       storetypes.StoreKey
+	evmKeeper      *evmkeeper.Keeper
+	wasmContractKp *wasmkeeper.PermissionedKeeper
+	logger         log.Logger
 }
 
 func NewKeeper(
@@ -38,11 +38,11 @@ func NewKeeper(
 	logger log.Logger,
 ) Keeper {
 	return Keeper{
-		cdc:        cdc,
-		storeKey:   storeKey,
-		evmKeeper:  evmKeeper,
-		wasmKeeper: wasmKeeper,
-		logger:     logger.With("module", types.ModuleName),
+		cdc:            cdc,
+		storeKey:       storeKey,
+		evmKeeper:      evmKeeper,
+		wasmContractKp: wasmkeeper.NewDefaultPermissionKeeper(wasmKeeper),
+		logger:         logger.With("module", types.ModuleName),
 	}
 }
 
@@ -234,7 +234,7 @@ func (k Keeper) callCosmWasm(ctx sdk.Context, msg types.CrossVMMessage) (types.C
 	}
 
 	gasBefore := ctx.GasMeter().GasConsumed()
-	result, err := k.wasmKeeper.Execute(ctx, contractAddr, senderAddr, msg.Payload, msg.Funds)
+	result, err := k.wasmContractKp.Execute(ctx, contractAddr, senderAddr, msg.Payload, msg.Funds)
 	gasUsed := ctx.GasMeter().GasConsumed() - gasBefore
 
 	if err != nil {
