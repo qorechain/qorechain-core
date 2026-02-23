@@ -36,32 +36,28 @@ services:
       retries: 3
 
   # ─────────────────────────────────────────────
-  # AI Sidecar Service
+  # AI Sidecar Service (pre-built image)
   # ─────────────────────────────────────────────
   ai-sidecar:
-    build:
-      context: ./sidecar
-      dockerfile: Dockerfile
+    image: ghcr.io/qorechain/ai-sidecar:latest
     container_name: qorechain-ai-sidecar
     ports:
       - "50051:50051"   # gRPC
     environment:
-      - QCAI_REGION=us-east-1
+      - AWS_REGION=${AWS_REGION:-us-east-1}
       - QCAI_ACCESS_KEY_ID=${QCAI_ACCESS_KEY_ID}
       - QCAI_SECRET_ACCESS_KEY=${QCAI_SECRET_ACCESS_KEY}
-      - BEDROCK_MODEL_ID=us.anthropic.claude-haiku-4-5-20251001-v1:0
+      - AI_MODEL_ID=${AI_MODEL_ID}
       - LOG_LEVEL=info
     networks:
       - qorechain-net
     restart: unless-stopped
 
   # ─────────────────────────────────────────────
-  # Block Indexer (for Explorer API)
+  # Block Indexer (pre-built image)
   # ─────────────────────────────────────────────
   block-indexer:
-    build:
-      context: ./indexer
-      dockerfile: Dockerfile
+    image: ghcr.io/qorechain/block-indexer:latest
     container_name: qorechain-indexer
     depends_on:
       - qorechain-node
@@ -90,7 +86,6 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./indexer/migrations:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     networks:
