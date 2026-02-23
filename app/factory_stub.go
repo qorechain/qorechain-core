@@ -10,9 +10,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
+	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
+
+	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
+
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
+	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 )
 
@@ -54,6 +59,16 @@ func init() {
 	}
 	NewBridgeModuleBasic = func() module.AppModuleBasic {
 		return bridgemod.AppModuleBasic{}
+	}
+
+	NewCrossVMKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ *evmkeeper.Keeper, _ *wasmkeeper.Keeper, logger log.Logger) crossvmmod.CrossVMKeeper {
+		return crossvmmod.NewStubKeeper(logger)
+	}
+	NewCrossVMAppModule = func(keeper crossvmmod.CrossVMKeeper) module.AppModule {
+		return crossvmmod.NewAppModule(keeper)
+	}
+	NewCrossVMModuleBasic = func() module.AppModuleBasic {
+		return crossvmmod.AppModuleBasic{}
 	}
 
 	NewMultilayerKeeper = func(_ codec.Codec, _ storetypes.StoreKey, logger log.Logger) multilayermod.MultilayerKeeper {
