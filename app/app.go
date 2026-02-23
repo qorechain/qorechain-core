@@ -2,6 +2,7 @@ package app
 
 import (
 	"io"
+	"path/filepath"
 
 	dbm "github.com/cosmos/cosmos-db"
 
@@ -21,6 +22,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
@@ -36,12 +38,53 @@ import (
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	epochskeeper "github.com/cosmos/cosmos-sdk/x/epochs/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
+	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
 	groupkeeper "github.com/cosmos/cosmos-sdk/x/group/keeper"
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
 	protocolpoolkeeper "github.com/cosmos/cosmos-sdk/x/protocolpool/keeper"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
+	// IBC
+	ibc "github.com/cosmos/ibc-go/v10/modules/core"
+	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
+	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
+	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
+	ibcapi "github.com/cosmos/ibc-go/v10/modules/core/api"
+	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
+
+	// QoreChain EVM
+	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
+	erc20keeper "github.com/cosmos/evm/x/erc20/keeper"
+	erc20types "github.com/cosmos/evm/x/erc20/types"
+	erc20v2 "github.com/cosmos/evm/x/erc20/v2"
+	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
+	precisebankkeeper "github.com/cosmos/evm/x/precisebank/keeper"
+	precisebanktypes "github.com/cosmos/evm/x/precisebank/types"
+	evmvm "github.com/cosmos/evm/x/vm"
+	evmfeemarket "github.com/cosmos/evm/x/feemarket"
+	evmerc20 "github.com/cosmos/evm/x/erc20"
+	evmprecisebank "github.com/cosmos/evm/x/precisebank"
+	evmtransfer "github.com/cosmos/evm/x/ibc/transfer"
+	evmtransferkeeper "github.com/cosmos/evm/x/ibc/transfer/keeper"
+	evmtransferv2 "github.com/cosmos/evm/x/ibc/transfer/v2"
+
+	// CosmWasm
+	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
+	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
+	wasm "github.com/CosmWasm/wasmd/x/wasm"
+
+	// Params (for legacy IBC subspace compatibility)
+	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
+
+	// geth tracers (required side-effect imports for EVM)
+	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
+	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
+
+	// QoreChain custom modules
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 
@@ -64,6 +107,12 @@ import (
 )
 
 const AppName = "QoreChain"
+
+// emptySubspace implements ibc-go ParamSubspace interface as a no-op.
+// IBC v10 only uses this for legacy migration reads; fresh chains don't need it.
+type emptySubspace struct{}
+
+func (emptySubspace) GetParamSet(_ sdk.Context, _ paramstypes.ParamSet) {}
 
 // DefaultNodeHome is the default home directory for the QoreChain daemon.
 var DefaultNodeHome string
@@ -101,13 +150,26 @@ type QoreChainApp struct {
 	EpochsKeeper          epochskeeper.Keeper
 	ProtocolPoolKeeper    protocolpoolkeeper.Keeper
 
+	// IBC keepers
+	IBCKeeper      *ibckeeper.Keeper
+	TransferKeeper evmtransferkeeper.Keeper
+
+	// EVM keepers (QoreChain EVM)
+	FeeMarketKeeper   feemarketkeeper.Keeper
+	EVMKeeper         *evmkeeper.Keeper
+	Erc20Keeper       erc20keeper.Keeper
+	PreciseBankKeeper precisebankkeeper.Keeper
+
+	// CosmWasm keeper
+	WasmKeeper wasmkeeper.Keeper
+
 	// Custom QoreChain keepers (interface types for open-core architecture)
-	PQCKeeper          pqcmod.PQCKeeper
-	AIKeeper           aimod.AIKeeper
-	ReputationKeeper   reputationkeeper.Keeper
-	QCAKeeper          qcakeeper.Keeper
-	BridgeKeeper       bridgemod.BridgeKeeper
-	MultilayerKeeper   multilayermod.MultilayerKeeper
+	PQCKeeper        pqcmod.PQCKeeper
+	AIKeeper         aimod.AIKeeper
+	ReputationKeeper reputationkeeper.Keeper
+	QCAKeeper        qcakeeper.Keeper
+	BridgeKeeper     bridgemod.BridgeKeeper
+	MultilayerKeeper multilayermod.MultilayerKeeper
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -174,6 +236,131 @@ func NewQoreChainApp(
 	}
 
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
+
+	// Governance authority address (used as keeper authority for IBC/EVM/Wasm modules)
+	authAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
+
+	// ==========================================================================
+	// IBC Core + Transfer
+	// ==========================================================================
+	ibcStoreKey := storetypes.NewKVStoreKey(ibcexported.StoreKey)
+	transferStoreKey := storetypes.NewKVStoreKey(ibctransfertypes.StoreKey)
+	app.MountStores(ibcStoreKey, transferStoreKey)
+
+	app.IBCKeeper = ibckeeper.NewKeeper(
+		app.appCodec,
+		runtime.NewKVStoreService(ibcStoreKey),
+		emptySubspace{}, // legacy param subspace (only used for migration, not needed for fresh chains)
+		app.UpgradeKeeper,
+		authAddr,
+	)
+
+	// ==========================================================================
+	// QoreChain EVM: FeeMarket → PreciseBank → EVM → ERC20 (init order matters)
+	// ==========================================================================
+	feeMarketStoreKey := storetypes.NewKVStoreKey(feemarkettypes.StoreKey)
+	feeMarketTransientKey := storetypes.NewTransientStoreKey(feemarkettypes.TransientKey)
+	preciseBankStoreKey := storetypes.NewKVStoreKey(precisebanktypes.StoreKey)
+	evmStoreKey := storetypes.NewKVStoreKey(evmtypes.StoreKey)
+	evmTransientKey := storetypes.NewTransientStoreKey(evmtypes.TransientKey)
+	erc20StoreKey := storetypes.NewKVStoreKey(erc20types.StoreKey)
+	app.MountStores(
+		feeMarketStoreKey, feeMarketTransientKey,
+		preciseBankStoreKey,
+		evmStoreKey, evmTransientKey,
+		erc20StoreKey,
+	)
+
+	// Step 1: FeeMarketKeeper (no EVM deps)
+	app.FeeMarketKeeper = feemarketkeeper.NewKeeper(
+		app.appCodec,
+		authtypes.NewModuleAddress(govtypes.ModuleName),
+		feeMarketStoreKey,
+		feeMarketTransientKey,
+	)
+
+	// Step 2: PreciseBankKeeper (wraps BankKeeper for 18-decimal EVM operations)
+	app.PreciseBankKeeper = precisebankkeeper.NewKeeper(
+		app.appCodec,
+		preciseBankStoreKey,
+		app.BankKeeper,
+		app.AccountKeeper,
+	)
+
+	// Step 3: EVMKeeper (depends on FeeMarket, PreciseBank; forward-ref to Erc20Keeper)
+	allKeys := app.kvStoreKeys()
+	app.EVMKeeper = evmkeeper.NewKeeper(
+		app.appCodec,
+		evmStoreKey,
+		evmTransientKey,
+		allKeys,
+		authtypes.NewModuleAddress(govtypes.ModuleName),
+		app.AccountKeeper,
+		app.PreciseBankKeeper,
+		app.StakingKeeper,
+		app.FeeMarketKeeper,
+		&app.ConsensusParamsKeeper,
+		&app.Erc20Keeper, // forward reference — assigned below
+		"",               // tracer (empty = default)
+	)
+
+	// Step 4: Erc20Keeper (depends on EVMKeeper; forward-ref to TransferKeeper)
+	app.Erc20Keeper = erc20keeper.NewKeeper(
+		erc20StoreKey,
+		app.appCodec,
+		authtypes.NewModuleAddress(govtypes.ModuleName),
+		app.AccountKeeper,
+		app.PreciseBankKeeper,
+		app.EVMKeeper,
+		app.StakingKeeper,
+		&app.TransferKeeper, // forward reference — assigned below
+	)
+
+	// Step 5: EVM-wrapped IBC TransferKeeper (adds ERC-20 auto-registration)
+	app.TransferKeeper = evmtransferkeeper.NewKeeper(
+		app.appCodec,
+		runtime.NewKVStoreService(transferStoreKey),
+		paramstypes.Subspace{}, // legacy param subspace (not needed for fresh chains)
+		app.IBCKeeper.ChannelKeeper, // ics4Wrapper
+		app.IBCKeeper.ChannelKeeper, // channelKeeper
+		app.MsgServiceRouter(),
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.Erc20Keeper,
+		authAddr,
+	)
+
+	// ==========================================================================
+	// CosmWasm (x/wasm)
+	// ==========================================================================
+	wasmStoreKey := storetypes.NewKVStoreKey(wasmtypes.StoreKey)
+	app.MountStores(wasmStoreKey)
+
+	wasmDir := filepath.Join(DefaultNodeHome, "wasm")
+	wasmNodeConfig := wasmtypes.DefaultNodeConfig()
+
+	app.WasmKeeper = wasmkeeper.NewKeeper(
+		app.appCodec,
+		runtime.NewKVStoreService(wasmStoreKey),
+		app.AccountKeeper,
+		app.BankKeeper,
+		app.StakingKeeper,
+		distrkeeper.NewQuerier(app.DistrKeeper),
+		app.IBCKeeper.ChannelKeeper, // ics4Wrapper
+		app.IBCKeeper.ChannelKeeper, // channelKeeper
+		app.TransferKeeper.Keeper,   // ICS20TransferPortSource
+		app.MsgServiceRouter(),
+		app.GRPCQueryRouter(),
+		wasmDir,
+		wasmNodeConfig,
+		wasmtypes.VMConfig{},
+		wasmkeeper.BuiltInCapabilities(),
+		authAddr,
+	)
+
+	// ==========================================================================
+	// QoreChain custom modules
+	// ==========================================================================
 
 	// --- Initialize PQC module (via factory) ---
 	pqcStoreKey := storetypes.NewKVStoreKey(pqctypes.StoreKey)
@@ -242,9 +429,52 @@ func NewQoreChainApp(
 		logger,
 	)
 
-	// Register custom modules with both ModuleManager AND basicManager
-	// so they participate in genesis init/export (not just ModuleManager.Modules[])
+	// ==========================================================================
+	// IBC Router Setup (transfer stack with ERC-20 middleware)
+	// ==========================================================================
+
+	// IBC v1 transfer stack: channel → erc20 middleware → transfer
+	var transferStack porttypes.IBCModule
+	transferStack = evmtransfer.NewIBCModule(app.TransferKeeper)
+	transferStack = evmerc20.NewIBCMiddleware(app.Erc20Keeper, transferStack)
+
+	// IBC v2 transfer stack
+	var transferStackV2 ibcapi.IBCModule
+	transferStackV2 = evmtransferv2.NewIBCModule(app.TransferKeeper)
+	transferStackV2 = erc20v2.NewIBCMiddleware(transferStackV2, app.Erc20Keeper)
+
+	// Create IBC routers, add transfer route, set and seal
+	ibcRouter := porttypes.NewRouter()
+	ibcRouter.AddRoute(ibctransfertypes.ModuleName, transferStack)
+	ibcRouterV2 := ibcapi.NewRouter()
+	ibcRouterV2.AddRoute(ibctransfertypes.ModuleName, transferStackV2)
+
+	app.IBCKeeper.SetRouter(ibcRouter)
+	app.IBCKeeper.SetRouterV2(ibcRouterV2)
+
+	// Register IBC light client module
+	storeProvider := app.IBCKeeper.ClientKeeper.GetStoreProvider()
+	tmLightClientModule := ibctm.NewLightClientModule(app.appCodec, storeProvider)
+	app.IBCKeeper.ClientKeeper.AddRoute(ibctm.ModuleName, &tmLightClientModule)
+
+	// ==========================================================================
+	// Module Registration
+	// ==========================================================================
+
+	// Register all non-depinject modules with the ModuleManager.
 	if err := app.RegisterModules(
+		// IBC modules
+		ibc.NewAppModule(app.IBCKeeper),
+		evmtransfer.NewAppModule(app.TransferKeeper),
+		ibctm.NewAppModule(tmLightClientModule),
+		// EVM modules
+		evmvm.NewAppModule(app.EVMKeeper, app.AccountKeeper, app.AccountKeeper.AddressCodec()),
+		evmfeemarket.NewAppModule(app.FeeMarketKeeper),
+		evmerc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
+		evmprecisebank.NewAppModule(app.PreciseBankKeeper, app.BankKeeper, app.AccountKeeper),
+		// CosmWasm module
+		wasm.NewAppModule(app.appCodec, &app.WasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.MsgServiceRouter(), nil),
+		// QoreChain custom modules
 		NewPQCAppModule(app.PQCKeeper),
 		NewAIAppModule(app.AIKeeper),
 		reputationmodule.NewAppModule(app.ReputationKeeper),

@@ -22,6 +22,20 @@ import (
 	authtxconfig "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 
+	// IBC
+	ibc "github.com/cosmos/ibc-go/v10/modules/core"
+	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
+	ibctransfer "github.com/cosmos/ibc-go/v10/modules/apps/transfer"
+
+	// QoreChain EVM
+	evmvm "github.com/cosmos/evm/x/vm"
+	evmfeemarket "github.com/cosmos/evm/x/feemarket"
+	evmerc20 "github.com/cosmos/evm/x/erc20"
+	evmprecisebank "github.com/cosmos/evm/x/precisebank"
+
+	// CosmWasm
+	wasm "github.com/CosmWasm/wasmd/x/wasm"
+
 	"github.com/qorechain/qorechain-core/app"
 	qcamodule "github.com/qorechain/qorechain-core/x/qca"
 	reputationmodule "github.com/qorechain/qorechain-core/x/reputation"
@@ -61,9 +75,23 @@ func NewRootCmd() *cobra.Command {
 		panic(err)
 	}
 
-	// Register custom module basics so they participate in genesis init/export.
-	// These modules are not registered via depinject so we add them here.
-	// Proprietary modules use factory pattern for open-core architecture.
+	// Register non-depinject module basics so they participate in genesis init/export.
+
+	// IBC modules
+	moduleBasicManager[ibc.AppModule{}.Name()] = ibc.AppModule{}
+	moduleBasicManager[ibctransfer.AppModule{}.Name()] = ibctransfer.AppModule{}
+	moduleBasicManager[ibctm.AppModuleBasic{}.Name()] = ibctm.AppModuleBasic{}
+
+	// EVM modules
+	moduleBasicManager[evmvm.AppModuleBasic{}.Name()] = evmvm.AppModuleBasic{}
+	moduleBasicManager[evmfeemarket.AppModuleBasic{}.Name()] = evmfeemarket.AppModuleBasic{}
+	moduleBasicManager[evmerc20.AppModuleBasic{}.Name()] = evmerc20.AppModuleBasic{}
+	moduleBasicManager[evmprecisebank.AppModuleBasic{}.Name()] = evmprecisebank.AppModuleBasic{}
+
+	// CosmWasm module
+	moduleBasicManager[wasm.AppModuleBasic{}.Name()] = wasm.AppModuleBasic{}
+
+	// QoreChain custom modules (proprietary use factory pattern)
 	pqcBasic := app.NewPQCModuleBasic()
 	aiBasic := app.NewAIModuleBasic()
 	bridgeBasic := app.NewBridgeModuleBasic()
