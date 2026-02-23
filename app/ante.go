@@ -3,9 +3,13 @@ package app
 import (
 	"errors"
 
+	corestoretypes "cosmossdk.io/core/store"
 	errorsmod "cosmossdk.io/errors"
 	storetypes "cosmossdk.io/store/types"
 	circuitante "cosmossdk.io/x/circuit/ante"
+
+	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
+	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
@@ -47,6 +51,11 @@ type HandlerOptions struct {
 	EvmKeeper        *evmkeeper.Keeper
 	IBCKeeper        *ibckeeper.Keeper
 	MaxTxGasWanted   uint64
+
+	// CosmWasm
+	WasmKeeper            *wasmkeeper.Keeper
+	WasmConfig            *wasmtypes.NodeConfig
+	TXCounterStoreService corestoretypes.KVStoreService
 }
 
 // NewAnteHandler returns an AnteHandler with dual routing:
@@ -142,6 +151,11 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 			sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}),
 		),
 		ante.NewSetUpContextDecorator(),
+		// CosmWasm decorators — limit simulation gas and track tx position
+		wasmkeeper.NewLimitSimulationGasDecorator(options.WasmConfig.SimulationGasLimit),
+		wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService),
+		wasmkeeper.NewGasRegisterDecorator(options.WasmKeeper.GetGasRegister()),
+		wasmkeeper.NewTxContractsDecorator(),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
 		// PQC signature verification — runs before standard sig verify
 		NewPQCVerifyDecorator(options.PQCKeeper, options.PQCClient),
