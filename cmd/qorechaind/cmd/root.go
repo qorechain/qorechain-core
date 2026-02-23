@@ -100,6 +100,8 @@ func NewRootCmd() *cobra.Command {
 	moduleBasicManager[reputationmodule.AppModuleBasic{}.Name()] = reputationmodule.AppModuleBasic{}
 	moduleBasicManager[qcamodule.AppModuleBasic{}.Name()] = qcamodule.AppModuleBasic{}
 	moduleBasicManager[bridgeBasic.Name()] = bridgeBasic
+	crossvmBasic := app.NewCrossVMModuleBasic()
+	moduleBasicManager[crossvmBasic.Name()] = crossvmBasic
 	multilayerBasic := app.NewMultilayerModuleBasic()
 	moduleBasicManager[multilayerBasic.Name()] = multilayerBasic
 

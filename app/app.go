@@ -99,6 +99,9 @@ import (
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	bridgetypes "github.com/qorechain/qorechain-core/x/bridge/types"
 
+	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
+	crossvmtypes "github.com/qorechain/qorechain-core/x/crossvm/types"
+
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	multilayertypes "github.com/qorechain/qorechain-core/x/multilayer/types"
 
@@ -174,6 +177,7 @@ type QoreChainApp struct {
 	ReputationKeeper reputationkeeper.Keeper
 	QCAKeeper        qcakeeper.Keeper
 	BridgeKeeper     bridgemod.BridgeKeeper
+	CrossVMKeeper    crossvmmod.CrossVMKeeper
 	MultilayerKeeper multilayermod.MultilayerKeeper
 
 	// PQC client (interface type)
@@ -424,6 +428,18 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize CrossVM module (via factory) ---
+	crossvmStoreKey := storetypes.NewKVStoreKey(crossvmtypes.StoreKey)
+	app.MountStores(crossvmStoreKey)
+
+	app.CrossVMKeeper = NewCrossVMKeeper(
+		app.appCodec,
+		crossvmStoreKey,
+		app.EVMKeeper,
+		&app.WasmKeeper,
+		logger,
+	)
+
 	// --- Initialize Multilayer module (via factory) ---
 	multilayerStoreKey := storetypes.NewKVStoreKey(multilayertypes.StoreKey)
 	app.MountStores(multilayerStoreKey)
@@ -485,6 +501,7 @@ func NewQoreChainApp(
 		reputationmodule.NewAppModule(app.ReputationKeeper),
 		qcamodule.NewAppModule(app.QCAKeeper),
 		NewBridgeAppModule(app.BridgeKeeper),
+		NewCrossVMAppModule(app.CrossVMKeeper),
 		NewMultilayerAppModule(app.MultilayerKeeper),
 	); err != nil {
 		panic(err)
