@@ -14,6 +14,8 @@ import "C"
 import (
 	"fmt"
 	"unsafe"
+
+	"github.com/qorechain/qorechain-core/x/pqc/types"
 )
 
 // Dilithium-5 key/signature sizes (from pqcrypto-dilithium v0.5.0).
@@ -34,8 +36,17 @@ const (
 // DefaultBeaconOutputLen is the default random beacon output length.
 const DefaultBeaconOutputLen = 32
 
+// Maximum buffer sizes for algorithm-aware operations.
+// These are generous upper bounds; the FFI layer returns actual sizes.
+const (
+	MaxPubkeySize  = 4096
+	MaxPrivkeySize = 8192
+	MaxSigSize     = 8192
+)
+
 // PQCClient is the interface for all PQC operations via the Rust FFI library.
 type PQCClient interface {
+	// Legacy algorithm-specific operations (backward compatibility)
 	DilithiumKeygen() (pubkey []byte, privkey []byte, err error)
 	DilithiumSign(privkey []byte, message []byte) (signature []byte, err error)
 	DilithiumVerify(pubkey []byte, message []byte, signature []byte) (bool, error)
@@ -45,6 +56,13 @@ type PQCClient interface {
 	MLKEMDecapsulate(privkey []byte, ciphertext []byte) (sharedSecret []byte, err error)
 
 	GenerateRandomBeacon(seed []byte, epoch uint64) ([]byte, error)
+
+	// Algorithm-aware operations (v0.6.0)
+	Keygen(algorithmID types.AlgorithmID) (pubkey []byte, privkey []byte, err error)
+	Sign(algorithmID types.AlgorithmID, privkey []byte, message []byte) (signature []byte, err error)
+	Verify(algorithmID types.AlgorithmID, pubkey []byte, message []byte, signature []byte) (bool, error)
+	AlgorithmInfo(algorithmID types.AlgorithmID) (pubkeySize, privkeySize, outputSize uint32, err error)
+	ListAlgorithms() ([]types.AlgorithmID, error)
 
 	Version() string
 	Algorithms() string
@@ -57,6 +75,8 @@ type FFIClient struct{}
 func NewFFIClient() *FFIClient {
 	return &FFIClient{}
 }
+
+// ---- Legacy algorithm-specific operations ----
 
 func (c *FFIClient) DilithiumKeygen() ([]byte, []byte, error) {
 	pk := make([]byte, DilithiumPubkeySize)
@@ -203,4 +223,128 @@ func (c *FFIClient) Version() string {
 
 func (c *FFIClient) Algorithms() string {
 	return C.GoString(C.qore_pqc_algorithms())
+}
+
+// ---- Algorithm-aware operations (v0.6.0) ----
+
+// Keygen generates a keypair using the specified algorithm.
+func (c *FFIClient) Keygen(algorithmID types.AlgorithmID) ([]byte, []byte, error) {
+	pk := make([]byte, MaxPubkeySize)
+	sk := make([]byte, MaxPrivkeySize)
+	pkLen := C.size_t(MaxPubkeySize)
+	skLen := C.size_t(MaxPrivkeySize)
+
+	ret := C.qore_pqc_keygen(
+		C.uint32_t(algorithmID),
+		(*C.uint8_t)(unsafe.Pointer(&pk[0])),
+		&pkLen,
+		(*C.uint8_t)(unsafe.Pointer(&sk[0])),
+		&skLen,
+	)
+	if ret != 0 {
+		return nil, nil, fmt.Errorf("pqc keygen failed for algorithm %s: error code %d", algorithmID, ret)
+	}
+
+	return pk[:pkLen], sk[:skLen], nil
+}
+
+// Sign creates a signature using the specified algorithm.
+func (c *FFIClient) Sign(algorithmID types.AlgorithmID, privkey []byte, message []byte) ([]byte, error) {
+	sig := make([]byte, MaxSigSize)
+	sigLen := C.size_t(MaxSigSize)
+
+	var msgPtr *C.uint8_t
+	if len(message) > 0 {
+		msgPtr = (*C.uint8_t)(unsafe.Pointer(&message[0]))
+	} else {
+		empty := []byte{0}
+		msgPtr = (*C.uint8_t)(unsafe.Pointer(&empty[0]))
+	}
+
+	ret := C.qore_pqc_sign(
+		C.uint32_t(algorithmID),
+		(*C.uint8_t)(unsafe.Pointer(&privkey[0])),
+		C.size_t(len(privkey)),
+		msgPtr,
+		C.size_t(len(message)),
+		(*C.uint8_t)(unsafe.Pointer(&sig[0])),
+		&sigLen,
+	)
+	if ret != 0 {
+		return nil, fmt.Errorf("pqc sign failed for algorithm %s: error code %d", algorithmID, ret)
+	}
+
+	return sig[:sigLen], nil
+}
+
+// Verify checks a signature using the specified algorithm.
+// Returns true if valid, false if invalid.
+func (c *FFIClient) Verify(algorithmID types.AlgorithmID, pubkey []byte, message []byte, signature []byte) (bool, error) {
+	var msgPtr *C.uint8_t
+	if len(message) > 0 {
+		msgPtr = (*C.uint8_t)(unsafe.Pointer(&message[0]))
+	} else {
+		empty := []byte{0}
+		msgPtr = (*C.uint8_t)(unsafe.Pointer(&empty[0]))
+	}
+
+	ret := C.qore_pqc_verify(
+		C.uint32_t(algorithmID),
+		(*C.uint8_t)(unsafe.Pointer(&pubkey[0])),
+		C.size_t(len(pubkey)),
+		msgPtr,
+		C.size_t(len(message)),
+		(*C.uint8_t)(unsafe.Pointer(&signature[0])),
+		C.size_t(len(signature)),
+	)
+
+	if ret < 0 {
+		return false, fmt.Errorf("pqc verify failed for algorithm %s: error code %d", algorithmID, ret)
+	}
+	return ret == 1, nil
+}
+
+// AlgorithmInfo queries the key/output sizes for a given algorithm.
+func (c *FFIClient) AlgorithmInfo(algorithmID types.AlgorithmID) (uint32, uint32, uint32, error) {
+	var pubkeySize, privkeySize, outputSize C.uint32_t
+
+	ret := C.qore_pqc_algorithm_info(
+		C.uint32_t(algorithmID),
+		&pubkeySize,
+		&privkeySize,
+		&outputSize,
+	)
+	if ret != 0 {
+		return 0, 0, 0, fmt.Errorf("pqc algorithm_info failed for algorithm %s: error code %d", algorithmID, ret)
+	}
+
+	return uint32(pubkeySize), uint32(privkeySize), uint32(outputSize), nil
+}
+
+// ListAlgorithms returns the IDs of all algorithms supported by the FFI library.
+func (c *FFIClient) ListAlgorithms() ([]types.AlgorithmID, error) {
+	// First call with nil to get the count
+	var count C.size_t
+	ret := C.qore_pqc_list_algorithms(nil, &count)
+	if ret != 0 {
+		return nil, fmt.Errorf("pqc list_algorithms count failed: error code %d", ret)
+	}
+
+	if count == 0 {
+		return nil, nil
+	}
+
+	// Second call to get the actual IDs
+	ids := make([]C.uint32_t, count)
+	ret = C.qore_pqc_list_algorithms(&ids[0], &count)
+	if ret != 0 {
+		return nil, fmt.Errorf("pqc list_algorithms failed: error code %d", ret)
+	}
+
+	result := make([]types.AlgorithmID, count)
+	for i := C.size_t(0); i < count; i++ {
+		result[i] = types.AlgorithmID(ids[i])
+	}
+
+	return result, nil
 }
