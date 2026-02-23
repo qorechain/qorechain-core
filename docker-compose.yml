@@ -15,14 +15,15 @@ services:
       - "1317:1317"     # QoreChain SDK REST API
       - "9090:9090"     # QoreChain SDK gRPC
       - "26660:26660"   # Prometheus metrics
+      - "8545:8545"     # EVM JSON-RPC (HTTP)
+      - "8546:8546"     # EVM JSON-RPC (WebSocket)
     volumes:
       - node-data:/root/.qorechaind
-      - ./lib/linux_amd64:/usr/local/lib/qorepqc:ro
     environment:
       - CHAIN_ID=qorechain-testnet-1
       - MONIKER=qorechain-validator-1
       - AI_SIDECAR_ADDRESS=ai-sidecar:50051
-      - LD_LIBRARY_PATH=/usr/local/lib/qorepqc:/usr/local/lib
+      - LD_LIBRARY_PATH=/usr/local/lib
     depends_on:
       - ai-sidecar
     networks:
