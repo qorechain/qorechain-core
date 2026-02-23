@@ -15,19 +15,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
-
-      - name: Download PQC Library
-        run: |
-          mkdir -p lib/linux_amd64
-          # Download from latest release
-          gh release download --repo qorechain/qorechain-proprietary --pattern 'libqorepqc_linux_amd64.so' --dir lib/linux_amd64 || echo "PQC lib not available, using stub"
-          if [ -f lib/linux_amd64/libqorepqc_linux_amd64.so ]; then
-            mv lib/linux_amd64/libqorepqc_linux_amd64.so lib/linux_amd64/libqorepqc.so
-          fi
-        env:
-          GH_TOKEN: ${{ secrets.PQC_LIB_TOKEN }}
-        continue-on-error: true
+          go-version: '1.26'
 
       - name: Build Chain Binary
         run: CGO_ENABLED=1 go build -o qorechaind ./cmd/qorechaind/
@@ -54,7 +42,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.26'
 
       - name: Run go vet
         run: CGO_ENABLED=1 go vet ./...
