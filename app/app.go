@@ -507,7 +507,13 @@ func NewQoreChainApp(
 	// Read max gas wanted from server flags (evm.max-tx-gas-wanted).
 	// Default is 0 (unlimited) if not configured.
 	maxGasWanted := cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted))
-	app.setAnteHandler(app.txConfig, maxGasWanted)
+
+	// Read CosmWasm node config from app options.
+	wasmNodeConfig, err := wasm.ReadNodeConfig(appOpts)
+	if err != nil {
+		panic("failed to read wasm node config: " + err.Error())
+	}
+	app.setAnteHandler(app.txConfig, maxGasWanted, wasmNodeConfig, wasmStoreKey)
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
@@ -516,7 +522,12 @@ func NewQoreChainApp(
 	return app
 }
 
-func (app *QoreChainApp) setAnteHandler(txConfig client.TxConfig, maxTxGasWanted uint64) {
+func (app *QoreChainApp) setAnteHandler(
+	txConfig client.TxConfig,
+	maxTxGasWanted uint64,
+	wasmNodeConfig wasmtypes.NodeConfig,
+	wasmStoreKey *storetypes.KVStoreKey,
+) {
 	anteHandler, err := NewAnteHandler(
 		HandlerOptions{
 			HandlerOptions: ante.HandlerOptions{
@@ -528,15 +539,18 @@ func (app *QoreChainApp) setAnteHandler(txConfig client.TxConfig, maxTxGasWanted
 				ExtensionOptionChecker: cosmosevmtypes.HasDynamicFeeExtensionOption,
 				TxFeeChecker:          evmante.NewDynamicFeeChecker(app.FeeMarketKeeper),
 			},
-			CircuitKeeper:    &app.CircuitKeeper,
-			PQCKeeper:        app.PQCKeeper,
-			PQCClient:        app.pqcClient,
-			AIKeeper:         app.AIKeeper,
-			EVMAccountKeeper: app.AccountKeeper,
-			FeeMarketKeeper:  app.FeeMarketKeeper,
-			EvmKeeper:        app.EVMKeeper,
-			IBCKeeper:        app.IBCKeeper,
-			MaxTxGasWanted:   maxTxGasWanted,
+			CircuitKeeper:         &app.CircuitKeeper,
+			PQCKeeper:             app.PQCKeeper,
+			PQCClient:             app.pqcClient,
+			AIKeeper:              app.AIKeeper,
+			EVMAccountKeeper:      app.AccountKeeper,
+			FeeMarketKeeper:       app.FeeMarketKeeper,
+			EvmKeeper:             app.EVMKeeper,
+			IBCKeeper:             app.IBCKeeper,
+			MaxTxGasWanted:        maxTxGasWanted,
+			WasmKeeper:            &app.WasmKeeper,
+			WasmConfig:            &wasmNodeConfig,
+			TXCounterStoreService: runtime.NewKVStoreService(wasmStoreKey),
 		},
 	)
 	if err != nil {
