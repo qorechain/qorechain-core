@@ -504,6 +504,7 @@ func NewQoreChainApp(
 	app.sm = module.NewSimulationManagerFromAppModules(app.ModuleManager.Modules, overrideModules)
 	app.sm.RegisterStoreDecoders()
 
+	app.registerEVMPrecompiles()
 	app.setAnteHandler(app.txConfig, DefaultMaxTxGasWanted)
 
 	if err := app.Load(loadLatest); err != nil {
