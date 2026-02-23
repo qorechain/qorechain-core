@@ -4,6 +4,8 @@ import (
 	"io"
 	"path/filepath"
 
+	"github.com/spf13/cast"
+
 	dbm "github.com/cosmos/cosmos-db"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
@@ -55,6 +57,7 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 
 	// QoreChain EVM
+	srvflags "github.com/cosmos/evm/server/flags"
 	cosmosevmtypes "github.com/cosmos/evm/types"
 	evmante "github.com/cosmos/evm/ante/evm"
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
@@ -109,11 +112,6 @@ import (
 )
 
 const AppName = "QoreChain"
-
-// DefaultMaxTxGasWanted is the default gas wanted for each eth tx returned in
-// ante handler in check tx mode. 0 means no limit. This will be configurable
-// via server flags (evm.max-tx-gas-wanted) in Phase 2.4.
-const DefaultMaxTxGasWanted uint64 = 0
 
 // emptySubspace implements ibc-go ParamSubspace interface as a no-op.
 // IBC v10 only uses this for legacy migration reads; fresh chains don't need it.
@@ -505,7 +503,11 @@ func NewQoreChainApp(
 	app.sm.RegisterStoreDecoders()
 
 	app.registerEVMPrecompiles()
-	app.setAnteHandler(app.txConfig, DefaultMaxTxGasWanted)
+
+	// Read max gas wanted from server flags (evm.max-tx-gas-wanted).
+	// Default is 0 (unlimited) if not configured.
+	maxGasWanted := cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted))
+	app.setAnteHandler(app.txConfig, maxGasWanted)
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)

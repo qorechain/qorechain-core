@@ -25,6 +25,9 @@ import (
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutilcli "github.com/cosmos/cosmos-sdk/x/genutil/client/cli"
 
+	cosmosevmserver "github.com/cosmos/evm/server"
+	cosmosevmserverconfig "github.com/cosmos/evm/server/config"
+
 	"github.com/qorechain/qorechain-core/app"
 )
 
@@ -38,19 +41,37 @@ func initCometBFTConfig() *cmtcfg.Config {
 	return cfg
 }
 
-func initAppConfig() (string, interface{}) {
-	type QoreChainConfig struct {
-		serverconfig.Config `mapstructure:",squash"`
-	}
+// QoreChainConfig extends the standard server config with EVM and JSON-RPC sections.
+type QoreChainConfig struct {
+	serverconfig.Config `mapstructure:",squash"`
 
+	EVM     cosmosevmserverconfig.EVMConfig    `mapstructure:"evm"`
+	JSONRPC cosmosevmserverconfig.JSONRPCConfig `mapstructure:"json-rpc"`
+	TLS     cosmosevmserverconfig.TLSConfig     `mapstructure:"tls"`
+}
+
+func initAppConfig() (string, interface{}) {
 	srvCfg := serverconfig.DefaultConfig()
 	srvCfg.MinGasPrices = "0uqor" // base denom: uqor (10^6 = 1 QOR)
 
+	evmCfg := cosmosevmserverconfig.DefaultEVMConfig()
+	jsonrpcCfg := cosmosevmserverconfig.DefaultJSONRPCConfig()
+	// Enable JSON-RPC by default for QoreChain testnet
+	jsonrpcCfg.Enable = true
+	jsonrpcCfg.API = []string{"eth", "net", "web3", "txpool"}
+	tlsCfg := cosmosevmserverconfig.DefaultTLSConfig()
+
 	qoreConfig := QoreChainConfig{
-		Config: *srvCfg,
+		Config:  *srvCfg,
+		EVM:     *evmCfg,
+		JSONRPC: *jsonrpcCfg,
+		TLS:     *tlsCfg,
 	}
 
-	return serverconfig.DefaultConfigTemplate, qoreConfig
+	// Combine the standard SDK template with the EVM config template
+	customAppTemplate := serverconfig.DefaultConfigTemplate + cosmosevmserverconfig.DefaultEVMConfigTemplate
+
+	return customAppTemplate, qoreConfig
 }
 
 func initRootCmd(
@@ -65,9 +86,15 @@ func initRootCmd(
 		snapshot.Cmd(newApp),
 	)
 
-	server.AddCommandsWithStartCmdOptions(rootCmd, app.DefaultNodeHome, newApp, appExport, server.StartCmdOptions{
-		AddFlags: func(startCmd *cobra.Command) {},
-	})
+	// Use QoreChain EVM's custom server commands which include JSON-RPC support.
+	// This replaces server.AddCommandsWithStartCmdOptions with an EVM-aware
+	// start command that runs the JSON-RPC, WebSocket, and EVM indexer servers.
+	cosmosevmserver.AddCommands(
+		rootCmd,
+		cosmosevmserver.NewDefaultStartOptions(newApp, app.DefaultNodeHome),
+		appExport,
+		func(startCmd *cobra.Command) {},
+	)
 
 	rootCmd.AddCommand(
 		server.StatusCommand(),
