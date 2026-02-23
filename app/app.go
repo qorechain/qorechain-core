@@ -55,6 +55,8 @@ import (
 	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 
 	// QoreChain EVM
+	cosmosevmtypes "github.com/cosmos/evm/types"
+	evmante "github.com/cosmos/evm/ante/evm"
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 	erc20keeper "github.com/cosmos/evm/x/erc20/keeper"
@@ -107,6 +109,11 @@ import (
 )
 
 const AppName = "QoreChain"
+
+// DefaultMaxTxGasWanted is the default gas wanted for each eth tx returned in
+// ante handler in check tx mode. 0 means no limit. This will be configurable
+// via server flags (evm.max-tx-gas-wanted) in Phase 2.4.
+const DefaultMaxTxGasWanted uint64 = 0
 
 // emptySubspace implements ibc-go ParamSubspace interface as a no-op.
 // IBC v10 only uses this for legacy migration reads; fresh chains don't need it.
@@ -497,7 +504,7 @@ func NewQoreChainApp(
 	app.sm = module.NewSimulationManagerFromAppModules(app.ModuleManager.Modules, overrideModules)
 	app.sm.RegisterStoreDecoders()
 
-	app.setAnteHandler(app.txConfig)
+	app.setAnteHandler(app.txConfig, DefaultMaxTxGasWanted)
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
@@ -506,20 +513,27 @@ func NewQoreChainApp(
 	return app
 }
 
-func (app *QoreChainApp) setAnteHandler(txConfig client.TxConfig) {
+func (app *QoreChainApp) setAnteHandler(txConfig client.TxConfig, maxTxGasWanted uint64) {
 	anteHandler, err := NewAnteHandler(
 		HandlerOptions{
 			HandlerOptions: ante.HandlerOptions{
-				AccountKeeper:   app.AccountKeeper,
-				BankKeeper:      app.BankKeeper,
-				SignModeHandler: txConfig.SignModeHandler(),
-				FeegrantKeeper:  app.FeeGrantKeeper,
-				SigGasConsumer:  ante.DefaultSigVerificationGasConsumer,
+				AccountKeeper:          app.AccountKeeper,
+				BankKeeper:             app.BankKeeper,
+				SignModeHandler:        txConfig.SignModeHandler(),
+				FeegrantKeeper:         app.FeeGrantKeeper,
+				SigGasConsumer:         sigVerificationGasConsumerWithPQC,
+				ExtensionOptionChecker: cosmosevmtypes.HasDynamicFeeExtensionOption,
+				TxFeeChecker:          evmante.NewDynamicFeeChecker(app.FeeMarketKeeper),
 			},
-			CircuitKeeper: &app.CircuitKeeper,
-			PQCKeeper:     app.PQCKeeper,
-			PQCClient:     app.pqcClient,
-			AIKeeper:      app.AIKeeper,
+			CircuitKeeper:    &app.CircuitKeeper,
+			PQCKeeper:        app.PQCKeeper,
+			PQCClient:        app.pqcClient,
+			AIKeeper:         app.AIKeeper,
+			EVMAccountKeeper: app.AccountKeeper,
+			FeeMarketKeeper:  app.FeeMarketKeeper,
+			EvmKeeper:        app.EVMKeeper,
+			IBCKeeper:        app.IBCKeeper,
+			MaxTxGasWanted:   maxTxGasWanted,
 		},
 	)
 	if err != nil {
