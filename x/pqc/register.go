@@ -19,23 +19,56 @@ type keeperAdapter struct {
 	k keeper.Keeper
 }
 
-func (a *keeperAdapter) PQCClient() PQCClient                                        { return a.k.PQCClient() }
-func (a *keeperAdapter) Logger() log.Logger                                           { return a.k.Logger() }
-func (a *keeperAdapter) GetParams(ctx sdk.Context) types.Params                       { return a.k.GetParams(ctx) }
-func (a *keeperAdapter) SetParams(ctx sdk.Context, p types.Params) error              { return a.k.SetParams(ctx, p) }
+func (a *keeperAdapter) PQCClient() PQCClient                                   { return a.k.PQCClient() }
+func (a *keeperAdapter) Logger() log.Logger                                      { return a.k.Logger() }
+func (a *keeperAdapter) GetParams(ctx sdk.Context) types.Params                  { return a.k.GetParams(ctx) }
+func (a *keeperAdapter) SetParams(ctx sdk.Context, p types.Params) error         { return a.k.SetParams(ctx, p) }
 func (a *keeperAdapter) GetPQCAccount(ctx sdk.Context, addr string) (types.PQCAccountInfo, bool) {
 	return a.k.GetPQCAccount(ctx, addr)
 }
-func (a *keeperAdapter) HasPQCAccount(ctx sdk.Context, addr string) bool              { return a.k.HasPQCAccount(ctx, addr) }
+func (a *keeperAdapter) HasPQCAccount(ctx sdk.Context, addr string) bool { return a.k.HasPQCAccount(ctx, addr) }
 func (a *keeperAdapter) SetPQCAccount(ctx sdk.Context, info types.PQCAccountInfo) error {
 	return a.k.SetPQCAccount(ctx, info)
 }
-func (a *keeperAdapter) IncrementPQCVerifications(ctx sdk.Context)                    { a.k.IncrementPQCVerifications(ctx) }
-func (a *keeperAdapter) IncrementClassicalFallbacks(ctx sdk.Context)                  { a.k.IncrementClassicalFallbacks(ctx) }
-func (a *keeperAdapter) GetStats(ctx sdk.Context) types.PQCStats                      { return a.k.GetStats(ctx) }
-func (a *keeperAdapter) SetStats(ctx sdk.Context, s types.PQCStats)                   { a.k.SetStats(ctx, s) }
-func (a *keeperAdapter) InitGenesis(ctx sdk.Context, gs types.GenesisState)            { a.k.InitGenesis(ctx, gs) }
-func (a *keeperAdapter) ExportGenesis(ctx sdk.Context) *types.GenesisState             { return a.k.ExportGenesis(ctx) }
+func (a *keeperAdapter) IncrementPQCVerifications(ctx sdk.Context)  { a.k.IncrementPQCVerifications(ctx) }
+func (a *keeperAdapter) IncrementClassicalFallbacks(ctx sdk.Context) { a.k.IncrementClassicalFallbacks(ctx) }
+func (a *keeperAdapter) GetStats(ctx sdk.Context) types.PQCStats    { return a.k.GetStats(ctx) }
+func (a *keeperAdapter) SetStats(ctx sdk.Context, s types.PQCStats) { a.k.SetStats(ctx, s) }
+
+// Algorithm registry (v0.6.0)
+func (a *keeperAdapter) RegisterAlgorithm(ctx sdk.Context, algo types.AlgorithmInfo) error {
+	return a.k.RegisterAlgorithm(ctx, algo)
+}
+func (a *keeperAdapter) GetAlgorithm(ctx sdk.Context, id types.AlgorithmID) (types.AlgorithmInfo, error) {
+	return a.k.GetAlgorithm(ctx, id)
+}
+func (a *keeperAdapter) ListAlgorithms(ctx sdk.Context) []types.AlgorithmInfo {
+	return a.k.ListAlgorithms(ctx)
+}
+func (a *keeperAdapter) UpdateAlgorithmStatus(ctx sdk.Context, id types.AlgorithmID, status types.AlgorithmStatus) error {
+	return a.k.UpdateAlgorithmStatus(ctx, id, status)
+}
+func (a *keeperAdapter) GetActiveSignatureAlgorithms(ctx sdk.Context) []types.AlgorithmInfo {
+	return a.k.GetActiveSignatureAlgorithms(ctx)
+}
+func (a *keeperAdapter) GetActiveKEMAlgorithms(ctx sdk.Context) []types.AlgorithmInfo {
+	return a.k.GetActiveKEMAlgorithms(ctx)
+}
+
+// Migration (v0.6.0)
+func (a *keeperAdapter) GetMigration(ctx sdk.Context, fromID types.AlgorithmID) (types.MigrationInfo, bool) {
+	return a.k.GetMigration(ctx, fromID)
+}
+func (a *keeperAdapter) SetMigration(ctx sdk.Context, migration types.MigrationInfo) error {
+	return a.k.SetMigration(ctx, migration)
+}
+func (a *keeperAdapter) DeleteMigration(ctx sdk.Context, fromID types.AlgorithmID) {
+	a.k.DeleteMigration(ctx, fromID)
+}
+
+// Genesis
+func (a *keeperAdapter) InitGenesis(ctx sdk.Context, gs types.GenesisState) { a.k.InitGenesis(ctx, gs) }
+func (a *keeperAdapter) ExportGenesis(ctx sdk.Context) *types.GenesisState  { return a.k.ExportGenesis(ctx) }
 
 // RealNewPQCClient creates the real FFI client.
 func RealNewPQCClient() PQCClient {
