@@ -105,6 +105,9 @@ import (
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	multilayertypes "github.com/qorechain/qorechain-core/x/multilayer/types"
 
+	svmmod "github.com/qorechain/qorechain-core/x/svm"
+	svmtypes "github.com/qorechain/qorechain-core/x/svm/types"
+
 	reputationmodule "github.com/qorechain/qorechain-core/x/reputation"
 	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
 	reputationtypes "github.com/qorechain/qorechain-core/x/reputation/types"
@@ -179,6 +182,7 @@ type QoreChainApp struct {
 	BridgeKeeper     bridgemod.BridgeKeeper
 	CrossVMKeeper    crossvmmod.CrossVMKeeper
 	MultilayerKeeper multilayermod.MultilayerKeeper
+	SVMKeeper        svmmod.SVMKeeper
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -450,6 +454,19 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize SVM module (via factory) ---
+	svmStoreKey := storetypes.NewKVStoreKey(svmtypes.StoreKey)
+	app.MountStores(svmStoreKey)
+
+	app.SVMKeeper = NewSVMKeeper(
+		app.appCodec,
+		svmStoreKey,
+		app.PQCKeeper,
+		app.AIKeeper,
+		app.CrossVMKeeper,
+		logger,
+	)
+
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
@@ -503,6 +520,7 @@ func NewQoreChainApp(
 		NewBridgeAppModule(app.BridgeKeeper),
 		NewCrossVMAppModule(app.CrossVMKeeper),
 		NewMultilayerAppModule(app.MultilayerKeeper),
+		NewSVMAppModule(app.SVMKeeper),
 	); err != nil {
 		panic(err)
 	}

@@ -19,6 +19,7 @@ import (
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
+	svmmod "github.com/qorechain/qorechain-core/x/svm"
 )
 
 func init() {
@@ -79,5 +80,16 @@ func init() {
 	}
 	NewMultilayerModuleBasic = func() module.AppModuleBasic {
 		return multilayermod.AppModuleBasic{}
+	}
+
+	NewSVMKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ pqcmod.PQCKeeper,
+		_ aimod.AIKeeper, _ crossvmmod.CrossVMKeeper, logger log.Logger) svmmod.SVMKeeper {
+		return svmmod.NewStubKeeper(logger)
+	}
+	NewSVMAppModule = func(keeper svmmod.SVMKeeper) module.AppModule {
+		return svmmod.NewAppModule(keeper)
+	}
+	NewSVMModuleBasic = func() module.AppModuleBasic {
+		return svmmod.AppModuleBasic{}
 	}
 }
