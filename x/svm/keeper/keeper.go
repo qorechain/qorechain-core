@@ -12,7 +12,6 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	svm "github.com/qorechain/qorechain-core/x/svm"
 	"github.com/qorechain/qorechain-core/x/svm/types"
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
@@ -25,7 +24,7 @@ type Keeper struct {
 	cdc           codec.Codec
 	storeKey      storetypes.StoreKey
 	logger        log.Logger
-	executor      svm.SVMExecutor
+	executor      types.SVMExecutor
 	pqcKeeper     pqcmod.PQCKeeper
 	aiKeeper      aimod.AIKeeper
 	crossvmKeeper crossvmmod.CrossVMKeeper
@@ -51,7 +50,7 @@ func NewKeeper(
 }
 
 // SetExecutor sets the BPF execution engine (called during app init).
-func (k *Keeper) SetExecutor(exec svm.SVMExecutor) {
+func (k *Keeper) SetExecutor(exec types.SVMExecutor) {
 	k.executor = exec
 }
 
