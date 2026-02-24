@@ -1,6 +1,6 @@
 package types
 
-import "fmt"
+import errorsmod "cosmossdk.io/errors"
 
 // AccountMeta describes the role of an account in an SVM instruction.
 type AccountMeta struct {
@@ -20,7 +20,7 @@ type Instruction struct {
 func (ix *Instruction) Validate() error {
 	var zeroAddr [32]byte
 	if ix.ProgramID == zeroAddr {
-		return fmt.Errorf("instruction program ID cannot be zero")
+		return errorsmod.Wrap(ErrInvalidInstruction, "program ID cannot be zero")
 	}
 	return nil
 }

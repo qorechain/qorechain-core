@@ -9,6 +9,22 @@ import (
 // base58Alphabet is the Bitcoin Base58 alphabet used by SVM-compatible chains.
 const base58Alphabet = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
 
+// base58LookupTable maps ASCII byte values to Base58 digit values (-1 = invalid).
+// Initialized via function call so it is ready before other var initializers
+// (e.g. mustBase58Decode calls in the system address block below).
+var base58LookupTable = buildBase58Lookup()
+
+func buildBase58Lookup() [256]int8 {
+	var table [256]int8
+	for i := range table {
+		table[i] = -1
+	}
+	for i := 0; i < len(base58Alphabet); i++ {
+		table[base58Alphabet[i]] = int8(i)
+	}
+	return table
+}
+
 // System program address constants (well-known SVM addresses)
 var (
 	SystemProgramAddress = mustBase58Decode("11111111111111111111111111111111")
@@ -33,7 +49,9 @@ func SVMToCosmosAddress(svmAddr [32]byte) []byte {
 	return hash[:20]
 }
 
-// EVMToSVMAddress derives a 32-byte SVM address from a 20-byte EVM address.
+// EVMToSVMAddress derives a deterministic 32-byte SVM address from a 20-byte EVM address.
+// Uses SHA-256(evmAddr || "qorechain-svm") for domain separation. NOTE: this is a one-way
+// derivation; SVMToEVMAddress is NOT its inverse.
 func EVMToSVMAddress(evmAddr [20]byte) [32]byte {
 	data := make([]byte, 0, 20+len("qorechain-svm"))
 	data = append(data, evmAddr[:]...)
@@ -41,7 +59,9 @@ func EVMToSVMAddress(evmAddr [20]byte) [32]byte {
 	return sha256.Sum256(data)
 }
 
-// SVMToEVMAddress truncates a 32-byte SVM address to its first 20 bytes.
+// SVMToEVMAddress extracts an EVM-compatible 20-byte address from a 32-byte SVM address
+// by truncating to the first 20 bytes. NOTE: this is NOT the inverse of EVMToSVMAddress;
+// EVMToSVMAddress hashes the EVM address, so the mapping is one-way in both directions.
 func SVMToEVMAddress(svmAddr [32]byte) [20]byte {
 	var evmAddr [20]byte
 	copy(evmAddr[:], svmAddr[:20])
@@ -92,22 +112,16 @@ func Base58Decode(s string) ([32]byte, error) {
 		return result, fmt.Errorf("empty base58 string")
 	}
 
-	// Build reverse lookup table
-	alphabetMap := make(map[byte]int64)
-	for i := 0; i < len(base58Alphabet); i++ {
-		alphabetMap[base58Alphabet[i]] = int64(i)
-	}
-
 	n := new(big.Int)
 	base := big.NewInt(58)
 
 	for i := 0; i < len(s); i++ {
-		val, ok := alphabetMap[s[i]]
-		if !ok {
-			return result, fmt.Errorf("invalid base58 character: %c", s[i])
+		val := base58LookupTable[s[i]]
+		if val < 0 {
+			return result, fmt.Errorf("invalid Base58 character: %c", s[i])
 		}
 		n.Mul(n, base)
-		n.Add(n, big.NewInt(val))
+		n.Add(n, big.NewInt(int64(val)))
 	}
 
 	// Count leading '1' characters (represent leading zero bytes)

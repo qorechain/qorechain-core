@@ -87,7 +87,10 @@ func TestSVMAccountValidate(t *testing.T) {
 		if err := acc2.Unmarshal(data); err != nil {
 			t.Fatalf("unmarshal error: %v", err)
 		}
-		if acc.Address != acc2.Address || acc.Lamports != acc2.Lamports || acc.DataLen != acc2.DataLen {
+		if acc.Address != acc2.Address || acc.Lamports != acc2.Lamports ||
+			acc.DataLen != acc2.DataLen || acc.Owner != acc2.Owner ||
+			acc.Executable != acc2.Executable || acc.RentEpoch != acc2.RentEpoch ||
+			!bytes.Equal(acc.Data, acc2.Data) {
 			t.Fatal("round-trip mismatch")
 		}
 	})

@@ -2,7 +2,8 @@ package types
 
 import (
 	"encoding/json"
-	"fmt"
+
+	errorsmod "cosmossdk.io/errors"
 )
 
 // SVMAccount represents an account in the SVM runtime, mirroring the
@@ -21,18 +22,19 @@ type SVMAccount struct {
 func (a *SVMAccount) Validate() error {
 	var zeroAddr [32]byte
 	if a.Address == zeroAddr {
-		return fmt.Errorf("SVM account address cannot be zero")
+		return errorsmod.Wrap(ErrInvalidAddress, "SVM account address cannot be zero")
 	}
 	if uint64(len(a.Data)) != a.DataLen {
-		return fmt.Errorf("data length mismatch: data has %d bytes but data_len is %d", len(a.Data), a.DataLen)
+		return errorsmod.Wrapf(ErrInvalidAccountOwner, "data length mismatch: declared %d, actual %d", a.DataLen, len(a.Data))
 	}
 	if a.Executable && a.Owner == zeroAddr {
-		return fmt.Errorf("executable account must have a non-zero owner")
+		return errorsmod.Wrap(ErrInvalidAccountOwner, "executable account must have non-zero owner")
 	}
 	return nil
 }
 
-// Marshal serializes the SVMAccount to JSON bytes.
+// Marshal serializes the SVM account to bytes.
+// TODO: replace JSON encoding with binary (protobuf or manual) before production use.
 func (a *SVMAccount) Marshal() ([]byte, error) {
 	return json.Marshal(a)
 }
