@@ -16,4 +16,5 @@ var (
 	ErrABIEncoding       = errorsmod.Register(ModuleName, 12, "ABI encoding/decoding failed")
 	ErrWasmExecution     = errorsmod.Register(ModuleName, 13, "CosmWasm contract execution failed")
 	ErrEVMExecution      = errorsmod.Register(ModuleName, 14, "EVM contract execution failed")
+	ErrSVMExecution      = errorsmod.Register(ModuleName, 15, "SVM program execution failed")
 )

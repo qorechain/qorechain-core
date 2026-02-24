@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"io"
 	"path/filepath"
 
@@ -466,6 +467,22 @@ func NewQoreChainApp(
 		app.CrossVMKeeper,
 		logger,
 	)
+
+	// Wire SVM into CrossVM routing so cross-VM messages can target SVM programs.
+	crossvmmod.SetSVMCallHandler(func(ctx sdk.Context, targetContract string, payload []byte, _ string) ([]byte, error) {
+		programAddr, err := svmtypes.Base58Decode(targetContract)
+		if err != nil {
+			return nil, fmt.Errorf("invalid SVM program address: %w", err)
+		}
+		result, err := app.SVMKeeper.ExecuteProgram(ctx, programAddr, payload, nil, nil)
+		if err != nil {
+			return nil, err
+		}
+		if !result.Success {
+			return nil, fmt.Errorf("SVM execution failed: %s", result.Error)
+		}
+		return result.ReturnData, nil
+	})
 
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
