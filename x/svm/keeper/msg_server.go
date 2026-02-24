@@ -102,7 +102,10 @@ func (s *MsgServer) HandleMsgCreateAccount(ctx sdk.Context, msg *types.MsgCreate
 	}
 
 	// Generate a deterministic address from the sender and owner.
-	senderAddr, _ := sdk.AccAddressFromBech32(msg.Sender)
+	senderAddr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return types.ErrInvalidAddress.Wrapf("invalid sender: %v", err)
+	}
 	addrSeed := make([]byte, 0, 52)
 	addrSeed = append(addrSeed, senderAddr...)
 	addrSeed = append(addrSeed, msg.Owner[:]...)
@@ -164,6 +167,22 @@ func (s *MsgServer) HandleMsgRegisterSVMPQCKey(ctx sdk.Context, msg *types.MsgRe
 	account, err := s.keeper.GetAccount(ctx, msg.SVMAddr)
 	if err != nil {
 		return err
+	}
+
+	// Verify sender owns the SVM account: the sender's derived native address
+	// must match the account's reverse-mapped native address.
+	senderAddr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return types.ErrInvalidAddress.Wrapf("invalid sender: %v", err)
+	}
+	accountCosmosAddr := types.SVMToCosmosAddress(account.Address)
+	senderSVM, lookupErr := s.keeper.cosmosToSVMAddrFromStore(ctx, senderAddr)
+	if lookupErr != nil || senderSVM != msg.SVMAddr {
+		// Also check if the sender's native address matches the account's derived address.
+		if !sdk.AccAddress(accountCosmosAddr).Equals(senderAddr) {
+			return types.ErrInvalidAccountOwner.Wrapf(
+				"sender %s does not own SVM account %s", msg.Sender, types.Base58Encode(msg.SVMAddr))
+		}
 	}
 
 	// Validate the PQC public key via the PQC keeper.
