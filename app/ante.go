@@ -164,9 +164,9 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		// AI anomaly check — runs after PQC, before standard decorators
 		NewAIAnomalyDecorator(options.AIKeeper),
 		// SVM compute budget check — validates SVM messages are within params
-		svmmod.NewSVMComputeBudgetDecorator(options.SVMKeeper),
+		NewSVMComputeBudgetDecorator(options.SVMKeeper),
 		// SVM fee deduction — placeholder for future compute-unit fee logic
-		svmmod.NewSVMDeductFeeDecorator(options.SVMKeeper),
+		NewSVMDeductFeeDecorator(options.SVMKeeper),
 		ante.NewExtensionOptionsDecorator(options.ExtensionOptionChecker),
 		ante.NewValidateBasicDecorator(),
 		ante.NewTxTimeoutHeightDecorator(),

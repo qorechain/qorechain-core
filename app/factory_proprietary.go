@@ -100,4 +100,10 @@ func init() {
 	NewSVMModuleBasic = func() module.AppModuleBasic {
 		return svmmod.AppModuleBasic{}
 	}
+	NewSVMComputeBudgetDecorator = func(keeper svmmod.SVMKeeper) sdk.AnteDecorator {
+		return svmmod.NewSVMComputeBudgetDecorator(keeper)
+	}
+	NewSVMDeductFeeDecorator = func(keeper svmmod.SVMKeeper) sdk.AnteDecorator {
+		return svmmod.NewSVMDeductFeeDecorator(keeper)
+	}
 }
