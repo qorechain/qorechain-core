@@ -21,6 +21,20 @@ import (
 	"github.com/qorechain/qorechain-core/x/crossvm/types"
 )
 
+// SVMCallFunc is the callback signature for routing cross-VM calls to the SVM runtime.
+// It is set once during app initialization via SetSVMCallHandler.
+type SVMCallFunc func(ctx sdk.Context, targetContract string, payload []byte, sender string) ([]byte, error)
+
+// svmCallHandler is the package-level SVM call handler.
+// Set during app initialization; read-only after startup.
+var svmCallHandler SVMCallFunc
+
+// SetSVMCallHandler registers the SVM call handler for cross-VM routing.
+// Must be called during app initialization, before any blocks are processed.
+func SetSVMCallHandler(fn SVMCallFunc) {
+	svmCallHandler = fn
+}
+
 // Keeper manages the cross-VM message store and orchestrates calls between VMs.
 type Keeper struct {
 	cdc            codec.Codec
@@ -216,6 +230,8 @@ func (k Keeper) executeCrossVMCall(ctx sdk.Context, msg types.CrossVMMessage) (t
 		return k.callCosmWasm(ctx, msg)
 	case types.VMTypeEVM:
 		return k.callEVM(ctx, msg)
+	case types.VMTypeSVM:
+		return k.callSVM(ctx, msg)
 	default:
 		return types.CrossVMResponse{}, types.ErrUnsupportedVM.Wrapf("unknown target VM: %s", msg.TargetVM)
 	}
@@ -266,6 +282,37 @@ func (k Keeper) callEVM(_ sdk.Context, msg types.CrossVMMessage) (types.CrossVMR
 		Success:   false,
 		Error:     "CosmWasm -> EVM calls not yet implemented",
 	}, types.ErrEVMExecution.Wrap("CosmWasm -> EVM calls not yet implemented")
+}
+
+// callSVM executes an SVM program call via the registered callback handler.
+func (k Keeper) callSVM(ctx sdk.Context, msg types.CrossVMMessage) (types.CrossVMResponse, error) {
+	if svmCallHandler == nil {
+		return types.CrossVMResponse{
+			MessageID: msg.ID,
+			Success:   false,
+			Error:     "SVM runtime not available",
+		}, types.ErrUnsupportedVM.Wrap("SVM call handler not registered")
+	}
+
+	gasBefore := ctx.GasMeter().GasConsumed()
+	result, err := svmCallHandler(ctx, msg.TargetContract, msg.Payload, msg.Sender)
+	gasUsed := ctx.GasMeter().GasConsumed() - gasBefore
+
+	if err != nil {
+		return types.CrossVMResponse{
+			MessageID: msg.ID,
+			Success:   false,
+			Error:     err.Error(),
+			GasUsed:   gasUsed,
+		}, nil // Return the response with error details, don't wrap
+	}
+
+	return types.CrossVMResponse{
+		MessageID: msg.ID,
+		Success:   true,
+		Data:      result,
+		GasUsed:   gasUsed,
+	}, nil
 }
 
 // storeMessage persists a cross-VM message to the KV store.

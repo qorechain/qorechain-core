@@ -13,6 +13,7 @@ type VMType string
 const (
 	VMTypeEVM      VMType = "evm"
 	VMTypeCosmWasm VMType = "cosmwasm"
+	VMTypeSVM      VMType = "svm"
 )
 
 // MessageStatus tracks the lifecycle of a cross-VM message.
@@ -46,10 +47,10 @@ func (m CrossVMMessage) Validate() error {
 	if m.ID == "" {
 		return fmt.Errorf("message ID cannot be empty")
 	}
-	if m.SourceVM != VMTypeEVM && m.SourceVM != VMTypeCosmWasm {
+	if m.SourceVM != VMTypeEVM && m.SourceVM != VMTypeCosmWasm && m.SourceVM != VMTypeSVM {
 		return fmt.Errorf("invalid source VM: %s", m.SourceVM)
 	}
-	if m.TargetVM != VMTypeEVM && m.TargetVM != VMTypeCosmWasm {
+	if m.TargetVM != VMTypeEVM && m.TargetVM != VMTypeCosmWasm && m.TargetVM != VMTypeSVM {
 		return fmt.Errorf("invalid target VM: %s", m.TargetVM)
 	}
 	if m.SourceVM == m.TargetVM {
