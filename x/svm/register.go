@@ -51,6 +51,9 @@ func (a *keeperAdapter) CollectRent(ctx sdk.Context, addr [32]byte) error {
 func (a *keeperAdapter) GetMinimumBalance(dataLen uint64) uint64 {
 	return a.k.GetMinimumBalance(dataLen)
 }
+func (a *keeperAdapter) GetCurrentSlot(ctx sdk.Context) uint64 {
+	return a.k.GetCurrentSlot(ctx)
+}
 func (a *keeperAdapter) GetParams(ctx sdk.Context) types.Params {
 	return a.k.GetParams(ctx)
 }
