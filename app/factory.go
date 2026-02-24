@@ -17,6 +17,7 @@ import (
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
+	svmmod "github.com/qorechain/qorechain-core/x/svm"
 )
 
 // Module factory function variables.
@@ -50,4 +51,12 @@ var (
 	NewMultilayerKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) multilayermod.MultilayerKeeper
 	NewMultilayerAppModule   func(keeper multilayermod.MultilayerKeeper) module.AppModule
 	NewMultilayerModuleBasic func() module.AppModuleBasic
+
+	// SVM module factories
+	NewSVMKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey,
+		pqcKeeper pqcmod.PQCKeeper, aiKeeper aimod.AIKeeper,
+		crossvmKeeper crossvmmod.CrossVMKeeper,
+		logger log.Logger) svmmod.SVMKeeper
+	NewSVMAppModule   func(keeper svmmod.SVMKeeper) module.AppModule
+	NewSVMModuleBasic func() module.AppModuleBasic
 )
