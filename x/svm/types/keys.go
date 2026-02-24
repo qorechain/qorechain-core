@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 const (
@@ -13,9 +14,6 @@ const (
 
 	// RouterKey defines the module's message routing key
 	RouterKey = ModuleName
-
-	// QuerierRoute defines the module's query routing key
-	QuerierRoute = ModuleName
 
 	// MemStoreKey defines the in-memory store key
 	MemStoreKey = "mem_svm"
@@ -47,22 +45,34 @@ var (
 
 // AccountKey returns the store key for an SVM account
 func AccountKey(addr [32]byte) []byte {
-	return append(AccountKeyPrefix, addr[:]...)
+	key := make([]byte, 1, 1+32)
+	key[0] = AccountKeyPrefix[0]
+	return append(key, addr[:]...)
 }
 
 // ProgramKey returns the store key for a program's metadata
 func ProgramKey(addr [32]byte) []byte {
-	return append(ProgramKeyPrefix, addr[:]...)
+	key := make([]byte, 1, 1+32)
+	key[0] = ProgramKeyPrefix[0]
+	return append(key, addr[:]...)
 }
 
-// AddrMapKey returns the store key for a native-to-SVM address mapping
+// AddrMapKey returns the store key for a native-to-SVM address mapping.
+// cosmosAddr must be exactly 20 bytes.
 func AddrMapKey(cosmosAddr []byte) []byte {
-	return append(AddrMapKeyPrefix, cosmosAddr...)
+	if len(cosmosAddr) != 20 {
+		panic(fmt.Sprintf("AddrMapKey expects 20-byte address, got %d", len(cosmosAddr)))
+	}
+	key := make([]byte, 1, 1+20)
+	key[0] = AddrMapKeyPrefix[0]
+	return append(key, cosmosAddr...)
 }
 
 // RecentBlockhashKey returns the store key for a recent blockhash at a given height
 func RecentBlockhashKey(height uint64) []byte {
+	key := make([]byte, 1, 1+8)
+	key[0] = RecentBlockhashPrefix[0]
 	heightBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(heightBytes, height)
-	return append(RecentBlockhashPrefix, heightBytes...)
+	return append(key, heightBytes...)
 }
