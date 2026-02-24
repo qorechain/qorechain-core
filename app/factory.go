@@ -57,6 +57,8 @@ var (
 		pqcKeeper pqcmod.PQCKeeper, aiKeeper aimod.AIKeeper,
 		crossvmKeeper crossvmmod.CrossVMKeeper,
 		logger log.Logger) svmmod.SVMKeeper
-	NewSVMAppModule   func(keeper svmmod.SVMKeeper) module.AppModule
-	NewSVMModuleBasic func() module.AppModuleBasic
+	NewSVMAppModule               func(keeper svmmod.SVMKeeper) module.AppModule
+	NewSVMModuleBasic             func() module.AppModuleBasic
+	NewSVMComputeBudgetDecorator  func(keeper svmmod.SVMKeeper) sdk.AnteDecorator
+	NewSVMDeductFeeDecorator      func(keeper svmmod.SVMKeeper) sdk.AnteDecorator
 )

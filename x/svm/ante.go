@@ -18,12 +18,19 @@ func NewSVMComputeBudgetDecorator(svmKeeper SVMKeeper) SVMComputeBudgetDecorator
 }
 
 func (d SVMComputeBudgetDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	// Only act on SVM execution messages.
 	msgs := tx.GetMsgs()
+
+	// Lazy-load params only once per transaction, and only if SVM messages exist.
+	var params types.Params
+	paramsLoaded := false
+
 	for _, msg := range msgs {
 		switch m := msg.(type) {
 		case *types.MsgExecuteProgram:
-			params := d.svmKeeper.GetParams(ctx)
+			if !paramsLoaded {
+				params = d.svmKeeper.GetParams(ctx)
+				paramsLoaded = true
+			}
 			if !params.Enabled {
 				return ctx, types.ErrSVMDisabled
 			}
@@ -31,8 +38,12 @@ func (d SVMComputeBudgetDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 			// the runtime enforces params.ComputeBudgetMax during execution.
 			// This decorator validates the SVM module is enabled.
 			_ = m
+
 		case *types.MsgDeployProgram:
-			params := d.svmKeeper.GetParams(ctx)
+			if !paramsLoaded {
+				params = d.svmKeeper.GetParams(ctx)
+				paramsLoaded = true
+			}
 			if !params.Enabled {
 				return ctx, types.ErrSVMDisabled
 			}
@@ -40,8 +51,12 @@ func (d SVMComputeBudgetDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 				return ctx, types.ErrInvalidBytecode.Wrapf(
 					"program size %d exceeds max %d", len(m.Bytecode), params.MaxProgramSize)
 			}
+
 		case *types.MsgCreateAccount:
-			params := d.svmKeeper.GetParams(ctx)
+			if !paramsLoaded {
+				params = d.svmKeeper.GetParams(ctx)
+				paramsLoaded = true
+			}
 			if !params.Enabled {
 				return ctx, types.ErrSVMDisabled
 			}
