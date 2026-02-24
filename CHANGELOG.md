@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.0] - 2026-02-25
+
+### Added
+- **SVM Runtime** (x/svm): Full Solana Virtual Machine as the third execution environment
+  - BPF program deployment and execution via Rust-backed executor
+  - Account model: 32-byte addresses, lamports, data, owner, rent epoch
+  - Program lifecycle: deploy, execute, with deterministic address derivation
+  - Rent collection system with configurable exemption thresholds
+  - SVM-specific ante decorators: compute budget validation, deployment size limits
+  - Solana-compatible JSON-RPC server: `getAccountInfo`, `getBalance`, `getSlot`, `getMinimumBalanceForRentExemption`, `getVersion`, `getHealth`
+  - CLI commands: `deploy-program`, `execute`, `create-account` (tx); `account`, `program`, `params`, `slot` (query)
+  - Base58 address encoding/decoding for Solana compatibility
+  - Optional PQC key registration for SVM accounts (`MsgRegisterSVMPQCKey`)
+- **Rust qoresvm crate**: Native BPF execution engine
+  - ELF loader with validation (magic, class, endianness, machine type, size limits)
+  - BPF executor with configurable compute budget and instruction metering
+  - Syscall stubs: `sol_log`, `sol_log_64`, `sol_sha256`, `sol_keccak256`, `create_program_address`
+  - SPL program stubs: Token, Associated Token Account (ATA), Memo
+  - Memory management with heap allocation and region mapping
+  - Account serialization/deserialization for FFI boundary
+  - 79 Rust unit tests (all passing)
+- **Go FFI bridge** (x/svm/ffi): CGO bridge to Rust qoresvm library
+  - `qore_svm_init`, `qore_svm_execute`, `qore_svm_validate_elf`, `qore_svm_free`, `qore_svm_version`
+  - Platform-specific linker flags (macOS ARM64/AMD64, Linux AMD64/ARM64)
+  - JSON-encoded execution result exchange between Go and Rust
+- **CrossVM SVM extensions**: SVM as third target in cross-VM messaging
+  - `VMTypeSVM` message type for EVM/CosmWasm → SVM calls
+  - Async event-based bridge with callback injection pattern
+
+### Changed
+- Ante handler upgraded to triple routing: EVM path, QoreChain SDK path (with SVM decorators), SVM-aware compute budget validation
+- x/crossvm module updated with SVM call handler and `ErrSVMExecution` error code
+- SVMKeeper interface: 16 methods including `GetCurrentSlot`, `GetMinimumBalance`, `CollectRent`
+- Factory pattern extended with SVM keeper, module, and ante decorator factory variables
+- Total registered genesis modules increased from 35 to 36
+
+---
+
+## [0.7.0] - 2026-02-24
+
+### Added
+- **EVM Precompiles**: 6 custom precompiles exposing QoreChain SDK modules to Solidity contracts
+  - PQC precompile: verify Dilithium-5 signatures from Solidity
+  - AI precompile: query risk scores and AI verdicts on-chain
+  - Reputation precompile: read validator reputation scores
+  - Bridge precompile: initiate cross-chain transfers from EVM
+  - Multilayer precompile: query layer status and route transactions
+  - CrossVM precompile: call CosmWasm contracts from EVM
+- Precompile address constants and ABI helpers (`x/vm/precompiles/`)
+- Solidity interface files for all 6 custom precompiles
+- Stub precompiles for community (non-proprietary) build
+- Unit tests for stub precompiles
+- Documentation: `docs/EVM_PRECOMPILES.md`
+
+---
+
 ## [0.6.5] - 2026-02-24
 
 ### Fixed
