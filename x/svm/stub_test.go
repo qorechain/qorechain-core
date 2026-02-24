@@ -28,8 +28,24 @@ func TestStubKeeperDeployProgramReturnsDisabled(t *testing.T) {
 	}
 }
 
-func TestStubAnteDecoratorPassesThrough(t *testing.T) {
-	decorator := NewSVMAnteDecorator(nil)
+func TestStubComputeBudgetDecoratorPassesThrough(t *testing.T) {
+	decorator := NewSVMComputeBudgetDecorator(nil)
+	called := false
+	next := func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
+		called = true
+		return ctx, nil
+	}
+	_, err := decorator.AnteHandle(sdk.Context{}, nil, false, next)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !called {
+		t.Fatal("next handler was not called")
+	}
+}
+
+func TestStubDeductFeeDecoratorPassesThrough(t *testing.T) {
+	decorator := NewSVMDeductFeeDecorator(nil)
 	called := false
 	next := func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
 		called = true

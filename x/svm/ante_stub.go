@@ -6,14 +6,24 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// SVMAnteDecorator is a pass-through stub for public builds.
-type SVMAnteDecorator struct{}
+// SVMComputeBudgetDecorator is a pass-through stub for public builds.
+type SVMComputeBudgetDecorator struct{}
 
-// NewSVMAnteDecorator creates an SVM ante handler decorator (stub).
-func NewSVMAnteDecorator(_ SVMKeeper) SVMAnteDecorator {
-	return SVMAnteDecorator{}
+func NewSVMComputeBudgetDecorator(_ SVMKeeper) SVMComputeBudgetDecorator {
+	return SVMComputeBudgetDecorator{}
 }
 
-func (SVMAnteDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+func (SVMComputeBudgetDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	return next(ctx, tx, simulate)
+}
+
+// SVMDeductFeeDecorator is a pass-through stub for public builds.
+type SVMDeductFeeDecorator struct{}
+
+func NewSVMDeductFeeDecorator(_ SVMKeeper) SVMDeductFeeDecorator {
+	return SVMDeductFeeDecorator{}
+}
+
+func (SVMDeductFeeDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	return next(ctx, tx, simulate)
 }

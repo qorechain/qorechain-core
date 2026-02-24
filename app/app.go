@@ -578,6 +578,7 @@ func (app *QoreChainApp) setAnteHandler(
 			PQCKeeper:             app.PQCKeeper,
 			PQCClient:             app.pqcClient,
 			AIKeeper:              app.AIKeeper,
+			SVMKeeper:             app.SVMKeeper,
 			EVMAccountKeeper:      app.AccountKeeper,
 			FeeMarketKeeper:       app.FeeMarketKeeper,
 			EvmKeeper:             app.EVMKeeper,
