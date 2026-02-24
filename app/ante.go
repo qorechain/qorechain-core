@@ -32,6 +32,7 @@ import (
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
+	svmmod "github.com/qorechain/qorechain-core/x/svm"
 )
 
 // HandlerOptions are the options required for constructing the QoreChain AnteHandler.
@@ -43,6 +44,7 @@ type HandlerOptions struct {
 	PQCKeeper     pqcmod.PQCKeeper
 	PQCClient     pqcmod.PQCClient
 	AIKeeper      aimod.AIKeeper
+	SVMKeeper     svmmod.SVMKeeper
 
 	// EVM keepers — the concrete AccountKeeper is needed because the EVM ante
 	// interfaces require GetSequence which the SDK ante.AccountKeeper interface lacks.
@@ -161,6 +163,10 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		NewPQCVerifyDecorator(options.PQCKeeper, options.PQCClient),
 		// AI anomaly check — runs after PQC, before standard decorators
 		NewAIAnomalyDecorator(options.AIKeeper),
+		// SVM compute budget check — validates SVM messages are within params
+		svmmod.NewSVMComputeBudgetDecorator(options.SVMKeeper),
+		// SVM fee deduction — placeholder for future compute-unit fee logic
+		svmmod.NewSVMDeductFeeDecorator(options.SVMKeeper),
 		ante.NewExtensionOptionsDecorator(options.ExtensionOptionChecker),
 		ante.NewValidateBasicDecorator(),
 		ante.NewTxTimeoutHeightDecorator(),
