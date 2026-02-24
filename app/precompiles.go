@@ -31,13 +31,18 @@ import (
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	slashingkeeper "github.com/cosmos/cosmos-sdk/x/slashing/keeper"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
+
+	aimod "github.com/qorechain/qorechain-core/x/ai"
+	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
+	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
+	qoreprecompiles "github.com/qorechain/qorechain-core/x/vm/precompiles"
 )
 
 const bech32PrecompileBaseGas = 6_000
 
 // newAvailableStaticPrecompiles returns the full set of static precompiled contracts
-// including standard QoreChain EVM precompiles and QoreChain custom precompiles.
-// In the proprietary build, this includes the CrossVM precompile (Phase 4).
+// including standard QoreChain EVM precompiles and QoreChain custom precompiles
+// (PQC, AI, RL consensus params, and CrossVM bridge).
 func newAvailableStaticPrecompiles(
 	stakingKeeper stakingkeeper.Keeper,
 	distributionKeeper distributionkeeper.Keeper,
@@ -50,6 +55,11 @@ func newAvailableStaticPrecompiles(
 	slashingKeeper slashingkeeper.Keeper,
 	evidenceKeeper evidencekeeper.Keeper,
 	cdc codec.Codec,
+	// QoreChain custom keepers
+	pqcKeeper pqcmod.PQCKeeper,
+	aiKeeper aimod.AIKeeper,
+	crossvmKeeper crossvmmod.CrossVMKeeper,
+	rlProvider qoreprecompiles.RLConsensusParamsProvider,
 ) map[common.Address]vm.PrecompiledContract {
 	precompiles := maps.Clone(vm.PrecompiledContractsBerlin)
 
@@ -105,7 +115,24 @@ func newAvailableStaticPrecompiles(
 	}
 	precompiles[evidencePrecompile.Address()] = evidencePrecompile
 
-	// TODO(Phase 4): Add CrossVM precompile at address 0x0...0901
+	// QoreChain custom precompiles — PQC, AI, RL, CrossVM
+	pqcVerify := qoreprecompiles.NewPQCVerifyPrecompile(pqcKeeper)
+	precompiles[pqcVerify.Address()] = pqcVerify
+
+	pqcKeyStatus := qoreprecompiles.NewPQCKeyStatusPrecompile(pqcKeeper)
+	precompiles[pqcKeyStatus.Address()] = pqcKeyStatus
+
+	aiRiskScore := qoreprecompiles.NewAIRiskScorePrecompile(aiKeeper)
+	precompiles[aiRiskScore.Address()] = aiRiskScore
+
+	aiAnomalyCheck := qoreprecompiles.NewAIAnomalyCheckPrecompile(aiKeeper)
+	precompiles[aiAnomalyCheck.Address()] = aiAnomalyCheck
+
+	rlConsensusParams := qoreprecompiles.NewRLConsensusParamsPrecompile(rlProvider)
+	precompiles[rlConsensusParams.Address()] = rlConsensusParams
+
+	crossvmBridge := qoreprecompiles.NewCrossVMBridgePrecompile(crossvmKeeper)
+	precompiles[crossvmBridge.Address()] = crossvmBridge
 
 	return precompiles
 }
@@ -125,6 +152,11 @@ func (app *QoreChainApp) registerEVMPrecompiles() {
 			app.SlashingKeeper,
 			app.EvidenceKeeper,
 			app.appCodec,
+			// QoreChain custom keepers
+			app.PQCKeeper,
+			app.AIKeeper,
+			app.CrossVMKeeper,
+			qoreprecompiles.DefaultStaticRLProvider(),
 		),
 	)
 }
