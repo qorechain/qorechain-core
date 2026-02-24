@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+
 	errorsmod "cosmossdk.io/errors"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -29,6 +31,10 @@ func (m *MsgDeployProgram) ValidateBasic() error {
 	return nil
 }
 
+func (m *MsgDeployProgram) Reset()         { *m = MsgDeployProgram{} }
+func (m *MsgDeployProgram) String() string { return fmt.Sprintf("MsgDeployProgram{sender=%s}", m.Sender) }
+func (m *MsgDeployProgram) ProtoMessage()  {}
+
 // MsgExecuteProgram executes an instruction on a deployed SVM program.
 type MsgExecuteProgram struct {
 	Sender    string        `json:"sender"`
@@ -49,6 +55,10 @@ func (m *MsgExecuteProgram) ValidateBasic() error {
 	return nil
 }
 
+func (m *MsgExecuteProgram) Reset()         { *m = MsgExecuteProgram{} }
+func (m *MsgExecuteProgram) String() string { return fmt.Sprintf("MsgExecuteProgram{sender=%s}", m.Sender) }
+func (m *MsgExecuteProgram) ProtoMessage()  {}
+
 // MsgCreateAccount creates a new SVM data account with allocated space.
 type MsgCreateAccount struct {
 	Sender   string   `json:"sender"`
@@ -68,6 +78,10 @@ func (m *MsgCreateAccount) ValidateBasic() error {
 	}
 	return nil
 }
+
+func (m *MsgCreateAccount) Reset()         { *m = MsgCreateAccount{} }
+func (m *MsgCreateAccount) String() string { return fmt.Sprintf("MsgCreateAccount{sender=%s}", m.Sender) }
+func (m *MsgCreateAccount) ProtoMessage()  {}
 
 // MsgRegisterSVMPQCKey registers a Dilithium-5 key for optional PQC upgrade
 // on an SVM account.
@@ -91,6 +105,10 @@ func (m *MsgRegisterSVMPQCKey) ValidateBasic() error {
 	}
 	return nil
 }
+
+func (m *MsgRegisterSVMPQCKey) Reset()         { *m = MsgRegisterSVMPQCKey{} }
+func (m *MsgRegisterSVMPQCKey) String() string { return fmt.Sprintf("MsgRegisterSVMPQCKey{sender=%s}", m.Sender) }
+func (m *MsgRegisterSVMPQCKey) ProtoMessage()  {}
 
 // ---------------------------------------------------------------------------
 // Codec Registration
