@@ -19,6 +19,7 @@ import (
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
+	svmmod "github.com/qorechain/qorechain-core/x/svm"
 )
 
 func init() {
@@ -84,5 +85,19 @@ func init() {
 	}
 	NewMultilayerModuleBasic = func() module.AppModuleBasic {
 		return multilayermod.RealNewModuleBasic()
+	}
+
+	// SVM factories — use real BPF executor-backed implementations
+	NewSVMKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey,
+		pqcKeeper pqcmod.PQCKeeper, aiKeeper aimod.AIKeeper,
+		crossvmKeeper crossvmmod.CrossVMKeeper,
+		logger log.Logger) svmmod.SVMKeeper {
+		return svmmod.RealNewSVMKeeper(cdc, storeKey, pqcKeeper, aiKeeper, crossvmKeeper, logger)
+	}
+	NewSVMAppModule = func(keeper svmmod.SVMKeeper) module.AppModule {
+		return svmmod.RealNewAppModule(keeper)
+	}
+	NewSVMModuleBasic = func() module.AppModuleBasic {
+		return svmmod.AppModuleBasic{}
 	}
 }

@@ -55,15 +55,6 @@ type SVMKeeper interface {
 	Logger() log.Logger
 }
 
-// SVMExecutor abstracts the BPF execution engine (Rust FFI in proprietary, stub in public).
-type SVMExecutor interface {
-	// Execute runs a BPF program with the given instruction and accounts.
-	Execute(program []byte, instruction []byte, accounts []types.SVMAccount,
-		computeBudget uint64) (*types.ExecutionResult, error)
-
-	// ValidateProgram verifies a BPF ELF binary is well-formed.
-	ValidateProgram(bytecode []byte) error
-
-	// Close releases executor resources.
-	Close()
-}
+// SVMExecutor is an alias for the BPF execution engine interface defined in the
+// types package. It is re-exported here for backward compatibility.
+type SVMExecutor = types.SVMExecutor
