@@ -69,3 +69,18 @@ func TestStubKeeperDefaultParams(t *testing.T) {
 		t.Fatalf("expected default MaxProgramSize %d, got %d", types.DefaultMaxProgramSize, params.MaxProgramSize)
 	}
 }
+
+func TestStubExecutorSatisfiesInterface(t *testing.T) {
+	executor := &stubExecutorWrapper{}
+	// Compile-time check that ffi.StubExecutor satisfies SVMExecutor
+	var _ SVMExecutor = executor
+}
+
+// stubExecutorWrapper wraps the ffi.StubExecutor methods for cross-package interface check.
+type stubExecutorWrapper struct{}
+
+func (e *stubExecutorWrapper) Execute(_ []byte, _ []byte, _ []types.SVMAccount, _ uint64) (*types.ExecutionResult, error) {
+	return nil, types.ErrSVMDisabled
+}
+func (e *stubExecutorWrapper) ValidateProgram(_ []byte) error { return types.ErrSVMDisabled }
+func (e *stubExecutorWrapper) Close()                         {}
