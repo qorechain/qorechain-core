@@ -54,7 +54,8 @@ func (k *StubKeeper) CollectRent(_ sdk.Context, _ [32]byte) error {
 }
 
 func (k *StubKeeper) GetMinimumBalance(dataLen uint64) uint64 {
-	// Return a reasonable default for queries even in public build
+	// Return a reasonable default for queries even in public build.
+	// NOTE: truncates float to uint; acceptable for stub approximation.
 	return (128 + dataLen) * types.DefaultLamportsPerByte * uint64(types.DefaultRentExemptionMulti)
 }
 
