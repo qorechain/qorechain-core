@@ -2,7 +2,10 @@ package types
 
 import (
 	"bytes"
+	"sync"
 	"testing"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // ---------------------------------------------------------------------------
@@ -379,4 +382,253 @@ func TestRecentBlockhashKey(t *testing.T) {
 			}
 		}
 	})
+}
+
+// ---------------------------------------------------------------------------
+// Bech32 test helpers
+// ---------------------------------------------------------------------------
+
+var setBech32Once sync.Once
+
+func initBech32() {
+	setBech32Once.Do(func() {
+		config := sdk.GetConfig()
+		config.SetBech32PrefixForAccount("qor", "qorpub")
+		config.SetBech32PrefixForValidator("qorvaloper", "qorvaloperpub")
+		config.SetBech32PrefixForConsensusNode("qorvalcons", "qorvalconspub")
+	})
+}
+
+func validQorAddress(t *testing.T) string {
+	t.Helper()
+	initBech32()
+	addr := bytes.Repeat([]byte{0x01}, 20)
+	bech32Addr, err := sdk.Bech32ifyAddressBytes("qor", addr)
+	if err != nil {
+		t.Fatalf("failed to create test address: %v", err)
+	}
+	return bech32Addr
+}
+
+// ---------------------------------------------------------------------------
+// TestDefaultParamsValidate
+// ---------------------------------------------------------------------------
+
+func TestDefaultParamsValidate(t *testing.T) {
+	params := DefaultParams()
+	if err := params.Validate(); err != nil {
+		t.Fatalf("DefaultParams() should be valid: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestInvalidParams
+// ---------------------------------------------------------------------------
+
+func TestInvalidParams(t *testing.T) {
+	tests := []struct {
+		name   string
+		modify func(*Params)
+	}{
+		{"zero MaxProgramSize", func(p *Params) { p.MaxProgramSize = 0 }},
+		{"zero MaxAccountDataSize", func(p *Params) { p.MaxAccountDataSize = 0 }},
+		{"zero ComputeBudgetMax", func(p *Params) { p.ComputeBudgetMax = 0 }},
+		{"zero LamportsPerByte", func(p *Params) { p.LamportsPerByte = 0 }},
+		{"zero RentExemptionMulti", func(p *Params) { p.RentExemptionMulti = 0 }},
+		{"negative RentExemptionMulti", func(p *Params) { p.RentExemptionMulti = -1.0 }},
+		{"zero MaxCPI", func(p *Params) { p.MaxCPI = 0 }},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			p := DefaultParams()
+			tc.modify(&p)
+			if err := p.Validate(); err == nil {
+				t.Fatal("expected validation error")
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestDefaultGenesisValidate
+// ---------------------------------------------------------------------------
+
+func TestDefaultGenesisValidate(t *testing.T) {
+	gs := DefaultGenesis()
+	if err := gs.Validate(); err != nil {
+		t.Fatalf("DefaultGenesis() should be valid: %v", err)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestDefaultGenesisSystemAccounts
+// ---------------------------------------------------------------------------
+
+func TestDefaultGenesisSystemAccounts(t *testing.T) {
+	gs := DefaultGenesis()
+	if len(gs.Accounts) != 6 {
+		t.Fatalf("expected 6 system accounts, got %d", len(gs.Accounts))
+	}
+	for _, acc := range gs.Accounts {
+		if !acc.Executable {
+			t.Errorf("system account %x should be executable", acc.Address[:4])
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestGenesisValidateDuplicateAccounts
+// ---------------------------------------------------------------------------
+
+func TestGenesisValidateDuplicateAccounts(t *testing.T) {
+	gs := DefaultGenesis()
+	// Add a duplicate
+	gs.Accounts = append(gs.Accounts, gs.Accounts[0])
+	if err := gs.Validate(); err == nil {
+		t.Fatal("expected error for duplicate accounts")
+	}
+}
+
+// ---------------------------------------------------------------------------
+// TestMsgDeployProgramValidateBasic
+// ---------------------------------------------------------------------------
+
+func TestMsgDeployProgramValidateBasic(t *testing.T) {
+	addr := validQorAddress(t)
+
+	t.Run("valid", func(t *testing.T) {
+		msg := &MsgDeployProgram{
+			Sender:   addr,
+			Bytecode: []byte{0x7f, 0x45, 0x4c, 0x46}, // ELF magic
+		}
+		if err := msg.ValidateBasic(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("invalid sender", func(t *testing.T) {
+		msg := &MsgDeployProgram{
+			Sender:   "invalid",
+			Bytecode: []byte{0x01},
+		}
+		if err := msg.ValidateBasic(); err == nil {
+			t.Fatal("expected error for invalid sender")
+		}
+	})
+	t.Run("empty bytecode", func(t *testing.T) {
+		msg := &MsgDeployProgram{
+			Sender:   addr,
+			Bytecode: nil,
+		}
+		if err := msg.ValidateBasic(); err == nil {
+			t.Fatal("expected error for empty bytecode")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestMsgExecuteProgramValidateBasic
+// ---------------------------------------------------------------------------
+
+func TestMsgExecuteProgramValidateBasic(t *testing.T) {
+	addr := validQorAddress(t)
+
+	t.Run("valid", func(t *testing.T) {
+		msg := &MsgExecuteProgram{
+			Sender:    addr,
+			ProgramID: [32]byte{1},
+			Data:      []byte{0x01},
+		}
+		if err := msg.ValidateBasic(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("zero program ID", func(t *testing.T) {
+		msg := &MsgExecuteProgram{
+			Sender:    addr,
+			ProgramID: [32]byte{},
+			Data:      []byte{0x01},
+		}
+		if err := msg.ValidateBasic(); err == nil {
+			t.Fatal("expected error for zero program ID")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestMsgCreateAccountValidateBasic
+// ---------------------------------------------------------------------------
+
+func TestMsgCreateAccountValidateBasic(t *testing.T) {
+	addr := validQorAddress(t)
+
+	t.Run("valid", func(t *testing.T) {
+		msg := &MsgCreateAccount{
+			Sender:   addr,
+			Owner:    [32]byte{1},
+			Space:    1024,
+			Lamports: 100000,
+		}
+		if err := msg.ValidateBasic(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("zero owner", func(t *testing.T) {
+		msg := &MsgCreateAccount{
+			Sender: addr,
+			Owner:  [32]byte{},
+		}
+		if err := msg.ValidateBasic(); err == nil {
+			t.Fatal("expected error for zero owner")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestMsgRegisterSVMPQCKeyValidateBasic
+// ---------------------------------------------------------------------------
+
+func TestMsgRegisterSVMPQCKeyValidateBasic(t *testing.T) {
+	addr := validQorAddress(t)
+
+	t.Run("valid", func(t *testing.T) {
+		msg := &MsgRegisterSVMPQCKey{
+			Sender:    addr,
+			SVMAddr:   [32]byte{1},
+			PQCPubKey: []byte{0x01, 0x02, 0x03},
+		}
+		if err := msg.ValidateBasic(); err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+	})
+	t.Run("empty PQC key", func(t *testing.T) {
+		msg := &MsgRegisterSVMPQCKey{
+			Sender:  addr,
+			SVMAddr: [32]byte{1},
+		}
+		if err := msg.ValidateBasic(); err == nil {
+			t.Fatal("expected error for empty PQC key")
+		}
+	})
+}
+
+// ---------------------------------------------------------------------------
+// TestGenesisRoundTrip
+// ---------------------------------------------------------------------------
+
+func TestGenesisRoundTrip(t *testing.T) {
+	gs := DefaultGenesis()
+	bz, err := gs.Marshal()
+	if err != nil {
+		t.Fatalf("Marshal failed: %v", err)
+	}
+	gs2, err := UnmarshalGenesisState(bz)
+	if err != nil {
+		t.Fatalf("Unmarshal failed: %v", err)
+	}
+	if len(gs2.Accounts) != len(gs.Accounts) {
+		t.Fatalf("genesis round-trip: account count mismatch")
+	}
+	if gs2.Params.MaxProgramSize != gs.Params.MaxProgramSize {
+		t.Fatalf("genesis round-trip: params mismatch")
+	}
 }
