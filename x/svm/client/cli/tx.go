@@ -85,7 +85,10 @@ func GetCmdExecuteProgram() *cobra.Command {
 		Long: `Execute an instruction on a deployed SVM program.
 
 The program-id-base58 argument is the base58-encoded 32-byte program address.
-The data-hex argument is the hex-encoded instruction data to pass to the program.`,
+The data-hex argument is the hex-encoded instruction data to pass to the program.
+
+Note: Account metadata (--accounts flag) will be added in a future release.
+Currently the Accounts field is empty, suitable for programs with no input accounts.`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
