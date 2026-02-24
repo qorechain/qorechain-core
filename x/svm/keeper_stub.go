@@ -59,6 +59,10 @@ func (k *StubKeeper) GetMinimumBalance(dataLen uint64) uint64 {
 	return (128 + dataLen) * types.DefaultLamportsPerByte * uint64(types.DefaultRentExemptionMulti)
 }
 
+func (k *StubKeeper) GetCurrentSlot(_ sdk.Context) uint64 {
+	return 0
+}
+
 func (k *StubKeeper) GetParams(_ sdk.Context) types.Params {
 	return types.DefaultParams()
 }

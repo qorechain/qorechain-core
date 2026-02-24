@@ -39,6 +39,9 @@ type SVMKeeper interface {
 	// GetMinimumBalance returns the minimum lamports for rent exemption.
 	GetMinimumBalance(dataLen uint64) uint64
 
+	// GetCurrentSlot returns the current SVM slot number.
+	GetCurrentSlot(ctx sdk.Context) uint64
+
 	// GetParams returns the module parameters.
 	GetParams(ctx sdk.Context) types.Params
 
