@@ -5,22 +5,33 @@ package rpc
 import (
 	"encoding/base64"
 	"fmt"
+	"sync"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/svm/types"
 )
 
-// ctxProvider is set by the app to provide the current query context.
-// This avoids the server needing to know about the app's internals.
-var ctxProvider func() sdk.Context
+// ctxProvider is set by the app during init to provide the current query context.
+// It is written once via SetContextProvider before the HTTP server starts, and
+// read concurrently by HTTP handlers. A RWMutex protects against any future
+// hot-reload scenario.
+var (
+	ctxProviderMu sync.RWMutex
+	ctxProvider    func() sdk.Context
+)
 
 // SetContextProvider sets the function that provides the current query context.
+// Must be called before Server.Start().
 func SetContextProvider(fn func() sdk.Context) {
+	ctxProviderMu.Lock()
+	defer ctxProviderMu.Unlock()
 	ctxProvider = fn
 }
 
 func (s *Server) getQueryContext() (sdk.Context, error) {
+	ctxProviderMu.RLock()
+	defer ctxProviderMu.RUnlock()
 	if ctxProvider == nil {
 		return sdk.Context{}, fmt.Errorf("context provider not set")
 	}
@@ -47,17 +58,19 @@ func (s *Server) handleGetAccountInfo(params []interface{}) (interface{}, *RPCEr
 		return nil, &RPCError{Code: ErrCodeInternal, Message: err.Error()}
 	}
 
+	slot := s.svmKeeper.GetCurrentSlot(ctx)
+
 	account, err := s.svmKeeper.GetAccount(ctx, addr)
 	if err != nil {
 		// Account not found -- return null value (Solana convention)
 		return GetAccountInfoResult{
-			Context: ContextResult{Slot: 0},
+			Context: ContextResult{Slot: slot},
 			Value:   nil,
 		}, nil
 	}
 
 	return GetAccountInfoResult{
-		Context: ContextResult{Slot: 0},
+		Context: ContextResult{Slot: slot},
 		Value: &AccountInfo{
 			Data:       []string{base64.StdEncoding.EncodeToString(account.Data), "base64"},
 			Executable: account.Executable,
@@ -88,23 +101,28 @@ func (s *Server) handleGetBalance(params []interface{}) (interface{}, *RPCError)
 		return nil, &RPCError{Code: ErrCodeInternal, Message: err.Error()}
 	}
 
+	slot := s.svmKeeper.GetCurrentSlot(ctx)
+
 	account, err := s.svmKeeper.GetAccount(ctx, addr)
 	if err != nil {
 		return GetBalanceResult{
-			Context: ContextResult{Slot: 0},
+			Context: ContextResult{Slot: slot},
 			Value:   0,
 		}, nil
 	}
 
 	return GetBalanceResult{
-		Context: ContextResult{Slot: 0},
+		Context: ContextResult{Slot: slot},
 		Value:   account.Lamports,
 	}, nil
 }
 
 func (s *Server) handleGetSlot(_ []interface{}) (interface{}, *RPCError) {
-	// Return 0 for now; will be connected to block height later
-	return uint64(0), nil
+	ctx, err := s.getQueryContext()
+	if err != nil {
+		return nil, &RPCError{Code: ErrCodeInternal, Message: err.Error()}
+	}
+	return s.svmKeeper.GetCurrentSlot(ctx), nil
 }
 
 func (s *Server) handleGetMinimumBalance(params []interface{}) (interface{}, *RPCError) {

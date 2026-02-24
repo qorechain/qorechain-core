@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"sync"
 	"time"
 
 	"cosmossdk.io/log"
@@ -21,7 +20,6 @@ type Server struct {
 	httpServer *http.Server
 	svmKeeper  svmmod.SVMKeeper
 	logger     log.Logger
-	mu         sync.Mutex
 }
 
 // NewServer creates a new JSON-RPC server.
@@ -70,27 +68,28 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	defer r.Body.Close()
+
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20)) // 1MB limit
 	if err != nil {
-		writeRPCError(w, nil, ErrCodeParse, "failed to read request body")
+		s.writeRPCError(w, nil, ErrCodeParse, "failed to read request body")
 		return
 	}
-	defer r.Body.Close()
 
 	var req RPCRequest
 	if err := json.Unmarshal(body, &req); err != nil {
-		writeRPCError(w, nil, ErrCodeParse, "invalid JSON")
+		s.writeRPCError(w, nil, ErrCodeParse, "invalid JSON")
 		return
 	}
 
 	if req.JSONRPC != "2.0" {
-		writeRPCError(w, req.ID, ErrCodeInvalidRequest, "jsonrpc must be 2.0")
+		s.writeRPCError(w, req.ID, ErrCodeInvalidRequest, "jsonrpc must be 2.0")
 		return
 	}
 
 	result, rpcErr := s.dispatch(req)
 	if rpcErr != nil {
-		writeRPCResponse(w, RPCResponse{
+		s.writeRPCResponse(w, RPCResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
 			Error:   rpcErr,
@@ -98,7 +97,7 @@ func (s *Server) handleRPC(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeRPCResponse(w, RPCResponse{
+	s.writeRPCResponse(w, RPCResponse{
 		JSONRPC: "2.0",
 		ID:      req.ID,
 		Result:  result,
@@ -125,13 +124,15 @@ func (s *Server) dispatch(req RPCRequest) (interface{}, *RPCError) {
 	}
 }
 
-func writeRPCResponse(w http.ResponseWriter, resp RPCResponse) {
+func (s *Server) writeRPCResponse(w http.ResponseWriter, resp RPCResponse) {
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		s.logger.Error("failed to encode RPC response", "error", err)
+	}
 }
 
-func writeRPCError(w http.ResponseWriter, id interface{}, code int, msg string) {
-	writeRPCResponse(w, RPCResponse{
+func (s *Server) writeRPCError(w http.ResponseWriter, id interface{}, code int, msg string) {
+	s.writeRPCResponse(w, RPCResponse{
 		JSONRPC: "2.0",
 		ID:      id,
 		Error:   &RPCError{Code: code, Message: msg},

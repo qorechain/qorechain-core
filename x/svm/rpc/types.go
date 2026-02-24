@@ -57,9 +57,3 @@ type GetBalanceResult struct {
 	Context ContextResult `json:"context"`
 	Value   uint64        `json:"value"`
 }
-
-// ProgramAccountEntry represents one entry in getProgramAccounts.
-type ProgramAccountEntry struct {
-	Account AccountInfo `json:"account"`
-	Pubkey  string      `json:"pubkey"`
-}
