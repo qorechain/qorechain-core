@@ -17,7 +17,6 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
-	"github.com/qorechain/qorechain-core/x/svm/keeper"
 	"github.com/qorechain/qorechain-core/x/svm/types"
 )
 
@@ -63,11 +62,11 @@ func (AppModuleBasic) GetQueryCmd() *cobra.Command { return nil }
 
 type AppModule struct {
 	AppModuleBasic
-	keeper *keeper.Keeper
+	keeper SVMKeeper
 }
 
-// NewProprietaryAppModule creates the proprietary AppModule with the concrete keeper.
-func NewProprietaryAppModule(k *keeper.Keeper) AppModule {
+// NewProprietaryAppModule creates the proprietary AppModule backed by the real keeper.
+func NewProprietaryAppModule(k SVMKeeper) AppModule {
 	return AppModule{
 		AppModuleBasic: AppModuleBasic{},
 		keeper:         k,

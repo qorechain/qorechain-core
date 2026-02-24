@@ -13,6 +13,7 @@ import (
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
+	"github.com/qorechain/qorechain-core/x/svm/ffi"
 	"github.com/qorechain/qorechain-core/x/svm/keeper"
 	"github.com/qorechain/qorechain-core/x/svm/types"
 )
@@ -76,14 +77,15 @@ func RealNewSVMKeeper(
 	logger log.Logger,
 ) SVMKeeper {
 	k := keeper.NewKeeper(cdc, storeKey, pqcKeeper, aiKeeper, crossvmKeeper, logger)
+
+	// Initialize the BPF execution engine via the Rust FFI bridge.
+	exec := ffi.NewFFIExecutor(types.DefaultComputeBudgetMax)
+	k.SetExecutor(exec)
+
 	return &keeperAdapter{k: k}
 }
 
 // RealNewAppModule creates the real SVM AppModule.
 func RealNewAppModule(k SVMKeeper) module.AppModule {
-	adapter, ok := k.(*keeperAdapter)
-	if !ok {
-		panic("SVMKeeper must be a keeperAdapter in proprietary build")
-	}
-	return NewProprietaryAppModule(adapter.k)
+	return NewProprietaryAppModule(k)
 }
