@@ -17,7 +17,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
-	cli "github.com/qorechain/qorechain-core/x/svm/client/cli"
+	"github.com/qorechain/qorechain-core/x/svm/client/cli"
 	"github.com/qorechain/qorechain-core/x/svm/types"
 )
 

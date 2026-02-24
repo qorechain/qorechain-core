@@ -121,7 +121,7 @@ func GetCmdQuerySlot() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "slot",
 		Short: "Query the current SVM slot number",
-		Long:  "Query the current SVM virtual slot, which is derived from the chain block height plus the configured slot offset.",
+		Long:  "Query the current SVM virtual slot. Full gRPC query support will be added with proto definitions.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
