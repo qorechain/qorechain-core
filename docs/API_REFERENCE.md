@@ -68,6 +68,14 @@ All standard QoreChain SDK REST and gRPC endpoints are available:
 | `/qorechain/multilayer/v1/routing-stats` | GET | Routing statistics |
 | `/qorechain/multilayer/v1/params` | GET | Module parameters |
 
+### SVM Module
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/svm/v1/params` | GET | SVM module parameters |
+| `/qorechain/svm/v1/account/{address}` | GET | SVM account info by base58 address |
+| `/qorechain/svm/v1/program/{address}` | GET | Deployed program info by base58 address |
+
 ## JSON-RPC (EVM)
 
 Port: 8545 (HTTP), 8546 (WebSocket)
@@ -91,6 +99,28 @@ Port: 8545 (HTTP), 8546 (WebSocket)
 | `qor_getReputationScore` | `validator` | Validator reputation score breakdown |
 | `qor_getLayerInfo` | `layerId` | Multilayer chain layer information |
 | `qor_getBridgeStatus` | `chainId` | Bridge connection status for a chain |
+
+## JSON-RPC (SVM — Solana-Compatible)
+
+Port: 8899 (HTTP)
+
+The SVM runtime exposes a Solana-compatible JSON-RPC interface. Existing Solana clients (e.g., `@solana/web3.js`) can connect directly.
+
+| Method | Parameters | Description |
+|--------|-----------|-------------|
+| `getAccountInfo` | `pubkey (base58)` | Account data, owner, lamports, executable flag |
+| `getBalance` | `pubkey (base58)` | Account balance in lamports |
+| `getSlot` | (none) | Current slot number (block height + offset) |
+| `getMinimumBalanceForRentExemption` | `dataLength (number)` | Minimum lamports for rent-exempt account |
+| `getVersion` | (none) | Runtime version (`1.18.0-qorechain`) |
+| `getHealth` | (none) | Health check (`"ok"`) |
+
+### Example
+
+```bash
+curl -X POST http://localhost:8899 -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getSlot","params":[]}'
+```
 
 ## AI Sidecar gRPC
 
