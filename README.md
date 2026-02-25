@@ -2,11 +2,47 @@
 
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v1.1.0)
+[![Version](https://img.shields.io/badge/version-1.2.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v1.2.0)
 
-QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, and a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation. Built on QoreChain SDK v0.53 with 12 custom modules and 40 registered genesis modules.
+QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, and **25 direct cross-chain connections** spanning IBC, EVM, Move, UTXO, and account-model ecosystems. Built on QoreChain SDK v0.53 with 17 custom modules and 44 registered genesis modules.
 
 ## Innovations
+
+### 25 Direct Cross-Chain Connections (v1.2.0)
+
+QoreChain connects to **25 blockchain ecosystems** through two complementary protocols:
+
+- **8 IBC channels** — Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, and the QoreChain loopback relay. Pre-configured Hermes relayer templates with client updates, misbehaviour detection, and packet clearing every 100 blocks.
+- **17 QCB bridge endpoints** — Ethereum, BSC, Solana, Avalanche, Polygon, Arbitrum, TON, Sui, Optimism, Base, Aptos, Bitcoin, NEAR, Cardano, Polkadot, Tezos, and TRON. Each chain has per-type address validation, configurable confirmation depth, circuit breaker volume caps, and PQC-signed validator attestations.
+- **12 chain types** — evm, solana, ton, move, sui_move, cosmos_ibc, aptos_move, utxo, near, cardano, polkadot, tezos, tron — covering every major blockchain architecture.
+
+### BTC Restaking via Babylon Protocol (v1.2.0)
+
+The `x/babylon` module integrates with Babylon Protocol to inherit Bitcoin's proof-of-work finality guarantees. Validators can register BTC staking positions (min 100,000 satoshis), and QoreChain epoch state roots are periodically checkpointed to Bitcoin via IBC-relayed Babylon epochs. This provides a secondary finality layer backed by BTC hashrate without requiring any changes to Bitcoin itself.
+
+### Smart Account Abstraction (v1.2.0)
+
+The `x/abstractaccount` module enables programmable accounts backed by smart contracts — similar to ERC-4337 but at the protocol layer. Three account types (`multisig`, `social_recovery`, `session_based`) support session keys with granular permissions and expiry, per-account daily and per-transaction spending rules, and scoped denom allowlists. This enables wallet UX patterns impossible with standard accounts: dApp session keys for mobile, social recovery as a first-class account type, and programmable spend limits enforced at consensus.
+
+### MEV-Protected Block Space (v1.2.0)
+
+The `x/fairblock` module provides a threshold identity-based encryption (tIBE) framework for encrypted mempools. Transactions are cryptographically opaque to block proposers until after inclusion — eliminating the information asymmetry that enables front-running and sandwich attacks. In v1.2.0 the tIBE threshold decryption is stubbed (passthrough), with activation planned once the validator tIBE key ceremony infrastructure is deployed. The `FairBlockDecorator` ante handler is already wired and ready.
+
+### Multi-Token Gas Payment (v1.2.0)
+
+The `x/gasabstraction` module removes the requirement to hold native QOR for transaction fees. Users can pay gas in any accepted IBC-transferred token — currently `ibc/USDC` (1:1 rate) and `ibc/ATOM` (10:1 rate). The `GasAbstractionDecorator` validates non-native fee denoms before the standard `DeductFee` handler, enabling seamless onboarding from other ecosystems without acquiring QOR first.
+
+### 5-Lane Transaction Prioritization (v1.2.0)
+
+Block space is statically partitioned into five priority lanes so that security-critical transactions can never be crowded out by high-volume standard traffic:
+
+| Lane | Priority | Block Space | Purpose |
+|------|----------|-------------|---------|
+| PQC | 100 | 15% | Post-quantum hybrid-signature transactions |
+| MEV | 90 | 20% | FairBlock tIBE-encrypted transactions |
+| AI | 80 | 15% | AI-scored and optimized transactions |
+| Default | 50 | 40% | Standard transactions |
+| Free | 10 | 10% | Gas-abstracted and sponsored transactions |
 
 ### Quantum-Safe Hybrid Signatures (v1.1.0)
 
@@ -48,7 +84,7 @@ Voting power uses a square-root function dampened by a sigmoid reputation multip
 
 ### Deflationary Burn Engine
 
-Nine distinct burn channels (transaction fees, governance penalties, slashing, bridge fees, spam deterrence, epoch excess, manual burns, contract callbacks, cross-VM fees) feed a central burn accounting module. Collected fees are split: 40% to validators, 30% permanently burned, 20% to treasury, 10% to stakers — creating sustained deflationary pressure that increases with network usage.
+Nine distinct burn channels (transaction fees, governance penalties, slashing, bridge fees, spam deterrence, epoch excess, manual burns, contract callbacks, cross-VM fees) feed a central burn accounting module. Collected fees are split: 40% to validators, 30% permanently burned, 20% to treasury, 10% to stakers — creating sustained deflationary pressure that increases with network usage. Bridge withdrawal fees are automatically routed to the burn module for permanent supply reduction.
 
 ### xQORE Governance-Boosted Staking
 
@@ -86,15 +122,20 @@ Validator rewards factor in self-bonded stake, loyalty duration (via determinist
 
 - **PQC-Primary Security** — Dilithium-5 signatures + ML-KEM-1024 key exchange, hybrid Ed25519 + ML-DSA-87 via TX extensions, SHAKE-256 hash foundation, algorithm-agile with governance-controlled migration
 - **Hybrid Signature Architecture** — Three enforcement modes (disabled/optional/required), auto-registration onboarding, three-way ante verification, governance-upgradeable
+- **25 Cross-Chain Connections** — 8 IBC channels + 17 QCB bridge endpoints spanning EVM, Move, UTXO, and account-model ecosystems with PQC-signed attestations
+- **BTC Restaking** — Babylon Protocol integration for Bitcoin finality guarantees via IBC-relayed epoch checkpoints
+- **Account Abstraction** — Programmable accounts with session keys, spending rules, and social recovery at the protocol layer
+- **MEV Protection** — FairBlock tIBE encrypted mempool framework with dedicated block lane and validator threshold decryption
+- **Gas Abstraction** — Pay transaction fees in IBC-transferred tokens (USDC, ATOM) without holding native QOR
+- **5-Lane Block Prioritization** — PQC, MEV, AI, Default, and Free lanes with static block-space quotas
 - **RL-Driven Consensus** — On-chain reinforcement learning agent dynamically tunes block time, gas limits, and pool weights with circuit breaker protection
 - **Triple-Pool CPoS** — RPoS/DPoS/PoS validator classification with pool-weighted proposer selection
 - **QDRW Governance** — Quadratic delegation with reputation weighting and xQORE boost for whale-resistant governance voting
-- **Tokenomics Engine** — Burn accounting (9 channels), xQORE governance staking (lock/unlock with PvP rebase), epoch-based inflation decay
+- **Tokenomics Engine** — Burn accounting (9 channels + bridge fee burns), xQORE governance staking (lock/unlock with PvP rebase), epoch-based inflation decay
 - **EVM Runtime** — Full Ethereum compatibility with JSON-RPC on port 8545, EIP-1559 gas, ERC-20 token pairs
 - **CosmWasm Runtime** — WebAssembly smart contracts with full lifecycle support
 - **SVM Runtime** — BPF program deployment and execution via Rust-backed executor with Solana-compatible RPC
 - **Cross-VM Bridge** — EVM ↔ CosmWasm (precompile + events) + SVM (async messaging)
-- **Universal Bridge (QCB)** — Cross-chain connectivity to Ethereum, Solana, TON, BSC, Avalanche, Polygon, Arbitrum, Sui + native IBC
 - **AI TEE Integration** — Interface specifications for SGX/TDX/SEV-SNP/ARM CCA attestation and secure enclave execution
 - **Federated Learning** — On-chain FL coordination interfaces with FedAvg/FedProx/SCAFFOLD aggregation support
 - **Progressive Slashing** — Escalating penalties with temporal half-life decay, capped at 33% per infraction
@@ -143,48 +184,63 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 ## Architecture
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                          QoreChain Node                              │
-│                                                                      │
-│  ┌──────────────────── Virtual Machines ──────────────────────┐     │
-│  │  ┌───────┐    ┌──────────┐    ┌───────┐                   │     │
-│  │  │  EVM  │    │ CosmWasm │    │  SVM  │                   │     │
-│  │  │(Sol.) │◄──►│ (Wasm)   │◄──►│ (BPF) │                   │     │
-│  │  └───┬───┘    └────┬─────┘    └───┬───┘                   │     │
-│  │      └─────────┬───┘──────────────┘                       │     │
-│  │           x/crossvm (bridge)                               │     │
-│  └────────────────────────────────────────────────────────────┘     │
-│                                                                      │
-│  ┌────────────────────── Tokenomics ─────────────────────────┐     │
-│  │  ┌──────┐   ┌───────┐   ┌───────────┐                    │     │
-│  │  │x/burn│   │x/xqore│   │x/inflation│                    │     │
-│  │  │9 chan.│   │lock/  │   │epoch decay│                    │     │
-│  │  │40/30/│   │unlock │   │17.5→2%    │                    │     │
-│  │  │20/10 │   │PvP    │   │           │                    │     │
-│  │  └──────┘   └───────┘   └───────────┘                    │     │
-│  └────────────────────────────────────────────────────────────┘     │
-│                                                                      │
-│  ┌──────────────┐ ┌──────┐ ┌────────────┐ ┌─────┐ ┌──────────┐    │
-│  │x/rlconsensus │ │ x/ai │ │x/reputation│ │x/qca│ │ x/bridge │    │
-│  │  RL Agent    │ │      │ │            │ │     │ │          │    │
-│  └──────┬───────┘ └──┬───┘ └─────┬──────┘ └──┬──┘ └────┬─────┘    │
-│   PPO MLP         AI Engine   Scoring    CPoS Pools   Bridge      │
-│   Obs/Action      Fraud Det.  Decay      Bonding       PQC-Sign   │
-│   Circuit Brk     Fee Opt.    Sigmoid    Slashing      IBC        │
-│                   TEE/FL                 QDRW Gov                  │
-│  ┌──────┐ ┌──────────┐                                            │
-│  │x/pqc │ │ x/multi  │                                            │
-│  └──┬───┘ └────┬─────┘                                            │
-│  Dilithium    Layer Router                                         │
-│  ML-KEM       Sidechains                                           │
-│  Hybrid Sig                                                        │
-│  SHAKE-256                                                         │
-│                                                                      │
-│  ┌──────┐ ┌───────┐                                                │
-│  │x/svm │ │x/cross│                                                │
-│  └──┬───┘ └───┬───┘                                                │
-│  BPF Exec   CrossVM Msg                                             │
-└────────┬──────┬───────────────────────────────────────┬─────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│                            QoreChain Node                                  │
+│                                                                            │
+│  ┌──────────────────── Virtual Machines ──────────────────────┐           │
+│  │  ┌───────┐    ┌──────────┐    ┌───────┐                   │           │
+│  │  │  EVM  │    │ CosmWasm │    │  SVM  │                   │           │
+│  │  │(Sol.) │◄──►│ (Wasm)   │◄──►│ (BPF) │                   │           │
+│  │  └───┬───┘    └────┬─────┘    └───┬───┘                   │           │
+│  │      └─────────┬───┘──────────────┘                       │           │
+│  │           x/crossvm (bridge)                               │           │
+│  └────────────────────────────────────────────────────────────┘           │
+│                                                                            │
+│  ┌────────────────────── Tokenomics ─────────────────────────┐           │
+│  │  ┌──────┐   ┌───────┐   ┌───────────┐                    │           │
+│  │  │x/burn│   │x/xqore│   │x/inflation│                    │           │
+│  │  │9 chan.│   │lock/  │   │epoch decay│                    │           │
+│  │  │40/30/│   │unlock │   │17.5→2%    │                    │           │
+│  │  │20/10 │   │PvP    │   │           │                    │           │
+│  │  └──────┘   └───────┘   └───────────┘                    │           │
+│  └────────────────────────────────────────────────────────────┘           │
+│                                                                            │
+│  ┌──────────── IBC / Bridges (v1.2.0) ───────────────────────┐           │
+│  │  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌──────────┐ │           │
+│  │  │x/bridge  │  │x/babylon │  │x/abstract │  │x/gas     │ │           │
+│  │  │17 QCB +  │  │BTC re-   │  │ account   │  │abstract. │ │           │
+│  │  │8 IBC     │  │staking   │  │session key│  │multi-tok │ │           │
+│  │  └────┬─────┘  └────┬─────┘  └───────────┘  └──────────┘ │           │
+│  │  QCB Bridge     Babylon IBC   ERC-4337-like   ibc/USDC    │           │
+│  │  PQC-signed     BTC finality  social recov.   ibc/ATOM    │           │
+│  │  12 chain types checkpoint    spending rules  fee convert  │           │
+│  │  ┌──────────┐                                              │           │
+│  │  │x/fair    │  5-Lane Prioritization: PQC|MEV|AI|Def|Free │           │
+│  │  │ block    │  tIBE encrypted mempool (stub, v1.2.0)      │           │
+│  │  └──────────┘                                              │           │
+│  └────────────────────────────────────────────────────────────┘           │
+│                                                                            │
+│  ┌──────────────┐ ┌──────┐ ┌────────────┐ ┌─────┐                       │
+│  │x/rlconsensus │ │ x/ai │ │x/reputation│ │x/qca│                       │
+│  │  RL Agent    │ │      │ │            │ │     │                       │
+│  └──────┬───────┘ └──┬───┘ └─────┬──────┘ └──┬──┘                       │
+│   PPO MLP         AI Engine   Scoring    CPoS Pools                      │
+│   Obs/Action      Fraud Det.  Decay      Bonding                         │
+│   Circuit Brk     Fee Opt.    Sigmoid    Slashing                        │
+│                   TEE/FL                 QDRW Gov                         │
+│  ┌──────┐ ┌──────────┐                                                   │
+│  │x/pqc │ │ x/multi  │                                                   │
+│  └──┬───┘ └────┬─────┘                                                   │
+│  Dilithium    Layer Router                                                │
+│  ML-KEM       Sidechains                                                  │
+│  Hybrid Sig                                                               │
+│  SHAKE-256                                                                │
+│                                                                            │
+│  ┌──────┐ ┌───────┐                                                      │
+│  │x/svm │ │x/cross│                                                      │
+│  └──┬───┘ └───┬───┘                                                      │
+│  BPF Exec   CrossVM Msg                                                   │
+└────────┬──────┬───────────────────────────────────────┬───────────────────┘
          │      │                                       │
    ┌─────┴─────┐│                              ┌───────┴──────┐
    │libqorepqc ││                              │  Indexer     │
@@ -200,18 +256,61 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 
 | Module | Description |
 |--------|-------------|
-| **x/burn** | Central burn accounting: 9 burn channels, EndBlocker fee distribution (40% validators / 30% burned / 20% treasury / 10% stakers) |
-| **x/xqore** | Governance-boosted staking: lock QOR → mint xQORE (1:1), graduated exit penalties, PvP rebase redistribution |
-| **x/inflation** | Epoch-based emission decay: Y1 17.5% → Y2 11% → Y3-4 7% → Y5+ 2%, configurable epoch length |
-| **x/rlconsensus** | RL-based dynamic consensus tuning: fixed-point MLP, PPO inference, shadow/conservative/autonomous modes, circuit breaker |
 | **x/pqc** | Post-quantum cryptography: Dilithium-5, ML-KEM-1024, hybrid Ed25519 + ML-DSA-87 signatures, SHAKE-256 hashing, algorithm-agile governance |
 | **x/ai** | AI engine: transaction routing, anomaly detection, fraud detection, fee optimization, TEE attestation interfaces, federated learning coordination |
+| **x/rlconsensus** | RL-based dynamic consensus tuning: fixed-point MLP, PPO inference, shadow/conservative/autonomous modes, circuit breaker |
 | **x/reputation** | Validator reputation scoring: multi-factor formula with temporal decay |
 | **x/qca** | QoreChain Consensus Algorithm: triple-pool CPoS, bonding curve, progressive slashing, QDRW governance |
-| **x/bridge** | Cross-chain bridge (QCB): hub-and-spoke multi-protocol bridge with PQC-secured attestations |
+| **x/burn** | Central burn accounting: 9 burn channels + bridge fee burns, EndBlocker fee distribution (40% validators / 30% burned / 20% treasury / 10% stakers) |
+| **x/xqore** | Governance-boosted staking: lock QOR → mint xQORE (1:1), graduated exit penalties, PvP rebase redistribution |
+| **x/inflation** | Epoch-based emission decay: Y1 17.5% → Y2 11% → Y3-4 7% → Y5+ 2%, configurable epoch length |
+| **x/bridge** | Cross-chain bridge (QCB): 17 non-IBC endpoints across 12 chain types, PQC-signed validator attestations, circuit breaker volume caps, bridge fee burn integration |
+| **x/babylon** | BTC restaking adapter: Babylon Protocol IBC integration, epoch checkpoints to Bitcoin, staking position lifecycle management |
+| **x/abstractaccount** | Smart account abstraction: multisig/social_recovery/session_based accounts, spending rules, session keys with expiry and granular permissions |
+| **x/fairblock** | MEV protection: threshold IBE encrypted mempool framework, FairBlockDecorator ante handler, passthrough stub in v1.2.0 |
+| **x/gasabstraction** | Multi-token gas payment: accept IBC-transferred tokens (USDC, ATOM) for fees, GasAbstractionDecorator with static conversion rates |
 | **x/multilayer** | Multi-layer architecture: Sidechains + Paychains with cross-layer fee bundling |
 | **x/crossvm** | Cross-VM communication: EVM ↔ CosmWasm (precompile) + SVM (async events) |
 | **x/svm** | SVM runtime: BPF program deployment/execution, rent collection, Solana-compatible JSON-RPC |
+| **x/vm** | VM routing and lifecycle management |
+
+## Cross-Chain Connectivity
+
+### IBC Channels (8)
+
+Pre-configured Hermes relayer templates with client updates, misbehaviour detection, and automatic packet clearing:
+
+| Chain | Prefix | Fee Denom | Notable Integration |
+|-------|--------|-----------|---------------------|
+| Cosmos Hub | `cosmos` | uatom | Core IBC hub connectivity |
+| Osmosis | `osmo` | uosmo | DEX liquidity routing |
+| Noble | `noble` | uusdc | Native USDC for gas abstraction |
+| Celestia | `celestia` | utia | Data availability layer |
+| Stride | `stride` | ustrd | Liquid staking |
+| Akash | `akash` | uakt | Decentralized compute |
+| Babylon | `bbn` | ubbn | BTC restaking checkpoints |
+
+### QCB Bridge Endpoints (17)
+
+| Chain | Type | Confirmations | Supported Tokens |
+|-------|------|---------------|------------------|
+| Ethereum | evm | 12 | ETH, USDC, USDT, WBTC |
+| BSC | evm | 15 | BNB, BUSD |
+| Solana | solana | 32 | SOL, USDC |
+| Avalanche | evm | 12 | AVAX, USDC |
+| Polygon | evm | 128 | MATIC, USDC |
+| Arbitrum | evm | 12 | ETH, ARB, USDC |
+| TON | ton | 10 | TON |
+| Sui | sui_move | 3 | SUI |
+| Optimism | evm | 10 | ETH, USDC, OP |
+| Base | evm | 10 | ETH, USDC |
+| Aptos | aptos_move | 6 | APT, USDC |
+| Bitcoin | utxo | 6 | BTC |
+| NEAR | near | 3 | NEAR |
+| Cardano | cardano | 15 | ADA |
+| Polkadot | polkadot | 12 | DOT |
+| Tezos | tezos | 2 | XTZ |
+| TRON | tron | 20 | TRX, USDT |
 
 ## Token Economics
 
@@ -296,6 +395,11 @@ curl -X POST http://localhost:8545 -H "Content-Type: application/json" \
 | `qor_getXQOREPosition` | xQORE position for an address (locked, balance, lock time) |
 | `qor_getInflationRate` | Current inflation rate, epoch, year, total minted |
 | `qor_getTokenomicsOverview` | Combined tokenomics dashboard (burn + xQORE + inflation) |
+| `qor_getBTCStakingPosition` | BTC restaking position via Babylon Protocol |
+| `qor_getAbstractAccount` | Abstract account details, session keys, and spending rules |
+| `qor_getFairBlockStatus` | FairBlock tIBE module status and configuration |
+| `qor_getGasAbstractionConfig` | Gas abstraction config and accepted fee tokens |
+| `qor_getLaneConfiguration` | Block lane priorities and space allocation |
 
 ## CLI Commands
 
@@ -350,21 +454,75 @@ qorechaind query svm account <base58-address>
 qorechaind query svm params
 ```
 
+### Babylon Module (v1.2.0)
+
+```bash
+# Query Babylon restaking configuration
+qorechaind query babylon config
+
+# Query BTC staking position for an address
+qorechaind query babylon staking-position <address>
+
+# Submit a BTC checkpoint (governance)
+qorechaind tx babylon submit-checkpoint <epoch> <state-root-hex> --from admin
+
+# Restake BTC (register staking position)
+qorechaind tx babylon btc-restake <btc-tx-hash> <amount-satoshis> --from mykey
+```
+
+### Abstract Account Module (v1.2.0)
+
+```bash
+# Query abstract account configuration
+qorechaind query abstractaccount config
+
+# Query abstract account for an address
+qorechaind query abstractaccount account <address>
+
+# Create an abstract account
+qorechaind tx abstractaccount create <contract-address> <account-type> --from mykey
+
+# Update spending rules
+qorechaind tx abstractaccount update-spending-rules <daily-limit> <per-tx-limit> --from mykey
+```
+
+### FairBlock Module (v1.2.0)
+
+```bash
+# Query FairBlock configuration
+qorechaind query fairblock config
+
+# Query FairBlock module status
+qorechaind query fairblock status
+```
+
+### Gas Abstraction Module (v1.2.0)
+
+```bash
+# Query gas abstraction configuration
+qorechaind query gasabstraction config
+
+# Query accepted fee tokens and conversion rates
+qorechaind query gasabstraction accepted-tokens
+```
+
 ## Ante Handler Chain
 
 The transaction processing pipeline for QoreChain SDK transactions:
 
 ```
 SetUpContext → CircuitBreaker → PQCVerify → PQCHybridVerify → AIAnomaly →
-Extension → ValidateBasic → TxTimeout → Memo → MinGasPrice → ConsumeTxSize →
-DeductFee → SetPubKey → ValidateSigCount → SigGasConsume → SigVerify →
-IncrementSequence
+FairBlock → Extension → ValidateBasic → TxTimeout → Memo → MinGasPrice →
+ConsumeTxSize → GasAbstraction → DeductFee → SetPubKey → ValidateSigCount →
+SigGasConsume → SigVerify → IncrementSequence
 ```
 
 Key decorators:
 - **PQCVerify**: Validates PQC key algorithm status (enabled/deprecated/revoked)
 - **PQCHybridVerify**: Extracts and verifies hybrid Ed25519 + ML-DSA-87 TX extensions
 - **AIAnomaly**: Statistical fraud detection and risk scoring
+- **FairBlock**: Threshold IBE check for encrypted mempool transactions (passthrough in v1.2.0)
+- **GasAbstraction**: Validates and converts non-native fee denominations before fee deduction
 
 ## Documentation
 
@@ -380,6 +538,7 @@ Key decorators:
 - [Cross-VM Bridge](docs/CROSSVM.md)
 - [SVM Runtime](docs/SVM.md)
 - [Bridge Documentation](docs/BRIDGE.md)
+- [IBC Relay Configuration](config/hermes/)
 - [Multilayer Architecture](docs/MULTILAYER.md)
 - [Running a Testnet Node](docs/RUNNING_TESTNET.md)
 - [API Reference](docs/API_REFERENCE.md)
@@ -388,9 +547,10 @@ Key decorators:
 
 - 3 separate Go modules: `qorechain-core/`, `sidecar/`, `indexer/`
 - 2 Rust crates: `qorepqc` (PQC cryptography), `qoresvm` (BPF executor)
-- 40 registered genesis modules, 12 custom modules
+- 44 registered genesis modules, 17 custom modules
 - Docker Compose: 6-service deployment stack
 - GitHub Actions: 3 CI/CD workflows (build, release, docker)
+- IBC: 8 pre-configured Hermes relayer channel templates
 
 ## License
 
