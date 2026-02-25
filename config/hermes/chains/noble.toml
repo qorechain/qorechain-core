@@ -1,0 +1,23 @@
+# Noble — IBC connection (native USDC issuance)
+[[chains]]
+id = 'noble-1'
+type = 'CosmosSdk'
+rpc_addr = 'https://rpc.noble.xyz:443'
+grpc_addr = 'https://grpc.noble.xyz:443'
+event_source = { mode = 'push', url = 'wss://rpc.noble.xyz/websocket', batch_delay = '200ms' }
+rpc_timeout = '10s'
+account_prefix = 'noble'
+key_name = 'noble-relayer'
+key_store_type = 'Test'
+store_prefix = 'ibc'
+default_gas = 200000
+max_gas = 2000000
+gas_price = { price = 0.01, denom = 'uusdc' }
+gas_multiplier = 1.2
+max_msg_num = 30
+max_tx_size = 180000
+clock_drift = '10s'
+max_block_time = '30s'
+trusting_period = '14days'
+trust_threshold = { numerator = '1', denominator = '3' }
+address_type = { derivation = 'cosmos' }
