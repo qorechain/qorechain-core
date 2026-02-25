@@ -32,6 +32,14 @@ func (gs GenesisState) Validate() error {
 		return ErrInvalidKeyLength.Wrap("min_security_level must be between 1 and 5")
 	}
 
+	// Validate hybrid signature mode (v1.1.0)
+	if !gs.Params.HybridSignatureMode.IsValid() {
+		return ErrInvalidHybridSig.Wrapf(
+			"invalid hybrid_signature_mode %d in genesis params (must be 0, 1, or 2)",
+			gs.Params.HybridSignatureMode,
+		)
+	}
+
 	// Validate algorithms
 	seenIDs := make(map[AlgorithmID]bool)
 	for _, algo := range gs.Algorithms {

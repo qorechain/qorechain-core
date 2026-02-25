@@ -74,6 +74,10 @@ type PQCKeeper interface {
 	SetMigration(ctx sdk.Context, migration types.MigrationInfo) error
 	DeleteMigration(ctx sdk.Context, fromID types.AlgorithmID)
 
+	// Hybrid signature methods (v1.1.0)
+	GetHybridSignatureMode(ctx sdk.Context) types.HybridSignatureMode
+	IncrementHybridVerifications(ctx sdk.Context)
+
 	// Genesis
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState

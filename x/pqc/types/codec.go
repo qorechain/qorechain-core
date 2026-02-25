@@ -16,6 +16,12 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgDeprecateAlgorithm{},
 		&MsgDisableAlgorithm{},
 	)
+
+	// Note: PQCHybridSignature is registered in amino below and identified by
+	// HybridSigTypeURL ("/qorechain.pqc.v1.PQCHybridSignature") when carried
+	// as a TX extension. The ante handler extracts it using the type URL and
+	// JSON decoding. Full protobuf registration will be added with proto
+	// code generation in a future version.
 }
 
 // RegisterLegacyAminoCodec registers the module's types on the amino codec.
@@ -26,4 +32,5 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgAddAlgorithm{}, "pqc/MsgAddAlgorithm", nil)
 	cdc.RegisterConcrete(&MsgDeprecateAlgorithm{}, "pqc/MsgDeprecateAlgorithm", nil)
 	cdc.RegisterConcrete(&MsgDisableAlgorithm{}, "pqc/MsgDisableAlgorithm", nil)
+	cdc.RegisterConcrete(&PQCHybridSignature{}, "pqc/PQCHybridSignature", nil)
 }

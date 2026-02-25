@@ -23,4 +23,10 @@ var (
 	ErrDualSigInvalid         = errors.Register(ModuleName, 17, "dual signature verification failed")
 	ErrKeyMigrationFailed     = errors.Register(ModuleName, 18, "PQC key migration failed")
 	ErrUnauthorizedGovAction  = errors.Register(ModuleName, 19, "unauthorized governance action")
+
+	// Hybrid signature errors (v1.1.0)
+	ErrHybridSigRequired  = errors.Register(ModuleName, 20, "hybrid PQC signature required")
+	ErrHybridSigInvalid   = errors.Register(ModuleName, 21, "hybrid PQC signature verification failed")
+	ErrHybridModeDisabled = errors.Register(ModuleName, 22, "hybrid signature mode is disabled")
+	ErrInvalidHybridSig   = errors.Register(ModuleName, 23, "invalid hybrid signature format")
 )

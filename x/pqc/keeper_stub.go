@@ -86,6 +86,12 @@ func (k *StubKeeper) IncrementClassicalFallbacks(_ sdk.Context)                 
 func (k *StubKeeper) GetStats(_ sdk.Context) types.PQCStats                     { return types.PQCStats{} }
 func (k *StubKeeper) SetStats(_ sdk.Context, _ types.PQCStats)                  {}
 
+// Hybrid signature stubs (v1.1.0)
+func (k *StubKeeper) GetHybridSignatureMode(_ sdk.Context) types.HybridSignatureMode {
+	return types.HybridOptional
+}
+func (k *StubKeeper) IncrementHybridVerifications(_ sdk.Context) {}
+
 // Algorithm registry stubs (v0.6.0)
 func (k *StubKeeper) RegisterAlgorithm(_ sdk.Context, _ types.AlgorithmInfo) error { return nil }
 func (k *StubKeeper) GetAlgorithm(_ sdk.Context, id types.AlgorithmID) (types.AlgorithmInfo, error) {

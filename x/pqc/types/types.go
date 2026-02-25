@@ -21,8 +21,9 @@ type PQCStats struct {
 	TotalPQCVerifications   uint64 `json:"total_pqc_verifications"`
 	TotalClassicalFallbacks uint64 `json:"total_classical_fallbacks"`
 	TotalMLKEMOperations    uint64 `json:"total_mlkem_operations"`
-	TotalDualSigVerifies    uint64 `json:"total_dual_sig_verifies"`
-	TotalKeyMigrations      uint64 `json:"total_key_migrations"`
+	TotalDualSigVerifies     uint64 `json:"total_dual_sig_verifies"`
+	TotalKeyMigrations       uint64 `json:"total_key_migrations"`
+	TotalHybridVerifications uint64 `json:"total_hybrid_verifications"` // v1.1.0
 }
 
 // Key type constants.

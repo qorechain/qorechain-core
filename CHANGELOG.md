@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] - 2026-02-25
+
+### Added
+- **PQC Hybrid Signatures**: Dual Ed25519 + ML-DSA-87 signature verification via TX extensions
+  - `HybridSignatureMode` enum: Disabled (0) / Optional (1, default) / Required (2)
+  - `PQCHybridSignature` TX extension type carrying algorithm ID, PQC signature, and optional public key
+  - `PQCHybridVerifyDecorator` ante handler with three-way verification logic:
+    - Account with PQC key + extension → verify hybrid (classical + PQC)
+    - No PQC key + extension with public key → auto-register + verify (onboarding path)
+    - No PQC key + no extension → classical only (or reject if HybridRequired)
+  - Auto-registration: wallets can attach PQC public key in the extension to register on first use
+  - Events: `pqc_hybrid_verify`, `pqc_hybrid_auto_register`, `pqc_hybrid_classical_only`
+- **SHAKE-256 Merkle Hash Foundation**: Post-quantum hash utilities for future IAVL tree replacement
+  - `SHAKE256Hash(data, outputLen)` — variable-length XOF output
+  - `SHAKE256Hash32(data)` — 32-byte fixed output
+  - `SHAKE256ConcatHash(left, right)` — merkle internal node hash
+  - `SHAKE256DomainHash(domain, data)` — domain-separated hashing
+  - 11 unit tests with known vector verification
+- **AI TEE Attestation Interfaces** (`x/ai/types/tee_interface.go`):
+  - `TEEAttestation`, `TEEEnclaveStatus`, `TEEExecutionResult` structs
+  - `TEEVerifier` and `TEEExecutor` interfaces for SGX/TDX/SEV-SNP/ARM CCA
+- **AI Federated Learning Interfaces** (`x/ai/types/federated_interface.go`):
+  - `FederatedUpdate`, `FederatedRoundConfig`, `FederatedRoundStatus`, `FederatedGlobalModel` structs
+  - `FederatedCoordinator` interface for on-chain FL coordination
+  - Support for FedAvg, FedProx, SCAFFOLD aggregation methods
+- **qor_ RPC endpoint**: `qor_getHybridSignatureMode` — returns current mode, name, and description
+- **CLI command**: `qorechaind query pqc hybrid-mode` — query current hybrid signature enforcement mode
+- Unit tests: hybrid type validation, genesis validation, SHAKE-256 vectors, TEE/FL struct marshaling
+
+### Changed
+- Ante handler chain extended: `PQCVerify → PQCHybridVerify → AIAnomaly`
+- `PQCKeeper` interface extended with `GetHybridSignatureMode()` and `IncrementHybridVerifications()`
+- `PQCStats` extended with `TotalHybridVerifications` counter
+- `Params` extended with `HybridSignatureMode` field (default: `optional`)
+- Existing `pqc_verify` events now include `hybrid_mode` attribute for observability
+- Genesis validation checks `HybridSignatureMode` is valid (0, 1, or 2)
+- 4 new PQC error codes: `ErrHybridSigRequired`, `ErrHybridSigInvalid`, `ErrHybridModeDisabled`, `ErrInvalidHybridSig`
+- `PQCHybridSignature` registered in amino codec for TX extension serialization
+
+---
+
 ## [1.0.0] - 2026-02-25
 
 ### Added
