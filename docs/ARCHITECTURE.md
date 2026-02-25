@@ -2,10 +2,12 @@
 
 ## Overview
 
-QoreChain is a Layer 1 blockchain built on QoreChain SDK v0.53 with three key innovations:
+QoreChain is a Layer 1 blockchain built on QoreChain SDK v0.53 with five key innovations:
 1. Post-quantum cryptography at genesis (not retrofitted)
-2. AI-native consensus optimization
-3. Universal cross-chain bridging with PQC security
+2. AI-native consensus optimization with on-chain reinforcement learning
+3. Triple-VM runtime (EVM + CosmWasm + SVM) with cross-VM messaging
+4. Deflationary tokenomics engine (burn, governance-boosted staking, controlled inflation)
+5. Universal cross-chain bridging with PQC security
 
 ## Module Architecture
 
@@ -49,7 +51,27 @@ Where:
 
 ### x/qca — Consensus Algorithm
 
-Implements reputation-weighted proposer selection that integrates with QoreChain Consensus Engine's PrepareProposal/ProcessProposal ABCI hooks.
+Implements reputation-weighted proposer selection that integrates with QoreChain Consensus Engine's PrepareProposal/ProcessProposal ABCI hooks. Includes:
+- **Triple-Pool CPoS**: RPoS/DPoS/PoS validator pools with weighted sortition
+- **Custom Bonding Curve**: Loyalty-aware rewards factoring stake, duration, reputation, and protocol phase
+- **Progressive Slashing**: Escalating penalties with temporal half-life decay (capped at 33%)
+- **QDRW Governance**: Quadratic delegation with reputation weighting and xQORE boost
+
+### x/burn — Central Burn Accounting
+
+Nine burn channels feed a unified accounting module. The EndBlocker splits collected fees: 40% validators, 30% burned, 20% treasury, 10% stakers. Tracks total burned, per-source breakdown, and burn history.
+
+### x/xqore — Governance-Boosted Staking
+
+Lock QOR to mint xQORE (1:1 ratio) for doubled QDRW governance weight. Graduated exit penalties (50%/35%/15%/0% based on lock duration) are redistributed to remaining holders via PvP rebase. Satisfies `rlconsensus.TokenomicsKeeper` for real balance lookups.
+
+### x/inflation — Epoch-Based Emission
+
+Controlled inflation with year-over-year decay: Y1 17.5%, Y2 11%, Y3-4 7%, Y5+ 2%. Configurable epoch length (default 100 blocks). Tracks current epoch, year, and cumulative minted supply.
+
+### x/rlconsensus — Reinforcement Learning Consensus
+
+On-chain RL agent with Go-native fixed-point MLP (~73,733 parameters). PPO inference tunes consensus parameters (block time, gas limits, pool weights) every 10 blocks. Shadow/conservative/autonomous/paused agent modes with circuit breaker auto-revert.
 
 ### x/bridge — Cross-Chain Bridge (QCB)
 
