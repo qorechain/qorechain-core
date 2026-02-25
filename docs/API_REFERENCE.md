@@ -76,6 +76,16 @@ All standard QoreChain SDK REST and gRPC endpoints are available:
 | `/qorechain/svm/v1/account/{address}` | GET | SVM account info by base58 address |
 | `/qorechain/svm/v1/program/{address}` | GET | Deployed program info by base58 address |
 
+### RL Consensus Module
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/rlconsensus/v1/agent` | GET | RL agent status (mode, epoch, circuit breaker state) |
+| `/qorechain/rlconsensus/v1/observation` | GET | Latest 25-dimension observation vector |
+| `/qorechain/rlconsensus/v1/rewards` | GET | Reward history with component breakdown |
+| `/qorechain/rlconsensus/v1/params` | GET | Module parameters |
+| `/qorechain/rlconsensus/v1/policy` | GET | Current policy network metadata |
+
 ## JSON-RPC (EVM)
 
 Port: 8545 (HTTP), 8546 (WebSocket)
@@ -99,6 +109,10 @@ Port: 8545 (HTTP), 8546 (WebSocket)
 | `qor_getReputationScore` | `validator` | Validator reputation score breakdown |
 | `qor_getLayerInfo` | `layerId` | Multilayer chain layer information |
 | `qor_getBridgeStatus` | `chainId` | Bridge connection status for a chain |
+| `qor_getRLAgentStatus` | (none) | RL agent mode, epoch, active state, circuit breaker |
+| `qor_getRLObservation` | (none) | Latest 25-dimension observation vector with named dimensions |
+| `qor_getRLReward` | (none) | Latest reward signal with per-component breakdown |
+| `qor_getPoolClassification` | `validator` | Validator pool assignment (rpos/dpos/pos) |
 
 ## JSON-RPC (SVM — Solana-Compatible)
 
