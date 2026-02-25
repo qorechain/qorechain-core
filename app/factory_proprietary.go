@@ -16,13 +16,17 @@ import (
 
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 
-	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
+	abstractaccountmod "github.com/qorechain/qorechain-core/x/abstractaccount"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
+	babylonmod "github.com/qorechain/qorechain-core/x/babylon"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
+	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
+	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
+	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
@@ -158,5 +162,55 @@ func init() {
 	}
 	NewInflationModuleBasic = func() module.AppModuleBasic {
 		return inflationmod.AppModuleBasic{}
+	}
+
+	// Babylon factories — use real BTC restaking keeper
+	NewBabylonKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) babylonmod.BabylonKeeper {
+		return babylonmod.RealNewBabylonKeeper(cdc, storeKey, logger)
+	}
+	NewBabylonAppModule = func(keeper babylonmod.BabylonKeeper) module.AppModule {
+		return babylonmod.RealNewAppModule(keeper)
+	}
+	NewBabylonModuleBasic = func() module.AppModuleBasic {
+		return babylonmod.AppModuleBasic{}
+	}
+
+	// AbstractAccount factories — use real account abstraction keeper
+	NewAbstractAccountKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) abstractaccountmod.AbstractAccountKeeper {
+		return abstractaccountmod.RealNewAbstractAccountKeeper(cdc, storeKey, logger)
+	}
+	NewAbstractAccountAppModule = func(keeper abstractaccountmod.AbstractAccountKeeper) module.AppModule {
+		return abstractaccountmod.RealNewAppModule(keeper)
+	}
+	NewAbstractAccountModuleBasic = func() module.AppModuleBasic {
+		return abstractaccountmod.AppModuleBasic{}
+	}
+
+	// FairBlock factories — use real threshold IBE keeper
+	NewFairBlockKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) fairblockmod.FairBlockKeeper {
+		return fairblockmod.RealNewFairBlockKeeper(cdc, storeKey, logger)
+	}
+	NewFairBlockAppModule = func(keeper fairblockmod.FairBlockKeeper) module.AppModule {
+		return fairblockmod.RealNewAppModule(keeper)
+	}
+	NewFairBlockModuleBasic = func() module.AppModuleBasic {
+		return fairblockmod.AppModuleBasic{}
+	}
+	NewFairBlockDecorator = func(keeper fairblockmod.FairBlockKeeper) sdk.AnteDecorator {
+		return fairblockmod.NewFairBlockDecorator(keeper)
+	}
+
+	// GasAbstraction factories — use real IBC token fee keeper
+	NewGasAbstractionKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) gasabstractionmod.GasAbstractionKeeper {
+		return gasabstractionmod.RealNewGasAbstractionKeeper(cdc, storeKey, logger)
+	}
+	NewGasAbstractionAppModule = func(keeper gasabstractionmod.GasAbstractionKeeper) module.AppModule {
+		return gasabstractionmod.RealNewAppModule(keeper)
+	}
+	NewGasAbstractionModuleBasic = func() module.AppModuleBasic {
+		return gasabstractionmod.AppModuleBasic{}
+	}
+	NewGasAbstractionDecorator = func(keeper gasabstractionmod.GasAbstractionKeeper) sdk.AnteDecorator {
+		return gasabstractionmod.NewGasAbstractionDecorator(keeper)
 	}
 }

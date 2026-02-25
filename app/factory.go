@@ -14,13 +14,17 @@ import (
 
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
 
-	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
+	abstractaccountmod "github.com/qorechain/qorechain-core/x/abstractaccount"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
+	babylonmod "github.com/qorechain/qorechain-core/x/babylon"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
+	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
+	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
+	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
@@ -88,4 +92,26 @@ var (
 	NewInflationKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) inflationmod.InflationKeeper
 	NewInflationAppModule   func(keeper inflationmod.InflationKeeper) module.AppModule
 	NewInflationModuleBasic func() module.AppModuleBasic
+
+	// Babylon module factories (v1.2.0 — BTC restaking)
+	NewBabylonKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) babylonmod.BabylonKeeper
+	NewBabylonAppModule   func(keeper babylonmod.BabylonKeeper) module.AppModule
+	NewBabylonModuleBasic func() module.AppModuleBasic
+
+	// AbstractAccount module factories (v1.2.0 — account abstraction)
+	NewAbstractAccountKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) abstractaccountmod.AbstractAccountKeeper
+	NewAbstractAccountAppModule   func(keeper abstractaccountmod.AbstractAccountKeeper) module.AppModule
+	NewAbstractAccountModuleBasic func() module.AppModuleBasic
+
+	// FairBlock module factories (v1.2.0 — threshold IBE)
+	NewFairBlockKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) fairblockmod.FairBlockKeeper
+	NewFairBlockAppModule   func(keeper fairblockmod.FairBlockKeeper) module.AppModule
+	NewFairBlockModuleBasic func() module.AppModuleBasic
+	NewFairBlockDecorator   func(keeper fairblockmod.FairBlockKeeper) sdk.AnteDecorator
+
+	// GasAbstraction module factories (v1.2.0 — IBC token fees)
+	NewGasAbstractionKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) gasabstractionmod.GasAbstractionKeeper
+	NewGasAbstractionAppModule   func(keeper gasabstractionmod.GasAbstractionKeeper) module.AppModule
+	NewGasAbstractionModuleBasic func() module.AppModuleBasic
+	NewGasAbstractionDecorator   func(keeper gasabstractionmod.GasAbstractionKeeper) sdk.AnteDecorator
 )
