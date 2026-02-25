@@ -14,13 +14,18 @@ import (
 
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
+	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
+	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
+	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
 )
 
 func init() {
@@ -108,5 +113,35 @@ func init() {
 	}
 	NewRLConsensusModuleBasic = func() module.AppModuleBasic {
 		return rlconsensusmod.AppModuleBasic{}
+	}
+
+	NewBurnKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ bankkeeper.BaseKeeper, logger log.Logger) burnmod.BurnKeeper {
+		return burnmod.NewStubKeeper(logger)
+	}
+	NewBurnAppModule = func(keeper burnmod.BurnKeeper) module.AppModule {
+		return burnmod.NewAppModule(keeper)
+	}
+	NewBurnModuleBasic = func() module.AppModuleBasic {
+		return burnmod.AppModuleBasic{}
+	}
+
+	NewXQOREKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ bankkeeper.BaseKeeper, logger log.Logger) xqoremod.XQOREKeeper {
+		return xqoremod.NewStubKeeper(logger)
+	}
+	NewXQOREAppModule = func(keeper xqoremod.XQOREKeeper) module.AppModule {
+		return xqoremod.NewAppModule(keeper)
+	}
+	NewXQOREModuleBasic = func() module.AppModuleBasic {
+		return xqoremod.AppModuleBasic{}
+	}
+
+	NewInflationKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ bankkeeper.BaseKeeper, logger log.Logger) inflationmod.InflationKeeper {
+		return inflationmod.NewStubKeeper(logger)
+	}
+	NewInflationAppModule = func(keeper inflationmod.InflationKeeper) module.AppModule {
+		return inflationmod.NewAppModule(keeper)
+	}
+	NewInflationModuleBasic = func() module.AppModuleBasic {
+		return inflationmod.AppModuleBasic{}
 	}
 }
