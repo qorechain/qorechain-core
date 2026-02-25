@@ -2,12 +2,13 @@
 
 ## Overview
 
-QoreChain is a Layer 1 blockchain built on QoreChain SDK v0.53 with five key innovations:
-1. Post-quantum cryptography at genesis (not retrofitted)
+QoreChain is a Layer 1 blockchain built on QoreChain SDK v0.53 with six key innovations:
+1. Post-quantum cryptography at genesis with hybrid Ed25519 + ML-DSA-87 signatures (not retrofitted)
 2. AI-native consensus optimization with on-chain reinforcement learning
 3. Triple-VM runtime (EVM + CosmWasm + SVM) with cross-VM messaging
 4. Deflationary tokenomics engine (burn, governance-boosted staking, controlled inflation)
 5. Universal cross-chain bridging with PQC security
+6. TEE attestation and federated learning coordination for privacy-preserving AI
 
 ## Module Architecture
 
@@ -44,6 +45,10 @@ The AI module implements multi-layer intelligence:
 5. **Network Optimization**: Parameter recommendations using reward function analysis
 
 The AI Sidecar extends capabilities via QCAI Backend for deep analysis, contract generation, and auditing.
+
+**TEE Attestation Interfaces (v1.1.0)**: Hardware enclave verification for SGX, TDX, SEV-SNP, and ARM CCA platforms. Defines `TEEVerifier` and `TEEExecutor` interfaces for secure AI model inference inside trusted execution environments.
+
+**Federated Learning Interfaces (v1.1.0)**: On-chain FL coordination via `FederatedCoordinator` interface. Supports FedAvg, FedProx, and SCAFFOLD aggregation methods with gradient submission, round management, and global model hash anchoring for privacy-preserving distributed model training.
 
 ### x/reputation — Validator Reputation
 
