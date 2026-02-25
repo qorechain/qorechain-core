@@ -12,13 +12,18 @@ import (
 
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 
+	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
+	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
+	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
+	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
 )
 
 // Module factory function variables.
@@ -67,4 +72,19 @@ var (
 	NewRLConsensusKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) rlconsensusmod.RLConsensusKeeper
 	NewRLConsensusAppModule   func(keeper rlconsensusmod.RLConsensusKeeper) module.AppModule
 	NewRLConsensusModuleBasic func() module.AppModuleBasic
+
+	// Burn module factories
+	NewBurnKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) burnmod.BurnKeeper
+	NewBurnAppModule   func(keeper burnmod.BurnKeeper) module.AppModule
+	NewBurnModuleBasic func() module.AppModuleBasic
+
+	// xQORE module factories
+	NewXQOREKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) xqoremod.XQOREKeeper
+	NewXQOREAppModule   func(keeper xqoremod.XQOREKeeper) module.AppModule
+	NewXQOREModuleBasic func() module.AppModuleBasic
+
+	// Inflation module factories
+	NewInflationKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) inflationmod.InflationKeeper
+	NewInflationAppModule   func(keeper inflationmod.InflationKeeper) module.AppModule
+	NewInflationModuleBasic func() module.AppModuleBasic
 )
