@@ -133,6 +133,7 @@ var (
 					// EVM: feemarket MUST come before evm
 					"feemarket",
 					"evm",
+					"rlconsensus",
 				},
 				EndBlockers: []string{
 					govtypes.ModuleName,
@@ -140,6 +141,7 @@ var (
 					feegrant.ModuleName,
 					group.ModuleName,
 					protocolpooltypes.ModuleName,
+					"rlconsensus",
 					// EVM post-block processing
 					"evm",
 					"feemarket",
@@ -190,6 +192,8 @@ var (
 					"bridge",
 					"crossvm",
 					"multilayer",
+					"svm",
+					"rlconsensus",
 				},
 				ExportGenesis: []string{
 					consensustypes.ModuleName,
@@ -229,6 +233,8 @@ var (
 					"bridge",
 					"crossvm",
 					"multilayer",
+					"svm",
+					"rlconsensus",
 				},
 			}),
 		},

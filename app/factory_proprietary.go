@@ -19,6 +19,7 @@ import (
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
+	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 )
 
@@ -105,5 +106,16 @@ func init() {
 	}
 	NewSVMDeductFeeDecorator = func(keeper svmmod.SVMKeeper) sdk.AnteDecorator {
 		return svmmod.NewSVMDeductFeeDecorator(keeper)
+	}
+
+	// RL Consensus factories — use real PPO-based implementations
+	NewRLConsensusKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) rlconsensusmod.RLConsensusKeeper {
+		return rlconsensusmod.RealNewRLConsensusKeeper(cdc, storeKey, logger)
+	}
+	NewRLConsensusAppModule = func(keeper rlconsensusmod.RLConsensusKeeper) module.AppModule {
+		return rlconsensusmod.RealNewAppModule(keeper)
+	}
+	NewRLConsensusModuleBasic = func() module.AppModuleBasic {
+		return rlconsensusmod.AppModuleBasic{}
 	}
 }
