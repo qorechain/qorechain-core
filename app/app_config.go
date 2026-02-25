@@ -97,6 +97,10 @@ var (
 		{Account: "precisebank", Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		// CosmWasm wasm module
 		{Account: "wasm", Permissions: []string{authtypes.Burner}},
+		// Tokenomics modules
+		{Account: "burn", Permissions: []string{authtypes.Burner}},
+		{Account: "xqore", Permissions: []string{authtypes.Minter, authtypes.Burner}},
+		{Account: "inflation", Permissions: []string{authtypes.Minter}},
 	}
 
 	// blockAccAddrs defines blocked module account addresses.
@@ -133,6 +137,9 @@ var (
 					// EVM: feemarket MUST come before evm
 					"feemarket",
 					"evm",
+					"burn",
+					"inflation",
+					"xqore",
 					"rlconsensus",
 				},
 				EndBlockers: []string{
@@ -141,6 +148,9 @@ var (
 					feegrant.ModuleName,
 					group.ModuleName,
 					protocolpooltypes.ModuleName,
+					"burn",
+					"xqore",
+					"inflation",
 					"rlconsensus",
 					// EVM post-block processing
 					"evm",
@@ -193,6 +203,9 @@ var (
 					"crossvm",
 					"multilayer",
 					"svm",
+					"burn",
+					"xqore",
+					"inflation",
 					"rlconsensus",
 				},
 				ExportGenesis: []string{
@@ -234,6 +247,9 @@ var (
 					"crossvm",
 					"multilayer",
 					"svm",
+					"burn",
+					"xqore",
+					"inflation",
 					"rlconsensus",
 				},
 			}),
