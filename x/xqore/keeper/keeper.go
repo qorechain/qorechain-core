@@ -23,7 +23,6 @@ type BankKeeper interface {
 	SendCoins(ctx context.Context, fromAddr, toAddr sdk.AccAddress, amt sdk.Coins) error
 	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
 	SendCoinsFromModuleToAccount(ctx context.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error
-	MintCoins(ctx context.Context, moduleName string, amounts sdk.Coins) error
 	BurnCoins(ctx context.Context, moduleName string, amounts sdk.Coins) error
 	GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
 }
@@ -231,6 +230,9 @@ func (k Keeper) Lock(ctx sdk.Context, owner sdk.AccAddress, amount math.Int) err
 	}
 
 	params := k.GetParams(ctx)
+	if !params.Enabled {
+		return types.ErrModuleDisabled
+	}
 	if amount.LT(params.MinLockAmount) {
 		return types.ErrMinLockAmount
 	}
@@ -244,6 +246,10 @@ func (k Keeper) Lock(ctx sdk.Context, owner sdk.AccAddress, amount math.Int) err
 	// Update or create position
 	pos, found := k.GetPosition(ctx, owner)
 	if found {
+		// Note: Re-locking adds to an existing position without resetting LockTime.
+		// This means the penalty schedule is calculated from the original lock time,
+		// which benefits users who add funds to mature positions. This is by design
+		// to incentivize early and sustained participation.
 		pos.Locked = pos.Locked.Add(amount)
 		pos.XBalance = pos.XBalance.Add(amount)
 	} else {
@@ -301,6 +307,9 @@ func (k Keeper) Unlock(ctx sdk.Context, owner sdk.AccAddress, amount math.Int) e
 	}
 
 	params := k.GetParams(ctx)
+	if !params.Enabled {
+		return types.ErrModuleDisabled
+	}
 
 	// Calculate penalty based on time since lock
 	elapsed := ctx.BlockTime().Sub(pos.LockTime)
@@ -377,8 +386,10 @@ func (k Keeper) Unlock(ctx sdk.Context, owner sdk.AccAddress, amount math.Int) e
 		),
 	)
 
-	// Note: redistAmount stays in the module account, effectively boosting
-	// the backing ratio for remaining xQORE holders (PvP rebase effect).
+	// TODO(v1.1): Implement proportional return based on module account balance
+	// to realize the PvP rebase effect. Currently, redistAmount stays in the module
+	// account but is not proportionally distributed to remaining holders on unlock.
+	// For now, the penalty burn still reduces supply, providing indirect value to holders.
 	_ = redistAmount
 
 	return nil
