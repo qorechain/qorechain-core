@@ -11,9 +11,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
+	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	"github.com/qorechain/qorechain-core/x/xqore/keeper"
 	"github.com/qorechain/qorechain-core/x/xqore/types"
 )
+
+// Compile-time assertion: keeperAdapter satisfies rlconsensus.TokenomicsKeeper,
+// replacing NilTokenomicsKeeper with real xQORE balance lookups.
+var _ rlconsensusmod.TokenomicsKeeper = (*keeperAdapter)(nil)
 
 // keeperAdapter wraps the concrete keeper.Keeper to satisfy the XQOREKeeper interface.
 type keeperAdapter struct {
