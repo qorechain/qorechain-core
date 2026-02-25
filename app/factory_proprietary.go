@@ -68,8 +68,8 @@ func init() {
 	}
 
 	// Bridge factories — use real multi-protocol bridge implementations
-	NewBridgeKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey, pqcKeeper pqcmod.PQCKeeper, logger log.Logger) bridgemod.BridgeKeeper {
-		return bridgemod.RealNewBridgeKeeper(cdc, storeKey, pqcKeeper, logger)
+	NewBridgeKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey, pqcKeeper pqcmod.PQCKeeper, burnKeeper burnmod.BurnKeeper, logger log.Logger) bridgemod.BridgeKeeper {
+		return bridgemod.RealNewBridgeKeeper(cdc, storeKey, pqcKeeper, burnKeeper, logger)
 	}
 	NewBridgeAppModule = func(keeper bridgemod.BridgeKeeper) module.AppModule {
 		return bridgemod.RealNewAppModule(keeper)

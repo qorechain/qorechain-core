@@ -8,6 +8,7 @@ import (
 	"fmt"
 
 	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -15,14 +16,21 @@ import (
 
 	pqckeeper "github.com/qorechain/qorechain-core/x/pqc/keeper"
 	"github.com/qorechain/qorechain-core/x/bridge/types"
+	burntypes "github.com/qorechain/qorechain-core/x/burn/types"
 )
+
+// BridgeBurnKeeper defines what the bridge needs from the burn module.
+type BridgeBurnKeeper interface {
+	BurnFromSource(ctx sdk.Context, source burntypes.BurnSource, amount math.Int, txHash string) error
+}
 
 // Keeper manages the x/bridge module state.
 type Keeper struct {
-	cdc       codec.Codec
-	storeKey  storetypes.StoreKey
-	pqcKeeper pqckeeper.Keeper
-	logger    log.Logger
+	cdc        codec.Codec
+	storeKey   storetypes.StoreKey
+	pqcKeeper  pqckeeper.Keeper
+	burnKeeper BridgeBurnKeeper // may be nil if burn module not wired
+	logger     log.Logger
 }
 
 // NewKeeper creates a new bridge keeper.
@@ -30,13 +38,26 @@ func NewKeeper(
 	cdc codec.Codec,
 	storeKey storetypes.StoreKey,
 	pqcKeeper pqckeeper.Keeper,
+	burnKeeper BridgeBurnKeeper,
 	logger log.Logger,
 ) Keeper {
 	return Keeper{
-		cdc:       cdc,
-		storeKey:  storeKey,
-		pqcKeeper: pqcKeeper,
-		logger:    logger.With("module", types.ModuleName),
+		cdc:        cdc,
+		storeKey:   storeKey,
+		pqcKeeper:  pqcKeeper,
+		burnKeeper: burnKeeper,
+		logger:     logger.With("module", types.ModuleName),
+	}
+}
+
+// BurnWithdrawalFee burns the bridge withdrawal fee via the burn module.
+// Non-fatal: logs a warning on failure so withdrawals are never blocked.
+func (k Keeper) BurnWithdrawalFee(ctx sdk.Context, amount math.Int, txHash string) {
+	if k.burnKeeper == nil || amount.IsZero() {
+		return
+	}
+	if err := k.burnKeeper.BurnFromSource(ctx, burntypes.BurnSourceBridgeFee, amount, txHash); err != nil {
+		k.logger.Warn("bridge burn fee failed (non-fatal)", "amount", amount.String(), "error", err)
 	}
 }
 

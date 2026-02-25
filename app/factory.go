@@ -49,7 +49,7 @@ var (
 	NewAIAnomalyDecorator func(keeper aimod.AIKeeper) sdk.AnteDecorator
 
 	// Bridge module factories
-	NewBridgeKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, pqcKeeper pqcmod.PQCKeeper, logger log.Logger) bridgemod.BridgeKeeper
+	NewBridgeKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, pqcKeeper pqcmod.PQCKeeper, burnKeeper burnmod.BurnKeeper, logger log.Logger) bridgemod.BridgeKeeper
 	NewBridgeAppModule   func(keeper bridgemod.BridgeKeeper) module.AppModule
 	NewBridgeModuleBasic func() module.AppModuleBasic
 

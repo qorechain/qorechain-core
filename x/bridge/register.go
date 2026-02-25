@@ -10,6 +10,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
+	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	"github.com/qorechain/qorechain-core/x/bridge/keeper"
 	"github.com/qorechain/qorechain-core/x/bridge/types"
@@ -63,14 +64,14 @@ func extractPQCKeeper(pqcKeeper pqcmod.PQCKeeper) interface{} {
 }
 
 // RealNewBridgeKeeper creates the real bridge keeper.
-func RealNewBridgeKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, pqcKeeper pqcmod.PQCKeeper, logger log.Logger) BridgeKeeper {
+func RealNewBridgeKeeper(cdc codec.Codec, storeKey storetypes.StoreKey, pqcKeeper pqcmod.PQCKeeper, burnKeeper burnmod.BurnKeeper, logger log.Logger) BridgeKeeper {
 	// The bridge keeper needs a concrete pqckeeper.Keeper, but we receive a
 	// pqcmod.PQCKeeper interface. In the proprietary build, this is a
 	// *pqc.keeperAdapter wrapping a pqckeeper.Keeper. We use a type-switch
 	// approach: if it's the adapter, extract the concrete keeper.
 	// For this to work, pqc.register.go exports a helper.
 	concreteKeeper := pqcmod.ExtractConcreteKeeper(pqcKeeper)
-	k := keeper.NewKeeper(cdc, storeKey, concreteKeeper, logger)
+	k := keeper.NewKeeper(cdc, storeKey, concreteKeeper, burnKeeper, logger)
 	return &keeperAdapter{k: k}
 }
 
