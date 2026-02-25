@@ -161,6 +161,8 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
 		// PQC signature verification — runs before standard sig verify
 		NewPQCVerifyDecorator(options.PQCKeeper, options.PQCClient),
+		// PQC hybrid signature verification — checks TX extension for dual Ed25519 + ML-DSA-87
+		NewPQCHybridVerifyDecorator(options.PQCKeeper, options.PQCClient),
 		// AI anomaly check — runs after PQC, before standard decorators
 		NewAIAnomalyDecorator(options.AIKeeper),
 		// SVM compute budget check — validates SVM messages are within params

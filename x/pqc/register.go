@@ -35,6 +35,14 @@ func (a *keeperAdapter) IncrementClassicalFallbacks(ctx sdk.Context) { a.k.Incre
 func (a *keeperAdapter) GetStats(ctx sdk.Context) types.PQCStats    { return a.k.GetStats(ctx) }
 func (a *keeperAdapter) SetStats(ctx sdk.Context, s types.PQCStats) { a.k.SetStats(ctx, s) }
 
+// Hybrid signature methods (v1.1.0)
+func (a *keeperAdapter) GetHybridSignatureMode(ctx sdk.Context) types.HybridSignatureMode {
+	return a.k.GetHybridSignatureMode(ctx)
+}
+func (a *keeperAdapter) IncrementHybridVerifications(ctx sdk.Context) {
+	a.k.IncrementHybridVerifications(ctx)
+}
+
 // Algorithm registry (v0.6.0)
 func (a *keeperAdapter) RegisterAlgorithm(ctx sdk.Context, algo types.AlgorithmInfo) error {
 	return a.k.RegisterAlgorithm(ctx, algo)
@@ -101,6 +109,15 @@ func RealNewPQCVerifyDecorator(k PQCKeeper, client PQCClient) PQCVerifyDecorator
 		panic("PQCKeeper must be a keeperAdapter in proprietary build")
 	}
 	return NewPQCVerifyDecorator(adapter.k, client.(ffi.PQCClient))
+}
+
+// RealNewPQCHybridVerifyDecorator creates the real hybrid PQC ante decorator.
+func RealNewPQCHybridVerifyDecorator(k PQCKeeper, client PQCClient) PQCHybridVerifyDecorator {
+	adapter, ok := k.(*keeperAdapter)
+	if !ok {
+		panic("PQCKeeper must be a keeperAdapter in proprietary build")
+	}
+	return NewPQCHybridVerifyDecorator(adapter.k, client.(ffi.PQCClient))
 }
 
 // ExtractConcreteKeeper returns the underlying concrete keeper.Keeper from

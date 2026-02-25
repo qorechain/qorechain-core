@@ -32,6 +32,7 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 	}
 
 	params := d.pqcKeeper.GetParams(ctx)
+	hybridMode := params.HybridSignatureMode
 
 	// Extract signers from the transaction
 	sigTx, ok := tx.(sdk.FeeTx)
@@ -84,6 +85,7 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 						sdk.NewAttribute("address", addr),
 						sdk.NewAttribute("key_type", acct.KeyType),
 						sdk.NewAttribute("algorithm_id", acct.AlgorithmID.String()),
+						sdk.NewAttribute("hybrid_mode", hybridMode.String()),
 						sdk.NewAttribute("status", "verified"),
 					))
 
@@ -96,6 +98,7 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 						sdk.NewAttribute("address", addr),
 						sdk.NewAttribute("key_type", acct.KeyType),
 						sdk.NewAttribute("algorithm_id", acct.AlgorithmID.String()),
+						sdk.NewAttribute("hybrid_mode", hybridMode.String()),
 						sdk.NewAttribute("status", "deprecated_warning"),
 					))
 
@@ -109,6 +112,7 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 							sdk.NewAttribute("address", addr),
 							sdk.NewAttribute("key_type", acct.KeyType),
 							sdk.NewAttribute("algorithm_id", acct.AlgorithmID.String()),
+							sdk.NewAttribute("hybrid_mode", hybridMode.String()),
 							sdk.NewAttribute("status", "algorithm_disabled_fallback"),
 						))
 						continue

@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v1.0.0)
+[![Version](https://img.shields.io/badge/version-1.1.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v1.1.0)
 
 QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, and a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation. Built on QoreChain SDK v0.53 with 12 custom modules and 40 registered genesis modules.
 
@@ -15,7 +15,7 @@ QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at ge
 - **xQORE Governance-Boosted Staking** — Users lock QOR to mint xQORE at a 1:1 ratio, gaining doubled governance weight in QDRW votes. Early exit penalties (50% under 30 days, graduated down to 0% after 180 days) are redistributed to remaining holders via PvP rebase — rewarding conviction and punishing mercenary capital. The longer you hold, the more you earn from others' impatience.
 - **Controlled Emission Decay** — Epoch-based inflation follows a multi-year schedule (17.5% → 11% → 7% → 2%) that front-loads incentives for early validators while converging to a sustainable long-term rate. Combined with the burn engine, QOR reaches a net-deflationary equilibrium as transaction volume grows.
 - **Triple-VM Architecture** — The only Layer 1 running three virtual machines (EVM, CosmWasm, SVM) natively within one consensus. Deploy Solidity, Rust/CosmWasm, or BPF programs — all on the same chain, sharing state through cross-VM messaging.
-- **Quantum-Safe from Genesis** — Dilithium-5 and ML-KEM-1024 (NIST FIPS 203/204) are first-class citizens, not bolted-on afterthoughts. Algorithm-agile design allows governance-controlled migration to future PQC standards.
+- **Quantum-Safe from Genesis with Hybrid Signatures** — Dilithium-5 and ML-KEM-1024 (NIST FIPS 203/204) are first-class citizens, not bolted-on afterthoughts. Hybrid signature mode (v1.1.0) enables dual Ed25519 + ML-DSA-87 verification via TX extensions — classical wallets work unmodified while PQC-enabled wallets get quantum-resistant security. Governance controls three modes: disabled, optional (default), and required. Algorithm-agile design allows governance-controlled migration to future PQC standards.
 - **Cross-VM Interoperability** — EVM contracts call CosmWasm contracts via precompile; CosmWasm contracts call EVM contracts via custom messages; SVM programs participate through async event-based bridging. All three VMs communicate seamlessly.
 - **SVM Runtime with Solana-Compatible RPC** — Deploy and execute BPF programs using Solana-compatible tooling. The JSON-RPC server speaks Solana's `getAccountInfo`, `getBalance`, `getSlot` and more — existing Solana clients work out of the box.
 - **AI-Native Transaction Processing** — Statistical isolation forest fraud detection, multi-dimensional risk scoring, and dynamic fee optimization run in the ante handler chain for every transaction.
@@ -24,7 +24,7 @@ QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at ge
 
 ## Key Features
 
-- **PQC-Primary Security** — Dilithium-5 signatures + ML-KEM-1024 key exchange, algorithm-agile with governance-controlled migration
+- **PQC-Primary Security** — Dilithium-5 signatures + ML-KEM-1024 key exchange, hybrid Ed25519 + ML-DSA-87 via TX extensions, algorithm-agile with governance-controlled migration
 - **RL-Driven Consensus** — On-chain reinforcement learning agent dynamically tunes block time, gas limits, and pool weights with circuit breaker protection
 - **Triple-Pool CPoS** — RPoS/DPoS/PoS validator classification with pool-weighted proposer selection
 - **QDRW Governance** — Quadratic delegation with reputation weighting and xQORE boost for whale-resistant governance voting
