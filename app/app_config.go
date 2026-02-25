@@ -138,8 +138,8 @@ var (
 					"feemarket",
 					"evm",
 					"burn",
-					"inflation",
 					"xqore",
+					"inflation",
 					"rlconsensus",
 				},
 				EndBlockers: []string{
