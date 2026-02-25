@@ -19,6 +19,7 @@ import (
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
+	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 )
 
@@ -97,5 +98,15 @@ func init() {
 	}
 	NewSVMDeductFeeDecorator = func(keeper svmmod.SVMKeeper) sdk.AnteDecorator {
 		return svmmod.NewSVMDeductFeeDecorator(keeper)
+	}
+
+	NewRLConsensusKeeper = func(_ codec.Codec, _ storetypes.StoreKey, logger log.Logger) rlconsensusmod.RLConsensusKeeper {
+		return rlconsensusmod.NewStubKeeper(logger)
+	}
+	NewRLConsensusAppModule = func(keeper rlconsensusmod.RLConsensusKeeper) module.AppModule {
+		return rlconsensusmod.NewAppModule(keeper)
+	}
+	NewRLConsensusModuleBasic = func() module.AppModuleBasic {
+		return rlconsensusmod.AppModuleBasic{}
 	}
 }
