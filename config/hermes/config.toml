@@ -1,0 +1,39 @@
+# QoreChain Hermes IBC Relayer Configuration
+# Hermes v1.x compatible
+#
+# This is a template configuration. Operators must:
+# 1. Set key_name and mnemonic for each chain
+# 2. Adjust RPC/gRPC endpoints for their infrastructure
+# 3. Configure gas prices based on current network conditions
+
+[global]
+log_level = 'info'
+
+[mode]
+
+[mode.clients]
+enabled = true
+refresh = true
+misbehaviour = true
+
+[mode.connections]
+enabled = false
+
+[mode.channels]
+enabled = false
+
+[mode.packets]
+enabled = true
+clear_interval = 100
+clear_on_start = true
+tx_confirmation = true
+
+[rest]
+enabled = true
+host = '127.0.0.1'
+port = 3000
+
+[telemetry]
+enabled = true
+host = '127.0.0.1'
+port = 3001
