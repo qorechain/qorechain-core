@@ -56,6 +56,12 @@ func (p Params) Validate() error {
 			return fmt.Errorf("penalty_schedule[%d]: rate must be between 0 and 1", i)
 		}
 	}
+	// Verify tiers are sorted ascending by MinDuration
+	for i := 1; i < len(p.ExitPenaltySchedule); i++ {
+		if p.ExitPenaltySchedule[i].MinDuration <= p.ExitPenaltySchedule[i-1].MinDuration {
+			return fmt.Errorf("penalty_schedule[%d]: min_duration must be strictly increasing", i)
+		}
+	}
 	if p.PenaltyBurnRate.IsNegative() || p.PenaltyBurnRate.GT(math.LegacyOneDec()) {
 		return fmt.Errorf("penalty_burn_rate must be between 0 and 1")
 	}

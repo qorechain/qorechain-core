@@ -8,4 +8,5 @@ var (
 	ErrInsufficientBalance = errors.Register(ModuleName, 4, "insufficient xQORE balance")
 	ErrMinLockAmount       = errors.Register(ModuleName, 5, "amount below minimum lock")
 	ErrInvalidParams       = errors.Register(ModuleName, 6, "invalid xQORE params")
+	ErrModuleDisabled      = errors.Register(ModuleName, 7, "xqore module is disabled")
 )
