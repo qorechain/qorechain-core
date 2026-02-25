@@ -65,3 +65,10 @@ func (api *QorAPI) GetBurnStats() (*StubResult, error)             { return nil,
 func (api *QorAPI) GetXQOREPosition(_ string) (*StubResult, error) { return nil, errNotAvailable }
 func (api *QorAPI) GetInflationRate() (*StubResult, error)         { return nil, errNotAvailable }
 func (api *QorAPI) GetTokenomicsOverview() (*StubResult, error)    { return nil, errNotAvailable }
+
+// v1.2.0 endpoints
+func (api *QorAPI) GetBTCStakingPosition(_ string) (*StubResult, error)  { return nil, errNotAvailable }
+func (api *QorAPI) GetAbstractAccount(_ string) (*StubResult, error)     { return nil, errNotAvailable }
+func (api *QorAPI) GetFairBlockStatus() (*StubResult, error)             { return nil, errNotAvailable }
+func (api *QorAPI) GetGasAbstractionConfig() (*StubResult, error)        { return nil, errNotAvailable }
+func (api *QorAPI) GetLaneConfiguration() (*StubResult, error)           { return nil, errNotAvailable }

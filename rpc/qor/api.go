@@ -13,10 +13,14 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	abstractaccountmod "github.com/qorechain/qorechain-core/x/abstractaccount"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
+	babylonmod "github.com/qorechain/qorechain-core/x/babylon"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
+	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
+	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
@@ -36,9 +40,14 @@ type QorAPI struct {
 	bridgeKeeper        bridgemod.BridgeKeeper
 	multilayerKeeper    multilayermod.MultilayerKeeper
 	rlconsensusKeeper   rlconsensusmod.RLConsensusKeeper
-	burnKeeper          burnmod.BurnKeeper
-	xqoreKeeper         xqoremod.XQOREKeeper
-	inflationKeeper     inflationmod.InflationKeeper
+	burnKeeper             burnmod.BurnKeeper
+	xqoreKeeper            xqoremod.XQOREKeeper
+	inflationKeeper        inflationmod.InflationKeeper
+	babylonKeeper          babylonmod.BabylonKeeper
+	abstractAccountKeeper  abstractaccountmod.AbstractAccountKeeper
+	fairBlockKeeper        fairblockmod.FairBlockKeeper
+	gasAbstractionKeeper   gasabstractionmod.GasAbstractionKeeper
+	laneConfig             []LaneConfigResult
 }
 
 // NewQorAPI creates a new QorAPI instance.
@@ -55,6 +64,11 @@ func NewQorAPI(
 	burnKeeper burnmod.BurnKeeper,
 	xqoreKeeper xqoremod.XQOREKeeper,
 	inflationKeeper inflationmod.InflationKeeper,
+	babylonKeeper babylonmod.BabylonKeeper,
+	abstractAccountKeeper abstractaccountmod.AbstractAccountKeeper,
+	fairBlockKeeper fairblockmod.FairBlockKeeper,
+	gasAbstractionKeeper gasabstractionmod.GasAbstractionKeeper,
+	laneConfig []LaneConfigResult,
 ) *QorAPI {
 	return &QorAPI{
 		ctx:               ctx,
@@ -66,9 +80,14 @@ func NewQorAPI(
 		bridgeKeeper:      bridgeKeeper,
 		multilayerKeeper:  multilayerKeeper,
 		rlconsensusKeeper: rlconsensusKeeper,
-		burnKeeper:        burnKeeper,
-		xqoreKeeper:       xqoreKeeper,
-		inflationKeeper:   inflationKeeper,
+		burnKeeper:            burnKeeper,
+		xqoreKeeper:           xqoreKeeper,
+		inflationKeeper:       inflationKeeper,
+		babylonKeeper:         babylonKeeper,
+		abstractAccountKeeper: abstractAccountKeeper,
+		fairBlockKeeper:       fairBlockKeeper,
+		gasAbstractionKeeper:  gasAbstractionKeeper,
+		laneConfig:            laneConfig,
 	}
 }
 
@@ -500,4 +519,134 @@ func (api *QorAPI) GetTokenomicsOverview() (*TokenomicsOverviewResult, error) {
 		InflationRate: rate.String(),
 		TotalMinted:   epoch.TotalMinted.String(),
 	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// v1.2.0 endpoints: Babylon, AbstractAccount, FairBlock, GasAbstraction, Lanes
+// ---------------------------------------------------------------------------
+
+// BTCStakingPositionResult contains a BTC restaking position.
+type BTCStakingPositionResult struct {
+	StakerAddress string `json:"staker_address"`
+	Found         bool   `json:"found"`
+	BTCAmount     string `json:"btc_amount,omitempty"`
+	Status        string `json:"status,omitempty"`
+	StakeHeight   int64  `json:"stake_height,omitempty"`
+}
+
+// GetBTCStakingPosition returns the BTC restaking position for an address.
+func (api *QorAPI) GetBTCStakingPosition(address string) (*BTCStakingPositionResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	pos, found := api.babylonKeeper.GetStakingPosition(sdkCtx, address)
+	if !found {
+		return &BTCStakingPositionResult{
+			StakerAddress: address,
+			Found:         false,
+		}, nil
+	}
+
+	return &BTCStakingPositionResult{
+		StakerAddress: address,
+		Found:         true,
+		BTCAmount:     pos.BTCAmount,
+		Status:        pos.Status,
+		StakeHeight:   pos.StakeHeight,
+	}, nil
+}
+
+// AbstractAccountResult contains abstract account information.
+type AbstractAccountResult struct {
+	Address     string `json:"address"`
+	Found       bool   `json:"found"`
+	AccountType string `json:"account_type,omitempty"`
+	Contract    string `json:"contract_address,omitempty"`
+}
+
+// GetAbstractAccount returns the abstract account info for an address.
+func (api *QorAPI) GetAbstractAccount(address string) (*AbstractAccountResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	acct, found := api.abstractAccountKeeper.GetAccount(sdkCtx, address)
+	if !found {
+		return &AbstractAccountResult{
+			Address: address,
+			Found:   false,
+		}, nil
+	}
+
+	return &AbstractAccountResult{
+		Address:     address,
+		Found:       true,
+		AccountType: acct.AccountType,
+		Contract:    acct.ContractAddress,
+	}, nil
+}
+
+// FairBlockStatusResult contains FairBlock module status.
+type FairBlockStatusResult struct {
+	Enabled        bool   `json:"enabled"`
+	TIBEThreshold  uint32 `json:"tibe_threshold"`
+	DecryptionDelay int64 `json:"decryption_delay"`
+}
+
+// GetFairBlockStatus returns the FairBlock module's current configuration.
+func (api *QorAPI) GetFairBlockStatus() (*FairBlockStatusResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	config := api.fairBlockKeeper.GetConfig(sdkCtx)
+
+	return &FairBlockStatusResult{
+		Enabled:         config.Enabled,
+		TIBEThreshold:   config.TIBEThreshold,
+		DecryptionDelay: config.DecryptionDelay,
+	}, nil
+}
+
+// GasAbstractionConfigResult contains gas abstraction configuration.
+type GasAbstractionConfigResult struct {
+	Enabled        bool                `json:"enabled"`
+	NativeDenom    string              `json:"native_denom"`
+	AcceptedTokens []AcceptedTokenInfo `json:"accepted_tokens"`
+}
+
+// AcceptedTokenInfo contains info about an accepted fee token.
+type AcceptedTokenInfo struct {
+	Denom          string `json:"denom"`
+	ConversionRate string `json:"conversion_rate"`
+}
+
+// GetGasAbstractionConfig returns the gas abstraction module configuration.
+func (api *QorAPI) GetGasAbstractionConfig() (*GasAbstractionConfigResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	config := api.gasAbstractionKeeper.GetConfig(sdkCtx)
+
+	tokens := make([]AcceptedTokenInfo, len(config.AcceptedTokens))
+	for i, t := range config.AcceptedTokens {
+		tokens[i] = AcceptedTokenInfo{
+			Denom:          t.Denom,
+			ConversionRate: fmt.Sprintf("%.6f", t.ConversionRate),
+		}
+	}
+
+	return &GasAbstractionConfigResult{
+		Enabled:        config.Enabled,
+		NativeDenom:    config.NativeDenom,
+		AcceptedTokens: tokens,
+	}, nil
+}
+
+// LaneConfigResult contains lane configuration info.
+type LaneConfigResult struct {
+	Name          string  `json:"name"`
+	Priority      int     `json:"priority"`
+	MaxBlockSpace float64 `json:"max_block_space"`
+	Description   string  `json:"description"`
+}
+
+// GetLaneConfiguration returns the current 5-lane tx prioritization configuration.
+// Lane config is compile-time static and set via the laneConfig field.
+func (api *QorAPI) GetLaneConfiguration() ([]LaneConfigResult, error) {
+	return api.laneConfig, nil
 }
