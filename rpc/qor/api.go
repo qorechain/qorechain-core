@@ -15,11 +15,14 @@ import (
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
+	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
+	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
+	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
 )
 
 // QorAPI defines the qor_ JSON-RPC namespace methods.
@@ -33,6 +36,9 @@ type QorAPI struct {
 	bridgeKeeper        bridgemod.BridgeKeeper
 	multilayerKeeper    multilayermod.MultilayerKeeper
 	rlconsensusKeeper   rlconsensusmod.RLConsensusKeeper
+	burnKeeper          burnmod.BurnKeeper
+	xqoreKeeper         xqoremod.XQOREKeeper
+	inflationKeeper     inflationmod.InflationKeeper
 }
 
 // NewQorAPI creates a new QorAPI instance.
@@ -46,6 +52,9 @@ func NewQorAPI(
 	bridgeKeeper bridgemod.BridgeKeeper,
 	multilayerKeeper multilayermod.MultilayerKeeper,
 	rlconsensusKeeper rlconsensusmod.RLConsensusKeeper,
+	burnKeeper burnmod.BurnKeeper,
+	xqoreKeeper xqoremod.XQOREKeeper,
+	inflationKeeper inflationmod.InflationKeeper,
 ) *QorAPI {
 	return &QorAPI{
 		ctx:               ctx,
@@ -57,6 +66,9 @@ func NewQorAPI(
 		bridgeKeeper:      bridgeKeeper,
 		multilayerKeeper:  multilayerKeeper,
 		rlconsensusKeeper: rlconsensusKeeper,
+		burnKeeper:        burnKeeper,
+		xqoreKeeper:       xqoreKeeper,
+		inflationKeeper:   inflationKeeper,
 	}
 }
 
@@ -352,5 +364,121 @@ func (api *QorAPI) GetPoolClassification(validator string) (*PoolClassificationR
 		Validator:  validator,
 		Pool:       "unclassified",
 		AssignedAt: 0,
+	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// Tokenomics endpoints (burn, xQORE, inflation)
+// ---------------------------------------------------------------------------
+
+// BurnStatsResult contains burn module statistics.
+type BurnStatsResult struct {
+	TotalBurned    string            `json:"total_burned"`
+	BurnsBySource  map[string]string `json:"burns_by_source"`
+	LastBurnHeight int64             `json:"last_burn_height"`
+}
+
+// GetBurnStats returns burn statistics.
+func (api *QorAPI) GetBurnStats() (*BurnStatsResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+	stats := api.burnKeeper.GetBurnStats(sdkCtx)
+
+	bySource := make(map[string]string, len(stats.BurnsBySource))
+	for source, amount := range stats.BurnsBySource {
+		bySource[string(source)] = amount.String()
+	}
+
+	return &BurnStatsResult{
+		TotalBurned:    stats.TotalBurned.String(),
+		BurnsBySource:  bySource,
+		LastBurnHeight: stats.LastBurnHeight,
+	}, nil
+}
+
+// XQOREPositionResult contains the xQORE position for an address.
+type XQOREPositionResult struct {
+	Address    string `json:"address"`
+	Found      bool   `json:"found"`
+	Locked     string `json:"locked,omitempty"`
+	XBalance   string `json:"x_balance,omitempty"`
+	LockHeight int64  `json:"lock_height,omitempty"`
+	LockTime   string `json:"lock_time,omitempty"`
+}
+
+// GetXQOREPosition returns the xQORE position for an address.
+func (api *QorAPI) GetXQOREPosition(address string) (*XQOREPositionResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	addr, err := sdk.AccAddressFromBech32(address)
+	if err != nil {
+		return nil, fmt.Errorf("invalid address: %w", err)
+	}
+
+	pos, found := api.xqoreKeeper.GetPosition(sdkCtx, addr)
+	if !found {
+		return &XQOREPositionResult{
+			Address: address,
+			Found:   false,
+		}, nil
+	}
+
+	return &XQOREPositionResult{
+		Address:    address,
+		Found:      true,
+		Locked:     pos.Locked.String(),
+		XBalance:   pos.XBalance.String(),
+		LockHeight: pos.LockHeight,
+		LockTime:   pos.LockTime.UTC().Format("2006-01-02T15:04:05Z"),
+	}, nil
+}
+
+// InflationRateResult contains the current inflation rate and epoch info.
+type InflationRateResult struct {
+	CurrentRate  string `json:"current_rate"`
+	CurrentEpoch uint64 `json:"current_epoch"`
+	CurrentYear  uint64 `json:"current_year"`
+	TotalMinted  string `json:"total_minted"`
+}
+
+// GetInflationRate returns the current inflation rate and epoch information.
+func (api *QorAPI) GetInflationRate() (*InflationRateResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	rate := api.inflationKeeper.GetCurrentInflationRate(sdkCtx)
+	epoch := api.inflationKeeper.GetEpochInfo(sdkCtx)
+
+	return &InflationRateResult{
+		CurrentRate:  rate.String(),
+		CurrentEpoch: epoch.CurrentEpoch,
+		CurrentYear:  epoch.CurrentYear,
+		TotalMinted:  epoch.TotalMinted.String(),
+	}, nil
+}
+
+// TokenomicsOverviewResult contains combined tokenomics statistics.
+type TokenomicsOverviewResult struct {
+	TotalBurned    string `json:"total_burned"`
+	TotalLocked    string `json:"total_locked"`
+	TotalXQORE     string `json:"total_xqore"`
+	InflationRate  string `json:"inflation_rate"`
+	TotalMinted    string `json:"total_minted"`
+}
+
+// GetTokenomicsOverview returns a combined view of all tokenomics stats.
+func (api *QorAPI) GetTokenomicsOverview() (*TokenomicsOverviewResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	stats := api.burnKeeper.GetBurnStats(sdkCtx)
+	totalLocked := api.xqoreKeeper.GetTotalLocked(sdkCtx)
+	totalXQORE := api.xqoreKeeper.GetTotalXQORESupply(sdkCtx)
+	rate := api.inflationKeeper.GetCurrentInflationRate(sdkCtx)
+	epoch := api.inflationKeeper.GetEpochInfo(sdkCtx)
+
+	return &TokenomicsOverviewResult{
+		TotalBurned:   stats.TotalBurned.String(),
+		TotalLocked:   totalLocked.String(),
+		TotalXQORE:    totalXQORE.String(),
+		InflationRate: rate.String(),
+		TotalMinted:   epoch.TotalMinted.String(),
 	}, nil
 }
