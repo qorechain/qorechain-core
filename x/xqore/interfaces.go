@@ -9,13 +9,16 @@ import (
 )
 
 // XQOREKeeper is the interface for the x/xqore module's keeper.
+// Any implementation also satisfies rlconsensus.TokenomicsKeeper via GetXQOREBalance,
+// replacing NilTokenomicsKeeper with real balance lookups for QDRW governance.
 type XQOREKeeper interface {
 	Logger() log.Logger
 
 	GetParams(ctx sdk.Context) types.Params
 	SetParams(ctx sdk.Context, params types.Params) error
 
-	// Satisfies rlconsensusmod.TokenomicsKeeper
+	// GetXQOREBalance returns the xQORE balance for an address.
+	// Satisfies rlconsensus.TokenomicsKeeper interface.
 	GetXQOREBalance(ctx sdk.Context, addr sdk.AccAddress) math.Int
 
 	// Position management

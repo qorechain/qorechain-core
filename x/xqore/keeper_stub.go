@@ -7,8 +7,13 @@ import (
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	"github.com/qorechain/qorechain-core/x/xqore/types"
 )
+
+// Compile-time assertion: StubKeeper satisfies rlconsensus.TokenomicsKeeper,
+// replacing NilTokenomicsKeeper with real xQORE balance lookups.
+var _ rlconsensusmod.TokenomicsKeeper = (*StubKeeper)(nil)
 
 // StubKeeper is a no-op implementation of XQOREKeeper for public builds.
 type StubKeeper struct {
