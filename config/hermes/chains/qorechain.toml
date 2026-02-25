@@ -1,0 +1,23 @@
+# QoreChain — Source chain configuration
+[[chains]]
+id = 'qorechain-diana'
+type = 'CosmosSdk'
+rpc_addr = 'http://127.0.0.1:26657'
+grpc_addr = 'http://127.0.0.1:9090'
+event_source = { mode = 'push', url = 'ws://127.0.0.1:26657/websocket', batch_delay = '200ms' }
+rpc_timeout = '10s'
+account_prefix = 'qor'
+key_name = 'qorechain-relayer'
+key_store_type = 'Test'
+store_prefix = 'ibc'
+default_gas = 300000
+max_gas = 3000000
+gas_price = { price = 0.025, denom = 'uqor' }
+gas_multiplier = 1.2
+max_msg_num = 30
+max_tx_size = 180000
+clock_drift = '10s'
+max_block_time = '30s'
+trusting_period = '14days'
+trust_threshold = { numerator = '1', denominator = '3' }
+address_type = { derivation = 'cosmos' }

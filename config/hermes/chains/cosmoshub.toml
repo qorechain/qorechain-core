@@ -1,0 +1,23 @@
+# Cosmos Hub — IBC connection
+[[chains]]
+id = 'cosmoshub-4'
+type = 'CosmosSdk'
+rpc_addr = 'https://rpc.cosmos.network:443'
+grpc_addr = 'https://grpc.cosmos.network:443'
+event_source = { mode = 'push', url = 'wss://rpc.cosmos.network/websocket', batch_delay = '200ms' }
+rpc_timeout = '10s'
+account_prefix = 'cosmos'
+key_name = 'cosmoshub-relayer'
+key_store_type = 'Test'
+store_prefix = 'ibc'
+default_gas = 300000
+max_gas = 3000000
+gas_price = { price = 0.025, denom = 'uatom' }
+gas_multiplier = 1.2
+max_msg_num = 30
+max_tx_size = 180000
+clock_drift = '10s'
+max_block_time = '30s'
+trusting_period = '14days'
+trust_threshold = { numerator = '1', denominator = '3' }
+address_type = { derivation = 'cosmos' }

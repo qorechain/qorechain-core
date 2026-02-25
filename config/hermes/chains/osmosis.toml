@@ -1,0 +1,23 @@
+# Osmosis — IBC connection (DEX liquidity)
+[[chains]]
+id = 'osmosis-1'
+type = 'CosmosSdk'
+rpc_addr = 'https://rpc.osmosis.zone:443'
+grpc_addr = 'https://grpc.osmosis.zone:443'
+event_source = { mode = 'push', url = 'wss://rpc.osmosis.zone/websocket', batch_delay = '200ms' }
+rpc_timeout = '10s'
+account_prefix = 'osmo'
+key_name = 'osmosis-relayer'
+key_store_type = 'Test'
+store_prefix = 'ibc'
+default_gas = 300000
+max_gas = 3000000
+gas_price = { price = 0.025, denom = 'uosmo' }
+gas_multiplier = 1.2
+max_msg_num = 30
+max_tx_size = 180000
+clock_drift = '10s'
+max_block_time = '30s'
+trusting_period = '14days'
+trust_threshold = { numerator = '1', denominator = '3' }
+address_type = { derivation = 'cosmos' }
