@@ -15,6 +15,13 @@ const (
 	ChainTypeSolana   ChainType = "solana"
 	ChainTypeTON      ChainType = "ton"
 	ChainTypeSui      ChainType = "sui"
+	ChainTypeAptos    ChainType = "aptos"
+	ChainTypeBitcoin  ChainType = "bitcoin"
+	ChainTypeNEAR     ChainType = "near"
+	ChainTypeCardano  ChainType = "cardano"
+	ChainTypePolkadot ChainType = "polkadot"
+	ChainTypeTezos    ChainType = "tezos"
+	ChainTypeTron     ChainType = "tron"
 )
 
 // BridgeStatus represents the current status of a bridge.
@@ -166,6 +173,106 @@ func DefaultChainConfigs() []ChainConfig {
 			Status:           BridgeStatusPending,
 			MinConfirmations: 3,
 			SupportedAssets:  []string{"SUI", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		// v1.2.0: 9 new chain connections
+		{
+			ChainID:          "optimism",
+			Name:             "Optimism",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"ETH", "USDC", "OP"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "base",
+			Name:             "Base",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"ETH", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "aptos",
+			Name:             "Aptos",
+			ChainType:        ChainTypeAptos,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 6,
+			SupportedAssets:  []string{"APT", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "bitcoin",
+			Name:             "Bitcoin",
+			ChainType:        ChainTypeBitcoin,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 6,
+			SupportedAssets:  []string{"BTC"},
+			MaxSingleTransfer: "500000000000", // Lower limit for BTC
+			DailyLimit:       "5000000000000",
+		},
+		{
+			ChainID:          "near",
+			Name:             "NEAR Protocol",
+			ChainType:        ChainTypeNEAR,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 3,
+			SupportedAssets:  []string{"NEAR", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "cardano",
+			Name:             "Cardano",
+			ChainType:        ChainTypeCardano,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 15,
+			SupportedAssets:  []string{"ADA"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "polkadot",
+			Name:             "Polkadot",
+			ChainType:        ChainTypePolkadot,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 12,
+			SupportedAssets:  []string{"DOT"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "tezos",
+			Name:             "Tezos",
+			ChainType:        ChainTypeTezos,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 2,
+			SupportedAssets:  []string{"XTZ"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "tron",
+			Name:             "TRON",
+			ChainType:        ChainTypeTron,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 20,
+			SupportedAssets:  []string{"TRX", "USDT"},
 			MaxSingleTransfer: "1000000000000",
 			DailyLimit:       "10000000000000",
 		},
