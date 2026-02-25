@@ -13,6 +13,19 @@ import (
 	"github.com/qorechain/qorechain-core/x/qca/types"
 )
 
+// StakingReader provides read-only staking data for pool classification and bonding curve.
+type StakingReader interface {
+	// GetValidatorTokens returns total delegated tokens for a validator (in uqor).
+	GetValidatorTokens(ctx sdk.Context, valAddr string) uint64
+}
+
+// RLReader provides read-only access to RL consensus parameters.
+type RLReader interface {
+	// GetDynamicPoolWeights returns the RL-adjusted pool weights (rpos, dpos).
+	// Returns empty strings if RL is not active.
+	GetDynamicPoolWeights(ctx sdk.Context) (rpos string, dpos string)
+}
+
 // Keeper manages the x/qca module state.
 type Keeper struct {
 	cdc              codec.Codec
@@ -20,6 +33,8 @@ type Keeper struct {
 	reputationKeeper reputationkeeper.Keeper
 	selector         types.ValidatorSelector
 	logger           log.Logger
+	stakingKeeper    StakingReader // optional, set after creation
+	rlKeeper         RLReader      // optional, set after creation
 }
 
 // NewKeeper creates a new QCA keeper.
@@ -40,6 +55,16 @@ func NewKeeper(
 }
 
 func (k Keeper) Logger() log.Logger { return k.logger }
+
+// SetStakingKeeper sets the optional staking keeper dependency.
+func (k *Keeper) SetStakingKeeper(sk StakingReader) {
+	k.stakingKeeper = sk
+}
+
+// SetRLKeeper sets the optional RL consensus keeper dependency.
+func (k *Keeper) SetRLKeeper(rl RLReader) {
+	k.rlKeeper = rl
+}
 
 // ---- Config ----
 
@@ -114,6 +139,54 @@ func (k Keeper) GetReputationWeightedProposer(
 	return selected
 }
 
+// ---- Pool & Slashing KV helpers (shared between public and proprietary builds) ----
+
+// setPoolClassificationKV stores a pool classification in the KV store.
+func (k Keeper) setPoolClassificationKV(ctx sdk.Context, pc types.PoolClassification) {
+	store := ctx.KVStore(k.storeKey)
+	bz, _ := json.Marshal(pc)
+	store.Set(types.PoolClassificationKey(pc.ValidatorAddr), bz)
+}
+
+// setSlashingRecordKV stores a slashing record in the KV store.
+func (k Keeper) setSlashingRecordKV(ctx sdk.Context, record types.SlashingRecord) {
+	store := ctx.KVStore(k.storeKey)
+	bz, _ := json.Marshal(record)
+	store.Set(types.SlashingRecordKey(record.ValidatorAddr, record.InfractionHeight), bz)
+}
+
+// getAllPoolClassifications returns all stored pool classifications.
+func (k Keeper) getAllPoolClassifications(ctx sdk.Context) []types.PoolClassification {
+	store := ctx.KVStore(k.storeKey)
+	var result []types.PoolClassification
+	iter := store.Iterator(types.PoolClassificationPrefix, storetypes.PrefixEndBytes(types.PoolClassificationPrefix))
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		var pc types.PoolClassification
+		if err := json.Unmarshal(iter.Value(), &pc); err != nil {
+			continue
+		}
+		result = append(result, pc)
+	}
+	return result
+}
+
+// getAllSlashingRecords returns all stored slashing records.
+func (k Keeper) getAllSlashingRecords(ctx sdk.Context) []types.SlashingRecord {
+	store := ctx.KVStore(k.storeKey)
+	var result []types.SlashingRecord
+	iter := store.Iterator(types.SlashingRecordPrefix, storetypes.PrefixEndBytes(types.SlashingRecordPrefix))
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		var record types.SlashingRecord
+		if err := json.Unmarshal(iter.Value(), &record); err != nil {
+			continue
+		}
+		result = append(result, record)
+	}
+	return result
+}
+
 // ---- Genesis ----
 
 func (k Keeper) InitGenesis(ctx sdk.Context, gs types.GenesisState) {
@@ -121,11 +194,19 @@ func (k Keeper) InitGenesis(ctx sdk.Context, gs types.GenesisState) {
 		panic(err)
 	}
 	k.SetStats(ctx, gs.Stats)
+	for _, pc := range gs.PoolClassifications {
+		k.setPoolClassificationKV(ctx, pc)
+	}
+	for _, record := range gs.SlashingRecords {
+		k.setSlashingRecordKV(ctx, record)
+	}
 }
 
 func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	return &types.GenesisState{
-		Config: k.GetConfig(ctx),
-		Stats:  k.GetStats(ctx),
+		Config:              k.GetConfig(ctx),
+		Stats:               k.GetStats(ctx),
+		PoolClassifications: k.getAllPoolClassifications(ctx),
+		SlashingRecords:     k.getAllSlashingRecords(ctx),
 	}
 }
