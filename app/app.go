@@ -91,35 +91,47 @@ import (
 	_ "github.com/ethereum/go-ethereum/eth/tracers/native"
 
 	// QoreChain custom modules
-	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
-	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
+	abstractaccountmod "github.com/qorechain/qorechain-core/x/abstractaccount"
+	abstractaccounttypes "github.com/qorechain/qorechain-core/x/abstractaccount/types"
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	aitypes "github.com/qorechain/qorechain-core/x/ai/types"
 
+	babylonmod "github.com/qorechain/qorechain-core/x/babylon"
+	babylontypes "github.com/qorechain/qorechain-core/x/babylon/types"
+
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	bridgetypes "github.com/qorechain/qorechain-core/x/bridge/types"
-
-	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
-	crossvmtypes "github.com/qorechain/qorechain-core/x/crossvm/types"
-
-	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
-	multilayertypes "github.com/qorechain/qorechain-core/x/multilayer/types"
-
-	svmmod "github.com/qorechain/qorechain-core/x/svm"
-	svmtypes "github.com/qorechain/qorechain-core/x/svm/types"
-
-	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
-	rlconsensustypes "github.com/qorechain/qorechain-core/x/rlconsensus/types"
 
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	burntypes "github.com/qorechain/qorechain-core/x/burn/types"
 
-	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
-	xqoretypes "github.com/qorechain/qorechain-core/x/xqore/types"
+	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
+	crossvmtypes "github.com/qorechain/qorechain-core/x/crossvm/types"
+
+	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
+	fairblocktypes "github.com/qorechain/qorechain-core/x/fairblock/types"
+
+	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
+	gasabstractiontypes "github.com/qorechain/qorechain-core/x/gasabstraction/types"
 
 	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	inflationtypes "github.com/qorechain/qorechain-core/x/inflation/types"
+
+	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
+	multilayertypes "github.com/qorechain/qorechain-core/x/multilayer/types"
+
+	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
+	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
+
+	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
+	rlconsensustypes "github.com/qorechain/qorechain-core/x/rlconsensus/types"
+
+	svmmod "github.com/qorechain/qorechain-core/x/svm"
+	svmtypes "github.com/qorechain/qorechain-core/x/svm/types"
+
+	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
+	xqoretypes "github.com/qorechain/qorechain-core/x/xqore/types"
 
 	reputationmodule "github.com/qorechain/qorechain-core/x/reputation"
 	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
@@ -197,9 +209,13 @@ type QoreChainApp struct {
 	MultilayerKeeper  multilayermod.MultilayerKeeper
 	SVMKeeper         svmmod.SVMKeeper
 	RLConsensusKeeper rlconsensusmod.RLConsensusKeeper
-	BurnKeeper        burnmod.BurnKeeper
-	XQOREKeeper       xqoremod.XQOREKeeper
-	InflationKeeper   inflationmod.InflationKeeper
+	BurnKeeper             burnmod.BurnKeeper
+	XQOREKeeper            xqoremod.XQOREKeeper
+	InflationKeeper        inflationmod.InflationKeeper
+	BabylonKeeper          babylonmod.BabylonKeeper
+	AbstractAccountKeeper  abstractaccountmod.AbstractAccountKeeper
+	FairBlockKeeper        fairblockmod.FairBlockKeeper
+	GasAbstractionKeeper   gasabstractionmod.GasAbstractionKeeper
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -543,6 +559,46 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize Babylon module (via factory, v1.2.0 — BTC restaking) ---
+	babylonStoreKey := storetypes.NewKVStoreKey(babylontypes.StoreKey)
+	app.MountStores(babylonStoreKey)
+
+	app.BabylonKeeper = NewBabylonKeeper(
+		app.appCodec,
+		babylonStoreKey,
+		logger,
+	)
+
+	// --- Initialize AbstractAccount module (via factory, v1.2.0 — account abstraction) ---
+	abstractaccountStoreKey := storetypes.NewKVStoreKey(abstractaccounttypes.StoreKey)
+	app.MountStores(abstractaccountStoreKey)
+
+	app.AbstractAccountKeeper = NewAbstractAccountKeeper(
+		app.appCodec,
+		abstractaccountStoreKey,
+		logger,
+	)
+
+	// --- Initialize FairBlock module (via factory, v1.2.0 — threshold IBE) ---
+	fairblockStoreKey := storetypes.NewKVStoreKey(fairblocktypes.StoreKey)
+	app.MountStores(fairblockStoreKey)
+
+	app.FairBlockKeeper = NewFairBlockKeeper(
+		app.appCodec,
+		fairblockStoreKey,
+		logger,
+	)
+
+	// --- Initialize GasAbstraction module (via factory, v1.2.0 — IBC token fees) ---
+	gasabstractionStoreKey := storetypes.NewKVStoreKey(gasabstractiontypes.StoreKey)
+	app.MountStores(gasabstractionStoreKey)
+
+	app.GasAbstractionKeeper = NewGasAbstractionKeeper(
+		app.appCodec,
+		gasabstractionStoreKey,
+		logger,
+	)
+
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
@@ -601,6 +657,10 @@ func NewQoreChainApp(
 		NewBurnAppModule(app.BurnKeeper),
 		NewXQOREAppModule(app.XQOREKeeper),
 		NewInflationAppModule(app.InflationKeeper),
+		NewBabylonAppModule(app.BabylonKeeper),
+		NewAbstractAccountAppModule(app.AbstractAccountKeeper),
+		NewFairBlockAppModule(app.FairBlockKeeper),
+		NewGasAbstractionAppModule(app.GasAbstractionKeeper),
 	); err != nil {
 		panic(err)
 	}
@@ -667,6 +727,8 @@ func (app *QoreChainApp) setAnteHandler(
 			WasmKeeper:            &app.WasmKeeper,
 			WasmConfig:            &wasmNodeConfig,
 			TXCounterStoreService: runtime.NewKVStoreService(wasmStoreKey),
+			FairBlockKeeper:       app.FairBlockKeeper,
+			GasAbstractionKeeper:  app.GasAbstractionKeeper,
 		},
 	)
 	if err != nil {
