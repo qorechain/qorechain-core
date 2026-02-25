@@ -86,6 +86,28 @@ All standard QoreChain SDK REST and gRPC endpoints are available:
 | `/qorechain/rlconsensus/v1/params` | GET | Module parameters |
 | `/qorechain/rlconsensus/v1/policy` | GET | Current policy network metadata |
 
+### Burn Module
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/burn/v1/stats` | GET | Burn statistics: total burned, per-source breakdown, last burn height |
+| `/qorechain/burn/v1/params` | GET | Burn module parameters (distribution weights, enable flag) |
+
+### xQORE Module
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/xqore/v1/position/{address}` | GET | xQORE position for an address (locked, balance, lock time) |
+| `/qorechain/xqore/v1/params` | GET | xQORE module parameters (penalty tiers, lock settings) |
+
+### Inflation Module
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/inflation/v1/rate` | GET | Current inflation rate |
+| `/qorechain/inflation/v1/epoch` | GET | Current epoch info (epoch number, year, total minted) |
+| `/qorechain/inflation/v1/params` | GET | Inflation module parameters (epoch length, rate schedule) |
+
 ## JSON-RPC (EVM)
 
 Port: 8545 (HTTP), 8546 (WebSocket)
@@ -113,6 +135,10 @@ Port: 8545 (HTTP), 8546 (WebSocket)
 | `qor_getRLObservation` | (none) | Latest 25-dimension observation vector with named dimensions |
 | `qor_getRLReward` | (none) | Latest reward signal with per-component breakdown |
 | `qor_getPoolClassification` | `validator` | Validator pool assignment (rpos/dpos/pos) |
+| `qor_getBurnStats` | (none) | Total burned, per-source breakdown, last burn height |
+| `qor_getXQOREPosition` | `address` | xQORE position: locked QOR, xQORE balance, lock time |
+| `qor_getInflationRate` | (none) | Current inflation rate, epoch, year, total minted |
+| `qor_getTokenomicsOverview` | (none) | Combined tokenomics dashboard (burn + xQORE + inflation) |
 
 ## JSON-RPC (SVM — Solana-Compatible)
 
