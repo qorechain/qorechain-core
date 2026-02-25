@@ -45,6 +45,9 @@ func init() {
 	NewPQCVerifyDecorator = func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator {
 		return pqcmod.RealNewPQCVerifyDecorator(keeper, client)
 	}
+	NewPQCHybridVerifyDecorator = func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator {
+		return pqcmod.RealNewPQCHybridVerifyDecorator(keeper, client)
+	}
 
 	// AI factories — use real heuristic engine implementations
 	NewAIKeeper = func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) aimod.AIKeeper {

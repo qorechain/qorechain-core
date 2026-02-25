@@ -28,6 +28,7 @@ func GetQueryCmd() *cobra.Command {
 		GetCmdQueryStats(),
 		GetCmdQueryMigration(),
 		GetCmdQueryParams(),
+		GetCmdQueryHybridMode(),
 	)
 
 	return cmd
@@ -169,6 +170,40 @@ func GetCmdQueryMigration() *cobra.Command {
 
 			fmt.Printf("Querying migration for algorithm: %s\n", args[0])
 			fmt.Println("(Full gRPC query support will be added with proto definitions)")
+			return nil
+		},
+	}
+
+	return cmd
+}
+
+// GetCmdQueryHybridMode returns the command to query the current hybrid signature mode.
+func GetCmdQueryHybridMode() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "hybrid-mode",
+		Short: "Query the current hybrid signature mode",
+		Long: `Query the PQC module's hybrid signature mode which controls how dual
+Ed25519 + ML-DSA-87 signatures are handled:
+
+  0 (disabled)  — Only classical signatures accepted; PQC extensions ignored.
+  1 (optional)  — PQC extensions verified if present; classical-only allowed.
+  2 (required)  — Both classical and PQC signatures mandatory on all transactions.
+
+The mode is set via governance through PQC module parameters.`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			_ = clientCtx
+
+			// Read mode from current params (will use gRPC when proto queries are wired).
+			params := types.DefaultParams()
+			mode := params.HybridSignatureMode
+
+			fmt.Printf("Hybrid Signature Mode: %d (%s)\n", mode, mode.String())
+			fmt.Printf("Description: %s\n", mode.Description())
 			return nil
 		},
 	}

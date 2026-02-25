@@ -149,6 +149,20 @@ func (k Keeper) IncrementClassicalFallbacks(ctx sdk.Context) {
 	k.SetStats(ctx, stats)
 }
 
+// ---- Hybrid Signature Methods (v1.1.0) ----
+
+// GetHybridSignatureMode returns the current chain-wide hybrid signature mode from params.
+func (k Keeper) GetHybridSignatureMode(ctx sdk.Context) types.HybridSignatureMode {
+	return k.GetParams(ctx).HybridSignatureMode
+}
+
+// IncrementHybridVerifications increments the hybrid signature verification counter.
+func (k Keeper) IncrementHybridVerifications(ctx sdk.Context) {
+	stats := k.GetStats(ctx)
+	stats.TotalHybridVerifications++
+	k.SetStats(ctx, stats)
+}
+
 // ---- Algorithm Registry (v0.6.0) ----
 
 // RegisterAlgorithm adds a new algorithm to the registry.

@@ -13,6 +13,9 @@ type Params struct {
 	// Algorithm agility params (v0.6.0)
 	DefaultMigrationBlocks int64       `json:"default_migration_blocks"` // Dual-sig period in blocks
 	DefaultSignatureAlgo   AlgorithmID `json:"default_signature_algo"`   // Default sig algorithm for new keys
+
+	// Hybrid signature params (v1.1.0)
+	HybridSignatureMode HybridSignatureMode `json:"hybrid_signature_mode"` // Chain-wide hybrid sig enforcement
 }
 
 // DefaultParams returns the default module parameters.
@@ -21,7 +24,8 @@ func DefaultParams() Params {
 		PQCPrimary:             true,
 		AllowClassicalFallback: true,              // Allow classical ECDSA fallback
 		MinSecurityLevel:       5,                 // NIST Level 5 (Dilithium-5)
-		DefaultMigrationBlocks: DefaultMigrationBlocks,
-		DefaultSignatureAlgo:   AlgorithmDilithium5,
+		DefaultMigrationBlocks:  DefaultMigrationBlocks,
+		DefaultSignatureAlgo:    AlgorithmDilithium5,
+		HybridSignatureMode:     HybridOptional, // PQC verified if present, classical fallback allowed
 	}
 }

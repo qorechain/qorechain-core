@@ -126,6 +126,7 @@ Port: 8545 (HTTP), 8546 (WebSocket)
 | Method | Parameters | Description |
 |--------|-----------|-------------|
 | `qor_getPQCKeyStatus` | `address` | PQC key registration status |
+| `qor_getHybridSignatureMode` | (none) | Current hybrid signature mode (disabled/optional/required) |
 | `qor_getAIStats` | (none) | AI module statistics and configuration |
 | `qor_getCrossVMMessage` | `messageId` | Cross-VM message status by ID |
 | `qor_getReputationScore` | `validator` | Validator reputation score breakdown |

@@ -25,7 +25,13 @@ The PQC module provides quantum-safe cryptographic operations via a Rust FFI bri
   - Shared secret: 32 bytes
 - **Quantum Random Beacon**: Verifiable random output for consensus
 
-The PQC AnteHandler runs before standard signature verification, providing a quantum-safe security layer.
+**Hybrid Signatures (v1.1.0)**: Dual Ed25519 + ML-DSA-87 via TX extensions.
+- `HybridSignatureMode`: Disabled / Optional (default) / Required
+- `PQCHybridVerifyDecorator` checks TX extensions for PQC signatures alongside classical
+- Auto-registration: wallets attach PQC pubkey in extension for first-use onboarding
+- SHAKE-256 merkle hash foundation for future post-quantum IAVL tree replacement
+
+The PQC AnteHandler chain: `PQCVerify → PQCHybridVerify` runs before standard signature verification.
 
 ### x/ai — AI Engine
 
@@ -87,7 +93,7 @@ Security: 7-of-10 PQC multisig, 24h challenge period, circuit breakers.
 ## AnteHandler Chain
 
 ```
-SetUpContext -> CircuitBreaker -> PQCVerify -> AIAnomaly -> Extension -> ValidateBasic -> ... -> SigVerify -> IncrementSequence
+SetUpContext -> CircuitBreaker -> PQCVerify -> PQCHybridVerify -> AIAnomaly -> Extension -> ValidateBasic -> ... -> SigVerify -> IncrementSequence
 ```
 
 ## Deployment Architecture

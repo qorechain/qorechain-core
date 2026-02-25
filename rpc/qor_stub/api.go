@@ -60,6 +60,7 @@ func (api *QorAPI) GetPoolClassification(_ string) (*StubResult, error) {
 	return nil, errNotAvailable
 }
 
+func (api *QorAPI) GetHybridSignatureMode() (*StubResult, error)   { return nil, errNotAvailable }
 func (api *QorAPI) GetBurnStats() (*StubResult, error)             { return nil, errNotAvailable }
 func (api *QorAPI) GetXQOREPosition(_ string) (*StubResult, error) { return nil, errNotAvailable }
 func (api *QorAPI) GetInflationRate() (*StubResult, error)         { return nil, errNotAvailable }

@@ -98,6 +98,25 @@ func (api *QorAPI) GetPQCKeyStatus(address string) (*PQCKeyStatusResult, error) 
 	return result, nil
 }
 
+// HybridSignatureModeResult contains the current hybrid signature mode.
+type HybridSignatureModeResult struct {
+	Mode        uint32 `json:"mode"`
+	ModeString  string `json:"mode_string"`
+	Description string `json:"description"`
+}
+
+// GetHybridSignatureMode returns the current PQC hybrid signature mode.
+func (api *QorAPI) GetHybridSignatureMode() (*HybridSignatureModeResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+	mode := api.pqcKeeper.GetHybridSignatureMode(sdkCtx)
+
+	return &HybridSignatureModeResult{
+		Mode:        uint32(mode),
+		ModeString:  mode.String(),
+		Description: mode.Description(),
+	}, nil
+}
+
 // AIStatsResult contains AI module statistics.
 type AIStatsResult struct {
 	TxsRouted          uint64  `json:"txs_routed"`

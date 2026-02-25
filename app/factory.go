@@ -35,7 +35,8 @@ var (
 	NewPQCKeeper          func(cdc codec.Codec, storeKey storetypes.StoreKey, client pqcmod.PQCClient, logger log.Logger) pqcmod.PQCKeeper
 	NewPQCAppModule       func(keeper pqcmod.PQCKeeper) module.AppModule
 	NewPQCModuleBasic     func() module.AppModuleBasic
-	NewPQCVerifyDecorator func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator
+	NewPQCVerifyDecorator       func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator
+	NewPQCHybridVerifyDecorator func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator
 
 	// AI module factories
 	NewAIKeeper          func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) aimod.AIKeeper
