@@ -106,6 +106,8 @@ func NewRootCmd() *cobra.Command {
 	moduleBasicManager[multilayerBasic.Name()] = multilayerBasic
 	svmBasic := app.NewSVMModuleBasic()
 	moduleBasicManager[svmBasic.Name()] = svmBasic
+	rlBasic := app.NewRLConsensusModuleBasic()
+	moduleBasicManager[rlBasic.Name()] = rlBasic
 
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",

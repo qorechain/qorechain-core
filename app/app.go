@@ -109,6 +109,9 @@ import (
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 	svmtypes "github.com/qorechain/qorechain-core/x/svm/types"
 
+	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
+	rlconsensustypes "github.com/qorechain/qorechain-core/x/rlconsensus/types"
+
 	reputationmodule "github.com/qorechain/qorechain-core/x/reputation"
 	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
 	reputationtypes "github.com/qorechain/qorechain-core/x/reputation/types"
@@ -182,8 +185,9 @@ type QoreChainApp struct {
 	QCAKeeper        qcakeeper.Keeper
 	BridgeKeeper     bridgemod.BridgeKeeper
 	CrossVMKeeper    crossvmmod.CrossVMKeeper
-	MultilayerKeeper multilayermod.MultilayerKeeper
-	SVMKeeper        svmmod.SVMKeeper
+	MultilayerKeeper  multilayermod.MultilayerKeeper
+	SVMKeeper         svmmod.SVMKeeper
+	RLConsensusKeeper rlconsensusmod.RLConsensusKeeper
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -484,6 +488,16 @@ func NewQoreChainApp(
 		return result.ReturnData, nil
 	})
 
+	// --- Initialize RL Consensus module (via factory) ---
+	rlconsensusStoreKey := storetypes.NewKVStoreKey(rlconsensustypes.StoreKey)
+	app.MountStores(rlconsensusStoreKey)
+
+	app.RLConsensusKeeper = NewRLConsensusKeeper(
+		app.appCodec,
+		rlconsensusStoreKey,
+		logger,
+	)
+
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
@@ -538,6 +552,7 @@ func NewQoreChainApp(
 		NewCrossVMAppModule(app.CrossVMKeeper),
 		NewMultilayerAppModule(app.MultilayerKeeper),
 		NewSVMAppModule(app.SVMKeeper),
+		NewRLConsensusAppModule(app.RLConsensusKeeper),
 	); err != nil {
 		panic(err)
 	}
