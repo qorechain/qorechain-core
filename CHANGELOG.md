@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0] - 2026-02-25
+
+### Added
+- **RL Consensus Module** (x/rlconsensus): Reinforcement learning-based dynamic consensus parameter tuning
+  - Go-native fixed-point MLP (25->256->256->5 architecture, ~73,733 parameters)
+  - PPO inference engine with shadow/conservative/autonomous/paused agent modes
+  - 25-dimension observation vector capturing chain state every 10 blocks
+  - 5-dimension action space: block time, gas limit, gas price floor, pool weights
+  - Multi-objective reward function (throughput, finality, decentralization, MEV, failed txs)
+  - Circuit breaker: auto-reverts parameters if <50% blocks produced on time
+  - Deterministic math utilities: Taylor series exp/ln, Newton sqrt, sigmoid approximation
+  - CLI: query agent-status, observation, reward, params, policy; tx set-mode, resume, update-policy
+- **Triple-Pool CPoS** (x/qca): Composite Proof-of-Stake with RPoS/DPoS/PoS validator pools
+  - Reputation-weighted pool classification every 1000 blocks
+  - Pool-weighted proposer selection with deterministic sortition
+  - Configurable pool weights (default: RPoS 40%, DPoS 35%, PoS 25%)
+- **Custom Bonding Curve** (x/qca): R(v,t) = beta * S_v * (1 + alpha * log(1+L_v)) * Q(r_v) * P(t)
+  - Loyalty duration bonus via deterministic logarithm
+  - Reputation quality factor Q clamped to [0.75, 1.25]
+  - Configurable protocol phase multiplier (genesis=1.5, growth=1.0, mature=0.8)
+- **Progressive Slashing** (x/qca): Escalating penalties with temporal decay
+  - Formula: base_rate * 1.5^effective_count * severity_factor, capped at 33%
+  - Half-life decay: 0.5^(blocks_since/100000) for each past infraction
+  - Persistent slashing records with KV store iteration
+- **QDRW Governance** (x/qca): Quadratic Delegation with Reputation Weighting
+  - VP(v) = sqrt(staked + 2 * xQORE) * ReputationMultiplier(r)
+  - Sigmoid reputation multiplier maps [0,1] to [0.5, 2.0]
+  - TokenomicsKeeper stub interface for future xQORE integration
+  - Starts disabled; governance-activatable
+- **qor_ RPC Extensions**: 4 new JSON-RPC endpoints
+  - qor_getRLAgentStatus, qor_getRLObservation, qor_getRLReward, qor_getPoolClassification
+
+### Changed
+- x/qca module extended with pool config, bonding curve config, slashing config, QDRW config
+- QCA genesis state expanded with pool classifications and slashing records
+- QCA keeper adds optional staking and RL consensus reader dependencies
+- Total registered genesis modules remains at 37
+
+---
+
 ## [0.8.0] - 2026-02-25
 
 ### Added
