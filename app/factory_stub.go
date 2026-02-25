@@ -65,7 +65,7 @@ func init() {
 		return aimod.NewAIAnomalyDecorator(keeper)
 	}
 
-	NewBridgeKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ pqcmod.PQCKeeper, logger log.Logger) bridgemod.BridgeKeeper {
+	NewBridgeKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ pqcmod.PQCKeeper, _ burnmod.BurnKeeper, logger log.Logger) bridgemod.BridgeKeeper {
 		return bridgemod.NewStubKeeper(logger)
 	}
 	NewBridgeAppModule = func(keeper bridgemod.BridgeKeeper) module.AppModule {
