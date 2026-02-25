@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] - 2026-02-25
+
+### Added
+- **25 Direct Cross-Chain Connections**: 8 IBC + 17 non-IBC bridge endpoints
+  - IBC: Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, QoreChain
+  - Non-IBC bridge: Ethereum, BSC, Solana, Avalanche, Polygon, Arbitrum, TON, Sui,
+    Optimism, Base, Aptos, Bitcoin, NEAR, Cardano, Polkadot, Tezos, Tron
+  - 7 new chain types: aptos, bitcoin, near, cardano, polkadot, tezos, tron
+  - 9 new default chain configs (Optimism + Base reuse EVM type)
+  - Unified QCB bridge handler dispatches by ChainType with per-chain address validation
+- **x/babylon module**: BTC restaking adapter (types, keeper, genesis, factory pattern)
+  - BTCRestakingConfig, BTCStakingPosition, BTCCheckpoint, BabylonEpochSnapshot
+  - BeginBlocker + EndBlocker for epoch management
+- **x/abstractaccount module**: Smart-contract account abstraction
+  - AbstractAccount, SpendingRule, SessionKey types with expiry logic
+  - Full keeper with JSON-in-KVStore CRUD
+- **x/fairblock module**: Threshold IBE encrypted mempool stub
+  - FairBlockDecorator ante handler (passthrough in v1.2.0, tIBE not activated)
+  - Config for tibe_threshold, decryption_delay, max_encrypted_size
+- **x/gasabstraction module**: IBC token fee payment
+  - GasAbstractionDecorator validates non-native fee denoms before DeductFee
+  - Static conversion rates: uqor (1.0), ibc/USDC (1.0), ibc/ATOM (10.0)
+- **5-Lane Transaction Prioritization** (configuration only):
+  - PQC (100, 15%), MEV (90, 20%), AI (80, 15%), Default (50, 40%), Free (10, 10%)
+- **Bridge Fee Burn Integration**: Withdrawal fees routed to x/burn module (non-fatal)
+- **IBC Hermes Relayer**: Config templates for 8 IBC chains (config/hermes/)
+- **qor_ RPC endpoints**: GetBTCStakingPosition, GetAbstractAccount,
+  GetFairBlockStatus, GetGasAbstractionConfig, GetLaneConfiguration
+- **CLI commands**: Query/TX skeletons for babylon, abstractaccount, fairblock, gasabstraction
+- Unit tests: bridge chain types, babylon types/genesis, abstract account types/spending rules,
+  fairblock types/decorator, gas abstraction types/decorator, lane configuration
+
+### Changed
+- Ante handler chain extended: AIAnomaly -> FairBlock -> SVM; ConsumeGasForTxSize -> GasAbstraction -> DeductFee
+- Module account permissions: babylon, abstractaccount, fairblock, gasabstraction added
+- BeginBlockers + EndBlockers: babylon added
+- InitGenesis + ExportGenesis: 4 new modules (babylon, abstractaccount, fairblock, gasabstraction)
+- Total registered genesis modules increased from 40 to 44
+- Bridge keeper updated to accept burn keeper for fee integration
+
+---
+
 ## [1.1.0] - 2026-02-25
 
 ### Added
