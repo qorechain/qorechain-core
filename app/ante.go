@@ -31,6 +31,8 @@ import (
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
+	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
+	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 )
@@ -43,8 +45,10 @@ type HandlerOptions struct {
 	CircuitKeeper circuitante.CircuitBreaker
 	PQCKeeper     pqcmod.PQCKeeper
 	PQCClient     pqcmod.PQCClient
-	AIKeeper      aimod.AIKeeper
-	SVMKeeper     svmmod.SVMKeeper
+	AIKeeper             aimod.AIKeeper
+	SVMKeeper            svmmod.SVMKeeper
+	FairBlockKeeper      fairblockmod.FairBlockKeeper
+	GasAbstractionKeeper gasabstractionmod.GasAbstractionKeeper
 
 	// EVM keepers — the concrete AccountKeeper is needed because the EVM ante
 	// interfaces require GetSequence which the SDK ante.AccountKeeper interface lacks.
@@ -165,6 +169,8 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		NewPQCHybridVerifyDecorator(options.PQCKeeper, options.PQCClient),
 		// AI anomaly check — runs after PQC, before standard decorators
 		NewAIAnomalyDecorator(options.AIKeeper),
+		// FairBlock threshold IBE check — passthrough stub in v1.2.0
+		NewFairBlockDecorator(options.FairBlockKeeper),
 		// SVM compute budget check — validates SVM messages are within params
 		NewSVMComputeBudgetDecorator(options.SVMKeeper),
 		// SVM fee deduction — placeholder for future compute-unit fee logic
@@ -176,6 +182,8 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		// Use EVM fee market min gas price instead of standard min gas price
 		cosmosante.NewMinGasPriceDecorator(options.FeeMarketKeeper, options.EvmKeeper),
 		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),
+		// Gas abstraction — convert non-native fee denoms for fee deduction
+		NewGasAbstractionDecorator(options.GasAbstractionKeeper),
 		ante.NewDeductFeeDecorator(options.AccountKeeper, options.BankKeeper, options.FeegrantKeeper, options.TxFeeChecker),
 		ante.NewSetPubKeyDecorator(options.AccountKeeper),
 		ante.NewValidateSigCountDecorator(options.AccountKeeper),
