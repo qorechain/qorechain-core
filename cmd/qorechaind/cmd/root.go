@@ -108,6 +108,12 @@ func NewRootCmd() *cobra.Command {
 	moduleBasicManager[svmBasic.Name()] = svmBasic
 	rlBasic := app.NewRLConsensusModuleBasic()
 	moduleBasicManager[rlBasic.Name()] = rlBasic
+	burnBasic := app.NewBurnModuleBasic()
+	moduleBasicManager[burnBasic.Name()] = burnBasic
+	xqoreBasic := app.NewXQOREModuleBasic()
+	moduleBasicManager[xqoreBasic.Name()] = xqoreBasic
+	inflationBasic := app.NewInflationModuleBasic()
+	moduleBasicManager[inflationBasic.Name()] = inflationBasic
 
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",
