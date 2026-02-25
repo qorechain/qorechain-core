@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0] - 2026-02-25
+
+### Added
+- **x/burn module**: Central burn accounting with 9 burn mechanisms and EndBlocker fee distribution (40% validators, 30% burned, 20% treasury, 10% stakers)
+  - Burn sources: tx_fee, governance_penalty, slashing_burn, bridge_fee, spam_deterrent, epoch_excess, manual_burn, contract_callback, cross_vm_fee
+  - Real-time burn statistics with per-source tracking
+  - Configurable burn ratio and distribution weights via governance params
+- **x/xqore module**: Governance-boosted staking — lock QOR to mint xQORE (1:1)
+  - Graduated exit penalties: 50% (<30d), 35% (30-90d), 15% (90-180d), 0% (>180d)
+  - PvP rebase: penalties redistributed to remaining xQORE holders
+  - Position tracking with lock height and lock time
+  - Satisfies `rlconsensus.TokenomicsKeeper` interface for QDRW governance voting power
+- **x/inflation module**: Epoch-based emission with year-over-year decay
+  - Emission schedule: Y1: 17.5%, Y2: 11%, Y3-4: 7%, Y5+: 2%
+  - Configurable epoch length (default: 100 blocks) and blocks-per-year
+  - Epoch info tracking: current epoch, current year, total minted
+- **qor_ RPC endpoints**: 4 new JSON-RPC methods
+  - `qor_getBurnStats` — burn totals and per-source breakdown
+  - `qor_getXQOREPosition(address)` — xQORE position lookup
+  - `qor_getInflationRate` — current rate and epoch info
+  - `qor_getTokenomicsOverview` — combined tokenomics dashboard
+- Replaced `NilTokenomicsKeeper` with real xQORE adapter in RL consensus module
+  - Compile-time assertions prove both stub and proprietary keepers satisfy `TokenomicsKeeper`
+- Module account permissions: burn (Burner), xqore (Minter+Burner), inflation (Minter)
+- Factory pattern wiring for all three modules (keeper, AppModule, ModuleBasic)
+
+### Changed
+- Module lifecycle ordering extended: burn → xqore → inflation → rlconsensus (BeginBlockers, EndBlockers, InitGenesis, ExportGenesis)
+- Total registered genesis modules increased from 37 to 40
+
+---
+
 ## [0.9.0] - 2026-02-25
 
 ### Added
