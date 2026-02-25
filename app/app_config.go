@@ -101,6 +101,11 @@ var (
 		{Account: "burn", Permissions: []string{authtypes.Burner}},
 		{Account: "xqore", Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: "inflation", Permissions: []string{authtypes.Minter}},
+		// v1.2.0 modules
+		{Account: "babylon"},
+		{Account: "abstractaccount"},
+		{Account: "fairblock"},
+		{Account: "gasabstraction"},
 	}
 
 	// blockAccAddrs defines blocked module account addresses.
@@ -141,6 +146,7 @@ var (
 					"xqore",
 					"inflation",
 					"rlconsensus",
+					"babylon",
 				},
 				EndBlockers: []string{
 					govtypes.ModuleName,
@@ -152,6 +158,7 @@ var (
 					"xqore",
 					"inflation",
 					"rlconsensus",
+					"babylon",
 					// EVM post-block processing
 					"evm",
 					"feemarket",
@@ -207,6 +214,10 @@ var (
 					"xqore",
 					"inflation",
 					"rlconsensus",
+					"babylon",
+					"abstractaccount",
+					"fairblock",
+					"gasabstraction",
 				},
 				ExportGenesis: []string{
 					consensustypes.ModuleName,
@@ -251,6 +262,10 @@ var (
 					"xqore",
 					"inflation",
 					"rlconsensus",
+					"babylon",
+					"abstractaccount",
+					"fairblock",
+					"gasabstraction",
 				},
 			}),
 		},

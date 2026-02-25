@@ -114,6 +114,14 @@ func NewRootCmd() *cobra.Command {
 	moduleBasicManager[xqoreBasic.Name()] = xqoreBasic
 	inflationBasic := app.NewInflationModuleBasic()
 	moduleBasicManager[inflationBasic.Name()] = inflationBasic
+	babylonBasic := app.NewBabylonModuleBasic()
+	moduleBasicManager[babylonBasic.Name()] = babylonBasic
+	abstractaccountBasic := app.NewAbstractAccountModuleBasic()
+	moduleBasicManager[abstractaccountBasic.Name()] = abstractaccountBasic
+	fairblockBasic := app.NewFairBlockModuleBasic()
+	moduleBasicManager[fairblockBasic.Name()] = fairblockBasic
+	gasabstractionBasic := app.NewGasAbstractionModuleBasic()
+	moduleBasicManager[gasabstractionBasic.Name()] = gasabstractionBasic
 
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",
