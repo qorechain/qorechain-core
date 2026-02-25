@@ -112,6 +112,15 @@ import (
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	rlconsensustypes "github.com/qorechain/qorechain-core/x/rlconsensus/types"
 
+	burnmod "github.com/qorechain/qorechain-core/x/burn"
+	burntypes "github.com/qorechain/qorechain-core/x/burn/types"
+
+	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
+	xqoretypes "github.com/qorechain/qorechain-core/x/xqore/types"
+
+	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
+	inflationtypes "github.com/qorechain/qorechain-core/x/inflation/types"
+
 	reputationmodule "github.com/qorechain/qorechain-core/x/reputation"
 	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
 	reputationtypes "github.com/qorechain/qorechain-core/x/reputation/types"
@@ -188,6 +197,9 @@ type QoreChainApp struct {
 	MultilayerKeeper  multilayermod.MultilayerKeeper
 	SVMKeeper         svmmod.SVMKeeper
 	RLConsensusKeeper rlconsensusmod.RLConsensusKeeper
+	BurnKeeper        burnmod.BurnKeeper
+	XQOREKeeper       xqoremod.XQOREKeeper
+	InflationKeeper   inflationmod.InflationKeeper
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -498,6 +510,39 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize Burn module (via factory) ---
+	burnStoreKey := storetypes.NewKVStoreKey(burntypes.StoreKey)
+	app.MountStores(burnStoreKey)
+
+	app.BurnKeeper = NewBurnKeeper(
+		app.appCodec,
+		burnStoreKey,
+		app.BankKeeper,
+		logger,
+	)
+
+	// --- Initialize xQORE module (via factory) ---
+	xqoreStoreKey := storetypes.NewKVStoreKey(xqoretypes.StoreKey)
+	app.MountStores(xqoreStoreKey)
+
+	app.XQOREKeeper = NewXQOREKeeper(
+		app.appCodec,
+		xqoreStoreKey,
+		app.BankKeeper,
+		logger,
+	)
+
+	// --- Initialize Inflation module (via factory) ---
+	inflationStoreKey := storetypes.NewKVStoreKey(inflationtypes.StoreKey)
+	app.MountStores(inflationStoreKey)
+
+	app.InflationKeeper = NewInflationKeeper(
+		app.appCodec,
+		inflationStoreKey,
+		app.BankKeeper,
+		logger,
+	)
+
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
@@ -553,6 +598,9 @@ func NewQoreChainApp(
 		NewMultilayerAppModule(app.MultilayerKeeper),
 		NewSVMAppModule(app.SVMKeeper),
 		NewRLConsensusAppModule(app.RLConsensusKeeper),
+		NewBurnAppModule(app.BurnKeeper),
+		NewXQOREAppModule(app.XQOREKeeper),
+		NewInflationAppModule(app.InflationKeeper),
 	); err != nil {
 		panic(err)
 	}
