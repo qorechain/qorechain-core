@@ -19,6 +19,7 @@ import (
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
+	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 )
 
 // QorAPI defines the qor_ JSON-RPC namespace methods.
@@ -29,8 +30,9 @@ type QorAPI struct {
 	aiKeeper         aimod.AIKeeper
 	crossvmKeeper    crossvmmod.CrossVMKeeper
 	reputationKeeper reputationkeeper.Keeper
-	bridgeKeeper     bridgemod.BridgeKeeper
-	multilayerKeeper multilayermod.MultilayerKeeper
+	bridgeKeeper        bridgemod.BridgeKeeper
+	multilayerKeeper    multilayermod.MultilayerKeeper
+	rlconsensusKeeper   rlconsensusmod.RLConsensusKeeper
 }
 
 // NewQorAPI creates a new QorAPI instance.
@@ -43,16 +45,18 @@ func NewQorAPI(
 	reputationKeeper reputationkeeper.Keeper,
 	bridgeKeeper bridgemod.BridgeKeeper,
 	multilayerKeeper multilayermod.MultilayerKeeper,
+	rlconsensusKeeper rlconsensusmod.RLConsensusKeeper,
 ) *QorAPI {
 	return &QorAPI{
-		ctx:              ctx,
-		logger:           logger.With("module", "qor-rpc"),
-		pqcKeeper:        pqcKeeper,
-		aiKeeper:         aiKeeper,
-		crossvmKeeper:    crossvmKeeper,
-		reputationKeeper: reputationKeeper,
-		bridgeKeeper:     bridgeKeeper,
-		multilayerKeeper: multilayerKeeper,
+		ctx:               ctx,
+		logger:            logger.With("module", "qor-rpc"),
+		pqcKeeper:         pqcKeeper,
+		aiKeeper:          aiKeeper,
+		crossvmKeeper:     crossvmKeeper,
+		reputationKeeper:  reputationKeeper,
+		bridgeKeeper:      bridgeKeeper,
+		multilayerKeeper:  multilayerKeeper,
+		rlconsensusKeeper: rlconsensusKeeper,
 	}
 }
 
@@ -215,5 +219,138 @@ func (api *QorAPI) GetBridgeStatus(chainID string) (*BridgeStatusResult, error) 
 		ChainID:   config.ChainID,
 		Connected: string(config.Status) == "active",
 		Status:    string(config.Status),
+	}, nil
+}
+
+// ---------------------------------------------------------------------------
+// RL Consensus observability endpoints
+// ---------------------------------------------------------------------------
+
+// observationDimensionNames maps dimension indices to human-readable names.
+var observationDimensionNames = [25]string{
+	"block_utilization",
+	"tx_count",
+	"avg_tx_size",
+	"block_time",
+	"block_time_delta",
+	"gas_price_50th",
+	"gas_price_95th",
+	"mempool_size",
+	"mempool_bytes",
+	"validator_count",
+	"validator_gini",
+	"missed_block_ratio",
+	"avg_commit_latency",
+	"max_commit_latency",
+	"precommit_ratio",
+	"failed_tx_ratio",
+	"avg_gas_per_tx",
+	"reward_per_validator",
+	"slash_count",
+	"jail_count",
+	"inflation_rate",
+	"bonded_ratio",
+	"reputation_mean",
+	"reputation_std_dev",
+	"mev_estimate",
+}
+
+// RLAgentStatusResult contains the RL agent's current operational status.
+type RLAgentStatusResult struct {
+	AgentMode            string `json:"agent_mode"`
+	CurrentEpoch         uint64 `json:"current_epoch"`
+	IsActive             bool   `json:"is_active"`
+	CircuitBreakerActive bool   `json:"circuit_breaker_active"`
+}
+
+// GetRLAgentStatus returns the current RL agent mode, epoch, and circuit breaker state.
+func (api *QorAPI) GetRLAgentStatus() (*RLAgentStatusResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	status := api.rlconsensusKeeper.GetAgentStatus(sdkCtx)
+	isActive := api.rlconsensusKeeper.IsRLActive(sdkCtx)
+
+	return &RLAgentStatusResult{
+		AgentMode:            status.Mode.String(),
+		CurrentEpoch:         status.CurrentEpoch,
+		IsActive:             isActive,
+		CircuitBreakerActive: status.CircuitBreakerActive,
+	}, nil
+}
+
+// RLObservationResult contains the latest observation vector with named dimensions.
+type RLObservationResult struct {
+	Height     int64             `json:"height"`
+	Dimensions map[string]string `json:"dimensions"`
+}
+
+// GetRLObservation returns the latest RL observation vector as dimension name/value pairs.
+func (api *QorAPI) GetRLObservation() (*RLObservationResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	obs, err := api.rlconsensusKeeper.GetLatestObservation(sdkCtx)
+	if err != nil || obs == nil {
+		return &RLObservationResult{
+			Height:     0,
+			Dimensions: map[string]string{},
+		}, nil
+	}
+
+	dims := make(map[string]string, len(observationDimensionNames))
+	for i, name := range observationDimensionNames {
+		dims[name] = obs.Values[i]
+	}
+
+	return &RLObservationResult{
+		Height:     obs.Height,
+		Dimensions: dims,
+	}, nil
+}
+
+// RLRewardResult contains the latest reward signal breakdown.
+type RLRewardResult struct {
+	Height                int64  `json:"height"`
+	TotalReward           string `json:"total_reward"`
+	ThroughputDelta       string `json:"throughput_delta"`
+	FinalityDelta         string `json:"finality_delta"`
+	DecentralizationDelta string `json:"decentralization_delta"`
+	MEVEstimate           string `json:"mev_estimate"`
+	FailedTxRatio         string `json:"failed_tx_ratio"`
+}
+
+// GetRLReward returns the latest reward signal with component breakdown.
+func (api *QorAPI) GetRLReward() (*RLRewardResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	reward, err := api.rlconsensusKeeper.GetLatestReward(sdkCtx)
+	if err != nil || reward == nil {
+		return &RLRewardResult{}, nil
+	}
+
+	return &RLRewardResult{
+		Height:                reward.Height,
+		TotalReward:           reward.TotalReward,
+		ThroughputDelta:       reward.ThroughputDelta,
+		FinalityDelta:         reward.FinalityDelta,
+		DecentralizationDelta: reward.DecentralizationDelta,
+		MEVEstimate:           reward.MEVEstimate,
+		FailedTxRatio:         reward.FailedTxRatio,
+	}, nil
+}
+
+// PoolClassificationResult contains the validator pool assignment.
+type PoolClassificationResult struct {
+	Validator  string `json:"validator"`
+	Pool       string `json:"pool"`
+	AssignedAt int64  `json:"assigned_at"`
+}
+
+// GetPoolClassification returns the pool classification for a validator.
+// This is a stub that will be wired to the QCA module in a future task.
+func (api *QorAPI) GetPoolClassification(validator string) (*PoolClassificationResult, error) {
+	return &PoolClassificationResult{
+		Validator:  validator,
+		Pool:       "unclassified",
+		AssignedAt: 0,
 	}, nil
 }

@@ -43,3 +43,19 @@ func (api *QorAPI) GetLayerInfo(_ string) (*StubResult, error) {
 func (api *QorAPI) GetBridgeStatus(_ string) (*StubResult, error) {
 	return nil, errNotAvailable
 }
+
+func (api *QorAPI) GetRLAgentStatus() (*StubResult, error) {
+	return nil, errNotAvailable
+}
+
+func (api *QorAPI) GetRLObservation() (*StubResult, error) {
+	return nil, errNotAvailable
+}
+
+func (api *QorAPI) GetRLReward() (*StubResult, error) {
+	return nil, errNotAvailable
+}
+
+func (api *QorAPI) GetPoolClassification(_ string) (*StubResult, error) {
+	return nil, errNotAvailable
+}
