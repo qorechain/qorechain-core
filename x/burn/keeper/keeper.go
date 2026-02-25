@@ -62,6 +62,7 @@ func (k Keeper) GetParams(ctx sdk.Context) types.Params {
 	}
 	var params types.Params
 	if err := json.Unmarshal(bz, &params); err != nil {
+		k.logger.Warn("failed to unmarshal burn params, using defaults", "error", err)
 		return types.DefaultParams()
 	}
 	return params
@@ -92,6 +93,7 @@ func (k Keeper) GetBurnStats(ctx sdk.Context) types.BurnStats {
 	}
 	var stats types.BurnStats
 	if err := json.Unmarshal(bz, &stats); err != nil {
+		k.logger.Warn("failed to unmarshal burn stats, using defaults", "error", err)
 		return types.DefaultBurnStats()
 	}
 	return stats
@@ -116,7 +118,14 @@ func (k Keeper) GetTotalBurned(ctx sdk.Context) math.Int {
 
 func (k Keeper) addBurnRecord(ctx sdk.Context, record types.BurnRecord) error {
 	store := ctx.KVStore(k.storeKey)
-	key := append(types.BurnRecordPrefix, []byte(fmt.Sprintf("%020d/%s", record.Height, record.Source))...)
+	suffix := fmt.Sprintf("%020d/%s", record.Height, record.Source)
+	if record.TxHash != "" {
+		suffix += "/" + record.TxHash
+	}
+	sbz := []byte(suffix)
+	key := make([]byte, 0, len(types.BurnRecordPrefix)+len(sbz))
+	key = append(key, types.BurnRecordPrefix...)
+	key = append(key, sbz...)
 	bz, err := json.Marshal(record)
 	if err != nil {
 		return err
@@ -131,7 +140,7 @@ func (k Keeper) GetBurnRecords(ctx sdk.Context, limit int) []types.BurnRecord {
 	iter := storetypes.KVStoreReversePrefixIterator(store, types.BurnRecordPrefix)
 	defer iter.Close()
 
-	var records []types.BurnRecord
+	records := make([]types.BurnRecord, 0)
 	for ; iter.Valid() && len(records) < limit; iter.Next() {
 		var record types.BurnRecord
 		if err := json.Unmarshal(iter.Value(), &record); err != nil {
@@ -239,10 +248,10 @@ func (k Keeper) DistributeFees(ctx sdk.Context) error {
 	if burnAmount.IsPositive() {
 		burnCoins := sdk.NewCoins(sdk.NewCoin("uqor", burnAmount))
 		if err := k.bankKeeper.SendCoinsFromModuleToModule(ctx, "fee_collector", types.ModuleName, burnCoins); err != nil {
-			k.logger.Error("failed to send fees to burn module", "error", err)
+			k.logger.Warn("failed to send fees to burn module", "error", err)
 		} else {
 			if err := k.BurnFromSource(ctx, types.BurnSourceGasFee, burnAmount, ""); err != nil {
-				k.logger.Error("failed to burn gas fees", "error", err)
+				k.logger.Warn("failed to burn gas fees", "error", err)
 			}
 		}
 	}
@@ -251,7 +260,7 @@ func (k Keeper) DistributeFees(ctx sdk.Context) error {
 	if treasuryAmount.IsPositive() {
 		treasuryCoins := sdk.NewCoins(sdk.NewCoin("uqor", treasuryAmount))
 		if err := k.bankKeeper.SendCoinsFromModuleToModule(ctx, "fee_collector", "protocolpool", treasuryCoins); err != nil {
-			k.logger.Error("failed to send fees to treasury", "error", err)
+			k.logger.Warn("failed to send fees to treasury", "error", err)
 		}
 	}
 
@@ -285,6 +294,6 @@ func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	return &types.GenesisState{
 		Params:  k.GetParams(ctx),
 		Stats:   k.GetBurnStats(ctx),
-		Records: k.GetBurnRecords(ctx, 10000),
+		Records: k.GetBurnRecords(ctx, types.MaxExportRecords),
 	}
 }
