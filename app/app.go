@@ -454,6 +454,17 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize Burn module (via factory — must precede bridge for fee integration) ---
+	burnStoreKey := storetypes.NewKVStoreKey(burntypes.StoreKey)
+	app.MountStores(burnStoreKey)
+
+	app.BurnKeeper = NewBurnKeeper(
+		app.appCodec,
+		burnStoreKey,
+		app.BankKeeper,
+		logger,
+	)
+
 	// --- Initialize Bridge module (via factory) ---
 	bridgeStoreKey := storetypes.NewKVStoreKey(bridgetypes.StoreKey)
 	app.MountStores(bridgeStoreKey)
@@ -462,6 +473,7 @@ func NewQoreChainApp(
 		app.appCodec,
 		bridgeStoreKey,
 		app.PQCKeeper,
+		app.BurnKeeper,
 		logger,
 	)
 
@@ -523,17 +535,6 @@ func NewQoreChainApp(
 	app.RLConsensusKeeper = NewRLConsensusKeeper(
 		app.appCodec,
 		rlconsensusStoreKey,
-		logger,
-	)
-
-	// --- Initialize Burn module (via factory) ---
-	burnStoreKey := storetypes.NewKVStoreKey(burntypes.StoreKey)
-	app.MountStores(burnStoreKey)
-
-	app.BurnKeeper = NewBurnKeeper(
-		app.appCodec,
-		burnStoreKey,
-		app.BankKeeper,
 		logger,
 	)
 
