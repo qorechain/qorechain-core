@@ -21,6 +21,8 @@ import (
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
+	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
+	rdktypes "github.com/qorechain/qorechain-core/x/rdk/types"
 	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
@@ -47,6 +49,7 @@ type QorAPI struct {
 	abstractAccountKeeper  abstractaccountmod.AbstractAccountKeeper
 	fairBlockKeeper        fairblockmod.FairBlockKeeper
 	gasAbstractionKeeper   gasabstractionmod.GasAbstractionKeeper
+	rdkKeeper              rdkmod.RDKKeeper
 	laneConfig             []LaneConfigResult
 }
 
@@ -68,6 +71,7 @@ func NewQorAPI(
 	abstractAccountKeeper abstractaccountmod.AbstractAccountKeeper,
 	fairBlockKeeper fairblockmod.FairBlockKeeper,
 	gasAbstractionKeeper gasabstractionmod.GasAbstractionKeeper,
+	rdkKeeper rdkmod.RDKKeeper,
 	laneConfig []LaneConfigResult,
 ) *QorAPI {
 	return &QorAPI{
@@ -87,6 +91,7 @@ func NewQorAPI(
 		abstractAccountKeeper: abstractAccountKeeper,
 		fairBlockKeeper:       fairBlockKeeper,
 		gasAbstractionKeeper:  gasAbstractionKeeper,
+		rdkKeeper:              rdkKeeper,
 		laneConfig:            laneConfig,
 	}
 }
@@ -649,4 +654,176 @@ type LaneConfigResult struct {
 // Lane config is compile-time static and set via the laneConfig field.
 func (api *QorAPI) GetLaneConfiguration() ([]LaneConfigResult, error) {
 	return api.laneConfig, nil
+}
+
+// --- v1.3.0 RDK Endpoints ---
+
+// RollupStatusResult contains rollup dashboard info.
+type RollupStatusResult struct {
+	RollupID       string `json:"rollup_id"`
+	Creator        string `json:"creator"`
+	Profile        string `json:"profile"`
+	SettlementMode string `json:"settlement_mode"`
+	DABackend      string `json:"da_backend"`
+	Status         string `json:"status"`
+	BlockTimeMs    uint64 `json:"block_time_ms"`
+	MaxTxPerBlock  uint64 `json:"max_tx_per_block"`
+	VMType         string `json:"vm_type"`
+	StakeAmount    int64  `json:"stake_amount"`
+	LatestBatch    int64  `json:"latest_batch_index"`
+	CreatedHeight  int64  `json:"created_height"`
+}
+
+// GetRollupStatus returns rollup dashboard data.
+func (api *QorAPI) GetRollupStatus(rollupID string) (*RollupStatusResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+	rollup, err := api.rdkKeeper.GetRollup(sdkCtx, rollupID)
+	if err != nil {
+		return nil, err
+	}
+
+	var latestBatchIdx int64
+	if batch, bErr := api.rdkKeeper.GetLatestBatch(sdkCtx, rollupID); bErr == nil {
+		latestBatchIdx = int64(batch.BatchIndex)
+	}
+
+	return &RollupStatusResult{
+		RollupID:       rollup.RollupID,
+		Creator:        rollup.Creator,
+		Profile:        string(rollup.Profile),
+		SettlementMode: string(rollup.SettlementMode),
+		DABackend:      string(rollup.DABackend),
+		Status:         string(rollup.Status),
+		BlockTimeMs:    rollup.BlockTimeMs,
+		MaxTxPerBlock:  rollup.MaxTxPerBlock,
+		VMType:         rollup.VMType,
+		StakeAmount:    rollup.StakeAmount,
+		LatestBatch:    latestBatchIdx,
+		CreatedHeight:  rollup.CreatedHeight,
+	}, nil
+}
+
+// RollupListResult contains a list of rollups.
+type RollupListResult struct {
+	Rollups []RollupStatusResult `json:"rollups"`
+	Total   int                  `json:"total"`
+}
+
+// ListRollups returns all rollups, optionally filtered by creator.
+func (api *QorAPI) ListRollups(creator string) (*RollupListResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+	var err error
+	var rollupConfigs []*rdktypes.RollupConfig
+
+	if creator != "" {
+		rollupConfigs, err = api.rdkKeeper.ListRollupsByCreator(sdkCtx, creator)
+	} else {
+		rollupConfigs, err = api.rdkKeeper.ListRollups(sdkCtx)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	results := make([]RollupStatusResult, 0, len(rollupConfigs))
+	for _, rc := range rollupConfigs {
+		results = append(results, RollupStatusResult{
+			RollupID:       rc.RollupID,
+			Creator:        rc.Creator,
+			Profile:        string(rc.Profile),
+			SettlementMode: string(rc.SettlementMode),
+			DABackend:      string(rc.DABackend),
+			Status:         string(rc.Status),
+			BlockTimeMs:    rc.BlockTimeMs,
+			MaxTxPerBlock:  rc.MaxTxPerBlock,
+			VMType:         rc.VMType,
+			StakeAmount:    rc.StakeAmount,
+			CreatedHeight:  rc.CreatedHeight,
+		})
+	}
+
+	return &RollupListResult{
+		Rollups: results,
+		Total:   len(results),
+	}, nil
+}
+
+// SettlementBatchResult contains batch info.
+type SettlementBatchResult struct {
+	RollupID    string `json:"rollup_id"`
+	BatchIndex  uint64 `json:"batch_index"`
+	TxCount     uint64 `json:"tx_count"`
+	ProofType   string `json:"proof_type"`
+	Status      string `json:"status"`
+	SubmittedAt int64  `json:"submitted_at"`
+	FinalizedAt int64  `json:"finalized_at"`
+}
+
+// GetSettlementBatch returns info about a specific or latest batch.
+func (api *QorAPI) GetSettlementBatch(rollupID string, batchIndex int64) (*SettlementBatchResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+
+	var batch *rdktypes.SettlementBatch
+	var err error
+	if batchIndex >= 0 {
+		batch, err = api.rdkKeeper.GetBatch(sdkCtx, rollupID, uint64(batchIndex))
+	} else {
+		batch, err = api.rdkKeeper.GetLatestBatch(sdkCtx, rollupID)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	return &SettlementBatchResult{
+		RollupID:    batch.RollupID,
+		BatchIndex:  batch.BatchIndex,
+		TxCount:     batch.TxCount,
+		ProofType:   string(batch.ProofType),
+		Status:      string(batch.Status),
+		SubmittedAt: batch.SubmittedAt,
+		FinalizedAt: batch.FinalizedAt,
+	}, nil
+}
+
+// SuggestProfileResult contains a suggested profile.
+type SuggestProfileResult struct {
+	UseCase          string `json:"use_case"`
+	SuggestedProfile string `json:"suggested_profile"`
+}
+
+// SuggestRollupProfile returns an AI-suggested rollup profile for a use case.
+func (api *QorAPI) SuggestRollupProfile(useCase string) (*SuggestProfileResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+	profile, err := api.rdkKeeper.SuggestProfile(sdkCtx, useCase)
+	if err != nil {
+		return nil, err
+	}
+	return &SuggestProfileResult{
+		UseCase:          useCase,
+		SuggestedProfile: string(*profile),
+	}, nil
+}
+
+// DABlobStatusResult contains DA blob status.
+type DABlobStatusResult struct {
+	RollupID  string `json:"rollup_id"`
+	BlobIndex uint64 `json:"blob_index"`
+	Size      int    `json:"size"`
+	Pruned    bool   `json:"pruned"`
+	Height    int64  `json:"height"`
+}
+
+// GetDABlobStatus returns the DA blob storage status.
+func (api *QorAPI) GetDABlobStatus(rollupID string, blobIndex int64) (*DABlobStatusResult, error) {
+	sdkCtx := sdk.UnwrapSDKContext(api.ctx)
+	blob, err := api.rdkKeeper.GetDABlob(sdkCtx, rollupID, uint64(blobIndex))
+	if err != nil {
+		return nil, err
+	}
+	return &DABlobStatusResult{
+		RollupID:  blob.RollupID,
+		BlobIndex: blob.BlobIndex,
+		Size:      len(blob.Data),
+		Pruned:    blob.Pruned,
+		Height:    blob.Height,
+	}, nil
 }
