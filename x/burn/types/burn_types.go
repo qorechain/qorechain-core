@@ -17,6 +17,7 @@ const (
 	BurnSourceXQOREPenalty    BurnSource = "xqore_penalty"
 	BurnSourceAutoBuyback     BurnSource = "auto_buyback"
 	BurnSourceTGE             BurnSource = "tge"
+	BurnSourceRollupCreate    BurnSource = "rollup_create"
 )
 
 // ValidBurnSources returns all valid burn sources.
@@ -25,6 +26,7 @@ func ValidBurnSources() []BurnSource {
 		BurnSourceGasFee, BurnSourceContractCreate, BurnSourceAIService,
 		BurnSourceBridgeFee, BurnSourceTreasuryBuyback, BurnSourceFailedTx,
 		BurnSourceXQOREPenalty, BurnSourceAutoBuyback, BurnSourceTGE,
+		BurnSourceRollupCreate,
 	}
 }
 
