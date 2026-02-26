@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] - 2026-02-26
+
+### Added
+- **x/rdk module**: Rollup Development Kit — deploy application-specific rollups on QoreChain
+  - Four settlement paradigms: Optimistic (fraud proofs, 7-day challenge window),
+    ZK (validity proofs, instant finality), Based (L1-sequenced), Sovereign (self-sequenced)
+  - Three sequencer modes: Dedicated, Shared, Based (L1 proposers sequence)
+  - Three DA backends: Native (KVStore blob storage), Celestia (stub in v1.3.0), Both
+  - Four proof systems: Fraud, SNARK, STARK, None
+  - Four preset profiles: DeFi (ZK+SNARK, 500ms, EVM), Gaming (based, 200ms, custom VM),
+    NFT (optimistic+fraud, Celestia DA, CosmWasm), Enterprise (based, subsidized gas, EVM)
+  - Full rollup lifecycle: Create → Active → Pause → Resume → Stop with bond escrow/return
+  - Settlement engine: SubmitBatch, ChallengeBatch, FinalizeBatch with EndBlocker
+    auto-finalization for optimistic (past challenge window) and based (after 2 blocks)
+  - Native DA router: SHA-256 commitment, blob pruning past retention period
+  - AI-assisted profile selection via x/rlconsensus advisory methods
+  - Integration with x/burn (rollup creation burn fee, non-fatal) and
+    x/multilayer (RegisterSidechain, AnchorState, UpdateLayerStatus)
+  - Bank escrow: stake sent from creator to module account on creation, returned on stop
+- **x/burn**: Added `BurnSourceRollupCreate` burn source for RDK module integration
+- **x/multilayer**: Added `LayerTypeRollup` layer type for rollup layer registration
+- **x/rlconsensus**: Added `SuggestRollupProfile` and `OptimizeRollupGas` advisory methods
+- **qor_ RPC endpoints**: GetRollupStatus, ListRollups, GetSettlementBatch,
+  SuggestRollupProfile, GetDABlobStatus
+- **CLI commands**: Query (rollup, list-rollups, batch, config, suggest-profile) and
+  TX (create-rollup, pause-rollup, resume-rollup, stop-rollup, submit-batch, challenge-batch)
+- Unit tests: 33 tests across 8 files covering types (enums, defaults, validation,
+  JSON round-trip, settlement/sequencer/proof compatibility matrix) and keeper
+  (preset profiles, DA backend selection, error sentinels, lifecycle state machine)
+
+### Changed
+- Module account permissions: rdk added (Minter, Burner)
+- BeginBlockers + EndBlockers: rdk added (EndBlocker for settlement auto-finalization)
+- InitGenesis + ExportGenesis: rdk added (after gasabstraction)
+- Total registered genesis modules increased from 44 to 45
+
+---
+
 ## [1.2.0] - 2026-02-25
 
 ### Added
