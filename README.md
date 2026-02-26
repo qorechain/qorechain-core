@@ -2,11 +2,42 @@
 
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v1.2.0)
+[![Version](https://img.shields.io/badge/version-1.3.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v1.3.0)
 
-QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, and **25 direct cross-chain connections** spanning IBC, EVM, Move, UTXO, and account-model ecosystems. Built on QoreChain SDK v0.53 with 17 custom modules and 44 registered genesis modules.
+QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, **25 direct cross-chain connections** spanning IBC, EVM, Move, UTXO, and account-model ecosystems, and a **Rollup Development Kit (RDK)** enabling one-click deployment of application-specific rollups with four settlement paradigms. Built on QoreChain SDK v0.53 with 18 custom modules and 45 registered genesis modules.
 
 ## Innovations
+
+### Application-Specific Rollup Deployment (v1.3.0)
+
+The `x/rdk` module is QoreChain's Rollup Development Kit — a protocol-native framework for deploying application-specific rollups directly on the host chain. Unlike generic rollup-as-a-service platforms that require external infrastructure, RDK rollups are first-class citizens of the QoreChain consensus, with settlement, data availability, and lifecycle management handled entirely on-chain.
+
+**Four Settlement Paradigms:**
+
+| Mode | Proof System | Finality | Use Case |
+|------|-------------|----------|----------|
+| **Optimistic** | Fraud proofs | 7-day challenge window, auto-finalized by EndBlocker | General-purpose rollups with low overhead |
+| **ZK (Zero-Knowledge)** | SNARK or STARK | Instant on proof verification | DeFi protocols requiring fast finality |
+| **Based** | None (L1-sequenced) | ~2 blocks after submission | Gaming and real-time applications leveraging host chain sequencing |
+| **Sovereign** | None | Self-determined | Independent chains using QoreChain only for data availability |
+
+**Four Preset Profiles for One-Click Deployment:**
+
+| Profile | Settlement | Block Time | VM | DA Backend | Gas Model |
+|---------|-----------|------------|-----|-----------|-----------|
+| **DeFi** | ZK + SNARK | 500ms | EVM | Native | EIP-1559 |
+| **Gaming** | Based (L1-sequenced) | 200ms | Custom | Native | Flat fee |
+| **NFT** | Optimistic + Fraud | 2,000ms | CosmWasm | Celestia | Standard |
+| **Enterprise** | Based | 1,000ms | EVM | Native | Subsidized (zero gas) |
+
+**Key Technical Innovations:**
+
+- **Native DA Router** — SHA-256 committed blob storage in the host chain's KVStore with configurable retention periods and automatic pruning via EndBlocker. Celestia IBC integration stubbed for v1.4.0.
+- **Bank Escrow Lifecycle** — Rollup creators bond QOR to a module escrow account on creation; bonds are fully returned when the rollup is stopped. A configurable creation burn rate (default 1%) permanently reduces supply with each new rollup.
+- **Settlement Engine** — EndBlocker-driven auto-finalization: optimistic batches finalize after the challenge window expires, based batches finalize after 2 host blocks (L1 finality proxy). ZK batches with valid proofs finalize instantly on submission.
+- **AI-Assisted Configuration** — The RL consensus module provides advisory `SuggestRollupProfile` and `OptimizeRollupGas` methods, using on-chain reinforcement learning to recommend optimal rollup parameters based on intended use case.
+- **Deep Multilayer Integration** — Every rollup is registered as a layer in `x/multilayer` via `RegisterSidechain`, with state anchored via `AnchorState` on each batch settlement. Layer status transitions (Active/Suspended/Decommissioned) are mirrored automatically.
+- **Configurable Sequencing** — Three sequencer modes: Dedicated (single operator), Shared (multi-operator set), and Based (host chain proposers order rollup transactions with configurable priority fee share).
 
 ### 25 Direct Cross-Chain Connections (v1.2.0)
 
@@ -84,7 +115,7 @@ Voting power uses a square-root function dampened by a sigmoid reputation multip
 
 ### Deflationary Burn Engine
 
-Nine distinct burn channels (transaction fees, governance penalties, slashing, bridge fees, spam deterrence, epoch excess, manual burns, contract callbacks, cross-VM fees) feed a central burn accounting module. Collected fees are split: 40% to validators, 30% permanently burned, 20% to treasury, 10% to stakers — creating sustained deflationary pressure that increases with network usage. Bridge withdrawal fees are automatically routed to the burn module for permanent supply reduction.
+Nine distinct burn channels (transaction fees, governance penalties, slashing, bridge fees, spam deterrence, epoch excess, manual burns, contract callbacks, cross-VM fees) plus a tenth channel for rollup creation burns feed a central burn accounting module. Collected fees are split: 40% to validators, 30% permanently burned, 20% to treasury, 10% to stakers — creating sustained deflationary pressure that increases with network usage. Bridge withdrawal fees and rollup creation fees are automatically routed to the burn module for permanent supply reduction.
 
 ### xQORE Governance-Boosted Staking
 
@@ -122,6 +153,7 @@ Validator rewards factor in self-bonded stake, loyalty duration (via determinist
 
 - **PQC-Primary Security** — Dilithium-5 signatures + ML-KEM-1024 key exchange, hybrid Ed25519 + ML-DSA-87 via TX extensions, SHAKE-256 hash foundation, algorithm-agile with governance-controlled migration
 - **Hybrid Signature Architecture** — Three enforcement modes (disabled/optional/required), auto-registration onboarding, three-way ante verification, governance-upgradeable
+- **Rollup Development Kit (RDK)** — Deploy application-specific rollups with 4 settlement modes (optimistic, ZK, based, sovereign), 3 DA backends, 4 preset profiles, native settlement engine, bank escrow lifecycle, and AI-assisted configuration
 - **25 Cross-Chain Connections** — 8 IBC channels + 17 QCB bridge endpoints spanning EVM, Move, UTXO, and account-model ecosystems with PQC-signed attestations
 - **BTC Restaking** — Babylon Protocol integration for Bitcoin finality guarantees via IBC-relayed epoch checkpoints
 - **Account Abstraction** — Programmable accounts with session keys, spending rules, and social recovery at the protocol layer
@@ -131,7 +163,7 @@ Validator rewards factor in self-bonded stake, loyalty duration (via determinist
 - **RL-Driven Consensus** — On-chain reinforcement learning agent dynamically tunes block time, gas limits, and pool weights with circuit breaker protection
 - **Triple-Pool CPoS** — RPoS/DPoS/PoS validator classification with pool-weighted proposer selection
 - **QDRW Governance** — Quadratic delegation with reputation weighting and xQORE boost for whale-resistant governance voting
-- **Tokenomics Engine** — Burn accounting (9 channels + bridge fee burns), xQORE governance staking (lock/unlock with PvP rebase), epoch-based inflation decay
+- **Tokenomics Engine** — Burn accounting (10 channels including rollup creation burns), xQORE governance staking (lock/unlock with PvP rebase), epoch-based inflation decay
 - **EVM Runtime** — Full Ethereum compatibility with JSON-RPC on port 8545, EIP-1559 gas, ERC-20 token pairs
 - **CosmWasm Runtime** — WebAssembly smart contracts with full lifecycle support
 - **SVM Runtime** — BPF program deployment and execution via Rust-backed executor with Solana-compatible RPC
@@ -141,7 +173,7 @@ Validator rewards factor in self-bonded stake, loyalty duration (via determinist
 - **Progressive Slashing** — Escalating penalties with temporal half-life decay, capped at 33% per infraction
 - **Custom Bonding Curve** — Loyalty-aware reward formula with reputation quality factor and protocol phase multiplier
 - **Fraud Detection** — Real-time anomaly detection with statistical isolation forest and circuit breaker protection
-- **Multilayer Architecture** — Main Chain + Sidechains + Paychains with cross-layer fee bundling
+- **Multilayer Architecture** — Main Chain + Sidechains + Paychains + Rollups with cross-layer fee bundling and state anchoring
 
 ## Quick Start
 
@@ -199,7 +231,7 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 │  ┌────────────────────── Tokenomics ─────────────────────────┐           │
 │  │  ┌──────┐   ┌───────┐   ┌───────────┐                    │           │
 │  │  │x/burn│   │x/xqore│   │x/inflation│                    │           │
-│  │  │9 chan.│   │lock/  │   │epoch decay│                    │           │
+│  │  │10 ch.│   │lock/  │   │epoch decay│                    │           │
 │  │  │40/30/│   │unlock │   │17.5→2%    │                    │           │
 │  │  │20/10 │   │PvP    │   │           │                    │           │
 │  │  └──────┘   └───────┘   └───────────┘                    │           │
@@ -220,6 +252,19 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 │  │  └──────────┘                                              │           │
 │  └────────────────────────────────────────────────────────────┘           │
 │                                                                            │
+│  ┌──── Rollup Development Kit (v1.3.0) ──────────────────────┐           │
+│  │  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌──────────┐ │           │
+│  │  │ x/rdk    │  │Settlement│  │ DA Router │  │ Profiles │ │           │
+│  │  │ 4 modes: │  │Optimistic│  │ Native    │  │ DeFi     │ │           │
+│  │  │ opt/zk/  │  │ZK/Based/ │  │ Celestia* │  │ Gaming   │ │           │
+│  │  │ based/   │  │Sovereign │  │ Both      │  │ NFT      │ │           │
+│  │  │ sovereign│  │          │  │           │  │ Enterpr. │ │           │
+│  │  └────┬─────┘  └────┬─────┘  └───────────┘  └──────────┘ │           │
+│  │  Bank escrow    Auto-finalize  SHA-256 commit  AI-assisted │           │
+│  │  Burn on create EndBlocker     Blob pruning    RL suggest  │           │
+│  │  → x/multilayer (RegisterSidechain + AnchorState)          │           │
+│  └────────────────────────────────────────────────────────────┘           │
+│                                                                            │
 │  ┌──────────────┐ ┌──────┐ ┌────────────┐ ┌─────┐                       │
 │  │x/rlconsensus │ │ x/ai │ │x/reputation│ │x/qca│                       │
 │  │  RL Agent    │ │      │ │            │ │     │                       │
@@ -227,13 +272,14 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 │   PPO MLP         AI Engine   Scoring    CPoS Pools                      │
 │   Obs/Action      Fraud Det.  Decay      Bonding                         │
 │   Circuit Brk     Fee Opt.    Sigmoid    Slashing                        │
-│                   TEE/FL                 QDRW Gov                         │
+│   Rollup Adv.     TEE/FL                 QDRW Gov                        │
+│                                                                            │
 │  ┌──────┐ ┌──────────┐                                                   │
 │  │x/pqc │ │ x/multi  │                                                   │
 │  └──┬───┘ └────┬─────┘                                                   │
 │  Dilithium    Layer Router                                                │
 │  ML-KEM       Sidechains                                                  │
-│  Hybrid Sig                                                               │
+│  Hybrid Sig   + Rollups                                                   │
 │  SHAKE-256                                                                │
 │                                                                            │
 │  ┌──────┐ ┌───────┐                                                      │
@@ -258,10 +304,10 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 |--------|-------------|
 | **x/pqc** | Post-quantum cryptography: Dilithium-5, ML-KEM-1024, hybrid Ed25519 + ML-DSA-87 signatures, SHAKE-256 hashing, algorithm-agile governance |
 | **x/ai** | AI engine: transaction routing, anomaly detection, fraud detection, fee optimization, TEE attestation interfaces, federated learning coordination |
-| **x/rlconsensus** | RL-based dynamic consensus tuning: fixed-point MLP, PPO inference, shadow/conservative/autonomous modes, circuit breaker |
+| **x/rlconsensus** | RL-based dynamic consensus tuning: fixed-point MLP, PPO inference, shadow/conservative/autonomous modes, circuit breaker, rollup advisory |
 | **x/reputation** | Validator reputation scoring: multi-factor formula with temporal decay |
 | **x/qca** | QoreChain Consensus Algorithm: triple-pool CPoS, bonding curve, progressive slashing, QDRW governance |
-| **x/burn** | Central burn accounting: 9 burn channels + bridge fee burns, EndBlocker fee distribution (40% validators / 30% burned / 20% treasury / 10% stakers) |
+| **x/burn** | Central burn accounting: 10 burn channels (including rollup creation burns), EndBlocker fee distribution (40% validators / 30% burned / 20% treasury / 10% stakers) |
 | **x/xqore** | Governance-boosted staking: lock QOR → mint xQORE (1:1), graduated exit penalties, PvP rebase redistribution |
 | **x/inflation** | Epoch-based emission decay: Y1 17.5% → Y2 11% → Y3-4 7% → Y5+ 2%, configurable epoch length |
 | **x/bridge** | Cross-chain bridge (QCB): 17 non-IBC endpoints across 12 chain types, PQC-signed validator attestations, circuit breaker volume caps, bridge fee burn integration |
@@ -269,7 +315,8 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 | **x/abstractaccount** | Smart account abstraction: multisig/social_recovery/session_based accounts, spending rules, session keys with expiry and granular permissions |
 | **x/fairblock** | MEV protection: threshold IBE encrypted mempool framework, FairBlockDecorator ante handler, passthrough stub in v1.2.0 |
 | **x/gasabstraction** | Multi-token gas payment: accept IBC-transferred tokens (USDC, ATOM) for fees, GasAbstractionDecorator with static conversion rates |
-| **x/multilayer** | Multi-layer architecture: Sidechains + Paychains with cross-layer fee bundling |
+| **x/rdk** | Rollup Development Kit: 4 settlement paradigms (optimistic/ZK/based/sovereign), 3 DA backends, 4 preset profiles, settlement engine with EndBlocker auto-finalization, bank escrow lifecycle, native DA router with blob pruning, AI-assisted profile selection |
+| **x/multilayer** | Multi-layer architecture: Sidechains + Paychains + Rollups with cross-layer fee bundling and state anchoring |
 | **x/crossvm** | Cross-VM communication: EVM ↔ CosmWasm (precompile) + SVM (async events) |
 | **x/svm** | SVM runtime: BPF program deployment/execution, rent collection, Solana-compatible JSON-RPC |
 | **x/vm** | VM routing and lifecycle management |
@@ -400,6 +447,11 @@ curl -X POST http://localhost:8545 -H "Content-Type: application/json" \
 | `qor_getFairBlockStatus` | FairBlock tIBE module status and configuration |
 | `qor_getGasAbstractionConfig` | Gas abstraction config and accepted fee tokens |
 | `qor_getLaneConfiguration` | Block lane priorities and space allocation |
+| `qor_getRollupStatus` | Rollup configuration, status, settlement mode, and DA backend |
+| `qor_listRollups` | All registered rollups with profile, settlement mode, and status |
+| `qor_getSettlementBatch` | Settlement batch details including proof type, status, and finalization height |
+| `qor_suggestRollupProfile` | AI-assisted rollup profile recommendation for a given use case |
+| `qor_getDABlobStatus` | DA blob storage status, commitment hash, and pruning state |
 
 ## CLI Commands
 
@@ -506,6 +558,50 @@ qorechaind query gasabstraction config
 qorechaind query gasabstraction accepted-tokens
 ```
 
+### RDK Module (v1.3.0)
+
+```bash
+# Query a specific rollup
+qorechaind query rdk rollup <rollup-id>
+
+# List all registered rollups (optional --creator filter)
+qorechaind query rdk list-rollups [--creator <address>]
+
+# Query a settlement batch
+qorechaind query rdk batch <rollup-id> [--index <batch-index>]
+
+# Query RDK module configuration
+qorechaind query rdk config
+
+# Get AI-assisted rollup profile suggestion
+qorechaind query rdk suggest-profile <use-case>
+
+# Create a new rollup (with preset profile or custom flags)
+qorechaind tx rdk create-rollup <rollup-id> \
+  --settlement optimistic \
+  --sequencer dedicated \
+  --da native \
+  --vm evm \
+  --stake 10000000000 \
+  --from mykey
+
+# Pause a rollup
+qorechaind tx rdk pause-rollup <rollup-id> --reason "maintenance" --from mykey
+
+# Resume a paused rollup
+qorechaind tx rdk resume-rollup <rollup-id> --from mykey
+
+# Permanently stop a rollup (returns bond)
+qorechaind tx rdk stop-rollup <rollup-id> --from mykey
+
+# Submit a settlement batch
+qorechaind tx rdk submit-batch <rollup-id> <state-root> <data-hash> \
+  --proof <proof-hex> --proof-type snark --from mykey
+
+# Challenge a batch (optimistic rollups only)
+qorechaind tx rdk challenge-batch <rollup-id> <batch-index> <proof-hex> --from mykey
+```
+
 ## Ante Handler Chain
 
 The transaction processing pipeline for QoreChain SDK transactions:
@@ -540,6 +636,7 @@ Key decorators:
 - [Bridge Documentation](docs/BRIDGE.md)
 - [IBC Relay Configuration](config/hermes/)
 - [Multilayer Architecture](docs/MULTILAYER.md)
+- [Rollup Development Kit (RDK)](docs/RDK.md)
 - [Running a Testnet Node](docs/RUNNING_TESTNET.md)
 - [API Reference](docs/API_REFERENCE.md)
 
@@ -547,7 +644,7 @@ Key decorators:
 
 - 3 separate Go modules: `qorechain-core/`, `sidecar/`, `indexer/`
 - 2 Rust crates: `qorepqc` (PQC cryptography), `qoresvm` (BPF executor)
-- 44 registered genesis modules, 17 custom modules
+- 45 registered genesis modules, 18 custom modules
 - Docker Compose: 6-service deployment stack
 - GitHub Actions: 3 CI/CD workflows (build, release, docker)
 - IBC: 8 pre-configured Hermes relayer channel templates
