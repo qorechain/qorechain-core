@@ -111,6 +111,16 @@ func (a *keeperAdapter) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	return a.k.ExportGenesis(ctx)
 }
 
+// --- Advisory rollup configuration ---
+
+func (a *keeperAdapter) SuggestRollupProfile(_ sdk.Context, _ string) (string, error) {
+	return "defi", nil
+}
+
+func (a *keeperAdapter) OptimizeRollupGas(_ sdk.Context, _ map[string]uint64) (uint64, error) {
+	return 0, nil
+}
+
 // --- Logger ---
 
 func (a *keeperAdapter) Logger() log.Logger {
