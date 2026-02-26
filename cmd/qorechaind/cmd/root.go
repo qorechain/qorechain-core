@@ -122,6 +122,8 @@ func NewRootCmd() *cobra.Command {
 	moduleBasicManager[fairblockBasic.Name()] = fairblockBasic
 	gasabstractionBasic := app.NewGasAbstractionModuleBasic()
 	moduleBasicManager[gasabstractionBasic.Name()] = gasabstractionBasic
+	rdkBasic := app.NewRDKModuleBasic()
+	moduleBasicManager[rdkBasic.Name()] = rdkBasic
 
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",

@@ -106,6 +106,8 @@ var (
 		{Account: "abstractaccount"},
 		{Account: "fairblock"},
 		{Account: "gasabstraction"},
+		// v1.3.0 modules
+		{Account: "rdk", Permissions: []string{authtypes.Minter, authtypes.Burner}},
 	}
 
 	// blockAccAddrs defines blocked module account addresses.
@@ -147,6 +149,7 @@ var (
 					"inflation",
 					"rlconsensus",
 					"babylon",
+					"rdk",
 				},
 				EndBlockers: []string{
 					govtypes.ModuleName,
@@ -159,6 +162,7 @@ var (
 					"inflation",
 					"rlconsensus",
 					"babylon",
+					"rdk",
 					// EVM post-block processing
 					"evm",
 					"feemarket",
@@ -218,6 +222,7 @@ var (
 					"abstractaccount",
 					"fairblock",
 					"gasabstraction",
+					"rdk",
 				},
 				ExportGenesis: []string{
 					consensustypes.ModuleName,
@@ -266,6 +271,7 @@ var (
 					"abstractaccount",
 					"fairblock",
 					"gasabstraction",
+					"rdk",
 				},
 			}),
 		},

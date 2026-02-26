@@ -115,6 +115,9 @@ import (
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	gasabstractiontypes "github.com/qorechain/qorechain-core/x/gasabstraction/types"
 
+	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
+	rdktypes "github.com/qorechain/qorechain-core/x/rdk/types"
+
 	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	inflationtypes "github.com/qorechain/qorechain-core/x/inflation/types"
 
@@ -216,6 +219,7 @@ type QoreChainApp struct {
 	AbstractAccountKeeper  abstractaccountmod.AbstractAccountKeeper
 	FairBlockKeeper        fairblockmod.FairBlockKeeper
 	GasAbstractionKeeper   gasabstractionmod.GasAbstractionKeeper
+	RDKKeeper              rdkmod.RDKKeeper // v1.3.0 — Rollup Development Kit
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -600,6 +604,20 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize RDK module (via factory, v1.3.0 — Rollup Development Kit) ---
+	rdkStoreKey := storetypes.NewKVStoreKey(rdktypes.StoreKey)
+	app.MountStores(rdkStoreKey)
+
+	app.RDKKeeper = NewRDKKeeper(
+		app.appCodec,
+		rdkStoreKey,
+		app.BurnKeeper,
+		app.MultilayerKeeper,
+		app.RLConsensusKeeper,
+		app.BankKeeper,
+		logger,
+	)
+
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
@@ -662,6 +680,7 @@ func NewQoreChainApp(
 		NewAbstractAccountAppModule(app.AbstractAccountKeeper),
 		NewFairBlockAppModule(app.FairBlockKeeper),
 		NewGasAbstractionAppModule(app.GasAbstractionKeeper),
+		NewRDKAppModule(app.RDKKeeper),
 	); err != nil {
 		panic(err)
 	}
