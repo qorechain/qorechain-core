@@ -28,6 +28,10 @@ type RLConsensusKeeper interface {
 	GetCurrentEpoch(ctx sdk.Context) uint64
 	IsRLActive(ctx sdk.Context) bool
 
+	// v1.3.0 RDK integration — advisory rollup configuration
+	SuggestRollupProfile(ctx sdk.Context, useCase string) (string, error)
+	OptimizeRollupGas(ctx sdk.Context, metrics map[string]uint64) (uint64, error)
+
 	// ABCI hooks
 	BeginBlock(ctx sdk.Context) error
 	EndBlock(ctx sdk.Context) error
