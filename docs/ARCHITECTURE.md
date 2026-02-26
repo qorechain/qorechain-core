@@ -2,13 +2,14 @@
 
 ## Overview
 
-QoreChain is a Layer 1 blockchain built on QoreChain SDK v0.53 with six key innovations:
+QoreChain is a Layer 1 blockchain built on QoreChain SDK v0.53 with seven key innovations:
 1. Post-quantum cryptography at genesis with hybrid Ed25519 + ML-DSA-87 signatures (not retrofitted)
 2. AI-native consensus optimization with on-chain reinforcement learning
 3. Triple-VM runtime (EVM + CosmWasm + SVM) with cross-VM messaging
 4. Deflationary tokenomics engine (burn, governance-boosted staking, controlled inflation)
 5. Universal cross-chain bridging with PQC security
 6. TEE attestation and federated learning coordination for privacy-preserving AI
+7. Application-specific rollup deployment with four settlement paradigms (v1.3.0)
 
 ## Module Architecture
 
@@ -70,7 +71,7 @@ Implements reputation-weighted proposer selection that integrates with QoreChain
 
 ### x/burn — Central Burn Accounting
 
-Nine burn channels feed a unified accounting module. The EndBlocker splits collected fees: 40% validators, 30% burned, 20% treasury, 10% stakers. Tracks total burned, per-source breakdown, and burn history.
+Ten burn channels feed a unified accounting module: transaction fees, slashing, governance, cross-VM gas, bridge fees, inflation surplus, xQORE penalties, reputation penalties, system cleanup, and rollup creation burns. The EndBlocker splits collected fees: 40% validators, 30% burned, 20% treasury, 10% stakers. Tracks total burned, per-source breakdown, and burn history.
 
 ### x/xqore — Governance-Boosted Staking
 
@@ -86,19 +87,53 @@ On-chain RL agent with Go-native fixed-point MLP (~73,733 parameters). PPO infer
 
 ### x/bridge — Cross-Chain Bridge (QCB)
 
-Hub-and-spoke multi-protocol bridge:
-- Ethereum (lock-mint model)
-- Solana (Wormhole-compatible)
-- TON (cross-chain messaging)
-- Generic EVM (BSC, Avalanche)
+Hub-and-spoke multi-protocol bridge supporting 25 direct cross-chain connections:
+- **IBC chains** (8): QoreChain Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon
+- **EVM chains** (6): Ethereum, BSC, Avalanche, Optimism, Base, Tron
+- **Non-IBC chains** (5): Solana, TON, Aptos, Bitcoin, NEAR
+- **Additional** (2): Cardano, Polkadot, Tezos
 - Native IBC with PQC-secured packets
 
-Security: 7-of-10 PQC multisig, 24h challenge period, circuit breakers.
+Security: 7-of-10 PQC multisig, 24h challenge period, circuit breakers. Bridge withdrawal fees route to the x/burn module.
+
+### x/rdk — Rollup Development Kit (v1.3.0)
+
+Application-specific rollup deployment framework supporting four settlement paradigms:
+
+- **Optimistic**: Interactive fraud proofs with configurable challenge window (default 7 days). Auto-finalization in EndBlocker after the challenge period expires.
+- **ZK (Zero-Knowledge)**: SNARK/STARK validity proofs with instant finality upon proof verification. Recursive proof aggregation supported.
+- **Based**: L1-sequenced rollups where host chain proposers order rollup transactions. Includes forced inclusion delay and priority fee sharing with L1 proposers.
+- **Sovereign**: Self-sequenced rollups with independent ordering and no proof requirements.
+
+**Preset Profiles**: DeFi (ZK/SNARK, EVM, 500ms blocks, EIP-1559), Gaming (Based, custom VM, 200ms blocks, flat fee), NFT (Optimistic, CosmWasm, 2s blocks), Enterprise (Based, EVM, 1s blocks, subsidized gas), Custom (full configuration control).
+
+**Data Availability**: Native KV-store blob backend (functional) with Celestia IBC backend (stubbed in v1.3.0). Configurable blob retention and automatic pruning via EndBlocker.
+
+**Integration**: Rollups register as `rollup` layer type in x/multilayer for state anchoring via HCS. Rollup creation burns 1% of stake through x/burn. RL consensus module provides AI-assisted profile selection and gas optimization.
+
+### x/babylon — BTC Restaking Adapter (v1.2.0)
+
+BTC restaking coordination module for Babylon protocol integration. Manages BTC staking positions, checkpoint submissions, and epoch snapshots.
+
+### x/abstractaccount — Account Abstraction (v1.2.0)
+
+Smart-contract wallet accounts with spending rules, session keys, daily/per-tx limits, and allowed denomination restrictions.
+
+### x/fairblock — Threshold IBE Mempool (v1.2.0)
+
+FairBlock threshold identity-based encryption stub for encrypted mempool ordering. Passthrough ante decorator in v1.2.0; tIBE decryption reserved for future activation.
+
+### x/gasabstraction — Gas Abstraction (v1.2.0)
+
+Multi-denomination fee payment supporting IBC-received tokens. Static conversion rates for testnet (uqor 1:1, ibc/USDC 1:1, ibc/ATOM 10:1). Ante decorator converts non-native fee denominations to native equivalents.
 
 ## AnteHandler Chain
 
 ```
-SetUpContext -> CircuitBreaker -> PQCVerify -> PQCHybridVerify -> AIAnomaly -> Extension -> ValidateBasic -> ... -> SigVerify -> IncrementSequence
+SetUpContext → CircuitBreaker → PQCVerify → PQCHybridVerify → AIAnomaly →
+FairBlock → SVMComputeBudget → SVMDeductFee → Extension → ValidateBasic →
+TxTimeout → Memo → MinGasPrice → ConsumeTxSize → GasAbstraction → DeductFee →
+SetPubKey → ValidateSigCount → SigGasConsume → SigVerify → IncrementSequence
 ```
 
 ## Deployment Architecture
