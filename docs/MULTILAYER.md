@@ -2,22 +2,23 @@
 
 ## Overview
 
-The QoreChain Multi-Layer Architecture enables scalable transaction processing through a hierarchical three-tier system: **Main Chain**, **Sidechains**, and **Paychains**. Each layer is optimized for different workload profiles while maintaining security guarantees through Hierarchical Commitment Schemes (HCS) and PQC-signed state anchoring.
+The QoreChain Multi-Layer Architecture enables scalable transaction processing through a hierarchical four-tier system: **Main Chain**, **Sidechains**, **Paychains**, and **Rollups** (v1.3.0). Each layer is optimized for different workload profiles while maintaining security guarantees through Hierarchical Commitment Schemes (HCS) and PQC-signed state anchoring.
 
 ```
                     ┌─────────────────────────┐
                     │      Main Chain          │
                     │  (Settlement + Routing)  │
-                    └────┬──────────┬──────────┘
-                         │          │
-              ┌──────────┴──┐  ┌───┴──────────┐
-              │ Sidechains  │  │  Paychains   │
-              │ (Compute)   │  │ (MicroTX)    │
-              └─────────────┘  └──────────────┘
+                    └──┬──────────┬─────────┬──┘
+                       │          │         │
+            ┌──────────┴──┐  ┌───┴──────┐  ┌┴─────────────┐
+            │ Sidechains  │  │ Paychains│  │   Rollups    │
+            │ (Compute)   │  │ (MicroTX)│  │ (App-Specific)│
+            └─────────────┘  └──────────┘  └──────────────┘
 
   Main Chain:  Full consensus, state anchoring, cross-layer routing
   Sidechains:  Compute-heavy workloads (DeFi, contracts, analytics)
   Paychains:   High-frequency microtransactions (payments, streaming)
+  Rollups:     Application-specific chains with configurable settlement (v1.3.0)
 ```
 
 ## Layer Types
@@ -44,6 +45,22 @@ The QoreChain Multi-Layer Architecture enables scalable transaction processing t
 - Minimum 3 validators required
 - Maximum 50 active paychains (configurable via governance)
 - Minimum stake: 100 QOR to register
+
+### Rollups (Application-Specific Layer — v1.3.0)
+
+Rollups are application-specific chains deployed via the **x/rdk** (Rollup Development Kit) module. They register as a `rollup` layer type in the multilayer system and anchor state to Main Chain using the same HCS infrastructure as sidechains and paychains.
+
+- **Four settlement paradigms**: Optimistic (fraud proofs), ZK (validity proofs), Based (L1-sequenced), Sovereign (self-sequenced)
+- **Preset profiles**: DeFi, Gaming, NFT, Enterprise, Custom — preconfigured templates for common use cases
+- **Data availability**: Native KV-store blob storage with configurable retention and automatic pruning
+- **Sequencer modes**: Dedicated (single operator), Shared (minimum sequencer set), Based (L1 proposers)
+- **Proof systems**: Fraud proofs, SNARK, STARK, or none — matched to settlement mode
+- **VM flexibility**: EVM, CosmWasm, SVM, or custom runtime
+- State anchored to Main Chain via `MsgAnchorState` on each batch submission
+- Rollup creation requires minimum 10,000 QOR stake (1% burned via x/burn)
+- Maximum 100 rollups (configurable via governance)
+
+For full RDK documentation, see [docs/RDK.md](RDK.md).
 
 ## QCAI Transaction Routing
 

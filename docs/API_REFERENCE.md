@@ -108,6 +108,46 @@ All standard QoreChain SDK REST and gRPC endpoints are available:
 | `/qorechain/inflation/v1/epoch` | GET | Current epoch info (epoch number, year, total minted) |
 | `/qorechain/inflation/v1/params` | GET | Inflation module parameters (epoch length, rate schedule) |
 
+### RDK Module (v1.3.0)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/rdk/v1/rollup/{rollup_id}` | GET | Rollup configuration and status |
+| `/qorechain/rdk/v1/rollups` | GET | List all registered rollups |
+| `/qorechain/rdk/v1/batch/{rollup_id}/{batch_index}` | GET | Settlement batch details |
+| `/qorechain/rdk/v1/batches/{rollup_id}` | GET | List batches for a rollup |
+| `/qorechain/rdk/v1/blob/{rollup_id}/{blob_index}` | GET | DA blob details |
+| `/qorechain/rdk/v1/params` | GET | RDK module parameters |
+
+### Babylon Module (v1.2.0)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/babylon/v1/staking/{address}` | GET | BTC staking position |
+| `/qorechain/babylon/v1/checkpoint/{epoch}` | GET | BTC checkpoint for epoch |
+| `/qorechain/babylon/v1/params` | GET | Babylon module parameters |
+
+### Abstract Account Module (v1.2.0)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/abstractaccount/v1/account/{address}` | GET | Abstract account details |
+| `/qorechain/abstractaccount/v1/params` | GET | Module parameters |
+
+### FairBlock Module (v1.2.0)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/fairblock/v1/config` | GET | FairBlock tIBE configuration |
+| `/qorechain/fairblock/v1/params` | GET | Module parameters |
+
+### Gas Abstraction Module (v1.2.0)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/gasabstraction/v1/accepted-tokens` | GET | Accepted fee tokens and conversion rates |
+| `/qorechain/gasabstraction/v1/params` | GET | Module parameters |
+
 ## JSON-RPC (EVM)
 
 Port: 8545 (HTTP), 8546 (WebSocket)
@@ -140,6 +180,16 @@ Port: 8545 (HTTP), 8546 (WebSocket)
 | `qor_getXQOREPosition` | `address` | xQORE position: locked QOR, xQORE balance, lock time |
 | `qor_getInflationRate` | (none) | Current inflation rate, epoch, year, total minted |
 | `qor_getTokenomicsOverview` | (none) | Combined tokenomics dashboard (burn + xQORE + inflation) |
+| `qor_getRollupStatus` | `rollupId` | Rollup configuration, status, and settlement mode |
+| `qor_listRollups` | (none) | All registered rollups with status summary |
+| `qor_getSettlementBatch` | `rollupId`, `batchIndex` | Settlement batch details and finalization status |
+| `qor_suggestRollupProfile` | `useCase` | AI-assisted rollup profile recommendation |
+| `qor_getDABlobStatus` | `rollupId`, `blobIndex` | Data availability blob storage status |
+| `qor_getBTCStakingPosition` | `address` | BTC restaking position via Babylon adapter |
+| `qor_getAbstractAccount` | `address` | Abstract account details and spending rules |
+| `qor_getFairBlockStatus` | (none) | FairBlock tIBE module status and configuration |
+| `qor_getGasAbstractionConfig` | (none) | Accepted fee tokens and conversion rates |
+| `qor_getLaneConfiguration` | (none) | Transaction lane priorities and block space allocation |
 
 ## JSON-RPC (SVM — Solana-Compatible)
 
