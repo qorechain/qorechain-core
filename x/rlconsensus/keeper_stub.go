@@ -81,6 +81,14 @@ func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesis()
 }
 
+func (k *StubKeeper) SuggestRollupProfile(_ sdk.Context, _ string) (string, error) {
+	return "defi", nil
+}
+
+func (k *StubKeeper) OptimizeRollupGas(_ sdk.Context, _ map[string]uint64) (uint64, error) {
+	return 0, nil
+}
+
 func (k *StubKeeper) Logger() log.Logger {
 	return k.logger
 }
