@@ -72,3 +72,10 @@ func (api *QorAPI) GetAbstractAccount(_ string) (*StubResult, error)     { retur
 func (api *QorAPI) GetFairBlockStatus() (*StubResult, error)             { return nil, errNotAvailable }
 func (api *QorAPI) GetGasAbstractionConfig() (*StubResult, error)        { return nil, errNotAvailable }
 func (api *QorAPI) GetLaneConfiguration() (*StubResult, error)           { return nil, errNotAvailable }
+
+// v1.3.0 endpoints
+func (api *QorAPI) GetRollupStatus(_ string) (*StubResult, error)             { return nil, errNotAvailable }
+func (api *QorAPI) ListRollups(_ string) (*StubResult, error)                 { return nil, errNotAvailable }
+func (api *QorAPI) GetSettlementBatch(_ string, _ int64) (*StubResult, error) { return nil, errNotAvailable }
+func (api *QorAPI) SuggestRollupProfile(_ string) (*StubResult, error)        { return nil, errNotAvailable }
+func (api *QorAPI) GetDABlobStatus(_ string, _ int64) (*StubResult, error)    { return nil, errNotAvailable }
