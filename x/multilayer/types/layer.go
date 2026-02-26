@@ -13,6 +13,7 @@ const (
 	LayerTypeUnspecified LayerType = ""
 	LayerTypeSidechain  LayerType = "sidechain" // Compute-heavy operations (DeFi, Gaming, IoT)
 	LayerTypePaychain   LayerType = "paychain"  // High-frequency microtransactions
+	LayerTypeRollup     LayerType = "rollup"    // Application-specific rollups (DeFi, Gaming, NFT, Enterprise)
 )
 
 // LayerStatus defines the lifecycle status of a layer
