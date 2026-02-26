@@ -22,6 +22,7 @@ import (
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
+	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
 	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
@@ -114,4 +115,17 @@ var (
 	NewGasAbstractionAppModule   func(keeper gasabstractionmod.GasAbstractionKeeper) module.AppModule
 	NewGasAbstractionModuleBasic func() module.AppModuleBasic
 	NewGasAbstractionDecorator   func(keeper gasabstractionmod.GasAbstractionKeeper) sdk.AnteDecorator
+
+	// RDK module factories (v1.3.0 — Rollup Development Kit)
+	NewRDKKeeper func(
+		cdc codec.Codec,
+		storeKey storetypes.StoreKey,
+		burnKeeper burnmod.BurnKeeper,
+		multilayerKeeper multilayermod.MultilayerKeeper,
+		rlKeeper rlconsensusmod.RLConsensusKeeper,
+		bankKeeper bankkeeper.BaseKeeper,
+		logger log.Logger,
+	) rdkmod.RDKKeeper
+	NewRDKAppModule   func(keeper rdkmod.RDKKeeper) module.AppModule
+	NewRDKModuleBasic func() module.AppModuleBasic
 )
