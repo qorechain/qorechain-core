@@ -120,10 +120,7 @@ func (e *FFIExecutor) ExecuteV2(program []byte, accounts []types.SVMAccount, met
 	}
 
 	// Serialize accounts into BPF input format.
-	inputBuf, err := types.SerializeAccountsForBPF(accounts, metas, instructionData, programID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize accounts: %w", err)
-	}
+	inputBuf := types.SerializeAccountsForBPF(accounts, metas, instructionData, programID)
 
 	// Calculate result buffer size: at least 64 KiB, or 2x the total account data.
 	totalDataSize := 0
@@ -178,10 +175,7 @@ func (e *FFIExecutor) ExecuteNative(programID [32]byte, accounts []types.SVMAcco
 	instructionData []byte) (*types.ExecutionResult, error) {
 
 	// Serialize accounts into BPF input format.
-	inputBuf, err := types.SerializeAccountsForBPF(accounts, metas, instructionData, programID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to serialize accounts: %w", err)
-	}
+	inputBuf := types.SerializeAccountsForBPF(accounts, metas, instructionData, programID)
 
 	// Result buffer — native programs typically return small results.
 	resultBufCap := 65536

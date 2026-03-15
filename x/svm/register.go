@@ -66,6 +66,12 @@ func (a *keeperAdapter) InitGenesis(ctx sdk.Context, gs types.GenesisState) {
 func (a *keeperAdapter) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	return a.k.ExportGenesis(ctx)
 }
+func (a *keeperAdapter) IterateAccounts(ctx sdk.Context, cb func(types.SVMAccount) bool) {
+	a.k.IterateAccounts(ctx, cb)
+}
+func (a *keeperAdapter) GetAllAccounts(ctx sdk.Context) []types.SVMAccount {
+	return a.k.GetAllAccounts(ctx)
+}
 func (a *keeperAdapter) Logger() log.Logger {
 	return a.k.Logger()
 }
