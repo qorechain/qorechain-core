@@ -77,6 +77,12 @@ func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesis()
 }
 
+func (k *StubKeeper) IterateAccounts(_ sdk.Context, _ func(types.SVMAccount) bool) {}
+
+func (k *StubKeeper) GetAllAccounts(_ sdk.Context) []types.SVMAccount {
+	return nil
+}
+
 func (k *StubKeeper) Logger() log.Logger {
 	return k.logger
 }
