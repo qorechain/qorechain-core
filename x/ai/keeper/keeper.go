@@ -21,6 +21,10 @@ type Keeper struct {
 	storeKey storetypes.StoreKey
 	engine   types.AIEngine
 	logger   log.Logger
+
+	// cachedConfig avoids JSON deserialization on every ante handler call.
+	// Invalidated by SetConfig. Zero-value means cache miss.
+	cachedConfig    *types.AIConfig
 }
 
 // NewKeeper creates a new AI keeper.
@@ -50,7 +54,12 @@ func (k Keeper) Logger() log.Logger {
 
 // ---- Config ----
 
-func (k Keeper) GetConfig(ctx sdk.Context) types.AIConfig {
+func (k *Keeper) GetConfig(ctx sdk.Context) types.AIConfig {
+	// Fast path: return cached config if available.
+	if k.cachedConfig != nil {
+		return *k.cachedConfig
+	}
+
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get(types.ConfigKey)
 	if bz == nil {
@@ -60,16 +69,22 @@ func (k Keeper) GetConfig(ctx sdk.Context) types.AIConfig {
 	if err := json.Unmarshal(bz, &cfg); err != nil {
 		return types.DefaultAIConfig()
 	}
+
+	// Populate cache for subsequent calls within the same block.
+	k.cachedConfig = &cfg
 	return cfg
 }
 
-func (k Keeper) SetConfig(ctx sdk.Context, cfg types.AIConfig) error {
+func (k *Keeper) SetConfig(ctx sdk.Context, cfg types.AIConfig) error {
 	store := ctx.KVStore(k.storeKey)
 	bz, err := json.Marshal(cfg)
 	if err != nil {
 		return err
 	}
 	store.Set(types.ConfigKey, bz)
+
+	// Invalidate cache so next GetConfig reads fresh data.
+	k.cachedConfig = &cfg
 	return nil
 }
 
@@ -127,10 +142,12 @@ func (k Keeper) AnalyzeTransaction(ctx sdk.Context, tx types.TransactionInfo, hi
 		return nil, err
 	}
 
-	k.IncrementTxsRouted(ctx)
+	// Single read-modify-write cycle for stats instead of two separate ones.
+	stats := k.GetStats(ctx)
+	stats.TxsRouted++
 
 	if result.IsAnomalous {
-		k.IncrementAnomaliesDetected(ctx)
+		stats.AnomaliesDetected++
 		k.FlagTransaction(ctx, types.FlaggedTx{
 			TxHash:       tx.TxHash,
 			AnomalyScore: result.Score,
@@ -138,6 +155,8 @@ func (k Keeper) AnalyzeTransaction(ctx sdk.Context, tx types.TransactionInfo, hi
 			Height:       ctx.BlockHeight(),
 		})
 	}
+
+	k.SetStats(ctx, stats)
 
 	return result, nil
 }

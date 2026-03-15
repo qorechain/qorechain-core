@@ -87,10 +87,12 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 		return nil, errors.New("ibc keeper is required for ante builder")
 	}
 
+	// Pre-build both handler chains once to avoid per-TX allocation overhead.
+	evmHandler := newMonoEVMAnteHandler(options)
+	cosmosHandler := newCosmosAnteHandler(options)
+
 	// Return the dual-routing ante handler function.
 	return func(ctx sdk.Context, tx sdk.Tx, sim bool) (sdk.Context, error) {
-		var anteHandler sdk.AnteHandler
-
 		// Check for EVM extension options to route appropriately.
 		txWithExtensions, ok := tx.(ante.HasExtensionOptionsTx)
 		if ok {
@@ -99,29 +101,26 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 				switch typeURL := opts[0].GetTypeUrl(); typeURL {
 				case "/cosmos.evm.vm.v1.ExtensionOptionsEthereumTx":
 					// EVM transaction — route to mono decorator
-					anteHandler = newMonoEVMAnteHandler(options)
+					return evmHandler(ctx, tx, sim)
 				case "/cosmos.evm.types.v1.ExtensionOptionDynamicFeeTx":
 					// QoreChain SDK tx with dynamic fee — route to QoreChain SDK path
-					anteHandler = newCosmosAnteHandler(options)
+					return cosmosHandler(ctx, tx, sim)
 				default:
 					return ctx, errorsmod.Wrapf(
 						errortypes.ErrUnknownExtensionOptions,
 						"rejecting tx with unsupported extension option: %s", typeURL,
 					)
 				}
-				return anteHandler(ctx, tx, sim)
 			}
 		}
 
 		// Standard QoreChain SDK transaction — route to QoreChain SDK path.
 		switch tx.(type) {
 		case sdk.Tx:
-			anteHandler = newCosmosAnteHandler(options)
+			return cosmosHandler(ctx, tx, sim)
 		default:
 			return ctx, errorsmod.Wrapf(errortypes.ErrUnknownRequest, "invalid transaction type: %T", tx)
 		}
-
-		return anteHandler(ctx, tx, sim)
 	}, nil
 }
 

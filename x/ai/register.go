@@ -21,8 +21,8 @@ type keeperAdapter struct {
 
 func (a *keeperAdapter) Engine() types.AIEngine                { return a.k.Engine() }
 func (a *keeperAdapter) Logger() log.Logger                     { return a.k.Logger() }
-func (a *keeperAdapter) GetConfig(ctx sdk.Context) types.AIConfig { return a.k.GetConfig(ctx) }
-func (a *keeperAdapter) SetConfig(ctx sdk.Context, cfg types.AIConfig) error { return a.k.SetConfig(ctx, cfg) }
+func (a *keeperAdapter) GetConfig(ctx sdk.Context) types.AIConfig { return (&a.k).GetConfig(ctx) }
+func (a *keeperAdapter) SetConfig(ctx sdk.Context, cfg types.AIConfig) error { return (&a.k).SetConfig(ctx, cfg) }
 func (a *keeperAdapter) GetStats(ctx sdk.Context) types.AIStats { return a.k.GetStats(ctx) }
 func (a *keeperAdapter) SetStats(ctx sdk.Context, s types.AIStats) { a.k.SetStats(ctx, s) }
 func (a *keeperAdapter) IncrementTxsRouted(ctx sdk.Context)     { a.k.IncrementTxsRouted(ctx) }
@@ -56,5 +56,5 @@ func RealNewAIAnomalyDecorator(k AIKeeper) sdk.AnteDecorator {
 	if !ok {
 		panic("AIKeeper must be a keeperAdapter in proprietary build")
 	}
-	return NewAIAnomalyDecorator(adapter.k)
+	return NewAIAnomalyDecorator(&adapter.k)
 }

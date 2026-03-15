@@ -12,11 +12,11 @@ import (
 // AIAnomalyDecorator sits in the AnteHandler chain after PQC verification.
 // It runs anomaly detection on every transaction using the heuristic engine.
 type AIAnomalyDecorator struct {
-	aiKeeper keeper.Keeper
+	aiKeeper *keeper.Keeper
 }
 
 // NewAIAnomalyDecorator creates a new AI anomaly ante handler decorator.
-func NewAIAnomalyDecorator(k keeper.Keeper) AIAnomalyDecorator {
+func NewAIAnomalyDecorator(k *keeper.Keeper) AIAnomalyDecorator {
 	return AIAnomalyDecorator{aiKeeper: k}
 }
 
