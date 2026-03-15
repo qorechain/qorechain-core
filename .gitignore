@@ -50,3 +50,4 @@ lib/darwin_arm64/
 
 # Rust build artifacts (if any local builds)
 target/
+docs/plans/
