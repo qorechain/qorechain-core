@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.4.0] - 2026-03-14
+
+### Added
+- **SVM Native Built-in Programs**: Four Solana-compatible native programs executing without BPF interpretation
+  - System Program (`11111111111111111111111111111111`): CreateAccount, Assign, Transfer, Allocate
+  - SPL Token Program (`TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA`): InitializeMint, InitializeAccount, Transfer, Approve, Revoke, MintTo, Burn, CloseAccount, GetAccountDataSize
+  - Associated Token Account Program (`ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL`): Create, CreateIdempotent
+  - Memo Program (`MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr`): On-chain memo logging
+- **Account Serialization**: Solana-compatible binary format for BPF account input/output across the FFI boundary
+  - `SerializeAccountsForBPF`, `DeserializeAccountsFromBPF`, `DeserializeModifiedAccounts` in Go
+  - Matching Rust-side serialization in the execution engine
+- **CPI Bridge**: BPF programs can call native built-in programs via `sol_invoke_signed` syscall
+  - BPF-to-Native direction supported; signer seed validation for PDA signing
+- **PDA Derivation**: Program Derived Address syscalls
+  - `sol_create_program_address` — derive PDA from seeds and program ID
+  - `sol_try_find_program_address` — find valid PDA with bump seed iteration
+- **Sysvar Syscalls**: BPF programs can query on-chain state
+  - `sol_get_clock_sysvar` — slot, epoch, unix timestamp
+  - `sol_get_rent_sysvar` — lamports per byte-year, exemption threshold
+- **14 New Solana-Compatible JSON-RPC Methods** (20 total):
+  - Transaction: `sendTransaction`, `simulateTransaction`
+  - Account queries: `getProgramAccounts`, `getMultipleAccounts`, `getSignaturesForAddress`, `getTransaction`
+  - Token queries: `getTokenAccountsByOwner`, `getTokenAccountsByDelegate`
+  - Block/fee: `getBlockHeight`, `getRecentBlockhash`, `getLatestBlockhash`, `getFeeForMessage`, `isBlockhashValid`
+  - Testnet: `requestAirdrop`
+- **Extended FFI Bridge**: `qore_svm_execute_v2` and `qore_svm_execute_native` FFI functions
+- **Extended SVMExecutor Interface**: `ExecuteV2` and `ExecuteNative` methods
+- 6 new Go error codes for SVM operations
+- 11 new Rust error codes for native program execution
+- Stub files for all new RPC methods (public community build)
+
+### Changed
+- Keeper executor routing: automatic dispatch between native programs and BPF execution based on program ID
+- FFI bridge extended with v2 and native execution paths
+- libqoresvm rebuilt (434KB) with native program support
+
+### Testing
+- 139 Rust unit tests passing (up from 79 in v0.8.0)
+- Both proprietary and public builds verified
+
+---
+
 ## [1.3.0] - 2026-02-26
 
 ### Added

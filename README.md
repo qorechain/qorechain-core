@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.3.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v1.3.0)
+[![Version](https://img.shields.io/badge/version-1.4.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v1.4.0)
 
 QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, **25 direct cross-chain connections** spanning IBC, EVM, Move, UTXO, and account-model ecosystems, and a **Rollup Development Kit (RDK)** enabling one-click deployment of application-specific rollups with four settlement paradigms. Built starting from Cosmos SDK v0.53 with 18 custom modules and 45 registered genesis modules.
 
@@ -133,9 +133,9 @@ The only Layer 1 running three virtual machines (EVM, CosmWasm, SVM) natively wi
 
 EVM contracts call CosmWasm contracts via precompile; CosmWasm contracts call EVM contracts via custom messages; SVM programs participate through async event-based bridging. All three VMs communicate seamlessly.
 
-### SVM Runtime with Solana-Compatible RPC
+### SVM Runtime with Native Programs & Solana-Compatible RPC (v1.4.0)
 
-Deploy and execute BPF programs using Solana-compatible tooling. The JSON-RPC server speaks Solana's `getAccountInfo`, `getBalance`, `getSlot` and more — existing Solana clients work out of the box.
+Deploy and execute BPF programs using Solana-compatible tooling. Four native built-in programs (System, SPL Token, ATA, Memo) provide gas-efficient token operations and account management. The JSON-RPC server exposes 20 Solana-compatible methods including `sendTransaction`, `simulateTransaction`, `getTokenAccountsByOwner`, and `getLatestBlockhash` — existing Solana clients and `@solana/web3.js` work out of the box. SPL token transfers, PDA derivation, and BPF-to-native CPI bridging are fully supported. 139 Rust tests validate the execution engine.
 
 ### AI-Native Transaction Processing
 
@@ -166,7 +166,7 @@ Validator rewards factor in self-bonded stake, loyalty duration (via determinist
 - **Tokenomics Engine** — Burn accounting (10 channels including rollup creation burns), xQORE governance staking (lock/unlock with PvP rebase), epoch-based inflation decay
 - **EVM Runtime** — Full Ethereum compatibility with JSON-RPC on port 8545, EIP-1559 gas, ERC-20 token pairs
 - **CosmWasm Runtime** — WebAssembly smart contracts with full lifecycle support
-- **SVM Runtime** — BPF program deployment and execution via Rust-backed executor with Solana-compatible RPC
+- **SVM Runtime** — BPF program deployment and execution via Rust-backed executor, 4 native built-in programs (System, SPL Token, ATA, Memo), PDA derivation, CPI bridge, 20 Solana-compatible JSON-RPC methods
 - **Cross-VM Bridge** — EVM ↔ CosmWasm (precompile + events) + SVM (async messaging)
 - **AI TEE Integration** — Interface specifications for SGX/TDX/SEV-SNP/ARM CCA attestation and secure enclave execution
 - **Federated Learning** — On-chain FL coordination interfaces with FedAvg/FedProx/SCAFFOLD aggregation support
@@ -318,7 +318,7 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 | **x/rdk** | Rollup Development Kit: 4 settlement paradigms (optimistic/ZK/based/sovereign), 3 DA backends, 4 preset profiles, settlement engine with EndBlocker auto-finalization, bank escrow lifecycle, native DA router with blob pruning, AI-assisted profile selection |
 | **x/multilayer** | Multi-layer architecture: Sidechains + Paychains + Rollups with cross-layer fee bundling and state anchoring |
 | **x/crossvm** | Cross-VM communication: EVM ↔ CosmWasm (precompile) + SVM (async events) |
-| **x/svm** | SVM runtime: BPF program deployment/execution, rent collection, Solana-compatible JSON-RPC |
+| **x/svm** | SVM runtime: BPF program deployment/execution, native programs (System, SPL Token, ATA, Memo), PDA derivation, CPI bridge, rent collection, 20 Solana-compatible JSON-RPC methods |
 | **x/vm** | VM routing and lifecycle management |
 
 ## Cross-Chain Connectivity
@@ -418,7 +418,7 @@ curl -X POST http://localhost:8545 -H "Content-Type: application/json" \
 |------|----------|-------------|
 | 8545 | HTTP | EVM JSON-RPC (`eth_`, `web3_`, `net_`, `txpool_`, `qor_` namespaces) |
 | 8546 | WebSocket | EVM JSON-RPC (WebSocket) |
-| 8899 | HTTP | SVM JSON-RPC (Solana-compatible: `getAccountInfo`, `getBalance`, `getSlot`, etc.) |
+| 8899 | HTTP | SVM JSON-RPC (Solana-compatible: 20 methods including `sendTransaction`, `getTokenAccountsByOwner`, `getLatestBlockhash`, etc.) |
 | 1317 | HTTP | REST API |
 | 9090 | gRPC | gRPC query endpoints |
 | 26657 | HTTP | RPC (blocks, transactions, consensus) |
@@ -643,7 +643,7 @@ Key decorators:
 ## Infrastructure
 
 - 3 separate Go modules: `qorechain-core/`, `sidecar/`, `indexer/`
-- 2 Rust crates: `qorepqc` (PQC cryptography), `qoresvm` (BPF executor)
+- 2 Rust crates: `qorepqc` (PQC cryptography), `qoresvm` (BPF executor + native programs, 139 tests)
 - 45 registered genesis modules, 18 custom modules
 - Docker Compose: 6-service deployment stack
 - GitHub Actions: 3 CI/CD workflows (build, release, docker)
