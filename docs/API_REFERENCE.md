@@ -195,22 +195,71 @@ Port: 8545 (HTTP), 8546 (WebSocket)
 
 Port: 8899 (HTTP)
 
-The SVM runtime exposes a Solana-compatible JSON-RPC interface. Existing Solana clients (e.g., `@solana/web3.js`) can connect directly.
+The SVM runtime exposes a Solana-compatible JSON-RPC interface with 20 methods. Existing Solana clients (e.g., `@solana/web3.js`) can connect directly.
 
-| Method | Parameters | Description |
-|--------|-----------|-------------|
-| `getAccountInfo` | `pubkey (base58)` | Account data, owner, lamports, executable flag |
-| `getBalance` | `pubkey (base58)` | Account balance in lamports |
-| `getSlot` | (none) | Current slot number (block height + offset) |
-| `getMinimumBalanceForRentExemption` | `dataLength (number)` | Minimum lamports for rent-exempt account |
-| `getVersion` | (none) | Runtime version (`1.18.0-qorechain`) |
-| `getHealth` | (none) | Health check (`"ok"`) |
+### Account & State Queries
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `getAccountInfo` | `pubkey (base58)` | `{data, executable, lamports, owner, rentEpoch}` | Account data, owner, lamports, executable flag |
+| `getBalance` | `pubkey (base58)` | `{value: number}` | Account balance in lamports |
+| `getMultipleAccounts` | `pubkeys (base58[])` | `{value: AccountInfo[]}` | Batch-fetch multiple accounts in a single call |
+| `getProgramAccounts` | `programId (base58)`, `filters? (object[])` | `[{pubkey, account}]` | All accounts owned by a program, with optional memcmp/dataSize filters |
+| `getSlot` | (none) | `number` | Current slot number (block height + offset) |
+| `getBlockHeight` | (none) | `number` | Current block height |
+| `getMinimumBalanceForRentExemption` | `dataLength (number)` | `number` | Minimum lamports for rent-exempt account |
+| `getVersion` | (none) | `{solana-core, feature-set}` | Runtime version (`1.18.0-qorechain`) |
+| `getHealth` | (none) | `"ok"` | Health check |
+
+### Transaction Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `sendTransaction` | `signedTx (base64)`, `options? {encoding, skipPreflight, preflightCommitment}` | `signature (base58)` | Submit a signed transaction for on-chain execution |
+| `simulateTransaction` | `signedTx (base64)`, `options? {sigVerify, replaceRecentBlockhash}` | `{err, logs, accounts, unitsConsumed}` | Simulate a transaction without committing state changes |
+| `getTransaction` | `signature (base58)`, `options? {encoding, commitment}` | `{slot, transaction, meta, blockTime}` | Full transaction details and execution metadata by signature |
+| `getSignaturesForAddress` | `address (base58)`, `options? {limit, before, until}` | `[{signature, slot, err, memo, blockTime}]` | Transaction signatures involving an address (newest first) |
+
+### Blockhash & Fee Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `getRecentBlockhash` | (none) | `{blockhash, feeCalculator}` | Recent blockhash for transaction signing |
+| `getLatestBlockhash` | `options? {commitment}` | `{blockhash, lastValidBlockHeight}` | Latest blockhash with validity window |
+| `isBlockhashValid` | `blockhash (base58)`, `options? {commitment}` | `{value: boolean}` | Check if a blockhash is still within its validity window |
+| `getFeeForMessage` | `message (base64)`, `options? {commitment}` | `{value: number}` | Estimated fee in lamports for a serialized transaction message |
+
+### Token Methods
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `getTokenAccountsByOwner` | `owner (base58)`, `{mint (base58)}` or `{programId (base58)}` | `[{pubkey, account}]` | All token accounts owned by a wallet, filtered by mint or token program |
+| `getTokenAccountsByDelegate` | `delegate (base58)`, `{mint (base58)}` or `{programId (base58)}` | `[{pubkey, account}]` | Token accounts where the given address has been approved as delegate |
+
+### Testnet Utilities
+
+| Method | Parameters | Returns | Description |
+|--------|-----------|---------|-------------|
+| `requestAirdrop` | `pubkey (base58)`, `lamports (number)` | `signature (base58)` | Request a testnet airdrop of lamports to an account |
 
 ### Example
 
 ```bash
+# Get account info
 curl -X POST http://localhost:8899 -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":1,"method":"getSlot","params":[]}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"getAccountInfo","params":["<base58-address>"]}'
+
+# Send a transaction
+curl -X POST http://localhost:8899 -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"sendTransaction","params":["<base64-signed-tx>"]}'
+
+# Get token accounts for a wallet
+curl -X POST http://localhost:8899 -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getTokenAccountsByOwner","params":["<owner-base58>",{"programId":"TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"}]}'
+
+# Get latest blockhash
+curl -X POST http://localhost:8899 -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"getLatestBlockhash","params":[]}'
 ```
 
 ## AI Sidecar gRPC
