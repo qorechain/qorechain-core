@@ -12,6 +12,7 @@ package ffi
 import "C"
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"unsafe"
@@ -107,6 +108,165 @@ func (e *FFIExecutor) Execute(program []byte, instruction []byte, accounts []typ
 	}
 
 	return result, nil
+}
+
+// ExecuteV2 runs a BPF program with full Solana-compatible account context.
+func (e *FFIExecutor) ExecuteV2(program []byte, accounts []types.SVMAccount, metas []types.AccountMeta,
+	instructionData []byte, programID [32]byte,
+	computeBudget uint64) (*types.ExecutionResult, error) {
+
+	if len(program) == 0 {
+		return nil, fmt.Errorf("empty program bytecode")
+	}
+
+	// Serialize accounts into BPF input format.
+	inputBuf, err := types.SerializeAccountsForBPF(accounts, metas, instructionData, programID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize accounts: %w", err)
+	}
+
+	// Calculate result buffer size: at least 64 KiB, or 2x the total account data.
+	totalDataSize := 0
+	for _, acc := range accounts {
+		totalDataSize += len(acc.Data)
+	}
+	resultBufCap := 65536
+	if totalDataSize*2 > resultBufCap {
+		resultBufCap = totalDataSize * 2
+	}
+	resultBuf := make([]byte, resultBufCap)
+	var resultLen C.size_t
+
+	ret := C.qore_svm_execute_v2(
+		(*C.uint8_t)(unsafe.Pointer(&program[0])),
+		C.size_t(len(program)),
+		(*C.uint8_t)(unsafe.Pointer(&inputBuf[0])),
+		C.size_t(len(inputBuf)),
+		C.uint64_t(computeBudget),
+		(*C.uint8_t)(unsafe.Pointer(&resultBuf[0])),
+		C.size_t(resultBufCap),
+		&resultLen,
+		nil, // callback_ctx
+		nil, // sysvar_callback — uses Rust defaults
+	)
+
+	actualLen := int(resultLen)
+	if actualLen > resultBufCap {
+		actualLen = resultBufCap
+	}
+
+	if ret < 0 {
+		if actualLen > 0 {
+			nullIdx := bytes.IndexByte(resultBuf[:actualLen], 0)
+			jsonEnd := actualLen
+			if nullIdx >= 0 {
+				jsonEnd = nullIdx
+			}
+			var summary resultSummaryV2
+			if err := json.Unmarshal(resultBuf[:jsonEnd], &summary); err == nil && summary.Error != "" {
+				return nil, fmt.Errorf("SVM v2 execution failed: %s (code %d)", summary.Error, ret)
+			}
+		}
+		return nil, fmt.Errorf("SVM v2 execution failed: error code %d", ret)
+	}
+
+	return parseV2Result(resultBuf, actualLen)
+}
+
+// ExecuteNative runs a native program directly (no BPF interpretation).
+func (e *FFIExecutor) ExecuteNative(programID [32]byte, accounts []types.SVMAccount, metas []types.AccountMeta,
+	instructionData []byte) (*types.ExecutionResult, error) {
+
+	// Serialize accounts into BPF input format.
+	inputBuf, err := types.SerializeAccountsForBPF(accounts, metas, instructionData, programID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to serialize accounts: %w", err)
+	}
+
+	// Result buffer — native programs typically return small results.
+	resultBufCap := 65536
+	resultBuf := make([]byte, resultBufCap)
+	var resultLen C.size_t
+
+	ret := C.qore_svm_execute_native(
+		(*C.uint8_t)(unsafe.Pointer(&programID[0])),
+		(*C.uint8_t)(unsafe.Pointer(&inputBuf[0])),
+		C.size_t(len(inputBuf)),
+		(*C.uint8_t)(unsafe.Pointer(&resultBuf[0])),
+		C.size_t(resultBufCap),
+		&resultLen,
+	)
+
+	actualLen := int(resultLen)
+	if actualLen > resultBufCap {
+		actualLen = resultBufCap
+	}
+
+	if ret < 0 {
+		if actualLen > 0 {
+			nullIdx := bytes.IndexByte(resultBuf[:actualLen], 0)
+			jsonEnd := actualLen
+			if nullIdx >= 0 {
+				jsonEnd = nullIdx
+			}
+			var summary resultSummaryV2
+			if err := json.Unmarshal(resultBuf[:jsonEnd], &summary); err == nil && summary.Error != "" {
+				return nil, fmt.Errorf("SVM native execution failed: %s (code %d)", summary.Error, ret)
+			}
+		}
+		return nil, fmt.Errorf("SVM native execution failed: error code %d", ret)
+	}
+
+	return parseV2Result(resultBuf, actualLen)
+}
+
+// parseV2Result parses the v2/native result buffer format:
+// JSON header (null-terminated) followed by optional binary modified accounts.
+func parseV2Result(resultBuf []byte, actualLen int) (*types.ExecutionResult, error) {
+	if actualLen == 0 {
+		return &types.ExecutionResult{Success: true}, nil
+	}
+
+	// Find null terminator separating JSON header from binary data.
+	nullIdx := bytes.IndexByte(resultBuf[:actualLen], 0)
+	jsonEnd := actualLen
+	if nullIdx >= 0 {
+		jsonEnd = nullIdx
+	}
+
+	var summary resultSummaryV2
+	if err := json.Unmarshal(resultBuf[:jsonEnd], &summary); err != nil {
+		return &types.ExecutionResult{
+			Success:    true,
+			ReturnData: resultBuf[:actualLen],
+		}, nil
+	}
+
+	result := &types.ExecutionResult{
+		Success:          summary.Status == "ok",
+		ComputeUnitsUsed: summary.CU,
+		Error:            summary.Error,
+	}
+
+	// Parse modified accounts from binary data after the null byte.
+	if nullIdx >= 0 && nullIdx+1 < actualLen {
+		modified, err := types.DeserializeModifiedAccounts(resultBuf[nullIdx+1 : actualLen])
+		if err != nil {
+			return nil, fmt.Errorf("failed to deserialize modified accounts: %w", err)
+		}
+		result.ModifiedAccounts = modified
+	}
+
+	return result, nil
+}
+
+// resultSummaryV2 mirrors the JSON structure returned by the Rust v2/native execute calls.
+type resultSummaryV2 struct {
+	Status      string `json:"status"`
+	CU          uint64 `json:"cu"`
+	Logs        int    `json:"logs"`
+	Error       string `json:"error"`
+	NumModified int    `json:"num_modified"`
 }
 
 // ValidateProgram verifies a BPF ELF binary is well-formed.

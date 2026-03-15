@@ -6,6 +6,13 @@ import (
 	"sync"
 )
 
+// Sysvar ID constants used by the sysvar callback mechanism.
+// These match the IDs expected by the Rust runtime.
+const (
+	SysvarClockID uint32 = 0
+	SysvarRentID  uint32 = 1
+)
+
 // SyscallHandler is a function that handles a Go-side syscall invoked by the
 // BPF program during execution. The Rust runtime will call back into Go when
 // a registered syscall ID is encountered.
