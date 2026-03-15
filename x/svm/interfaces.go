@@ -54,6 +54,12 @@ type SVMKeeper interface {
 	// ExportGenesis exports the module's current state.
 	ExportGenesis(ctx sdk.Context) *types.GenesisState
 
+	// IterateAccounts iterates over all SVM accounts.
+	IterateAccounts(ctx sdk.Context, cb func(types.SVMAccount) bool)
+
+	// GetAllAccounts returns all SVM accounts.
+	GetAllAccounts(ctx sdk.Context) []types.SVMAccount
+
 	// Logger returns the module's logger.
 	Logger() log.Logger
 }
