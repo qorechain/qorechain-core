@@ -119,6 +119,34 @@ func (s *Server) dispatch(req RPCRequest) (interface{}, *RPCError) {
 		return s.handleGetVersion(req.Params)
 	case "getHealth":
 		return s.handleGetHealth(req.Params)
+	case "sendTransaction":
+		return s.handleSendTransaction(req.Params)
+	case "simulateTransaction":
+		return s.handleSimulateTransaction(req.Params)
+	case "getProgramAccounts":
+		return s.handleGetProgramAccounts(req.Params)
+	case "getMultipleAccounts":
+		return s.handleGetMultipleAccounts(req.Params)
+	case "getSignaturesForAddress":
+		return s.handleGetSignaturesForAddress(req.Params)
+	case "getTransaction":
+		return s.handleGetTransaction(req.Params)
+	case "getTokenAccountsByOwner":
+		return s.handleGetTokenAccountsByOwner(req.Params)
+	case "getTokenAccountsByDelegate":
+		return s.handleGetTokenAccountsByDelegate(req.Params)
+	case "getRecentBlockhash":
+		return s.handleGetRecentBlockhash(req.Params)
+	case "getLatestBlockhash":
+		return s.handleGetLatestBlockhash(req.Params)
+	case "getBlockHeight":
+		return s.handleGetBlockHeight(req.Params)
+	case "getFeeForMessage":
+		return s.handleGetFeeForMessage(req.Params)
+	case "isBlockhashValid":
+		return s.handleIsBlockhashValid(req.Params)
+	case "requestAirdrop":
+		return s.handleRequestAirdrop(req.Params)
 	default:
 		return nil, &RPCError{Code: ErrCodeMethodNotFound, Message: fmt.Sprintf("method not found: %s", req.Method)}
 	}
