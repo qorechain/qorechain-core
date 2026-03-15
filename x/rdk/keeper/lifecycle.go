@@ -4,7 +4,6 @@ package keeper
 
 import (
 	"fmt"
-	"time"
 
 	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -83,7 +82,7 @@ func (k Keeper) CreateRollup(ctx sdk.Context, config types.RollupConfig) (*types
 		config.LayerID = config.RollupID
 	}
 	config.CreatedHeight = ctx.BlockHeight()
-	config.CreatedAt = time.Now().UTC()
+	config.CreatedAt = ctx.BlockTime().UTC()
 
 	if err := k.setRollup(ctx, config); err != nil {
 		return nil, err

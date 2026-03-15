@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"time"
 
 	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -78,7 +77,7 @@ func (k Keeper) storeNativeBlob(ctx sdk.Context, blob types.DABlob) *types.DACom
 	hash := sha256.Sum256(blob.Data)
 	blob.Commitment = hash[:]
 	blob.Height = ctx.BlockHeight()
-	blob.StoredAt = time.Now().UTC()
+	blob.StoredAt = ctx.BlockTime().UTC()
 	blob.Pruned = false
 
 	store := ctx.KVStore(k.storeKey)

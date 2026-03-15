@@ -151,8 +151,8 @@ func (k Keeper) GetCircuitBreaker(ctx sdk.Context, contractAddr string) *types.C
 	if err := json.Unmarshal(bz, &cb); err != nil {
 		return nil
 	}
-	// Check expiry
-	if !cb.ExpiresAt.IsZero() && time.Now().After(cb.ExpiresAt) {
+	// Check expiry using block time for determinism
+	if !cb.ExpiresAt.IsZero() && ctx.BlockTime().After(cb.ExpiresAt) {
 		store.Delete(key)
 		return nil
 	}
@@ -190,16 +190,22 @@ func (k Keeper) AnalyzeTransactionEnhanced(ctx sdk.Context, tx types.Transaction
 		} else {
 			fraudResult = fr
 			if fr.Action != "allow" {
+				// Generate deterministic investigation ID from block height + tx hash
+				// instead of using time.Now() which breaks consensus.
+				invID := fmt.Sprintf("INV-%d-%s", ctx.BlockHeight(), tx.TxHash)
+				if len(invID) > 48 {
+					invID = invID[:48]
+				}
 				// Store investigation
 				k.StoreFraudInvestigation(ctx, types.FraudInvestigation{
-					ID:          fr.InvestigationID,
+					ID:          invID,
 					ThreatType:  fr.ThreatType,
 					ThreatLevel: fr.ThreatLevel,
 					Sender:      tx.Sender,
 					Details:     fr.Details,
 					TxHash:      tx.TxHash,
 					Height:      ctx.BlockHeight(),
-					Timestamp:   time.Now(),
+					Timestamp:   ctx.BlockTime(),
 				})
 
 				// Circuit break if needed
@@ -207,8 +213,8 @@ func (k Keeper) AnalyzeTransactionEnhanced(ctx sdk.Context, tx types.Transaction
 					k.SetCircuitBreaker(ctx, types.CircuitBreakerState{
 						ContractAddr: tx.Receiver,
 						Reason:       fr.Details,
-						ActivatedAt:  time.Now(),
-						ExpiresAt:    time.Now().Add(1 * time.Hour),
+						ActivatedAt:  ctx.BlockTime(),
+						ExpiresAt:    ctx.BlockTime().Add(1 * time.Hour),
 					})
 				}
 			}
