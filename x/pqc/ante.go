@@ -77,7 +77,9 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 
 				switch algoStatus {
 				case types.StatusActive, types.StatusMigrating:
-					// Algorithm is operational - proceed with verification
+					// Algorithm is operational — actual PQC signature verification
+					// happens in PQCHybridVerifyDecorator. This decorator validates
+					// algorithm status is acceptable for transaction processing.
 					d.pqcKeeper.IncrementPQCVerifications(ctx)
 
 					ctx.EventManager().EmitEvent(sdk.NewEvent(
@@ -86,7 +88,7 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 						sdk.NewAttribute("key_type", acct.KeyType),
 						sdk.NewAttribute("algorithm_id", acct.AlgorithmID.String()),
 						sdk.NewAttribute("hybrid_mode", hybridMode.String()),
-						sdk.NewAttribute("status", "verified"),
+						sdk.NewAttribute("status", "algorithm_active"),
 					))
 
 				case types.StatusDeprecated:

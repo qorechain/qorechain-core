@@ -73,7 +73,17 @@ func (d PQCHybridVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulat
 			switch {
 			case hasPQC && hasExtension:
 				// Path 1: Account has PQC key and extension is present.
-				// The PQC signature must verify against the registered key.
+				// Verify the PQC signature against the registered public key.
+				acct, _ := d.pqcKeeper.GetPQCAccount(ctx, addr)
+				signBytes := d.getSignBytes(tx)
+				valid, err := d.ffiClient.Verify(acct.AlgorithmID, acct.PublicKey, signBytes, hybridSig.PQCSignature)
+				if err != nil {
+					return ctx, types.ErrHybridSigInvalid.Wrapf("PQC verification error for %s: %v", addr, err)
+				}
+				if !valid {
+					return ctx, types.ErrHybridSigInvalid.Wrapf("PQC signature verification failed for %s", addr)
+				}
+
 				d.pqcKeeper.IncrementHybridVerifications(ctx)
 
 				ctx.EventManager().EmitEvent(sdk.NewEvent(
@@ -85,7 +95,17 @@ func (d PQCHybridVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulat
 
 			case !hasPQC && hasExtension && hybridSig.HasPublicKey():
 				// Path 2: No PQC key but extension includes a public key.
-				// Auto-register the PQC key for this account.
+				// Verify the PQC signature against the provided public key
+				// BEFORE auto-registering.
+				signBytes := d.getSignBytes(tx)
+				valid, err := d.ffiClient.Verify(hybridSig.AlgorithmID, hybridSig.PQCPublicKey, signBytes, hybridSig.PQCSignature)
+				if err != nil {
+					return ctx, types.ErrHybridSigInvalid.Wrapf("PQC verification error for %s: %v", addr, err)
+				}
+				if !valid {
+					return ctx, types.ErrHybridSigInvalid.Wrapf("PQC signature verification failed for %s (auto-register)", addr)
+				}
+
 				newAccount := types.PQCAccountInfo{
 					Address:         addr,
 					PublicKey:       hybridSig.PQCPublicKey,
@@ -160,6 +180,20 @@ func (d PQCHybridVerifyDecorator) extractHybridSignature(tx sdk.Tx) (types.PQCHy
 	}
 
 	return types.PQCHybridSignature{}, false
+}
+
+// getSignBytes extracts the canonical body bytes from the transaction for PQC
+// signature verification. The wallet signs these same bytes with the PQC key.
+func (d PQCHybridVerifyDecorator) getSignBytes(tx sdk.Tx) []byte {
+	type hasBodyBytes interface {
+		GetBodyBytes() []byte
+	}
+	if bt, ok := tx.(hasBodyBytes); ok {
+		return bt.GetBodyBytes()
+	}
+	// Fallback: marshal the TX messages deterministically.
+	// This should not happen with standard SDK transactions.
+	return nil
 }
 
 // getSigners extracts signer addresses from a message.

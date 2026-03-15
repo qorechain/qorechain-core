@@ -84,18 +84,25 @@ func (s *PQCBridgeSigner) GenerateMLKEMCommitment(_ sdk.Context) ([]byte, []byte
 }
 
 // VerifyAttestationThreshold checks if enough validators have attested to an operation.
+// Only attestations with cryptographically valid PQC signatures count toward the threshold.
 func (s *PQCBridgeSigner) VerifyAttestationThreshold(ctx sdk.Context, op types.BridgeOperation) (bool, error) {
 	config := s.keeper.GetConfig(ctx)
 
+	// Quick check: not enough attestations even if all are valid.
 	if len(op.Attestations) < config.AttestationThreshold {
 		return false, nil
 	}
 
-	// Verify all attestations have valid PQC signatures
+	// Count only cryptographically valid attestations toward threshold.
+	validCount := 0
 	for _, att := range op.Attestations {
 		validator, found := s.keeper.GetBridgeValidator(ctx, att.Validator)
 		if !found {
-			continue // Skip validators that may have been deregistered
+			s.keeper.Logger().Warn("attestation from deregistered validator",
+				"validator", att.Validator,
+				"operation", op.ID,
+			)
+			continue
 		}
 
 		// Reconstruct sign bytes from attestation data
@@ -109,10 +116,13 @@ func (s *PQCBridgeSigner) VerifyAttestationThreshold(ctx sdk.Context, op types.B
 			s.keeper.Logger().Warn("invalid PQC signature in attestation",
 				"validator", att.Validator,
 				"operation", op.ID,
+				"error", err,
 			)
-			// Don't fail — just log. The attestation was verified when it was submitted.
+			continue
 		}
+
+		validCount++
 	}
 
-	return true, nil
+	return validCount >= config.AttestationThreshold, nil
 }
