@@ -10,14 +10,26 @@ import (
 	"github.com/qorechain/qorechain-core/x/svm/types"
 )
 
+// isNativeProgram returns true if the given program ID matches one of the
+// built-in native programs (System, SPL Token, ATA, Memo).
+func isNativeProgram(id [32]byte) bool {
+	return id == types.SystemProgramAddress ||
+		id == types.SPLTokenAddress ||
+		id == types.ATAAddress ||
+		id == types.MemoAddress
+}
+
 // ExecuteProgram orchestrates the execution of an SVM program instruction.
 //
+// Native programs (System, Token, ATA, Memo) are routed to ExecuteNative
+// which handles them without BPF interpretation. User-deployed programs are
+// executed via ExecuteV2 with full Solana-compatible account serialization.
+//
 // Steps:
-//  1. Load the program bytecode from the data account.
-//  2. Load all referenced accounts from the KVStore.
-//  3. Call the BPF executor (FFI bridge).
-//  4. Write back any modified accounts.
-//  5. Return the execution result with logs and compute units used.
+//  1. Load all referenced accounts from the KVStore.
+//  2. Route to ExecuteNative or ExecuteV2 based on the program ID.
+//  3. Write back any modified accounts that were declared writable.
+//  4. Return the execution result with logs and compute units used.
 func (k *Keeper) ExecuteProgram(
 	ctx sdk.Context,
 	programID [32]byte,
@@ -34,24 +46,6 @@ func (k *Keeper) ExecuteProgram(
 		return nil, types.ErrSVMDisabled.Wrap("BPF executor not initialized")
 	}
 
-	// Verify the program account exists and is executable.
-	progAcc, err := k.GetAccount(ctx, programID)
-	if err != nil {
-		return nil, types.ErrProgramNotFound.Wrapf("program %s: %v",
-			types.Base58Encode(programID), err)
-	}
-	if !progAcc.Executable {
-		return nil, types.ErrProgramNotExecutable.Wrapf("account %s is not executable",
-			types.Base58Encode(programID))
-	}
-
-	// Load the BPF bytecode.
-	bytecode, err := k.LoadProgramBytecode(ctx, programID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load bytecode for %s: %w",
-			types.Base58Encode(programID), err)
-	}
-
 	// Load account snapshots for the executor.
 	svmAccounts := make([]types.SVMAccount, len(accounts))
 	for i, meta := range accounts {
@@ -60,13 +54,11 @@ func (k *Keeper) ExecuteProgram(
 			// Create a zero-lamport account if it does not exist and is not a signer.
 			if !meta.IsSigner {
 				svmAccounts[i] = types.SVMAccount{
-					Address:    meta.Address,
-					Lamports:   0,
-					DataLen:    0,
-					Data:       []byte{},
-					Owner:      types.SystemProgramAddress,
-					Executable: false,
-					RentEpoch:  0,
+					Address:  meta.Address,
+					Lamports: 0,
+					DataLen:  0,
+					Data:     []byte{},
+					Owner:    types.SystemProgramAddress,
 				}
 				continue
 			}
@@ -76,10 +68,36 @@ func (k *Keeper) ExecuteProgram(
 		svmAccounts[i] = *acc
 	}
 
-	// Execute the BPF program.
-	result, err := k.executor.Execute(bytecode, instruction, svmAccounts, params.ComputeBudgetMax)
+	var result *types.ExecutionResult
+	var err error
+
+	if isNativeProgram(programID) {
+		// Native program execution — no bytecode needed.
+		result, err = k.executor.ExecuteNative(programID, svmAccounts, accounts, instruction)
+	} else {
+		// BPF program execution — verify the program account and load bytecode.
+		progAcc, lookupErr := k.GetAccount(ctx, programID)
+		if lookupErr != nil {
+			return nil, types.ErrProgramNotFound.Wrapf("program %s: %v",
+				types.Base58Encode(programID), lookupErr)
+		}
+		if !progAcc.Executable {
+			return nil, types.ErrProgramNotExecutable.Wrapf("account %s is not executable",
+				types.Base58Encode(programID))
+		}
+
+		bytecode, loadErr := k.LoadProgramBytecode(ctx, programID)
+		if loadErr != nil {
+			return nil, fmt.Errorf("failed to load bytecode for %s: %w",
+				types.Base58Encode(programID), loadErr)
+		}
+
+		result, err = k.executor.ExecuteV2(bytecode, svmAccounts, accounts, instruction,
+			programID, params.ComputeBudgetMax)
+	}
+
 	if err != nil {
-		return nil, fmt.Errorf("BPF execution error: %w", err)
+		return nil, fmt.Errorf("SVM execution error: %w", err)
 	}
 
 	// If the executor returned modified accounts, write them back to the store.
