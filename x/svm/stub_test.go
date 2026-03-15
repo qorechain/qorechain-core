@@ -98,5 +98,13 @@ type stubExecutorWrapper struct{}
 func (e *stubExecutorWrapper) Execute(_ []byte, _ []byte, _ []types.SVMAccount, _ uint64) (*types.ExecutionResult, error) {
 	return nil, types.ErrSVMDisabled
 }
+func (e *stubExecutorWrapper) ExecuteV2(_ []byte, _ []types.SVMAccount, _ []types.AccountMeta,
+	_ []byte, _ [32]byte, _ uint64) (*types.ExecutionResult, error) {
+	return nil, types.ErrSVMDisabled
+}
+func (e *stubExecutorWrapper) ExecuteNative(_ [32]byte, _ []types.SVMAccount, _ []types.AccountMeta,
+	_ []byte) (*types.ExecutionResult, error) {
+	return nil, types.ErrSVMDisabled
+}
 func (e *stubExecutorWrapper) ValidateProgram(_ []byte) error { return types.ErrSVMDisabled }
 func (e *stubExecutorWrapper) Close()                         {}
