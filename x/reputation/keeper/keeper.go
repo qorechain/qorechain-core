@@ -112,13 +112,19 @@ func (k Keeper) GetAllValidatorReputations(ctx sdk.Context) []types.ValidatorRep
 // R_i = α·S_i + β·P_i + γ·C_i + δ·T_i with time decay.
 func (k Keeper) CalculateReputation(ctx sdk.Context, valAddr string) float64 {
 	params := k.GetParams(ctx)
+	return k.calculateReputationWithParams(ctx, valAddr, params)
+}
+
+// calculateReputationWithParams avoids redundant GetParams calls when computing
+// scores in batch (e.g., during EndBlocker).
+func (k Keeper) calculateReputationWithParams(ctx sdk.Context, valAddr string, params types.ReputationParams) float64 {
 	rep, found := k.GetValidatorReputation(ctx, valAddr)
 	if !found {
 		return params.MinScore
 	}
 
 	// Component scores (each normalized to 0.0-1.0)
-	S := k.calculateStakeScore(ctx, valAddr)
+	S := rep.StakeScore // Use stored stake score directly
 	P := k.calculatePerformanceScore(rep)
 	C := k.calculateContributionScore(rep)
 	T := k.calculateTimeScore(ctx, rep)
@@ -141,18 +147,6 @@ func (k Keeper) CalculateReputation(ctx sdk.Context, valAddr string) float64 {
 	}
 
 	return smoothed
-}
-
-func (k Keeper) calculateStakeScore(ctx sdk.Context, valAddr string) float64 {
-	// Stake relative to total bonded — for MVP, return a default
-	// Full implementation requires querying the staking module
-	// which needs the validator address in ValAddress format.
-	// For testnet MVP, we use the stored stake score.
-	rep, found := k.GetValidatorReputation(ctx, valAddr)
-	if !found {
-		return 0.0
-	}
-	return rep.StakeScore
 }
 
 func (k Keeper) calculatePerformanceScore(rep types.ValidatorReputation) float64 {
@@ -195,10 +189,14 @@ func (k Keeper) EndBlocker(ctx sdk.Context) error {
 
 	proposerAddr := sdk.ConsAddress(proposer).String()
 
+	// Read params once for the entire batch instead of per-validator.
+	params := k.GetParams(ctx)
+
 	// Update all validator reputations
 	reps := k.GetAllValidatorReputations(ctx)
 	for _, rep := range reps {
-		// Update uptime for validators that signed this block
+		// Increment uptime for all registered validators.
+		// TODO: Check actual block signatures to only credit signing validators.
 		rep.UptimeBlocks++
 
 		// If this validator was the proposer, increment proposed blocks
@@ -206,8 +204,8 @@ func (k Keeper) EndBlocker(ctx sdk.Context) error {
 			rep.ProposedBlocks++
 		}
 
-		// Recalculate composite score
-		rep.CompositeScore = k.CalculateReputation(ctx, rep.Address)
+		// Recalculate composite score using pre-loaded params
+		rep.CompositeScore = k.calculateReputationWithParams(ctx, rep.Address, params)
 		rep.LastUpdatedHeight = ctx.BlockHeight()
 
 		k.SetValidatorReputation(ctx, rep)
