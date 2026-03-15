@@ -4,6 +4,7 @@ package keeper
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 
 	"cosmossdk.io/log"
@@ -90,12 +91,26 @@ func (k *Keeper) SetConfig(ctx sdk.Context, cfg types.AIConfig) error {
 
 // ---- Stats ----
 
+// statsSize is 5 * 8 = 40 bytes for binary-encoded AIStats.
+const statsSize = 40
+
 func (k Keeper) GetStats(ctx sdk.Context) types.AIStats {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get(types.StatsKey)
 	if bz == nil {
 		return types.AIStats{}
 	}
+	// Try binary format first (40 bytes = 5 x uint64).
+	if len(bz) == statsSize {
+		return types.AIStats{
+			TxsRouted:         binary.BigEndian.Uint64(bz[0:8]),
+			AnomaliesDetected: binary.BigEndian.Uint64(bz[8:16]),
+			ContractsScored:   binary.BigEndian.Uint64(bz[16:24]),
+			TxsFlagged:        binary.BigEndian.Uint64(bz[24:32]),
+			TxsRejected:       binary.BigEndian.Uint64(bz[32:40]),
+		}
+	}
+	// Fallback: JSON format (legacy or genesis import).
 	var stats types.AIStats
 	if err := json.Unmarshal(bz, &stats); err != nil {
 		return types.AIStats{}
@@ -105,7 +120,12 @@ func (k Keeper) GetStats(ctx sdk.Context) types.AIStats {
 
 func (k Keeper) SetStats(ctx sdk.Context, stats types.AIStats) {
 	store := ctx.KVStore(k.storeKey)
-	bz, _ := json.Marshal(stats)
+	bz := make([]byte, statsSize)
+	binary.BigEndian.PutUint64(bz[0:8], stats.TxsRouted)
+	binary.BigEndian.PutUint64(bz[8:16], stats.AnomaliesDetected)
+	binary.BigEndian.PutUint64(bz[16:24], stats.ContractsScored)
+	binary.BigEndian.PutUint64(bz[24:32], stats.TxsFlagged)
+	binary.BigEndian.PutUint64(bz[32:40], stats.TxsRejected)
 	store.Set(types.StatsKey, bz)
 }
 
