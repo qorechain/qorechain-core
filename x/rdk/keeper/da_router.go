@@ -115,7 +115,12 @@ func (k Keeper) GetDABlob(ctx sdk.Context, rollupID string, blobIndex uint64) (*
 	return &blob, nil
 }
 
-// PruneExpiredBlobs iterates all DA blobs and marks as pruned if past retention period.
+// maxPrunePerBlock caps the number of blobs pruned per EndBlocker call
+// to bound the work done per block and avoid gas spikes.
+const maxPrunePerBlock = 100
+
+// PruneExpiredBlobs iterates DA blobs and marks as pruned if past retention period.
+// Caps at maxPrunePerBlock per call to avoid excessive per-block work.
 func (k Keeper) PruneExpiredBlobs(ctx sdk.Context) (uint64, error) {
 	params := k.GetParams(ctx)
 	currentHeight := ctx.BlockHeight()
@@ -125,7 +130,7 @@ func (k Keeper) PruneExpiredBlobs(ctx sdk.Context) (uint64, error) {
 	iter := storetypes.KVStorePrefixIterator(store, types.DABlobPrefix)
 	defer iter.Close()
 
-	for ; iter.Valid(); iter.Next() {
+	for ; iter.Valid() && pruned < maxPrunePerBlock; iter.Next() {
 		var blob types.DABlob
 		if err := json.Unmarshal(iter.Value(), &blob); err != nil {
 			continue
