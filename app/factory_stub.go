@@ -112,8 +112,8 @@ func init() {
 	NewSVMComputeBudgetDecorator = func(keeper svmmod.SVMKeeper) sdk.AnteDecorator {
 		return svmmod.NewSVMComputeBudgetDecorator(keeper)
 	}
-	NewSVMDeductFeeDecorator = func(keeper svmmod.SVMKeeper) sdk.AnteDecorator {
-		return svmmod.NewSVMDeductFeeDecorator(keeper)
+	NewSVMDeductFeeDecorator = func(keeper svmmod.SVMKeeper, bankKeeper svmmod.SVMBankKeeper) sdk.AnteDecorator {
+		return svmmod.NewSVMDeductFeeDecorator(keeper, bankKeeper)
 	}
 
 	NewRLConsensusKeeper = func(_ codec.Codec, _ storetypes.StoreKey, logger log.Logger) rlconsensusmod.RLConsensusKeeper {

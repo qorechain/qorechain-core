@@ -73,7 +73,7 @@ var (
 	NewSVMAppModule               func(keeper svmmod.SVMKeeper) module.AppModule
 	NewSVMModuleBasic             func() module.AppModuleBasic
 	NewSVMComputeBudgetDecorator  func(keeper svmmod.SVMKeeper) sdk.AnteDecorator
-	NewSVMDeductFeeDecorator      func(keeper svmmod.SVMKeeper) sdk.AnteDecorator
+	NewSVMDeductFeeDecorator      func(keeper svmmod.SVMKeeper, bankKeeper svmmod.SVMBankKeeper) sdk.AnteDecorator
 
 	// RL Consensus module factories
 	NewRLConsensusKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) rlconsensusmod.RLConsensusKeeper

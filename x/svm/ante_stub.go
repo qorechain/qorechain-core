@@ -3,6 +3,8 @@
 package svm
 
 import (
+	"context"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -17,10 +19,16 @@ func (SVMComputeBudgetDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate
 	return next(ctx, tx, simulate)
 }
 
+// SVMBankKeeper defines the bank keeper methods required by the SVM fee decorator.
+type SVMBankKeeper interface {
+	GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
+	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
+}
+
 // SVMDeductFeeDecorator is a pass-through stub for public builds.
 type SVMDeductFeeDecorator struct{}
 
-func NewSVMDeductFeeDecorator(_ SVMKeeper) SVMDeductFeeDecorator {
+func NewSVMDeductFeeDecorator(_ SVMKeeper, _ SVMBankKeeper) SVMDeductFeeDecorator {
 	return SVMDeductFeeDecorator{}
 }
 

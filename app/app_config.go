@@ -157,6 +157,7 @@ var (
 					feegrant.ModuleName,
 					group.ModuleName,
 					protocolpooltypes.ModuleName,
+					"crossvm", // Process cross-VM message queue
 					"burn",
 					"xqore",
 					"inflation",

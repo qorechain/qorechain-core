@@ -49,6 +49,7 @@ type HandlerOptions struct {
 	PQCClient     pqcmod.PQCClient
 	AIKeeper             aimod.AIKeeper
 	SVMKeeper            svmmod.SVMKeeper
+	SVMBankKeeper        svmmod.SVMBankKeeper
 	FairBlockKeeper      fairblockmod.FairBlockKeeper
 	GasAbstractionKeeper gasabstractionmod.GasAbstractionKeeper
 
@@ -186,8 +187,8 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		NewFairBlockDecorator(options.FairBlockKeeper),
 		// SVM compute budget check — validates SVM messages are within params
 		NewSVMComputeBudgetDecorator(options.SVMKeeper),
-		// SVM fee deduction — placeholder for future compute-unit fee logic
-		NewSVMDeductFeeDecorator(options.SVMKeeper),
+		// SVM fee deduction — charges uqor per SVM execute/deploy message
+		NewSVMDeductFeeDecorator(options.SVMKeeper, options.SVMBankKeeper),
 		// Use EVM fee market min gas price instead of standard min gas price
 		cosmosante.NewMinGasPriceDecorator(fmParams),
 		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),

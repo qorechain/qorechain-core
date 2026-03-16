@@ -3,6 +3,7 @@
 package crossvm
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -22,9 +23,10 @@ import (
 )
 
 var (
-	_ module.AppModuleBasic = AppModuleBasic{}
-	_ module.HasGenesis     = AppModule{}
-	_ appmodule.AppModule   = AppModule{}
+	_ module.AppModuleBasic   = AppModuleBasic{}
+	_ module.HasGenesis       = AppModule{}
+	_ appmodule.AppModule     = AppModule{}
+	_ appmodule.HasEndBlocker = AppModule{}
 )
 
 type AppModuleBasic struct{}
@@ -91,6 +93,11 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMe
 		panic(fmt.Sprintf("failed to marshal crossvm genesis state: %v", err))
 	}
 	return bz
+}
+
+func (am AppModule) EndBlock(ctx context.Context) error {
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	return am.keeper.ProcessQueue(sdkCtx)
 }
 
 func (AppModule) ConsensusVersion() uint64 { return 1 }

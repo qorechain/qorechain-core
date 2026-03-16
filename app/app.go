@@ -525,6 +525,9 @@ func NewQoreChainApp(
 		app.CrossVMKeeper,
 		logger,
 	)
+	// NOTE: The BPF executor is wired inside NewSVMKeeper (via the full build keeper
+	// in full builds, which calls ffi.NewFFIExecutor + keeper.SetExecutor).
+	// In stub/community builds the executor remains nil and SVM ops return ErrSVMDisabled.
 
 	// Wire SVM into CrossVM routing so cross-VM messages can target SVM programs.
 	crossvmmod.SetSVMCallHandler(func(ctx sdk.Context, targetContract string, payload []byte, _ string) ([]byte, error) {
@@ -750,6 +753,7 @@ func (app *QoreChainApp) setAnteHandler(
 			PQCClient:             app.pqcClient,
 			AIKeeper:              app.AIKeeper,
 			SVMKeeper:             app.SVMKeeper,
+			SVMBankKeeper:         app.BankKeeper,
 			EVMAccountKeeper:      app.AccountKeeper,
 			FeeMarketKeeper:       app.FeeMarketKeeper,
 			EvmKeeper:             app.EVMKeeper,
