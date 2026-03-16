@@ -205,17 +205,12 @@ func (k Keeper) HandleBridgeWithdraw(ctx sdk.Context, msg types.MsgBridgeWithdra
 // HandleRegisterBridgeValidator registers a new bridge validator.
 func (k Keeper) HandleRegisterBridgeValidator(ctx sdk.Context, msg types.MsgRegisterBridgeValidator) error {
 	// Check if already registered
-	if _, found := k.GetBridgeValidator(ctx, msg.ValidatorAddress); found {
-		// Update existing validator
-		validator := types.BridgeValidator{
-			Address:         msg.ValidatorAddress,
-			PQCPubkey:       msg.PQCPubkey,
-			SupportedChains: msg.SupportedChains,
-			Reputation:      1.0,
-			Active:          true,
-			RegisteredAt:    ctx.BlockHeight(),
-		}
-		if err := k.SetBridgeValidator(ctx, validator); err != nil {
+	if existing, found := k.GetBridgeValidator(ctx, msg.ValidatorAddress); found {
+		// Update existing validator — preserve reputation and registration time
+		existing.Active = true
+		existing.PQCPubkey = msg.PQCPubkey
+		existing.SupportedChains = msg.SupportedChains
+		if err := k.SetBridgeValidator(ctx, existing); err != nil {
 			return err
 		}
 	} else {
@@ -366,8 +361,14 @@ func (k Keeper) ExecuteOperation(ctx sdk.Context, op *types.BridgeOperation) err
 		locked := k.GetLockedAmount(ctx, op.DestChain, op.Asset)
 		currentMinted, _ := types.ParseAmount(locked.TotalMinted)
 		amount, _ := types.ParseAmount(op.Amount)
+		if currentMinted.LT(amount) {
+			return fmt.Errorf("minted balance insufficient for withdrawal: have %s, need %s", currentMinted, amount)
+		}
 		locked.TotalMinted = currentMinted.Sub(amount).String()
 		currentLocked, _ := types.ParseAmount(locked.TotalLocked)
+		if currentLocked.LT(amount) {
+			return fmt.Errorf("locked balance insufficient for withdrawal: have %s, need %s", currentLocked, amount)
+		}
 		locked.TotalLocked = currentLocked.Sub(amount).String()
 		if err := k.SetLockedAmount(ctx, locked); err != nil {
 			return err
@@ -414,7 +415,9 @@ func (k Keeper) CheckCircuitBreakerLimits(ctx sdk.Context, chain string, amount 
 	if ctx.BlockHeight()-cb.LastResetHeight > blocksPerDay {
 		cb.CurrentDaily = "0"
 		cb.LastResetHeight = ctx.BlockHeight()
-		_ = k.SetCircuitBreaker(ctx, cb)
+		if err := k.SetCircuitBreaker(ctx, cb); err != nil {
+			k.Logger().Error("failed to update circuit breaker", "error", err)
+		}
 	}
 
 	dailyLimit, _ := types.ParseAmount(cb.DailyLimit)
@@ -434,5 +437,7 @@ func (k Keeper) IncrementDailyUsage(ctx sdk.Context, chain string, amount sdkmat
 	cb := k.GetCircuitBreaker(ctx, chain)
 	currentDaily, _ := types.ParseAmount(cb.CurrentDaily)
 	cb.CurrentDaily = currentDaily.Add(amount).String()
-	_ = k.SetCircuitBreaker(ctx, cb)
+	if err := k.SetCircuitBreaker(ctx, cb); err != nil {
+		k.Logger().Error("failed to update circuit breaker daily usage", "error", err)
+	}
 }

@@ -1,6 +1,9 @@
 package types
 
 import (
+	"fmt"
+
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -115,6 +118,8 @@ type MsgBridgeAttestation struct {
 	EventType    string `json:"event_type"` // "deposit" | "withdrawal_complete"
 	OperationID  string `json:"operation_id"`
 	TxHash       string `json:"tx_hash"`
+	Amount       sdkmath.Int `json:"amount"`
+	Asset        string `json:"asset"`
 	Proof        []byte `json:"proof"`
 	PQCSignature []byte `json:"pqc_signature"`
 }
@@ -143,6 +148,7 @@ func (msg MsgBridgeAttestation) GetSigners() []sdk.AccAddress {
 // GetSignBytes returns the attestation data that was signed.
 func (msg MsgBridgeAttestation) GetSignBytes() []byte {
 	// Deterministic byte representation for PQC signature verification
-	data := []byte(msg.Chain + "|" + msg.EventType + "|" + msg.OperationID + "|" + msg.TxHash)
-	return data
+	return []byte(fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+		msg.Chain, msg.EventType, msg.OperationID,
+		msg.TxHash, msg.Amount.String(), msg.Asset))
 }

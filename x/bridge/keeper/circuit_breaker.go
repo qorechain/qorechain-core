@@ -95,7 +95,9 @@ func (cb *BridgeCircuitBreaker) ResetDailyCounters(ctx sdk.Context) {
 		state := cb.keeper.GetCircuitBreaker(ctx, chain.ChainID)
 		state.CurrentDaily = "0"
 		state.LastResetHeight = ctx.BlockHeight()
-		_ = cb.keeper.SetCircuitBreaker(ctx, state)
+		if err := cb.keeper.SetCircuitBreaker(ctx, state); err != nil {
+			cb.keeper.Logger().Error("failed to reset circuit breaker daily counter", "chain", chain.ChainID, "error", err)
+		}
 	}
 }
 
@@ -104,7 +106,9 @@ func (cb *BridgeCircuitBreaker) ResetDailyCounters(ctx sdk.Context) {
 func (cb *BridgeCircuitBreaker) CheckAndTripOnAnomaly(ctx sdk.Context, chain string, recentOpsCount int, recentVolume sdkmath.Int) {
 	// Heuristic: if more than 50 operations in a short window, investigate
 	if recentOpsCount > 50 {
-		_ = cb.PauseBridge(ctx, chain, "anomalous operation volume detected")
+		if err := cb.PauseBridge(ctx, chain, "anomalous operation volume detected"); err != nil {
+			cb.keeper.Logger().Error("failed to pause bridge on anomaly", "chain", chain, "error", err)
+		}
 		return
 	}
 
@@ -112,7 +116,9 @@ func (cb *BridgeCircuitBreaker) CheckAndTripOnAnomaly(ctx sdk.Context, chain str
 	state := cb.keeper.GetCircuitBreaker(ctx, chain)
 	dailyLimit, _ := types.ParseAmount(state.DailyLimit)
 	if !dailyLimit.IsZero() && recentVolume.GT(dailyLimit.MulRaw(5)) {
-		_ = cb.PauseBridge(ctx, chain, "anomalous volume detected: exceeds 5x daily limit")
+		if err := cb.PauseBridge(ctx, chain, "anomalous volume detected: exceeds 5x daily limit"); err != nil {
+			cb.keeper.Logger().Error("failed to pause bridge on volume anomaly", "chain", chain, "error", err)
+		}
 	}
 }
 
@@ -140,7 +146,9 @@ func (cb *BridgeCircuitBreaker) ProcessChallengedOperations(ctx sdk.Context) {
 			)
 			op.Status = types.OpStatusFailed
 		}
-		_ = cb.keeper.SetOperation(ctx, op)
+		if err := cb.keeper.SetOperation(ctx, op); err != nil {
+			cb.keeper.Logger().Error("failed to update operation after challenge period", "operation_id", op.ID, "error", err)
+		}
 	}
 }
 

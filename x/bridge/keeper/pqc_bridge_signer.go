@@ -63,7 +63,7 @@ func (s *PQCBridgeSigner) VerifyAttestation(ctx sdk.Context, attestation types.M
 
 // GenerateMLKEMCommitment creates an ML-KEM commitment for a bridge operation.
 // This provides quantum-safe commitment to the operation parameters.
-func (s *PQCBridgeSigner) GenerateMLKEMCommitment(_ sdk.Context) ([]byte, []byte, error) {
+func (s *PQCBridgeSigner) GenerateMLKEMCommitment(ctx sdk.Context) ([]byte, []byte, error) {
 	pqcClient := s.keeper.pqcKeeper.PQCClient()
 
 	// Generate ephemeral ML-KEM keypair
@@ -71,12 +71,14 @@ func (s *PQCBridgeSigner) GenerateMLKEMCommitment(_ sdk.Context) ([]byte, []byte
 	if err != nil {
 		return nil, nil, err
 	}
+	s.keeper.pqcKeeper.IncrementMLKEMOperations(ctx)
 
 	// Encapsulate to create commitment
 	ciphertext, sharedSecret, err := pqcClient.MLKEMEncapsulate(pubkey)
 	if err != nil {
 		return nil, nil, err
 	}
+	s.keeper.pqcKeeper.IncrementMLKEMOperations(ctx)
 
 	// The ciphertext serves as the PQC commitment
 	// The shared secret can be used for additional verification
@@ -105,8 +107,8 @@ func (s *PQCBridgeSigner) VerifyAttestationThreshold(ctx sdk.Context, op types.B
 			continue
 		}
 
-		// Reconstruct sign bytes from attestation data
-		signBytes := []byte(op.SourceChain + "|" + string(op.Type) + "|" + op.ID + "|" + att.TxHash)
+		// Reconstruct sign bytes from attestation data (must match MsgBridgeAttestation.GetSignBytes)
+		signBytes := []byte(op.SourceChain + "|" + string(op.Type) + "|" + op.ID + "|" + att.TxHash + "|" + op.Amount + "|" + op.Asset)
 		valid, err := s.keeper.pqcKeeper.PQCClient().DilithiumVerify(
 			validator.PQCPubkey,
 			signBytes,

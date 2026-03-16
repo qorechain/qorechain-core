@@ -22,7 +22,7 @@ func NewIBCBridgeHandler(k Keeper) *IBCBridgeHandler {
 
 // WrapPacketWithPQC adds a PQC signature to an IBC packet for enhanced security.
 // The signature covers the packet data and can be verified by PQC-aware chains.
-func (h *IBCBridgeHandler) WrapPacketWithPQC(_ sdk.Context, packetData []byte) ([]byte, []byte, error) {
+func (h *IBCBridgeHandler) WrapPacketWithPQC(ctx sdk.Context, packetData []byte) ([]byte, []byte, error) {
 	// For IBC packets originating from QoreChain:
 	// 1. The packet data is signed with a Dilithium-5 key
 	// 2. The signature is included as packet metadata
@@ -40,11 +40,13 @@ func (h *IBCBridgeHandler) WrapPacketWithPQC(_ sdk.Context, packetData []byte) (
 	if err != nil {
 		return packetData, nil, nil // Non-fatal: return without PQC wrapper
 	}
+	h.keeper.pqcKeeper.IncrementMLKEMOperations(ctx)
 
 	ciphertext, _, err := pqcClient.MLKEMEncapsulate(pubkey)
 	if err != nil {
 		return packetData, nil, nil
 	}
+	h.keeper.pqcKeeper.IncrementMLKEMOperations(ctx)
 
 	return packetData, ciphertext, nil
 }

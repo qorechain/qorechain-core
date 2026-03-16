@@ -64,7 +64,7 @@ type BridgeConfig struct {
 // DefaultBridgeConfig returns default bridge configuration.
 func DefaultBridgeConfig() BridgeConfig {
 	return BridgeConfig{
-		MinValidators:          3,
+		MinValidators:          10,
 		AttestationThreshold:   7,
 		ChallengePeriodSecs:    86400, // 24 hours
 		LargeTransferThreshold: "100000000000", // 100,000 QOR equivalent in uqor
