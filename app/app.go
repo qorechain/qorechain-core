@@ -19,6 +19,10 @@ import (
 	nftkeeper "cosmossdk.io/x/nft/keeper"
 	upgradekeeper "cosmossdk.io/x/upgrade/keeper"
 
+	"github.com/ethereum/go-ethereum/common"
+
+	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
+
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/codec"
@@ -59,7 +63,7 @@ import (
 
 	// QoreChain EVM
 	srvflags "github.com/cosmos/evm/server/flags"
-	cosmosevmtypes "github.com/cosmos/evm/types"
+	antetypes "github.com/cosmos/evm/ante/types"
 	evmante "github.com/cosmos/evm/ante/evm"
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
@@ -74,9 +78,11 @@ import (
 	evmfeemarket "github.com/cosmos/evm/x/feemarket"
 	evmerc20 "github.com/cosmos/evm/x/erc20"
 	evmprecisebank "github.com/cosmos/evm/x/precisebank"
-	evmtransfer "github.com/cosmos/evm/x/ibc/transfer"
-	evmtransferkeeper "github.com/cosmos/evm/x/ibc/transfer/keeper"
-	evmtransferv2 "github.com/cosmos/evm/x/ibc/transfer/v2"
+
+	// IBC transfer (standard ibc-go — EVM transfer wrapper removed in v0.6.0)
+	ibctransfer "github.com/cosmos/ibc-go/v10/modules/apps/transfer"
+	ibctransferv2 "github.com/cosmos/ibc-go/v10/modules/apps/transfer/v2"
+	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
 
 	// CosmWasm
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
@@ -170,6 +176,10 @@ type QoreChainApp struct {
 	txConfig          client.TxConfig
 	interfaceRegistry codectypes.InterfaceRegistry
 
+	// EVM JSON-RPC integration
+	pendingTxListener func(common.Hash)
+	clientCtx         client.Context
+
 	// Standard keepers
 	AccountKeeper         authkeeper.AccountKeeper
 	BankKeeper            bankkeeper.BaseKeeper
@@ -191,7 +201,7 @@ type QoreChainApp struct {
 
 	// IBC keepers
 	IBCKeeper      *ibckeeper.Keeper
-	TransferKeeper evmtransferkeeper.Keeper
+	TransferKeeper ibctransferkeeper.Keeper
 
 	// EVM keepers (QoreChain EVM)
 	FeeMarketKeeper   feemarketkeeper.Keeper
@@ -351,6 +361,7 @@ func NewQoreChainApp(
 		app.FeeMarketKeeper,
 		&app.ConsensusParamsKeeper,
 		&app.Erc20Keeper, // forward reference — assigned below
+		9800,             // EVM chain ID for QoreChain testnet
 		"",               // tracer (empty = default)
 	)
 
@@ -366,8 +377,8 @@ func NewQoreChainApp(
 		&app.TransferKeeper, // forward reference — assigned below
 	)
 
-	// Step 5: EVM-wrapped IBC TransferKeeper (adds ERC-20 auto-registration)
-	app.TransferKeeper = evmtransferkeeper.NewKeeper(
+	// Step 5: Standard IBC TransferKeeper (EVM transfer wrapper removed in v0.6.0)
+	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		app.appCodec,
 		runtime.NewKVStoreService(transferStoreKey),
 		paramstypes.Subspace{}, // legacy param subspace (not needed for fresh chains)
@@ -376,7 +387,6 @@ func NewQoreChainApp(
 		app.MsgServiceRouter(),
 		app.AccountKeeper,
 		app.BankKeeper,
-		app.Erc20Keeper,
 		authAddr,
 	)
 
@@ -398,7 +408,7 @@ func NewQoreChainApp(
 		distrkeeper.NewQuerier(app.DistrKeeper),
 		app.IBCKeeper.ChannelKeeper, // ics4Wrapper
 		app.IBCKeeper.ChannelKeeper, // channelKeeper
-		app.TransferKeeper.Keeper,   // ICS20TransferPortSource
+		app.TransferKeeper,          // ICS20TransferPortSource
 		app.MsgServiceRouter(),
 		app.GRPCQueryRouter(),
 		wasmDir,
@@ -624,12 +634,12 @@ func NewQoreChainApp(
 
 	// IBC v1 transfer stack: channel → erc20 middleware → transfer
 	var transferStack porttypes.IBCModule
-	transferStack = evmtransfer.NewIBCModule(app.TransferKeeper)
+	transferStack = ibctransfer.NewIBCModule(app.TransferKeeper)
 	transferStack = evmerc20.NewIBCMiddleware(app.Erc20Keeper, transferStack)
 
 	// IBC v2 transfer stack
 	var transferStackV2 ibcapi.IBCModule
-	transferStackV2 = evmtransferv2.NewIBCModule(app.TransferKeeper)
+	transferStackV2 = ibctransferv2.NewIBCModule(app.TransferKeeper)
 	transferStackV2 = erc20v2.NewIBCMiddleware(transferStackV2, app.Erc20Keeper)
 
 	// Create IBC routers, add transfer route, set and seal
@@ -654,10 +664,10 @@ func NewQoreChainApp(
 	if err := app.RegisterModules(
 		// IBC modules
 		ibc.NewAppModule(app.IBCKeeper),
-		evmtransfer.NewAppModule(app.TransferKeeper),
+		ibctransfer.NewAppModule(app.TransferKeeper),
 		ibctm.NewAppModule(tmLightClientModule),
 		// EVM modules
-		evmvm.NewAppModule(app.EVMKeeper, app.AccountKeeper, app.AccountKeeper.AddressCodec()),
+		evmvm.NewAppModule(app.EVMKeeper, app.AccountKeeper, app.BankKeeper, app.AccountKeeper.AddressCodec()),
 		evmfeemarket.NewAppModule(app.FeeMarketKeeper),
 		evmerc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
 		evmprecisebank.NewAppModule(app.PreciseBankKeeper, app.BankKeeper, app.AccountKeeper),
@@ -723,6 +733,7 @@ func (app *QoreChainApp) setAnteHandler(
 	wasmNodeConfig wasmtypes.NodeConfig,
 	wasmStoreKey *storetypes.KVStoreKey,
 ) {
+	fmDefaults := feemarkettypes.DefaultParams()
 	anteHandler, err := NewAnteHandler(
 		HandlerOptions{
 			HandlerOptions: ante.HandlerOptions{
@@ -731,8 +742,8 @@ func (app *QoreChainApp) setAnteHandler(
 				SignModeHandler:        txConfig.SignModeHandler(),
 				FeegrantKeeper:         app.FeeGrantKeeper,
 				SigGasConsumer:         sigVerificationGasConsumerWithPQC,
-				ExtensionOptionChecker: cosmosevmtypes.HasDynamicFeeExtensionOption,
-				TxFeeChecker:          evmante.NewDynamicFeeChecker(app.FeeMarketKeeper),
+				ExtensionOptionChecker: antetypes.HasDynamicFeeExtensionOption,
+				TxFeeChecker:          evmante.NewDynamicFeeChecker(&fmDefaults),
 			},
 			CircuitKeeper:         &app.CircuitKeeper,
 			PQCKeeper:             app.PQCKeeper,
@@ -813,6 +824,26 @@ func (app *QoreChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
 		panic(err)
 	}
+}
+
+// RegisterPendingTxListener implements cosmosevmserver.AppWithPendingTxStream.
+// It registers a listener that is notified for each pending EVM transaction hash.
+func (app *QoreChainApp) RegisterPendingTxListener(listener func(common.Hash)) {
+	app.pendingTxListener = listener
+}
+
+// GetMempool returns the application's mempool as an ExtMempool.
+func (app *QoreChainApp) GetMempool() sdkmempool.ExtMempool {
+	mp := app.Mempool()
+	if ext, ok := mp.(sdkmempool.ExtMempool); ok {
+		return ext
+	}
+	return nil
+}
+
+// SetClientCtx sets the client context on the application (used by the EVM JSON-RPC server).
+func (app *QoreChainApp) SetClientCtx(clientCtx client.Context) {
+	app.clientCtx = clientCtx
 }
 
 // GetMaccPerms returns a copy of the module account permissions.

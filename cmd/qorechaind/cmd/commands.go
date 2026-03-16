@@ -79,11 +79,16 @@ func initRootCmd(
 	txConfig client.TxConfig,
 	basicManager module.BasicManager,
 ) {
+	// Wrap newApp for SDK commands that expect servertypes.AppCreator
+	sdkNewApp := func(l log.Logger, d dbm.DB, w io.Writer, o servertypes.AppOptions) servertypes.Application {
+		return newApp(l, d, w, o)
+	}
+
 	rootCmd.AddCommand(
 		genutilcli.InitCmd(basicManager, app.DefaultNodeHome),
 		debug.Cmd(),
-		pruning.Cmd(newApp, app.DefaultNodeHome),
-		snapshot.Cmd(newApp),
+		pruning.Cmd(sdkNewApp, app.DefaultNodeHome),
+		snapshot.Cmd(sdkNewApp),
 	)
 
 	// Use QoreChain EVM's custom server commands which include JSON-RPC support.
@@ -164,7 +169,7 @@ func newApp(
 	db dbm.DB,
 	traceStore io.Writer,
 	appOpts servertypes.AppOptions,
-) servertypes.Application {
+) cosmosevmserver.Application {
 	baseappOptions := server.DefaultBaseappOptions(appOpts)
 	return app.NewQoreChainApp(
 		logger, db, traceStore, true,

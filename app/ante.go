@@ -21,8 +21,10 @@ import (
 
 	cosmosevmante "github.com/cosmos/evm/ante"
 	cosmosante "github.com/cosmos/evm/ante/cosmos"
+	antetypes "github.com/cosmos/evm/ante/types"
 	evmante "github.com/cosmos/evm/ante/evm"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 
 	ibcante "github.com/cosmos/ibc-go/v10/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
@@ -88,8 +90,11 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 	}
 
 	// Pre-build both handler chains once to avoid per-TX allocation overhead.
-	evmHandler := newMonoEVMAnteHandler(options)
-	cosmosHandler := newCosmosAnteHandler(options)
+	// EVM mono decorator params are loaded from keepers at init and cached.
+	evmParams := evmtypes.DefaultParams()
+	fmParams := feemarkettypes.DefaultParams()
+	evmHandler := newMonoEVMAnteHandler(options, &evmParams, &fmParams)
+	cosmosHandler := newCosmosAnteHandler(options, &fmParams)
 
 	// Return the dual-routing ante handler function.
 	return func(ctx sdk.Context, tx sdk.Tx, sim bool) (sdk.Context, error) {
@@ -102,7 +107,7 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 				case "/cosmos.evm.vm.v1.ExtensionOptionsEthereumTx":
 					// EVM transaction — route to mono decorator
 					return evmHandler(ctx, tx, sim)
-				case "/cosmos.evm.types.v1.ExtensionOptionDynamicFeeTx":
+				case "/cosmos.evm.ante.v1.ExtensionOptionDynamicFeeTx":
 					// QoreChain SDK tx with dynamic fee — route to QoreChain SDK path
 					return cosmosHandler(ctx, tx, sim)
 				default:
@@ -126,13 +131,15 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 
 // newMonoEVMAnteHandler returns an AnteHandler for Ethereum transactions.
 // Uses the EVMMonoDecorator which handles all EVM-specific pre-checks in one pass.
-func newMonoEVMAnteHandler(options HandlerOptions) sdk.AnteHandler {
+func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		evmante.NewEVMMonoDecorator(
 			options.EVMAccountKeeper,
 			options.FeeMarketKeeper,
 			options.EvmKeeper,
 			options.MaxTxGasWanted,
+			evmParams,
+			fmParams,
 		),
 	)
 }
@@ -146,7 +153,7 @@ func newMonoEVMAnteHandler(options HandlerOptions) sdk.AnteHandler {
 //   - Standard SDK decorators
 //   - IBC redundant relay check
 //   - EVM gas wanted tracking
-func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
+func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		// Reject MsgEthereumTx on the QoreChain SDK path — must use ExtensionOptionsEthereumTx
 		cosmosante.NewRejectMessagesDecorator(),
@@ -180,7 +187,7 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		// SVM fee deduction — placeholder for future compute-unit fee logic
 		NewSVMDeductFeeDecorator(options.SVMKeeper),
 		// Use EVM fee market min gas price instead of standard min gas price
-		cosmosante.NewMinGasPriceDecorator(options.FeeMarketKeeper, options.EvmKeeper),
+		cosmosante.NewMinGasPriceDecorator(fmParams),
 		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),
 		// Gas abstraction — convert non-native fee denoms for fee deduction
 		NewGasAbstractionDecorator(options.GasAbstractionKeeper),
@@ -193,7 +200,7 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		// IBC redundant relay check — prevents relayers from wasting fees
 		ibcante.NewRedundantRelayDecorator(options.IBCKeeper),
 		// Track cumulative gas wanted for EIP-1559 base fee calculation
-		evmante.NewGasWantedDecorator(options.EvmKeeper, options.FeeMarketKeeper),
+		evmante.NewGasWantedDecorator(options.EvmKeeper, options.FeeMarketKeeper, fmParams),
 	)
 }
 
@@ -207,3 +214,6 @@ func sigVerificationGasConsumerWithPQC(
 ) error {
 	return cosmosevmante.SigVerificationGasConsumer(meter, sig, params)
 }
+
+// Ensure antetypes import is used for extension option checking.
+var _ = antetypes.HasDynamicFeeExtensionOption
