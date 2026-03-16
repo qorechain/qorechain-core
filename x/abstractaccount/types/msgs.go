@@ -26,7 +26,10 @@ func (msg MsgCreateAbstractAccount) ValidateBasic() error {
 }
 
 func (msg MsgCreateAbstractAccount) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Owner)
+	addr, err := sdk.AccAddressFromBech32(msg.Owner)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }
 
@@ -56,6 +59,9 @@ func (msg MsgUpdateSpendingRules) ValidateBasic() error {
 }
 
 func (msg MsgUpdateSpendingRules) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Owner)
+	addr, err := sdk.AccAddressFromBech32(msg.Owner)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }

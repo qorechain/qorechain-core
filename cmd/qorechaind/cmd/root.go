@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -184,7 +185,13 @@ func ProvideClientContext(
 		WithHomeDir(app.DefaultNodeHome).
 		WithViper("")
 
-	clientCtx, _ = config.ReadFromClientConfig(clientCtx)
+	var cfgErr error
+	clientCtx, cfgErr = config.ReadFromClientConfig(clientCtx)
+	if cfgErr != nil {
+		// Non-fatal: config file may not exist yet (e.g., first run).
+		// Log via stderr since logger is not available here.
+		_, _ = fmt.Fprintf(os.Stderr, "warning: failed to read client config: %v\n", cfgErr)
+	}
 
 	txConfigOpts.TextualCoinMetadataQueryFn = authtxconfig.NewGRPCCoinMetadataQueryFn(clientCtx)
 	txConfig, err := tx.NewTxConfigWithOptions(clientCtx.Codec, txConfigOpts)

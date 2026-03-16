@@ -108,7 +108,11 @@ func (k Keeper) GetStats(ctx sdk.Context) types.QCAStats {
 
 func (k Keeper) SetStats(ctx sdk.Context, stats types.QCAStats) {
 	store := ctx.KVStore(k.storeKey)
-	bz, _ := json.Marshal(stats)
+	bz, err := json.Marshal(stats)
+	if err != nil {
+		k.logger.Error("failed to marshal QCA stats", "error", err)
+		return
+	}
 	store.Set(types.StatsKey, bz)
 }
 
@@ -149,14 +153,22 @@ func (k Keeper) GetReputationWeightedProposer(
 // setPoolClassificationKV stores a pool classification in the KV store.
 func (k Keeper) setPoolClassificationKV(ctx sdk.Context, pc types.PoolClassification) {
 	store := ctx.KVStore(k.storeKey)
-	bz, _ := json.Marshal(pc)
+	bz, err := json.Marshal(pc)
+	if err != nil {
+		k.logger.Error("failed to marshal pool classification", "validator", pc.ValidatorAddr, "error", err)
+		return
+	}
 	store.Set(types.PoolClassificationKey(pc.ValidatorAddr), bz)
 }
 
 // setSlashingRecordKV stores a slashing record in the KV store.
 func (k Keeper) setSlashingRecordKV(ctx sdk.Context, record types.SlashingRecord) {
 	store := ctx.KVStore(k.storeKey)
-	bz, _ := json.Marshal(record)
+	bz, err := json.Marshal(record)
+	if err != nil {
+		k.logger.Error("failed to marshal slashing record", "validator", record.ValidatorAddr, "error", err)
+		return
+	}
 	store.Set(types.SlashingRecordKey(record.ValidatorAddr, record.InfractionHeight), bz)
 }
 

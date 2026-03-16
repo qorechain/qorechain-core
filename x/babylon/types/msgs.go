@@ -29,7 +29,10 @@ func (msg MsgSubmitBTCCheckpoint) ValidateBasic() error {
 }
 
 func (msg MsgSubmitBTCCheckpoint) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Submitter)
+	addr, err := sdk.AccAddressFromBech32(msg.Submitter)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }
 
@@ -55,6 +58,9 @@ func (msg MsgBTCRestake) ValidateBasic() error {
 }
 
 func (msg MsgBTCRestake) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Staker)
+	addr, err := sdk.AccAddressFromBech32(msg.Staker)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }

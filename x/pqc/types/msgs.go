@@ -35,7 +35,10 @@ func (msg *MsgRegisterPQCKey) ValidateBasic() error {
 }
 
 func (msg *MsgRegisterPQCKey) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Sender)
+	addr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }
 
@@ -76,7 +79,10 @@ func (msg *MsgRegisterPQCKeyV2) ValidateBasic() error {
 }
 
 func (msg *MsgRegisterPQCKeyV2) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Sender)
+	addr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }
 
@@ -122,7 +128,10 @@ func (msg *MsgMigratePQCKey) ValidateBasic() error {
 }
 
 func (msg *MsgMigratePQCKey) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Sender)
+	addr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }
 
@@ -149,7 +158,10 @@ func (msg *MsgAddAlgorithm) ValidateBasic() error {
 }
 
 func (msg *MsgAddAlgorithm) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Authority)
+	addr, err := sdk.AccAddressFromBech32(msg.Authority)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }
 
@@ -185,7 +197,10 @@ func (msg *MsgDeprecateAlgorithm) ValidateBasic() error {
 }
 
 func (msg *MsgDeprecateAlgorithm) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Authority)
+	addr, err := sdk.AccAddressFromBech32(msg.Authority)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }
 
@@ -214,7 +229,10 @@ func (msg *MsgDisableAlgorithm) ValidateBasic() error {
 }
 
 func (msg *MsgDisableAlgorithm) GetSigners() []sdk.AccAddress {
-	addr, _ := sdk.AccAddressFromBech32(msg.Authority)
+	addr, err := sdk.AccAddressFromBech32(msg.Authority)
+	if err != nil {
+		panic(err)
+	}
 	return []sdk.AccAddress{addr}
 }
 
