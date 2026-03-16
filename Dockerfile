@@ -29,6 +29,14 @@ COPY --from=builder /build/qorechaind /usr/local/bin/
 COPY scripts/ /scripts/
 RUN chmod +x /scripts/*.sh
 
+# Create non-root user
+RUN useradd -r -u 1000 -d /home/qorechaind -s /sbin/nologin qorechaind && \
+    mkdir -p /home/qorechaind/.qorechaind && \
+    chown -R qorechaind:qorechaind /home/qorechaind
+
+USER qorechaind
+WORKDIR /home/qorechaind
+
 # QoreChain RPC, P2P, REST, gRPC, Prometheus, EVM JSON-RPC, EVM WS
 EXPOSE 26657 26656 1317 9090 26660 8545 8546
 
