@@ -19,6 +19,7 @@ var (
 	NetworkRecommendationPrefix = []byte("ai/network-recommendations/")
 	CircuitBreakerPrefix       = []byte("ai/circuit-breakers/")
 	ExtendedStatsKey           = []byte("ai/extended-stats")
+	TxHistoryPrefix            = []byte("ai/tx-history/")
 )
 
 // HeightKey builds a store key by appending a big-endian encoded height

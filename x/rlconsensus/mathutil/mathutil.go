@@ -82,6 +82,52 @@ func TaylorLn1PlusX(x sdkmath.LegacyDec) sdkmath.LegacyDec {
 	return result.Add(sum)
 }
 
+// LnDec computes ln(x) for x > 0 using argument reduction to [1, 2) and
+// the Taylor series for ln(1+u) where u = x-1 is in [0, 1).
+// This is more numerically stable than TaylorLn1PlusX for large arguments
+// because it reduces x by halving (O(log x) steps) and the residual u
+// stays in [0, 1) where the series converges well.
+func LnDec(x sdkmath.LegacyDec) sdkmath.LegacyDec {
+	if !x.IsPositive() {
+		return zero
+	}
+	ln2 := sdkmath.LegacyMustNewDecFromStr("0.693147180559945309")
+	count := int64(0)
+	for x.GTE(two) {
+		x = x.Quo(two)
+		count++
+	}
+	// For x < 1, use ln(x) = -ln(1/x)
+	negCount := int64(0)
+	for x.LT(one) {
+		x = x.Mul(two)
+		negCount++
+	}
+	// Now x is in [1, 2), so x-1 is in [0, 1) — Taylor series converges
+	u := x.Sub(one)
+	sum := TaylorLn1PlusXSmall(u)
+	return sum.Add(ln2.MulInt64(count)).Sub(ln2.MulInt64(negCount))
+}
+
+// TaylorLn1PlusXSmall computes ln(1+u) for u in [0, 1) using 20 terms of the
+// Taylor series. This achieves better precision than the 15-term version
+// when u is close to the boundary.
+func TaylorLn1PlusXSmall(u sdkmath.LegacyDec) sdkmath.LegacyDec {
+	term := u
+	sum := zero
+	for n := 1; n <= 20; n++ {
+		nDec := sdkmath.LegacyNewDec(int64(n))
+		contrib := term.Quo(nDec)
+		if n%2 == 1 {
+			sum = sum.Add(contrib)
+		} else {
+			sum = sum.Sub(contrib)
+		}
+		term = term.Mul(u)
+	}
+	return sum
+}
+
 // SigmoidApprox computes the sigmoid function using the Taylor exp approximation.
 // sigmoid(x) = exp(x) / (1 + exp(x))
 //

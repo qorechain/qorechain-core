@@ -229,6 +229,18 @@ func (k Keeper) EndBlocker(ctx sdk.Context) error {
 	// Read params once for the entire batch instead of per-validator.
 	params := k.GetParams(ctx)
 
+	// Ensure every signing validator has a reputation record.
+	// Newly-joined validators get JoinedAtHeight set to the current block.
+	for addr := range signers {
+		if _, found := k.GetValidatorReputation(ctx, addr); !found {
+			k.SetValidatorReputation(ctx, types.ValidatorReputation{
+				Address:        addr,
+				JoinedAtHeight: ctx.BlockHeight(),
+				CompositeScore: params.MinScore,
+			})
+		}
+	}
+
 	// Update all validator reputations
 	reps := k.GetAllValidatorReputations(ctx)
 	for _, rep := range reps {
@@ -303,6 +315,10 @@ func (k Keeper) InitGenesis(ctx sdk.Context, gs types.GenesisState) {
 		panic(fmt.Sprintf("failed to set reputation params: %v", err))
 	}
 	for _, val := range gs.Validators {
+		// Ensure JoinedAtHeight is set for genesis validators
+		if val.JoinedAtHeight == 0 {
+			val.JoinedAtHeight = ctx.BlockHeight()
+		}
 		k.SetValidatorReputation(ctx, val)
 	}
 }
