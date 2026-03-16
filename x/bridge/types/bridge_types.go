@@ -304,9 +304,16 @@ type BridgeOperation struct {
 	Status           OperationStatus   `json:"status"`
 	Attestations     []Attestation     `json:"attestations"`
 	PQCCommitment    []byte            `json:"pqc_commitment,omitempty"`
+	RetryCount       int               `json:"retry_count"`
 	CreatedAt        time.Time         `json:"created_at"`
 	CompletedAt      *time.Time        `json:"completed_at,omitempty"`
 	ChallengeEndTime *time.Time        `json:"challenge_end_time,omitempty"`
+}
+
+// WrappedDenom returns the bridge-wrapped denomination for a given asset and
+// source chain, e.g. "bridge/ethereum/USDC".
+func WrappedDenom(asset, sourceChain string) string {
+	return "bridge/" + sourceChain + "/" + asset
 }
 
 // Attestation represents a bridge validator's attestation for an operation.

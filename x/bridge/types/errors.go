@@ -22,4 +22,8 @@ var (
 	ErrChallengePeriodActive      = errors.Register(ModuleName, 18, "challenge period still active")
 	ErrUnauthorizedAttestor       = errors.Register(ModuleName, 19, "attestor pubkey not registered as bridge validator")
 	ErrOperationExecuting         = errors.Register(ModuleName, 20, "operation is currently executing")
+	ErrInvalidDepositProof        = errors.Register(ModuleName, 21, "invalid deposit proof")
+	ErrOperationMaxRetries        = errors.Register(ModuleName, 22, "operation exhausted maximum retries")
+	ErrMintFailed                 = errors.Register(ModuleName, 23, "failed to mint bridged tokens")
+	ErrCircuitBreakerResetFailed  = errors.Register(ModuleName, 24, "failed to persist circuit breaker reset")
 )
