@@ -18,7 +18,7 @@ services:
     volumes:
       - node-data:/root/.qorechaind
     environment:
-      - CHAIN_ID=qorechain-testnet-1
+      - CHAIN_ID=qorechain-diana
       - MONIKER=qorechain-validator-1
       - AI_SIDECAR_ADDRESS=ai-sidecar:50051
       - LD_LIBRARY_PATH=/usr/local/lib
