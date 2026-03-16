@@ -26,9 +26,9 @@ func (h *HeuristicSelector) SelectProposer(
 	scores map[string]float64,
 	blockHash []byte,
 	height int64,
-) string {
+) (string, error) {
 	if len(validators) == 0 {
-		return ""
+		return "", types.ErrNoValidators
 	}
 
 	// Calculate weights: reputation * stake
@@ -53,7 +53,7 @@ func (h *HeuristicSelector) SelectProposer(
 	}
 
 	if len(weighted) == 0 || totalWeight == 0 {
-		return ""
+		return "", types.ErrNoValidators
 	}
 
 	// Deterministic random using block hash + height
@@ -73,10 +73,10 @@ func (h *HeuristicSelector) SelectProposer(
 	for _, wv := range weighted {
 		cumulative += wv.weight
 		if cumulative >= target {
-			return wv.address
+			return wv.address, nil
 		}
 	}
 
 	// Fallback to last
-	return weighted[len(weighted)-1].address
+	return weighted[len(weighted)-1].address, nil
 }

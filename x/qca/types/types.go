@@ -35,7 +35,7 @@ type QCAStats struct {
 // ValidatorSelector is the interface for validator/proposer selection.
 // MVP: HeuristicSelector. Future: AI-driven selection.
 type ValidatorSelector interface {
-	SelectProposer(validators []ValidatorInfo, scores map[string]float64, blockHash []byte, height int64) string
+	SelectProposer(validators []ValidatorInfo, scores map[string]float64, blockHash []byte, height int64) (string, error)
 }
 
 // ValidatorInfo holds minimal validator data for selection.

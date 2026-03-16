@@ -128,7 +128,12 @@ func (k Keeper) GetReputationWeightedProposer(
 	var selected string
 	if config.UseReputationWeighting {
 		blockHash := ctx.BlockHeader().LastBlockId.Hash
-		selected = k.selector.SelectProposer(validators, scores, blockHash, ctx.BlockHeight())
+		addr, err := k.selector.SelectProposer(validators, scores, blockHash, ctx.BlockHeight())
+		if err != nil {
+			k.logger.Warn("proposer selection failed", "error", err)
+			return ""
+		}
+		selected = addr
 
 		stats := k.GetStats(ctx)
 		stats.ProposerSelections++
