@@ -39,7 +39,7 @@ func (s *PoolWeightedSelector) SelectProposer(
 	scores map[string]float64,
 	blockHash []byte,
 	height int64,
-) string {
+) (string, error) {
 	return s.inner.SelectProposer(validators, scores, blockHash, height)
 }
 
@@ -125,7 +125,10 @@ func (k Keeper) GetPoolWeightedProposer(ctx sdk.Context, validators []types.Vali
 	}
 
 	selector := NewHeuristicSelector()
-	selected := selector.SelectProposer(poolVals, scores, blockHash, ctx.BlockHeight())
+	selected, err := selector.SelectProposer(poolVals, scores, blockHash, ctx.BlockHeight())
+	if err != nil {
+		return k.GetReputationWeightedProposer(ctx, validators)
+	}
 
 	// Update stats
 	stats := k.GetStats(ctx)
