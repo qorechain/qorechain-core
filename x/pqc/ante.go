@@ -43,7 +43,7 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 
 	msgs := sigTx.GetMsgs()
 	for _, msg := range msgs {
-		signers, _, err := d.getSigners(msg)
+		signers, err := getSigners(msg)
 		if err != nil {
 			continue
 		}
@@ -70,7 +70,7 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 
 			case types.KeyTypeHybrid, types.KeyTypePQCOnly:
 				// Verify the algorithm is still active or migrating
-				algoStatus, err := d.checkAlgorithmStatus(ctx, acct.AlgorithmID)
+				algoStatus, err := checkAlgorithmStatus(ctx, d.pqcKeeper, acct.AlgorithmID)
 				if err != nil {
 					return ctx, err
 				}
@@ -134,23 +134,21 @@ func (d PQCVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 // checkAlgorithmStatus returns the current status of the specified algorithm.
 // If the algorithm is not found in the registry, it defaults to Active for
 // built-in algorithms (Dilithium-5, ML-KEM-1024) to maintain backward compatibility.
-func (d PQCVerifyDecorator) checkAlgorithmStatus(ctx sdk.Context, id types.AlgorithmID) (types.AlgorithmStatus, error) {
-	algo, err := d.pqcKeeper.GetAlgorithm(ctx, id)
+func checkAlgorithmStatus(ctx sdk.Context, pqcKeeper keeper.Keeper, algorithmID types.AlgorithmID) (types.AlgorithmStatus, error) {
+	algo, err := pqcKeeper.GetAlgorithm(ctx, algorithmID)
 	if err != nil {
 		// For built-in algorithms not yet registered in the store (pre-v0.6.0 genesis),
 		// treat as active for backward compatibility.
-		if id == types.AlgorithmDilithium5 || id == types.AlgorithmMLKEM1024 {
+		if algorithmID == types.AlgorithmDilithium5 || algorithmID == types.AlgorithmMLKEM1024 {
 			return types.StatusActive, nil
 		}
-		return 0, types.ErrInvalidAlgorithm.Wrapf("unknown algorithm %s", id)
+		return 0, types.ErrInvalidAlgorithm.Wrapf("unknown algorithm %s", algorithmID)
 	}
 	return algo.Status, nil
 }
 
 // getSigners extracts signer addresses from a message.
-func (d PQCVerifyDecorator) getSigners(msg sdk.Msg) ([][]byte, []string, error) {
-	// In SDK v0.53, messages implement the HasGetSigners interface
-	// or use the proto reflection-based signer extraction.
+func getSigners(msg sdk.Msg) ([][]byte, error) {
 	type hasGetSigners interface {
 		GetSigners() []sdk.AccAddress
 	}
@@ -160,7 +158,7 @@ func (d PQCVerifyDecorator) getSigners(msg sdk.Msg) ([][]byte, []string, error) 
 		for i, addr := range addrs {
 			signers[i] = addr
 		}
-		return signers, nil, nil
+		return signers, nil
 	}
-	return nil, nil, nil
+	return nil, nil
 }

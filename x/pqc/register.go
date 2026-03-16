@@ -32,6 +32,7 @@ func (a *keeperAdapter) SetPQCAccount(ctx sdk.Context, info types.PQCAccountInfo
 }
 func (a *keeperAdapter) IncrementPQCVerifications(ctx sdk.Context)  { a.k.IncrementPQCVerifications(ctx) }
 func (a *keeperAdapter) IncrementClassicalFallbacks(ctx sdk.Context) { a.k.IncrementClassicalFallbacks(ctx) }
+func (a *keeperAdapter) IncrementMLKEMOperations(ctx sdk.Context)   { a.k.IncrementMLKEMOperations(ctx) }
 func (a *keeperAdapter) GetStats(ctx sdk.Context) types.PQCStats    { return a.k.GetStats(ctx) }
 func (a *keeperAdapter) SetStats(ctx sdk.Context, s types.PQCStats) { a.k.SetStats(ctx, s) }
 

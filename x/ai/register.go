@@ -26,10 +26,16 @@ func (a *keeperAdapter) SetConfig(ctx sdk.Context, cfg types.AIConfig) error { r
 func (a *keeperAdapter) GetStats(ctx sdk.Context) types.AIStats { return a.k.GetStats(ctx) }
 func (a *keeperAdapter) SetStats(ctx sdk.Context, s types.AIStats) { a.k.SetStats(ctx, s) }
 func (a *keeperAdapter) IncrementTxsRouted(ctx sdk.Context)     { a.k.IncrementTxsRouted(ctx) }
+func (a *keeperAdapter) IncrementContractsScored(ctx sdk.Context) { a.k.IncrementContractsScored(ctx) }
+func (a *keeperAdapter) IncrementTxsFlagged(ctx sdk.Context)      { a.k.IncrementTxsFlagged(ctx) }
 func (a *keeperAdapter) IncrementAnomaliesDetected(ctx sdk.Context) { a.k.IncrementAnomaliesDetected(ctx) }
+func (a *keeperAdapter) IncrementTxsRejected(ctx sdk.Context)      { a.k.IncrementTxsRejected(ctx) }
 func (a *keeperAdapter) FlagTransaction(ctx sdk.Context, f types.FlaggedTx) { a.k.FlagTransaction(ctx, f) }
 func (a *keeperAdapter) AnalyzeTransaction(ctx sdk.Context, tx types.TransactionInfo, history []types.TransactionInfo) (*types.AnomalyResult, error) {
 	return a.k.AnalyzeTransaction(ctx, tx, history)
+}
+func (a *keeperAdapter) ScoreContract(ctx sdk.Context, code []byte, chain string) (*types.RiskScore, error) {
+	return a.k.ScoreContract(ctx, code, chain)
 }
 func (a *keeperAdapter) InitGenesis(ctx sdk.Context, gs types.GenesisState) { a.k.InitGenesis(ctx, gs) }
 func (a *keeperAdapter) ExportGenesis(ctx sdk.Context) *types.GenesisState  { return a.k.ExportGenesis(ctx) }

@@ -4,6 +4,7 @@ package pqc
 
 import (
 	"encoding/json"
+	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -64,18 +65,25 @@ func (d PQCHybridVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulat
 
 	msgs := sigTx.GetMsgs()
 	for _, msg := range msgs {
-		signers := d.getSigners(msg)
+		signers, _ := getSigners(msg)
 
 		for _, signer := range signers {
 			addr := sdk.AccAddress(signer).String()
-			_, hasPQC := d.pqcKeeper.GetPQCAccount(ctx, addr)
+			acct, hasPQC := d.pqcKeeper.GetPQCAccount(ctx, addr)
 
 			switch {
 			case hasPQC && hasExtension:
 				// Path 1: Account has PQC key and extension is present.
+				// Check algorithm ID mismatch before verification.
+				if hybridSig.AlgorithmID != 0 && hybridSig.AlgorithmID != acct.AlgorithmID {
+					return ctx, types.ErrInvalidHybridSig.Wrap("extension algorithm ID does not match registered key")
+				}
+
 				// Verify the PQC signature against the registered public key.
-				acct, _ := d.pqcKeeper.GetPQCAccount(ctx, addr)
-				signBytes := d.getSignBytes(tx)
+				signBytes, sbErr := getSignBytes(tx)
+				if sbErr != nil {
+					return ctx, types.ErrHybridSigInvalid.Wrapf("cannot extract sign bytes: %v", sbErr)
+				}
 				valid, err := d.ffiClient.Verify(acct.AlgorithmID, acct.PublicKey, signBytes, hybridSig.PQCSignature)
 				if err != nil {
 					return ctx, types.ErrHybridSigInvalid.Wrapf("PQC verification error for %s: %v", addr, err)
@@ -95,9 +103,22 @@ func (d PQCHybridVerifyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulat
 
 			case !hasPQC && hasExtension && hybridSig.HasPublicKey():
 				// Path 2: No PQC key but extension includes a public key.
+				// Check algorithm status before auto-registration.
+				algoStatus, statusErr := checkAlgorithmStatus(ctx, d.pqcKeeper, hybridSig.AlgorithmID)
+				if statusErr != nil {
+					return ctx, statusErr
+				}
+				if algoStatus == types.StatusDisabled {
+					return ctx, types.ErrAlgorithmDisabled.Wrapf(
+						"cannot auto-register key: algorithm %s is disabled", hybridSig.AlgorithmID)
+				}
+
 				// Verify the PQC signature against the provided public key
 				// BEFORE auto-registering.
-				signBytes := d.getSignBytes(tx)
+				signBytes, sbErr := getSignBytes(tx)
+				if sbErr != nil {
+					return ctx, types.ErrHybridSigInvalid.Wrapf("cannot extract sign bytes: %v", sbErr)
+				}
 				valid, err := d.ffiClient.Verify(hybridSig.AlgorithmID, hybridSig.PQCPublicKey, signBytes, hybridSig.PQCSignature)
 				if err != nil {
 					return ctx, types.ErrHybridSigInvalid.Wrapf("PQC verification error for %s: %v", addr, err)
@@ -184,30 +205,12 @@ func (d PQCHybridVerifyDecorator) extractHybridSignature(tx sdk.Tx) (types.PQCHy
 
 // getSignBytes extracts the canonical body bytes from the transaction for PQC
 // signature verification. The wallet signs these same bytes with the PQC key.
-func (d PQCHybridVerifyDecorator) getSignBytes(tx sdk.Tx) []byte {
+func getSignBytes(tx sdk.Tx) ([]byte, error) {
 	type hasBodyBytes interface {
 		GetBodyBytes() []byte
 	}
-	if bt, ok := tx.(hasBodyBytes); ok {
-		return bt.GetBodyBytes()
+	if bbtx, ok := tx.(hasBodyBytes); ok {
+		return bbtx.GetBodyBytes(), nil
 	}
-	// Fallback: marshal the TX messages deterministically.
-	// This should not happen with standard SDK transactions.
-	return nil
-}
-
-// getSigners extracts signer addresses from a message.
-func (d PQCHybridVerifyDecorator) getSigners(msg sdk.Msg) [][]byte {
-	type hasGetSigners interface {
-		GetSigners() []sdk.AccAddress
-	}
-	if m, ok := msg.(hasGetSigners); ok {
-		addrs := m.GetSigners()
-		signers := make([][]byte, len(addrs))
-		for i, addr := range addrs {
-			signers[i] = addr
-		}
-		return signers
-	}
-	return nil
+	return nil, fmt.Errorf("transaction does not implement GetBodyBytes")
 }

@@ -3,6 +3,7 @@
 package keeper
 
 import (
+	"encoding/binary"
 	"encoding/json"
 
 	"cosmossdk.io/log"
@@ -115,12 +116,24 @@ func (k Keeper) HasPQCAccount(ctx sdk.Context, address string) bool {
 // ---- Stats ----
 
 // GetStats returns the module statistics.
+// Binary layout: 6 x uint64 = 48 bytes. Falls back to JSON for pre-migration data.
 func (k Keeper) GetStats(ctx sdk.Context) types.PQCStats {
 	store := ctx.KVStore(k.storeKey)
 	bz := store.Get(types.StatsKey)
 	if bz == nil {
 		return types.PQCStats{}
 	}
+	if len(bz) == 48 {
+		return types.PQCStats{
+			TotalPQCVerifications:   binary.LittleEndian.Uint64(bz[0:8]),
+			TotalClassicalFallbacks: binary.LittleEndian.Uint64(bz[8:16]),
+			TotalMLKEMOperations:    binary.LittleEndian.Uint64(bz[16:24]),
+			TotalDualSigVerifies:    binary.LittleEndian.Uint64(bz[24:32]),
+			TotalKeyMigrations:      binary.LittleEndian.Uint64(bz[32:40]),
+			TotalHybridVerifications: binary.LittleEndian.Uint64(bz[40:48]),
+		}
+	}
+	// JSON migration fallback
 	var stats types.PQCStats
 	if err := json.Unmarshal(bz, &stats); err != nil {
 		return types.PQCStats{}
@@ -128,10 +141,17 @@ func (k Keeper) GetStats(ctx sdk.Context) types.PQCStats {
 	return stats
 }
 
-// SetStats stores the module statistics.
+// SetStats stores the module statistics in binary format.
+// Layout: 6 x uint64 LE = 48 bytes.
 func (k Keeper) SetStats(ctx sdk.Context, stats types.PQCStats) {
 	store := ctx.KVStore(k.storeKey)
-	bz, _ := json.Marshal(stats)
+	bz := make([]byte, 48)
+	binary.LittleEndian.PutUint64(bz[0:8], stats.TotalPQCVerifications)
+	binary.LittleEndian.PutUint64(bz[8:16], stats.TotalClassicalFallbacks)
+	binary.LittleEndian.PutUint64(bz[16:24], stats.TotalMLKEMOperations)
+	binary.LittleEndian.PutUint64(bz[24:32], stats.TotalDualSigVerifies)
+	binary.LittleEndian.PutUint64(bz[32:40], stats.TotalKeyMigrations)
+	binary.LittleEndian.PutUint64(bz[40:48], stats.TotalHybridVerifications)
 	store.Set(types.StatsKey, bz)
 }
 
@@ -146,6 +166,13 @@ func (k Keeper) IncrementPQCVerifications(ctx sdk.Context) {
 func (k Keeper) IncrementClassicalFallbacks(ctx sdk.Context) {
 	stats := k.GetStats(ctx)
 	stats.TotalClassicalFallbacks++
+	k.SetStats(ctx, stats)
+}
+
+// IncrementMLKEMOperations increments the ML-KEM operation counter.
+func (k Keeper) IncrementMLKEMOperations(ctx sdk.Context) {
+	stats := k.GetStats(ctx)
+	stats.TotalMLKEMOperations++
 	k.SetStats(ctx, stats)
 }
 
