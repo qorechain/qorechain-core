@@ -20,4 +20,4 @@ exec qorechaind start \
     --api.address "tcp://0.0.0.0:1317" \
     --api.swagger true \
     --p2p.laddr "tcp://0.0.0.0:26656" \
-    --minimum-gas-prices "0uqor"
+    --minimum-gas-prices "${MIN_GAS_PRICE:-0.001uqor}"

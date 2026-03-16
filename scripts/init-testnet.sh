@@ -16,15 +16,15 @@ echo "Moniker:   $MONIKER"
 echo "Home:      $HOME_DIR"
 
 # Step 1: Initialize the node
-qorechaind init "$MONIKER" --chain-id "$CHAIN_ID" --home "$HOME_DIR" 2>/dev/null
+qorechaind init "$MONIKER" --chain-id "$CHAIN_ID" --home "$HOME_DIR" 2>&1 | grep -v "already exists" || true
 
 # Step 2: Create validator key
-qorechaind keys add validator --keyring-backend "$KEYRING" --home "$HOME_DIR" 2>/dev/null
+qorechaind keys add validator --keyring-backend "$KEYRING" --home "$HOME_DIR" 2>&1 | grep -v "already exists" || true
 VALIDATOR_ADDR=$(qorechaind keys show validator -a --keyring-backend "$KEYRING" --home "$HOME_DIR")
 echo "Validator address: $VALIDATOR_ADDR"
 
 # Step 3: Create faucet key
-qorechaind keys add faucet --keyring-backend "$KEYRING" --home "$HOME_DIR" 2>/dev/null
+qorechaind keys add faucet --keyring-backend "$KEYRING" --home "$HOME_DIR" 2>&1 | grep -v "already exists" || true
 FAUCET_ADDR=$(qorechaind keys show faucet -a --keyring-backend "$KEYRING" --home "$HOME_DIR")
 echo "Faucet address:    $FAUCET_ADDR"
 
@@ -52,38 +52,31 @@ qorechaind genesis collect-gentxs --home "$HOME_DIR"
 # Step 7: Customize genesis parameters
 GENESIS="$HOME_DIR/config/genesis.json"
 
-# Set bond denom
-jq '.app_state.staking.params.bond_denom = "uqor"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
-jq '.app_state.staking.params.unbonding_time = "600s"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
-jq '.app_state.staking.params.min_commission_rate = "0.050000000000000000"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
-
-# Set mint denom
-jq '.app_state.mint.minter.inflation = "0.130000000000000000"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
-
-# Set gov deposit denom and voting period
-jq '.app_state.gov.params.min_deposit[0].denom = "uqor"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
-jq '.app_state.gov.params.min_deposit[0].amount = "10000000"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
-jq '.app_state.gov.params.voting_period = "600s"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
-
-# Set crisis fee denom
-jq '.app_state.bank.denom_metadata = [
-  {
-    "description": "The native staking token of QoreChain",
-    "denom_units": [
-      {"denom": "uqor", "exponent": 0, "aliases": ["microqor"]},
-      {"denom": "mqor", "exponent": 3, "aliases": ["milliqor"]},
-      {"denom": "qor",  "exponent": 6, "aliases": ["QOR"]}
-    ],
-    "base": "uqor",
-    "display": "qor",
-    "name": "QOR",
-    "symbol": "QOR"
-  }
-]' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
-
-# Increase block size for PQC signatures (~4.6KB each)
-jq '.consensus.params.block.max_bytes = "4194304"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
-jq '.consensus.params.block.max_gas = "100000000"' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
+jq '
+  .app_state.staking.params.bond_denom = "uqor" |
+  .app_state.staking.params.unbonding_time = "600s" |
+  .app_state.staking.params.min_commission_rate = "0.050000000000000000" |
+  .app_state.mint.minter.inflation = "0.130000000000000000" |
+  .app_state.gov.params.min_deposit[0].denom = "uqor" |
+  .app_state.gov.params.min_deposit[0].amount = "10000000" |
+  .app_state.gov.params.voting_period = "600s" |
+  .app_state.bank.denom_metadata = [
+    {
+      "description": "The native staking token of QoreChain",
+      "denom_units": [
+        {"denom": "uqor", "exponent": 0, "aliases": ["microqor"]},
+        {"denom": "mqor", "exponent": 3, "aliases": ["milliqor"]},
+        {"denom": "qor",  "exponent": 6, "aliases": ["QOR"]}
+      ],
+      "base": "uqor",
+      "display": "qor",
+      "name": "QOR",
+      "symbol": "QOR"
+    }
+  ] |
+  .consensus.params.block.max_bytes = "4194304" |
+  .consensus.params.block.max_gas = "100000000"
+' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
 
 # Step 8: Configure QoreChain Consensus Engine
 CONFIG="$HOME_DIR/config/config.toml"

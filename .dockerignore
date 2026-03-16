@@ -1,0 +1,7 @@
+.git
+build/
+docs/
+*.md
+lib/
+rust/
+.github/

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ─────────────────────────────────────────────
   # QoreChain Node (validator)
@@ -25,7 +23,8 @@ services:
       - AI_SIDECAR_ADDRESS=ai-sidecar:50051
       - LD_LIBRARY_PATH=/usr/local/lib
     depends_on:
-      - ai-sidecar
+      ai-sidecar:
+        condition: service_healthy
     networks:
       - qorechain-net
     restart: unless-stopped
@@ -52,6 +51,13 @@ services:
     networks:
       - qorechain-net
     restart: unless-stopped
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "50051"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
 
   # ─────────────────────────────────────────────
   # Block Indexer (pre-built image)
@@ -60,8 +66,10 @@ services:
     image: ghcr.io/qorechain/block-indexer:latest
     container_name: qorechain-indexer
     depends_on:
-      - qorechain-node
-      - postgres
+      qorechain-node:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     environment:
       - RPC_URL=ws://qorechain-node:26657/websocket
       - REST_URL=http://qorechain-node:1317
@@ -69,10 +77,11 @@ services:
       - DB_PORT=5432
       - DB_NAME=qorechain_explorer
       - DB_USER=qorechain
-      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     networks:
       - qorechain-net
     restart: unless-stopped
+    mem_limit: 256m
 
   # ─────────────────────────────────────────────
   # PostgreSQL (Explorer database)
@@ -83,20 +92,24 @@ services:
     environment:
       - POSTGRES_DB=qorechain_explorer
       - POSTGRES_USER=qorechain
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
     volumes:
       - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
     networks:
       - qorechain-net
     restart: unless-stopped
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qorechain"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   # ─────────────────────────────────────────────
   # Prometheus (Metrics collection)
   # ─────────────────────────────────────────────
   prometheus:
-    image: prom/prometheus:latest
+    image: prom/prometheus:v2.54.0
     container_name: qorechain-prometheus
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -111,7 +124,7 @@ services:
   # Grafana (Metrics dashboard)
   # ─────────────────────────────────────────────
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:11.2.0
     container_name: qorechain-grafana
     ports:
       - "3001:3000"
