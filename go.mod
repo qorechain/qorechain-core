@@ -1,6 +1,8 @@
 module github.com/qorechain/qorechain-core
 
-go 1.24.0
+go 1.26
+
+toolchain go1.26.0
 
 require (
 	cosmossdk.io/api v0.9.2
