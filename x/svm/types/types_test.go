@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -434,8 +435,8 @@ func TestInvalidParams(t *testing.T) {
 		{"zero MaxAccountDataSize", func(p *Params) { p.MaxAccountDataSize = 0 }},
 		{"zero ComputeBudgetMax", func(p *Params) { p.ComputeBudgetMax = 0 }},
 		{"zero LamportsPerByte", func(p *Params) { p.LamportsPerByte = 0 }},
-		{"zero RentExemptionMulti", func(p *Params) { p.RentExemptionMulti = 0 }},
-		{"negative RentExemptionMulti", func(p *Params) { p.RentExemptionMulti = -1.0 }},
+		{"zero RentExemptionMulti", func(p *Params) { p.RentExemptionMulti = sdkmath.LegacyZeroDec() }},
+		{"negative RentExemptionMulti", func(p *Params) { p.RentExemptionMulti = sdkmath.LegacyNewDec(-1) }},
 		{"zero MaxCPI", func(p *Params) { p.MaxCPI = 0 }},
 	}
 	for _, tc := range tests {
