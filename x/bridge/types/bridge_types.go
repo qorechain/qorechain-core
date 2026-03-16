@@ -339,8 +339,9 @@ type CircuitBreakerState struct {
 	MaxSingleTransfer  string    `json:"max_single_transfer"` // sdkmath.Int as string
 	DailyLimit         string    `json:"daily_limit"`
 	CurrentDaily       string    `json:"current_daily"`
-	LastResetHeight    int64     `json:"last_reset_height"`
-	Paused             bool      `json:"paused"`
+	LastResetHeight    int64      `json:"last_reset_height"`
+	LastResetTime      *time.Time `json:"last_reset_time,omitempty"`
+	Paused             bool       `json:"paused"`
 	PausedReason       string    `json:"paused_reason,omitempty"`
 	PausedAt           *time.Time `json:"paused_at,omitempty"`
 }
