@@ -30,10 +30,11 @@ func (gs GenesisState) Validate() error {
 		return fmt.Errorf("min_validators must be >= 1")
 	}
 	if gs.Config.AttestationThreshold < 1 {
-		return fmt.Errorf("attestation_threshold must be >= 1")
+		return fmt.Errorf("attestation threshold must be >= 1")
 	}
-	if gs.Config.AttestationThreshold > gs.Config.MinValidators*2 {
-		return fmt.Errorf("attestation_threshold cannot exceed 2x min_validators")
+	if gs.Config.AttestationThreshold > gs.Config.MinValidators {
+		return fmt.Errorf("attestation threshold (%d) cannot exceed min validators (%d)",
+			gs.Config.AttestationThreshold, gs.Config.MinValidators)
 	}
 	for _, cc := range gs.ChainConfigs {
 		if cc.ChainID == "" {
