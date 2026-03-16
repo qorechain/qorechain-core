@@ -58,6 +58,7 @@ type PQCKeeper interface {
 	SetPQCAccount(ctx sdk.Context, info types.PQCAccountInfo) error
 	IncrementPQCVerifications(ctx sdk.Context)
 	IncrementClassicalFallbacks(ctx sdk.Context)
+	IncrementMLKEMOperations(ctx sdk.Context)
 	GetStats(ctx sdk.Context) types.PQCStats
 	SetStats(ctx sdk.Context, stats types.PQCStats)
 

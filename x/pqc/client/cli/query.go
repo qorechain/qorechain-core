@@ -1,12 +1,15 @@
 package cli
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 
+	abci "github.com/cometbft/cometbft/abci/types"
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 
 	"github.com/qorechain/qorechain-core/x/pqc/types"
 )
@@ -34,6 +37,19 @@ func GetQueryCmd() *cobra.Command {
 	return cmd
 }
 
+// queryStoreKey performs a direct ABCI store query for the given key.
+func queryStoreKey(clientCtx client.Context, key []byte) ([]byte, error) {
+	resp, err := clientCtx.QueryABCI(abci.RequestQuery{
+		Path: fmt.Sprintf("store/%s/key", types.StoreKey),
+		Data: key,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return resp.Value, nil
+}
+
+
 // GetCmdQueryAlgorithms returns the command to list all registered PQC algorithms.
 func GetCmdQueryAlgorithms() *cobra.Command {
 	cmd := &cobra.Command{
@@ -47,17 +63,38 @@ func GetCmdQueryAlgorithms() *cobra.Command {
 				return err
 			}
 
-			// Query via gRPC or REST would go here in a full implementation.
-			// For now, output a placeholder that directs to the genesis/state.
-			_ = clientCtx
-			fmt.Println("Registered PQC algorithms:")
-			fmt.Println("  1: dilithium5  (signature, NIST Level 5, active)")
-			fmt.Println("  2: mlkem1024   (kem, NIST Level 5, active)")
-			fmt.Println("\nUse 'qorechaind query pqc algorithm <id>' for detailed info.")
+			// Query all algorithms by iterating over the algorithm prefix.
+			// The subspace query may not be supported; fall back to listing known IDs.
+			var algos []types.AlgorithmInfo
+
+			// Query known algorithm IDs individually
+			for _, id := range []types.AlgorithmID{types.AlgorithmDilithium5, types.AlgorithmMLKEM1024} {
+				bz, qErr := queryStoreKey(clientCtx, types.AlgorithmKey(id))
+				if qErr != nil || len(bz) == 0 {
+					continue
+				}
+				var algo types.AlgorithmInfo
+				if jErr := json.Unmarshal(bz, &algo); jErr != nil {
+					continue
+				}
+				algos = append(algos, algo)
+			}
+
+			if len(algos) == 0 {
+				fmt.Println("No algorithms found in on-chain state (node may be unreachable or genesis not yet applied).")
+				return nil
+			}
+
+			bz, err := json.MarshalIndent(algos, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(bz))
 			return nil
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -73,7 +110,6 @@ func GetCmdQueryAlgorithm() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
 			algoID, err := types.AlgorithmIDFromString(args[0])
 			if err != nil {
@@ -85,26 +121,29 @@ func GetCmdQueryAlgorithm() *cobra.Command {
 				algoID = types.AlgorithmID(id)
 			}
 
-			// Return info for known built-in algorithms
-			var info types.AlgorithmInfo
-			switch algoID {
-			case types.AlgorithmDilithium5:
-				info = types.DefaultDilithium5Info()
-			case types.AlgorithmMLKEM1024:
-				info = types.DefaultMLKEM1024Info()
-			default:
-				return fmt.Errorf("algorithm %d not found in local defaults; query chain state for custom algorithms", algoID)
+			bz, err := queryStoreKey(clientCtx, types.AlgorithmKey(algoID))
+			if err != nil {
+				return fmt.Errorf("failed to query algorithm %d: %w", algoID, err)
+			}
+			if len(bz) == 0 {
+				return fmt.Errorf("algorithm %d not found in on-chain state", algoID)
 			}
 
-			bz, err := json.MarshalIndent(info, "", "  ")
+			var info types.AlgorithmInfo
+			if err := json.Unmarshal(bz, &info); err != nil {
+				return fmt.Errorf("failed to decode algorithm info: %w", err)
+			}
+
+			out, err := json.MarshalIndent(info, "", "  ")
 			if err != nil {
 				return err
 			}
-			fmt.Println(string(bz))
+			fmt.Println(string(out))
 			return nil
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -120,14 +159,32 @@ func GetCmdQueryAccount() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
-			fmt.Printf("Querying PQC account: %s\n", args[0])
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
+			key := append(types.AccountPrefix, []byte(args[0])...)
+			bz, err := queryStoreKey(clientCtx, key)
+			if err != nil {
+				return fmt.Errorf("failed to query account %s: %w", args[0], err)
+			}
+			if len(bz) == 0 {
+				fmt.Printf("No PQC key registered for account: %s\n", args[0])
+				return nil
+			}
+
+			var acct types.PQCAccountInfo
+			if err := json.Unmarshal(bz, &acct); err != nil {
+				return fmt.Errorf("failed to decode account info: %w", err)
+			}
+
+			out, err := json.MarshalIndent(acct, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(out))
 			return nil
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -143,14 +200,43 @@ func GetCmdQueryStats() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
-			fmt.Println("PQC Module Statistics:")
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
+			bz, err := queryStoreKey(clientCtx, types.StatsKey)
+			if err != nil {
+				return fmt.Errorf("failed to query stats: %w", err)
+			}
+			if len(bz) == 0 {
+				fmt.Println("No PQC statistics recorded yet.")
+				return nil
+			}
+
+			// Decode stats: binary (48 bytes) or JSON fallback
+			var stats types.PQCStats
+			if len(bz) == 48 {
+				stats = types.PQCStats{
+					TotalPQCVerifications:    binary.LittleEndian.Uint64(bz[0:8]),
+					TotalClassicalFallbacks:  binary.LittleEndian.Uint64(bz[8:16]),
+					TotalMLKEMOperations:     binary.LittleEndian.Uint64(bz[16:24]),
+					TotalDualSigVerifies:     binary.LittleEndian.Uint64(bz[24:32]),
+					TotalKeyMigrations:       binary.LittleEndian.Uint64(bz[32:40]),
+					TotalHybridVerifications: binary.LittleEndian.Uint64(bz[40:48]),
+				}
+			} else {
+				if err := json.Unmarshal(bz, &stats); err != nil {
+					return fmt.Errorf("failed to decode stats: %w", err)
+				}
+			}
+
+			out, err := json.MarshalIndent(stats, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(out))
 			return nil
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -166,14 +252,40 @@ func GetCmdQueryMigration() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
-			fmt.Printf("Querying migration for algorithm: %s\n", args[0])
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
+			algoID, err := types.AlgorithmIDFromString(args[0])
+			if err != nil {
+				var id uint32
+				if _, scanErr := fmt.Sscanf(args[0], "%d", &id); scanErr != nil {
+					return fmt.Errorf("invalid algorithm identifier: %s", args[0])
+				}
+				algoID = types.AlgorithmID(id)
+			}
+
+			bz, err := queryStoreKey(clientCtx, types.MigrationKey(algoID))
+			if err != nil {
+				return fmt.Errorf("failed to query migration for algorithm %d: %w", algoID, err)
+			}
+			if len(bz) == 0 {
+				fmt.Printf("No active migration for algorithm %d.\n", algoID)
+				return nil
+			}
+
+			var mig types.MigrationInfo
+			if err := json.Unmarshal(bz, &mig); err != nil {
+				return fmt.Errorf("failed to decode migration info: %w", err)
+			}
+
+			out, err := json.MarshalIndent(mig, "", "  ")
+			if err != nil {
+				return err
+			}
+			fmt.Println(string(out))
 			return nil
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -196,18 +308,30 @@ The mode is set via governance through PQC module parameters.`,
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
-			// Read mode from current params (will use gRPC when proto queries are wired).
-			params := types.DefaultParams()
+			bz, err := queryStoreKey(clientCtx, types.ParamsKey)
+			if err != nil {
+				return fmt.Errorf("failed to query params: %w", err)
+			}
+
+			var params types.Params
+			if len(bz) == 0 {
+				// Fall back to defaults if no on-chain params
+				params = types.DefaultParams()
+			} else {
+				if err := json.Unmarshal(bz, &params); err != nil {
+					return fmt.Errorf("failed to decode params: %w", err)
+				}
+			}
+
 			mode := params.HybridSignatureMode
-
 			fmt.Printf("Hybrid Signature Mode: %d (%s)\n", mode, mode.String())
 			fmt.Printf("Description: %s\n", mode.Description())
 			return nil
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -223,17 +347,30 @@ func GetCmdQueryParams() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
-			params := types.DefaultParams()
-			bz, err := json.MarshalIndent(params, "", "  ")
+			bz, err := queryStoreKey(clientCtx, types.ParamsKey)
+			if err != nil {
+				return fmt.Errorf("failed to query params: %w", err)
+			}
+
+			var params types.Params
+			if len(bz) == 0 {
+				params = types.DefaultParams()
+			} else {
+				if err := json.Unmarshal(bz, &params); err != nil {
+					return fmt.Errorf("failed to decode params: %w", err)
+				}
+			}
+
+			out, err := json.MarshalIndent(params, "", "  ")
 			if err != nil {
 				return err
 			}
-			fmt.Println(string(bz))
+			fmt.Println(string(out))
 			return nil
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
