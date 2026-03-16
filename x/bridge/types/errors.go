@@ -27,4 +27,5 @@ var (
 	ErrMintFailed                 = errors.Register(ModuleName, 23, "failed to mint bridged tokens")
 	ErrCircuitBreakerResetFailed  = errors.Register(ModuleName, 24, "failed to persist circuit breaker reset")
 	ErrInsufficientBalance       = errors.Register(ModuleName, 25, "insufficient bridged token balance")
+	ErrTooManyAttestations       = errors.Register(ModuleName, 26, "too many attestations for operation")
 )

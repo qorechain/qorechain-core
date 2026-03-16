@@ -42,6 +42,9 @@ func (msg MsgBridgeDeposit) ValidateBasic() error {
 	if _, err := ParseAmount(msg.Amount); err != nil {
 		return err
 	}
+	if len(msg.SourceTxHash) > 128 {
+		return ErrInvalidAttestation.Wrapf("source_tx_hash too long: %d, max 128", len(msg.SourceTxHash))
+	}
 	return nil
 }
 
@@ -103,11 +106,14 @@ func (msg MsgRegisterBridgeValidator) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.ValidatorAddress); err != nil {
 		return err
 	}
-	if len(msg.PQCPubkey) == 0 {
-		return ErrInvalidPQCSignature.Wrap("PQC pubkey cannot be empty")
+	if len(msg.PQCPubkey) != 2592 {
+		return ErrInvalidPQCSignature.Wrapf("expected 2592-byte Dilithium-5 pubkey, got %d", len(msg.PQCPubkey))
 	}
 	if len(msg.SupportedChains) == 0 {
 		return ErrChainNotSupported.Wrap("must support at least one chain")
+	}
+	if len(msg.SupportedChains) > 25 {
+		return ErrInvalidAttestation.Wrapf("too many supported chains: %d, max 25", len(msg.SupportedChains))
 	}
 	return nil
 }
@@ -143,8 +149,8 @@ func (msg MsgBridgeAttestation) ValidateBasic() error {
 	if msg.OperationID == "" {
 		return ErrOperationNotFound.Wrap("operation ID cannot be empty")
 	}
-	if len(msg.PQCSignature) == 0 {
-		return ErrInvalidPQCSignature.Wrap("PQC signature cannot be empty")
+	if len(msg.PQCSignature) != 4627 {
+		return ErrInvalidPQCSignature.Wrapf("expected 4627-byte Dilithium-5 signature, got %d", len(msg.PQCSignature))
 	}
 	return nil
 }
