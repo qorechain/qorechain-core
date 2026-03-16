@@ -22,7 +22,7 @@ type AIKeeper interface {
 	IncrementContractsScored(ctx sdk.Context)
 	IncrementTxsFlagged(ctx sdk.Context)
 	IncrementTxsRejected(ctx sdk.Context)
-	FlagTransaction(ctx sdk.Context, flagged types.FlaggedTx)
+	FlagTransaction(ctx sdk.Context, flagged types.FlaggedTx) error
 	AnalyzeTransaction(ctx sdk.Context, tx types.TransactionInfo, history []types.TransactionInfo) (*types.AnomalyResult, error)
 	ScoreContract(ctx sdk.Context, code []byte, chain string) (*types.RiskScore, error)
 

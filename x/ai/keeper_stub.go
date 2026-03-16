@@ -64,7 +64,7 @@ func (k *StubKeeper) IncrementAnomaliesDetected(_ sdk.Context) {}
 func (k *StubKeeper) IncrementContractsScored(_ sdk.Context)   {}
 func (k *StubKeeper) IncrementTxsFlagged(_ sdk.Context)        {}
 func (k *StubKeeper) IncrementTxsRejected(_ sdk.Context)       {}
-func (k *StubKeeper) FlagTransaction(_ sdk.Context, _ types.FlaggedTx) {}
+func (k *StubKeeper) FlagTransaction(_ sdk.Context, _ types.FlaggedTx) error { return nil }
 func (k *StubKeeper) ScoreContract(_ sdk.Context, _ []byte, _ string) (*types.RiskScore, error) {
 	return &types.RiskScore{
 		Score:          0.0,
