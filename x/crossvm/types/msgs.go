@@ -22,10 +22,10 @@ func (m *MsgCrossVMCall) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
 		return errorsmod.Wrapf(ErrInvalidMessage, "invalid sender address: %s", err)
 	}
-	if m.SourceVM != VMTypeEVM && m.SourceVM != VMTypeCosmWasm {
+	if m.SourceVM != VMTypeEVM && m.SourceVM != VMTypeCosmWasm && m.SourceVM != VMTypeSVM {
 		return errorsmod.Wrapf(ErrUnsupportedVM, "invalid source VM: %s", m.SourceVM)
 	}
-	if m.TargetVM != VMTypeEVM && m.TargetVM != VMTypeCosmWasm {
+	if m.TargetVM != VMTypeEVM && m.TargetVM != VMTypeCosmWasm && m.TargetVM != VMTypeSVM {
 		return errorsmod.Wrapf(ErrUnsupportedVM, "invalid target VM: %s", m.TargetVM)
 	}
 	if m.SourceVM == m.TargetVM {

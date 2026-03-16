@@ -48,7 +48,7 @@ func (msg MsgBridgeDeposit) ValidateBasic() error {
 func (msg MsgBridgeDeposit) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.Sender)
 	if err != nil {
-		panic(err)
+		return nil // ValidateBasic should catch this first
 	}
 	return []sdk.AccAddress{addr}
 }
@@ -87,7 +87,7 @@ func (msg MsgBridgeWithdraw) ValidateBasic() error {
 func (msg MsgBridgeWithdraw) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.Sender)
 	if err != nil {
-		panic(err)
+		return nil // ValidateBasic should catch this first
 	}
 	return []sdk.AccAddress{addr}
 }
@@ -115,7 +115,7 @@ func (msg MsgRegisterBridgeValidator) ValidateBasic() error {
 func (msg MsgRegisterBridgeValidator) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.ValidatorAddress)
 	if err != nil {
-		panic(err)
+		return nil // ValidateBasic should catch this first
 	}
 	return []sdk.AccAddress{addr}
 }
@@ -152,7 +152,7 @@ func (msg MsgBridgeAttestation) ValidateBasic() error {
 func (msg MsgBridgeAttestation) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.Validator)
 	if err != nil {
-		panic(err)
+		return nil // ValidateBasic should catch this first
 	}
 	return []sdk.AccAddress{addr}
 }

@@ -45,7 +45,7 @@ func (h *HeuristicSelector) SelectProposer(
 		}
 		score := scores[val.Address]
 		if score <= 0 {
-			score = 0.1 // Minimum score
+			continue // exclude zero/negative reputation validators from selection
 		}
 		w := score * math.Max(float64(val.Tokens), 1.0)
 		weighted = append(weighted, weightedVal{address: val.Address, weight: w})
