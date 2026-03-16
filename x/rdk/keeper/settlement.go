@@ -3,9 +3,11 @@
 package keeper
 
 import (
+	"encoding/json"
 	"fmt"
 	"strconv"
 
+	storetypes "cosmossdk.io/store/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	multilayertypes "github.com/qorechain/qorechain-core/x/multilayer/types"
@@ -211,31 +213,41 @@ func (k Keeper) EndBlockSettlement(ctx sdk.Context) error {
 	return nil
 }
 
-// autoFinalizeOptimistic auto-finalizes optimistic batches past the challenge window.
+// autoFinalizeOptimistic auto-finalizes all pending optimistic batches past the challenge window.
 func (k Keeper) autoFinalizeOptimistic(ctx sdk.Context, rollup *types.RollupConfig) {
 	windowBlocks := int64(rollup.ProofConfig.ChallengeWindowSec / 6)
-	latestBatch, err := k.GetLatestBatch(ctx, rollup.RollupID)
-	if err != nil {
-		return
-	}
 
-	if latestBatch.Status == types.BatchSubmitted &&
-		ctx.BlockHeight()-latestBatch.SubmittedAt >= windowBlocks {
-		latestBatch.Status = types.BatchFinalized
-		latestBatch.FinalizedAt = ctx.BlockHeight()
-		if err := k.setBatch(ctx, *latestBatch); err != nil {
-			k.logger.Warn("auto-finalize failed", "error", err, "rollup_id", rollup.RollupID)
-			return
+	store := ctx.KVStore(k.storeKey)
+	prefix := append(types.SettlementBatchPrefix, []byte(rollup.RollupID+"/")...)
+	iter := storetypes.KVStorePrefixIterator(store, prefix)
+	defer iter.Close()
+
+	for ; iter.Valid(); iter.Next() {
+		var batch types.SettlementBatch
+		if err := json.Unmarshal(iter.Value(), &batch); err != nil {
+			continue
 		}
+		if batch.Status == types.BatchSubmitted &&
+			ctx.BlockHeight()-batch.SubmittedAt >= windowBlocks {
+			batch.Status = types.BatchFinalized
+			batch.FinalizedAt = ctx.BlockHeight()
+			bz, err := json.Marshal(batch)
+			if err != nil {
+				continue
+			}
+			store.Set(iter.Key(), bz)
+			// Also update latest batch pointer if this is the latest
+			store.Set(latestBatchKey(rollup.RollupID), bz)
 
-		ctx.EventManager().EmitEvent(sdk.NewEvent(
-			types.EventBatchFinalized,
-			sdk.NewAttribute("rollup_id", rollup.RollupID),
-			sdk.NewAttribute("batch_index", strconv.FormatUint(latestBatch.BatchIndex, 10)),
-			sdk.NewAttribute("auto", "true"),
-		))
+			ctx.EventManager().EmitEvent(sdk.NewEvent(
+				types.EventBatchFinalized,
+				sdk.NewAttribute("rollup_id", rollup.RollupID),
+				sdk.NewAttribute("batch_index", strconv.FormatUint(batch.BatchIndex, 10)),
+				sdk.NewAttribute("auto", "true"),
+			))
 
-		k.logger.Info("auto-finalized optimistic batch", "rollup_id", rollup.RollupID, "batch", latestBatch.BatchIndex)
+			k.logger.Info("auto-finalized optimistic batch", "rollup_id", rollup.RollupID, "batch", batch.BatchIndex)
+		}
 	}
 }
 

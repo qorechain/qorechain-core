@@ -4,6 +4,7 @@ package keeper
 
 import (
 	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -88,8 +89,10 @@ func (k Keeper) storeNativeBlob(ctx sdk.Context, blob types.DABlob) *types.DACom
 	}
 	store.Set(daBlobKey(blob.RollupID, blob.BlobIndex), bz)
 
-	// Update latest DA pointer
-	store.Set(latestDAKey(blob.RollupID), bz)
+	// Update latest DA pointer (store only the blob index)
+	indexBz := make([]byte, 8)
+	binary.LittleEndian.PutUint64(indexBz, blob.BlobIndex)
+	store.Set(latestDAKey(blob.RollupID), indexBz)
 
 	return &types.DACommitment{
 		RollupID:  blob.RollupID,
@@ -115,6 +118,18 @@ func (k Keeper) GetDABlob(ctx sdk.Context, rollupID string, blobIndex uint64) (*
 	return &blob, nil
 }
 
+// GetLatestDABlob retrieves the latest DA blob for a rollup by reading
+// the stored blob index from the latest-DA pointer and fetching the full blob.
+func (k Keeper) GetLatestDABlob(ctx sdk.Context, rollupID string) (*types.DABlob, error) {
+	store := ctx.KVStore(k.storeKey)
+	indexBz := store.Get(latestDAKey(rollupID))
+	if indexBz == nil || len(indexBz) < 8 {
+		return nil, types.ErrDABlobNotFound
+	}
+	blobIndex := binary.LittleEndian.Uint64(indexBz)
+	return k.GetDABlob(ctx, rollupID, blobIndex)
+}
+
 // maxPrunePerBlock caps the number of blobs pruned per EndBlocker call
 // to bound the work done per block and avoid gas spikes.
 const maxPrunePerBlock = 100
@@ -135,17 +150,8 @@ func (k Keeper) PruneExpiredBlobs(ctx sdk.Context) (uint64, error) {
 		if err := json.Unmarshal(iter.Value(), &blob); err != nil {
 			continue
 		}
-		if blob.Pruned {
-			continue
-		}
 		if blob.Height+int64(params.BlobRetentionBlocks) < currentHeight {
-			blob.Pruned = true
-			blob.Data = nil // Free the data
-			bz, err := json.Marshal(blob)
-			if err != nil {
-				continue
-			}
-			store.Set(iter.Key(), bz)
+			store.Delete(iter.Key())
 			pruned++
 
 			ctx.EventManager().EmitEvent(sdk.NewEvent(

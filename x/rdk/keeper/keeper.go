@@ -170,8 +170,25 @@ func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	return &types.GenesisState{
 		Params:  k.GetParams(ctx),
 		Rollups: configs,
-		Batches: []types.SettlementBatch{},
+		Batches: k.GetAllBatches(ctx),
 	}
+}
+
+// GetAllBatches returns all settlement batches across all rollups.
+func (k Keeper) GetAllBatches(ctx sdk.Context) []types.SettlementBatch {
+	store := ctx.KVStore(k.storeKey)
+	iter := storetypes.KVStorePrefixIterator(store, types.SettlementBatchPrefix)
+	defer iter.Close()
+
+	var batches []types.SettlementBatch
+	for ; iter.Valid(); iter.Next() {
+		var batch types.SettlementBatch
+		if err := json.Unmarshal(iter.Value(), &batch); err != nil {
+			continue
+		}
+		batches = append(batches, batch)
+	}
+	return batches
 }
 
 // rollupCount returns the count of all rollups.
