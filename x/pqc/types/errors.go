@@ -29,4 +29,6 @@ var (
 	ErrHybridSigInvalid   = errors.Register(ModuleName, 21, "hybrid PQC signature verification failed")
 	ErrHybridModeDisabled = errors.Register(ModuleName, 22, "hybrid signature mode is disabled")
 	ErrInvalidHybridSig   = errors.Register(ModuleName, 23, "invalid hybrid signature format")
+	ErrMalformedExtension = errors.Register(ModuleName, 24, "malformed PQC extension payload")
+	ErrInvalidTimestamp   = errors.Register(ModuleName, 25, "invalid PQC timestamp")
 )
