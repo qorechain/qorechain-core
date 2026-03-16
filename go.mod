@@ -1,8 +1,6 @@
 module github.com/qorechain/qorechain-core
 
-go 1.26
-
-toolchain go1.26.0
+go 1.26.1
 
 require (
 	cosmossdk.io/api v0.9.2
@@ -194,7 +192,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/kr/pretty v0.3.1 // indirect
 	github.com/kr/text v0.2.0 // indirect
-	github.com/lib/pq v1.10.9 // indirect
+	github.com/lib/pq v1.10.9
 	github.com/linxGnu/grocksdb v1.9.8 // indirect
 	github.com/manifoldco/promptui v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect

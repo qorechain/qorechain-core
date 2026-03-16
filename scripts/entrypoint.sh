@@ -3,12 +3,12 @@ set -euo pipefail
 
 CHAIN_ID="${CHAIN_ID:-qorechain-testnet-1}"
 MONIKER="${MONIKER:-qorechain-validator-1}"
-HOME_DIR="/root/.qorechaind"
+HOME_DIR="/home/qorechaind/.qorechaind"
 
 # Initialize if not already initialized
 if [ ! -f "$HOME_DIR/config/genesis.json" ]; then
     echo "Initializing QoreChain node..."
-    /scripts/init-testnet.sh
+    /scripts/init-testnet.sh || { echo "ERROR: init-testnet.sh failed"; exit 1; }
 fi
 
 echo "Starting QoreChain node..."

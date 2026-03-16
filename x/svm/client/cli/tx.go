@@ -20,7 +20,6 @@ func GetTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                        types.ModuleName,
 		Short:                      "SVM module transaction commands",
-		DisableFlagParsing:         true,
 		SuggestionsMinimumDistance: 2,
 		RunE:                       client.ValidateCmd,
 	}
@@ -44,6 +43,11 @@ func GetCmdDeployProgram() *cobra.Command {
 The bytecode-file argument should be a path to a compiled BPF ELF binary.
 The program will be assigned a deterministic address derived from the deployer
 and bytecode hash.`,
+		Example: `  # Deploy a compiled BPF program
+  qorechaind tx svm deploy-program ./target/deploy/my_program.so --from mykey
+
+  # Deploy with explicit gas
+  qorechaind tx svm deploy-program ./my_program.so --from mykey --gas 500000`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -89,6 +93,8 @@ The data-hex argument is the hex-encoded instruction data to pass to the program
 
 Note: Account metadata (--accounts flag) will be added in a future release.
 Currently the Accounts field is empty, suitable for programs with no input accounts.`,
+		Example: `  # Execute an instruction on a deployed program
+  qorechaind tx svm execute <program-id-base58> <instruction-data-hex> --from mykey`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)

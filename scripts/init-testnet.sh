@@ -4,7 +4,7 @@ set -euo pipefail
 # QoreChain Testnet Initialization Script
 # Creates genesis, accounts, and validator configuration
 
-CHAIN_ID="${CHAIN_ID:-qorechain-testnet-1}"
+CHAIN_ID="${CHAIN_ID:-qorechain-diana}"
 MONIKER="${MONIKER:-qorechain-validator-1}"
 HOME_DIR="${HOME_DIR:-/root/.qorechaind}"
 DENOM="uqor"

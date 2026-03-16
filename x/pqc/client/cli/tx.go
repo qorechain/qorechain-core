@@ -19,7 +19,6 @@ func GetTxCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                        types.ModuleName,
 		Short:                      "PQC module transaction commands",
-		DisableFlagParsing:         true,
 		SuggestionsMinimumDistance: 2,
 		RunE:                       client.ValidateCmd,
 	}
@@ -45,6 +44,11 @@ Key types: hybrid, pqc_only, classical_only
   - hybrid: Both PQC and ECDSA keys (recommended)
   - pqc_only: Only PQC key, no classical fallback
   - classical_only: Only ECDSA key (no PQC protection)`,
+		Example: `  # Register a hybrid Dilithium-5 key (recommended)
+  qorechaind tx pqc register-key <dilithium5-pubkey-hex> hybrid --from mykey
+
+  # Register a PQC-only key (no classical fallback)
+  qorechaind tx pqc register-key <dilithium5-pubkey-hex> pqc_only --from mykey`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -92,6 +96,11 @@ Supported algorithms:
   - mlkem1024 (or 2): NIST FIPS 203 key encapsulation mechanism
 
 Key types: hybrid, pqc_only, classical_only`,
+		Example: `  # Register a Dilithium-5 hybrid key
+  qorechaind tx pqc register-key-v2 dilithium5 <pubkey-hex> hybrid --from mykey
+
+  # Register an ML-KEM-1024 PQC-only key
+  qorechaind tx pqc register-key-v2 mlkem1024 <pubkey-hex> pqc_only --from mykey`,
 		Args: cobra.ExactArgs(3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)

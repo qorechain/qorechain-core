@@ -16,7 +16,7 @@ services:
       - "8545:8545"     # EVM JSON-RPC (HTTP)
       - "8546:8546"     # EVM JSON-RPC (WebSocket)
     volumes:
-      - node-data:/root/.qorechaind
+      - node-data:/home/qorechaind/.qorechaind
     environment:
       - CHAIN_ID=qorechain-diana
       - MONIKER=qorechain-validator-1
@@ -28,6 +28,7 @@ services:
     networks:
       - qorechain-net
     restart: unless-stopped
+    mem_limit: 2g
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
       interval: 10s
@@ -109,7 +110,7 @@ services:
   # Prometheus (Metrics collection)
   # ─────────────────────────────────────────────
   prometheus:
-    image: prom/prometheus:v2.54.0
+    image: prom/prometheus:v3.10.0
     container_name: qorechain-prometheus
     volumes:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
@@ -124,7 +125,7 @@ services:
   # Grafana (Metrics dashboard)
   # ─────────────────────────────────────────────
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:12.4.1
     container_name: qorechain-grafana
     ports:
       - "127.0.0.1:3001:3000"
