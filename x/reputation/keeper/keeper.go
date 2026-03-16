@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"math"
 
+	sdkmath "cosmossdk.io/math"
+
 	"cosmossdk.io/log"
 	storetypes "cosmossdk.io/store/types"
 
@@ -120,6 +122,7 @@ func (k Keeper) GetAllValidatorReputations(ctx sdk.Context) []types.ValidatorRep
 
 // CalculateReputation computes the composite reputation score per the whitepaper formula:
 // R_i = α·S_i + β·P_i + γ·C_i + δ·T_i with time decay.
+// Returns float64 to satisfy the ReputationReader interface used by other modules.
 func (k Keeper) CalculateReputation(ctx sdk.Context, valAddr string) float64 {
 	params := k.GetParams(ctx)
 	return k.calculateReputationWithParams(ctx, valAddr, params)
@@ -130,73 +133,95 @@ func (k Keeper) CalculateReputation(ctx sdk.Context, valAddr string) float64 {
 func (k Keeper) calculateReputationWithParams(ctx sdk.Context, valAddr string, params types.ReputationParams) float64 {
 	rep, found := k.GetValidatorReputation(ctx, valAddr)
 	if !found {
-		return params.MinScore
+		f, _ := params.ParamMinScore().Float64()
+		return f
 	}
-	return k.calculateReputationFromExisting(ctx, rep, params).CompositeScore
+	updated := k.calculateReputationFromExisting(ctx, rep, params)
+	f, _ := updated.GetCompositeScoreDec().Float64()
+	return f
 }
 
 // calculateReputationFromExisting computes the composite reputation score from
 // an already-loaded ValidatorReputation, avoiding a redundant store read.
+// All arithmetic uses LegacyDec; transcendental functions (exp, log) use float64
+// intermediaries and convert back.
 func (k Keeper) calculateReputationFromExisting(ctx sdk.Context, rep types.ValidatorReputation, params types.ReputationParams) types.ValidatorReputation {
 	// Component scores (each normalized to 0.0-1.0)
-	S := rep.StakeScore // Use stored stake score directly
+	S := rep.GetStakeScoreDec()
 	P := k.calculatePerformanceScore(rep)
 	C := k.calculateContributionScore(rep)
 	T := k.calculateTimeScore(ctx, rep)
 
+	// Parse weights
+	alpha := params.ParamAlpha()
+	beta := params.ParamBeta()
+	gamma := params.ParamGamma()
+	delta := params.ParamDelta()
+	lambda := params.ParamLambda()
+	minScore := params.ParamMinScore()
+
 	// Composite: R_i = α·S_i + β·P_i + γ·C_i + δ·T_i
-	composite := params.Alpha*S + params.Beta*P + params.Gamma*C + params.Delta*T
+	composite := alpha.Mul(S).Add(beta.Mul(P)).Add(gamma.Mul(C)).Add(delta.Mul(T))
 
 	// Time decay: R_new = R_old * exp(-Δt/λ) + R_calc * (1 - exp(-Δt/λ))
-	elapsed := float64(ctx.BlockHeight() - rep.LastUpdatedHeight)
-	if elapsed < 0 {
-		elapsed = 0
+	elapsed := sdkmath.LegacyNewDec(ctx.BlockHeight() - rep.LastUpdatedHeight)
+	if elapsed.IsNegative() {
+		elapsed = sdkmath.LegacyZeroDec()
 	}
-	decayFactor := math.Exp(-elapsed / params.Lambda)
 
-	smoothed := rep.CompositeScore*decayFactor + composite*(1.0-decayFactor)
+	// exp() requires float64 — compute decay factor then convert back
+	lambdaF, _ := lambda.Float64()
+	elapsedF, _ := elapsed.Float64()
+	decayFactorF := math.Exp(-elapsedF / lambdaF)
+	decayFactor := sdkmath.LegacyMustNewDecFromStr(fmt.Sprintf("%.18f", decayFactorF))
+
+	oldComposite := rep.GetCompositeScoreDec()
+	one := sdkmath.LegacyOneDec()
+	smoothed := oldComposite.Mul(decayFactor).Add(composite.Mul(one.Sub(decayFactor)))
 
 	// Enforce minimum
-	if smoothed < params.MinScore {
-		smoothed = params.MinScore
+	if smoothed.LT(minScore) {
+		smoothed = minScore
 	}
 
-	rep.StakeScore = S
-	rep.PerformanceScore = P
-	rep.ContributionScore = C
-	rep.TimeScore = T
-	rep.CompositeScore = smoothed
+	rep.StakeScore = S.String()
+	rep.PerformanceScore = P.String()
+	rep.ContributionScore = C.String()
+	rep.TimeScore = T.String()
+	rep.CompositeScore = smoothed.String()
 	rep.LastUpdatedHeight = ctx.BlockHeight()
 
 	return rep
 }
 
-func (k Keeper) calculatePerformanceScore(rep types.ValidatorReputation) float64 {
-	// Performance = (uptime_blocks - missed_blocks) / (uptime_blocks + missed_blocks)
+func (k Keeper) calculatePerformanceScore(rep types.ValidatorReputation) sdkmath.LegacyDec {
+	// Performance = uptime_blocks / (uptime_blocks + missed_blocks)
 	total := rep.UptimeBlocks + rep.MissedBlocks
 	if total == 0 {
-		return 0.5 // Default for new validators
+		return sdkmath.LegacyNewDecWithPrec(5, 1) // 0.5 default for new validators
 	}
-	return float64(rep.UptimeBlocks) / float64(total)
+	return sdkmath.LegacyNewDec(int64(rep.UptimeBlocks)).Quo(sdkmath.LegacyNewDec(int64(total)))
 }
 
-func (k Keeper) calculateContributionScore(rep types.ValidatorReputation) float64 {
+func (k Keeper) calculateContributionScore(rep types.ValidatorReputation) sdkmath.LegacyDec {
 	// Contribution based on community votes, capped at 1.0
 	if rep.CommunityVotes <= 0 {
-		return 0.0
+		return sdkmath.LegacyZeroDec()
 	}
-	// Logarithmic scale: more votes = diminishing returns
-	return math.Min(math.Log1p(float64(rep.CommunityVotes))/5.0, 1.0)
+	// Logarithmic scale: math.Log1p requires float64, convert result back
+	raw := math.Min(math.Log1p(float64(rep.CommunityVotes))/5.0, 1.0)
+	return sdkmath.LegacyMustNewDecFromStr(fmt.Sprintf("%.18f", raw))
 }
 
-func (k Keeper) calculateTimeScore(ctx sdk.Context, rep types.ValidatorReputation) float64 {
+func (k Keeper) calculateTimeScore(ctx sdk.Context, rep types.ValidatorReputation) sdkmath.LegacyDec {
 	// Longevity bonus: longer participation = higher score
 	age := float64(ctx.BlockHeight() - rep.JoinedAtHeight)
 	if age <= 0 {
-		return 0.0
+		return sdkmath.LegacyZeroDec()
 	}
-	// Asymptotic approach to 1.0 over ~10,000 blocks
-	return 1.0 - math.Exp(-age/10000.0)
+	// Asymptotic approach to 1.0 over ~10,000 blocks: 1 - exp(-age/10000)
+	raw := 1.0 - math.Exp(-age/10000.0)
+	return sdkmath.LegacyMustNewDecFromStr(fmt.Sprintf("%.18f", raw))
 }
 
 // ---- EndBlocker ----
@@ -236,7 +261,7 @@ func (k Keeper) EndBlocker(ctx sdk.Context) error {
 			k.SetValidatorReputation(ctx, types.ValidatorReputation{
 				Address:        addr,
 				JoinedAtHeight: ctx.BlockHeight(),
-				CompositeScore: params.MinScore,
+				CompositeScore: params.ParamMinScore().String(),
 			})
 		}
 	}
@@ -274,7 +299,7 @@ func (k Keeper) EndBlocker(ctx sdk.Context) error {
 // RecordHistoricalScore persists a validator's composite score at the current
 // block height. The key uses zero-padded height for correct lexicographic ordering.
 // Old entries beyond maxHistoricalBlocks are pruned to prevent unbounded growth.
-func (k Keeper) RecordHistoricalScore(ctx sdk.Context, valAddr string, score float64) {
+func (k Keeper) RecordHistoricalScore(ctx sdk.Context, valAddr string, score string) {
 	key := append([]byte{}, types.HistoryPrefix...)
 	key = append(key, []byte(fmt.Sprintf("%s/%020d", valAddr, ctx.BlockHeight()))...)
 	hs := types.HistoricalScore{

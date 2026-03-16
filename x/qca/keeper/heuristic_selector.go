@@ -2,9 +2,12 @@ package keeper
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
 
 	"crypto/sha256"
+
+	sdkmath "cosmossdk.io/math"
 
 	"github.com/qorechain/qorechain-core/x/qca/types"
 )
@@ -31,13 +34,13 @@ func (h *HeuristicSelector) SelectProposer(
 		return "", types.ErrNoValidators
 	}
 
-	// Calculate weights: reputation * stake
+	// Calculate weights: reputation * stake (using LegacyDec for determinism)
 	type weightedVal struct {
 		address string
-		weight  float64
+		weight  sdkmath.LegacyDec
 	}
 	var weighted []weightedVal
-	var totalWeight float64
+	totalWeight := sdkmath.LegacyZeroDec()
 
 	for _, val := range validators {
 		if !val.Active {
@@ -47,12 +50,14 @@ func (h *HeuristicSelector) SelectProposer(
 		if score <= 0 {
 			continue // exclude zero/negative reputation validators from selection
 		}
-		w := score * math.Max(float64(val.Tokens), 1.0)
+		scoreDec := sdkmath.LegacyMustNewDecFromStr(fmt.Sprintf("%.18f", score))
+		tokensDec := sdkmath.LegacyNewDecFromInt(sdkmath.NewIntFromUint64(max(val.Tokens, 1)))
+		w := scoreDec.Mul(tokensDec)
 		weighted = append(weighted, weightedVal{address: val.Address, weight: w})
-		totalWeight += w
+		totalWeight = totalWeight.Add(w)
 	}
 
-	if len(weighted) == 0 || totalWeight == 0 {
+	if len(weighted) == 0 || totalWeight.IsZero() {
 		return "", types.ErrNoValidators
 	}
 
@@ -64,15 +69,17 @@ func (h *HeuristicSelector) SelectProposer(
 	seed.Write(heightBytes)
 	hash := seed.Sum(nil)
 
-	// Convert first 8 bytes to a float64 in [0, 1)
-	randVal := float64(binary.LittleEndian.Uint64(hash[:8])) / float64(math.MaxUint64)
-	target := randVal * totalWeight
+	// Convert first 8 bytes to a LegacyDec in [0, 1) for deterministic selection
+	randInt := sdkmath.NewIntFromUint64(binary.LittleEndian.Uint64(hash[:8]))
+	maxInt := sdkmath.NewIntFromUint64(math.MaxUint64)
+	randDec := sdkmath.LegacyNewDecFromInt(randInt).Quo(sdkmath.LegacyNewDecFromInt(maxInt))
+	target := randDec.Mul(totalWeight)
 
 	// Select validator proportional to weight
-	var cumulative float64
+	cumulative := sdkmath.LegacyZeroDec()
 	for _, wv := range weighted {
-		cumulative += wv.weight
-		if cumulative >= target {
+		cumulative = cumulative.Add(wv.weight)
+		if cumulative.GTE(target) {
 			return wv.address, nil
 		}
 	}

@@ -4,6 +4,7 @@ package svm
 
 import (
 	"cosmossdk.io/log"
+	sdkmath "cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -56,7 +57,8 @@ func (k *StubKeeper) CollectRent(_ sdk.Context, _ [32]byte) error {
 func (k *StubKeeper) GetMinimumBalance(dataLen uint64) uint64 {
 	// Return a reasonable default for queries even in public build.
 	base := (128 + dataLen) * types.DefaultLamportsPerByte
-	return types.DefaultRentExemptionMultiDec.MulInt64(int64(base)).TruncateInt().Uint64()
+	intBase := sdkmath.NewIntFromUint64(base)
+	return types.DefaultRentExemptionMultiDec.MulInt(intBase).TruncateInt().Uint64()
 }
 
 func (k *StubKeeper) GetCurrentSlot(_ sdk.Context) uint64 {

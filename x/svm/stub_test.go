@@ -45,7 +45,7 @@ func TestStubComputeBudgetDecoratorPassesThrough(t *testing.T) {
 }
 
 func TestStubDeductFeeDecoratorPassesThrough(t *testing.T) {
-	decorator := NewSVMDeductFeeDecorator(nil)
+	decorator := NewSVMDeductFeeDecorator(nil, nil)
 	called := false
 	next := func(ctx sdk.Context, tx sdk.Tx, simulate bool) (sdk.Context, error) {
 		called = true
