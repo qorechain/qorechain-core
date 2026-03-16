@@ -83,6 +83,7 @@ func (k *StubKeeper) HasPQCAccount(_ sdk.Context, _ string) bool                
 func (k *StubKeeper) SetPQCAccount(_ sdk.Context, _ types.PQCAccountInfo) error { return nil }
 func (k *StubKeeper) IncrementPQCVerifications(_ sdk.Context)                   {}
 func (k *StubKeeper) IncrementClassicalFallbacks(_ sdk.Context)                 {}
+func (k *StubKeeper) IncrementMLKEMOperations(_ sdk.Context)                    {}
 func (k *StubKeeper) GetStats(_ sdk.Context) types.PQCStats                     { return types.PQCStats{} }
 func (k *StubKeeper) SetStats(_ sdk.Context, _ types.PQCStats)                  {}
 

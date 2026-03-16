@@ -4,6 +4,9 @@ package keeper
 
 import (
 	"context"
+	"encoding/json"
+
+	storetypes "cosmossdk.io/store/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -245,11 +248,27 @@ func (s *msgServer) DeprecateAlgorithm(goCtx context.Context, msg *types.MsgDepr
 		migrationBlocks = types.DefaultMigrationBlocks
 	}
 
+	// Count existing accounts using the deprecated algorithm
+	var remainingAccounts uint64
+	store := ctx.KVStore(s.keeper.storeKey)
+	iter := storetypes.KVStorePrefixIterator(store, types.AccountPrefix)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		var acct types.PQCAccountInfo
+		if err := json.Unmarshal(iter.Value(), &acct); err != nil {
+			continue
+		}
+		if acct.AlgorithmID == msg.AlgorithmID {
+			remainingAccounts++
+		}
+	}
+
 	migration := types.MigrationInfo{
-		FromAlgorithmID: msg.AlgorithmID,
-		ToAlgorithmID:   msg.ReplacementAlgID,
-		StartHeight:     ctx.BlockHeight(),
-		EndHeight:       ctx.BlockHeight() + migrationBlocks,
+		FromAlgorithmID:   msg.AlgorithmID,
+		ToAlgorithmID:     msg.ReplacementAlgID,
+		StartHeight:       ctx.BlockHeight(),
+		EndHeight:         ctx.BlockHeight() + migrationBlocks,
+		RemainingAccounts: remainingAccounts,
 	}
 
 	return s.keeper.SetMigration(ctx, migration)
