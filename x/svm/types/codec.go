@@ -65,6 +65,7 @@ type MsgCreateAccount struct {
 	Owner    [32]byte `json:"owner"`
 	Space    uint64   `json:"space"`
 	Lamports uint64   `json:"lamports"`
+	Salt     []byte   `json:"salt,omitempty"` // unique per creation to prevent address collisions
 }
 
 // ValidateBasic performs stateless validation of an account creation message.
