@@ -104,18 +104,19 @@ func (k *Keeper) ExecuteProgram(
 
 	// If the executor returned modified accounts, write them back to the store.
 	if result.Success && len(result.ModifiedAccounts) > 0 {
+		// Build O(1) lookup map for writable accounts.
+		writableMap := make(map[[32]byte]bool, len(accounts))
+		for _, meta := range accounts {
+			if meta.IsWritable {
+				writableMap[meta.Address] = true
+			}
+		}
+
 		for i := range result.ModifiedAccounts {
 			modified := &result.ModifiedAccounts[i]
 
 			// Only write back accounts that were declared writable.
-			writable := false
-			for _, meta := range accounts {
-				if meta.Address == modified.Address && meta.IsWritable {
-					writable = true
-					break
-				}
-			}
-			if !writable {
+			if !writableMap[modified.Address] {
 				continue
 			}
 
