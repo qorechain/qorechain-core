@@ -35,15 +35,84 @@ func (a *SVMAccount) Validate() error {
 	return nil
 }
 
-// Marshal serializes the SVM account to bytes.
-// TODO: replace JSON encoding with binary (protobuf or manual) before production use.
+// Marshal serializes the SVM account to a compact binary layout:
+//
+//	address[32] | owner[32] | lamports(u64 LE) | data_len(u64 LE) | data | executable(u8) | rent_epoch(u64 LE)
 func (a *SVMAccount) Marshal() ([]byte, error) {
-	return json.Marshal(a)
+	// Fixed overhead: 32 + 32 + 8 + 8 + 1 + 8 = 89 bytes + variable data
+	buf := make([]byte, 89+len(a.Data))
+	offset := 0
+
+	copy(buf[offset:], a.Address[:])
+	offset += 32
+
+	copy(buf[offset:], a.Owner[:])
+	offset += 32
+
+	binary.LittleEndian.PutUint64(buf[offset:], a.Lamports)
+	offset += 8
+
+	binary.LittleEndian.PutUint64(buf[offset:], a.DataLen)
+	offset += 8
+
+	copy(buf[offset:], a.Data)
+	offset += len(a.Data)
+
+	buf[offset] = boolByte(a.Executable)
+	offset++
+
+	binary.LittleEndian.PutUint64(buf[offset:], a.RentEpoch)
+
+	return buf, nil
 }
 
-// Unmarshal deserializes the SVMAccount from JSON bytes.
+// Unmarshal deserializes the SVMAccount from binary or JSON bytes.
+// If the first byte is '{', it falls back to JSON decoding (migration path).
 func (a *SVMAccount) Unmarshal(data []byte) error {
-	return json.Unmarshal(data, a)
+	if len(data) == 0 {
+		return fmt.Errorf("cannot unmarshal empty data")
+	}
+
+	// JSON migration fallback: if first byte is '{', decode as JSON.
+	if data[0] == '{' {
+		return json.Unmarshal(data, a)
+	}
+
+	// Binary layout: address[32] | owner[32] | lamports(8) | data_len(8) | data | executable(1) | rent_epoch(8)
+	// Minimum size without data: 32 + 32 + 8 + 8 + 1 + 8 = 89
+	if len(data) < 89 {
+		return fmt.Errorf("binary data too short: need at least 89 bytes, got %d", len(data))
+	}
+
+	offset := 0
+
+	copy(a.Address[:], data[offset:offset+32])
+	offset += 32
+
+	copy(a.Owner[:], data[offset:offset+32])
+	offset += 32
+
+	a.Lamports = binary.LittleEndian.Uint64(data[offset:])
+	offset += 8
+
+	a.DataLen = binary.LittleEndian.Uint64(data[offset:])
+	offset += 8
+
+	expectedLen := 89 + int(a.DataLen)
+	if len(data) < expectedLen {
+		return fmt.Errorf("binary data too short for data_len %d: need %d bytes, got %d", a.DataLen, expectedLen, len(data))
+	}
+
+	a.Data = make([]byte, a.DataLen)
+	copy(a.Data, data[offset:offset+int(a.DataLen)])
+	offset += int(a.DataLen)
+
+	a.Executable = data[offset] != 0
+	offset++
+
+	a.RentEpoch = binary.LittleEndian.Uint64(data[offset:])
+
+	return nil
 }
 
 // boolByte returns 1 if v is true, 0 otherwise.
