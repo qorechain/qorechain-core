@@ -26,3 +26,9 @@ func (s *Server) Stop() error { return nil }
 
 // SetContextProvider is a no-op in the public build.
 func SetContextProvider(_ func() sdk.Context) {}
+
+// WriteContextProvider returns a writable SDK context and a commit callback.
+type WriteContextProvider func() (ctx sdk.Context, commit func())
+
+// SetWriteContextProvider is a no-op in the public build.
+func SetWriteContextProvider(_ WriteContextProvider) {}
