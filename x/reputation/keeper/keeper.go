@@ -12,8 +12,14 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
+	"cosmossdk.io/core/comet"
+
 	"github.com/qorechain/qorechain-core/x/reputation/types"
 )
+
+// maxHistoricalBlocks is the maximum number of historical score entries
+// retained per validator. Older entries are pruned during recording.
+const maxHistoricalBlocks int64 = 1000
 
 // Keeper manages the x/reputation module state.
 type Keeper struct {
@@ -86,7 +92,11 @@ func (k Keeper) GetValidatorReputation(ctx sdk.Context, address string) (types.V
 
 func (k Keeper) SetValidatorReputation(ctx sdk.Context, rep types.ValidatorReputation) {
 	store := ctx.KVStore(k.storeKey)
-	bz, _ := json.Marshal(rep)
+	bz, err := json.Marshal(rep)
+	if err != nil {
+		k.logger.Error("failed to marshal validator reputation", "address", rep.Address, "error", err)
+		return
+	}
 	store.Set(validatorKey(rep.Address), bz)
 }
 
@@ -192,6 +202,8 @@ func (k Keeper) calculateTimeScore(ctx sdk.Context, rep types.ValidatorReputatio
 // ---- EndBlocker ----
 
 // EndBlocker runs at the end of each block to update validator performance.
+// Only validators who actually signed the previous block (BlockIDFlagCommit)
+// receive uptime credit — preventing inflated reputation for offline validators.
 func (k Keeper) EndBlocker(ctx sdk.Context) error {
 	// Get the current block's proposer
 	proposer := ctx.BlockHeader().ProposerAddress
@@ -201,15 +213,32 @@ func (k Keeper) EndBlocker(ctx sdk.Context) error {
 
 	proposerAddr := sdk.ConsAddress(proposer).String()
 
+	// Build a set of validators that actually signed the last block.
+	// Only those with BlockIDFlagCommit are credited with uptime.
+	signers := make(map[string]struct{})
+	cometInfo := ctx.CometInfo()
+	lastCommit := cometInfo.GetLastCommit()
+	for i := 0; i < lastCommit.Votes().Len(); i++ {
+		vote := lastCommit.Votes().Get(i)
+		if vote.GetBlockIDFlag() == comet.BlockIDFlagCommit {
+			addr := sdk.ConsAddress(vote.Validator().Address()).String()
+			signers[addr] = struct{}{}
+		}
+	}
+
 	// Read params once for the entire batch instead of per-validator.
 	params := k.GetParams(ctx)
 
 	// Update all validator reputations
 	reps := k.GetAllValidatorReputations(ctx)
 	for _, rep := range reps {
-		// Increment uptime for all registered validators.
-		// TODO: Check actual block signatures to only credit signing validators.
-		rep.UptimeBlocks++
+		// Only credit uptime to validators who actually signed the block.
+		if _, signed := signers[rep.Address]; signed {
+			rep.UptimeBlocks++
+		} else if len(signers) > 0 {
+			// If we have signer info and this validator did not sign, count as missed.
+			rep.MissedBlocks++
+		}
 
 		// If this validator was the proposer, increment proposed blocks
 		if rep.Address == proposerAddr {
@@ -232,6 +261,7 @@ func (k Keeper) EndBlocker(ctx sdk.Context) error {
 
 // RecordHistoricalScore persists a validator's composite score at the current
 // block height. The key uses zero-padded height for correct lexicographic ordering.
+// Old entries beyond maxHistoricalBlocks are pruned to prevent unbounded growth.
 func (k Keeper) RecordHistoricalScore(ctx sdk.Context, valAddr string, score float64) {
 	key := append([]byte{}, types.HistoryPrefix...)
 	key = append(key, []byte(fmt.Sprintf("%s/%020d", valAddr, ctx.BlockHeight()))...)
@@ -240,9 +270,30 @@ func (k Keeper) RecordHistoricalScore(ctx sdk.Context, valAddr string, score flo
 		Score:     score,
 		Timestamp: ctx.BlockTime(),
 	}
-	bz, _ := json.Marshal(hs)
+	bz, err := json.Marshal(hs)
+	if err != nil {
+		k.logger.Error("failed to marshal historical score", "validator", valAddr, "error", err)
+		return
+	}
 	store := ctx.KVStore(k.storeKey)
 	store.Set(key, bz)
+
+	// Prune entries older than maxHistoricalBlocks
+	cutoff := ctx.BlockHeight() - maxHistoricalBlocks
+	if cutoff <= 0 {
+		return
+	}
+	prefix := append([]byte{}, types.HistoryPrefix...)
+	prefix = append(prefix, []byte(valAddr+"/")...)
+	cutoffKey := append([]byte{}, types.HistoryPrefix...)
+	cutoffKey = append(cutoffKey, []byte(fmt.Sprintf("%s/%020d", valAddr, cutoff))...)
+
+	iter := store.Iterator(prefix, cutoffKey)
+	defer iter.Close()
+
+	for ; iter.Valid(); iter.Next() {
+		store.Delete(iter.Key())
+	}
 }
 
 // ---- Genesis ----
