@@ -91,7 +91,10 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 	}
 
 	// Pre-build both handler chains once to avoid per-TX allocation overhead.
-	// EVM mono decorator params are loaded from keepers at init and cached.
+	// The decorators hold pointers to these param structs; we refresh the
+	// pointed-to values from keeper state at the start of every AnteHandle
+	// invocation so that governance-updated params take effect immediately
+	// instead of being stale defaults for the lifetime of the node (ME-05).
 	evmParams := evmtypes.DefaultParams()
 	fmParams := feemarkettypes.DefaultParams()
 	evmHandler := newMonoEVMAnteHandler(options, &evmParams, &fmParams)
@@ -99,6 +102,10 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 
 	// Return the dual-routing ante handler function.
 	return func(ctx sdk.Context, tx sdk.Tx, sim bool) (sdk.Context, error) {
+		// Refresh cached params from on-chain state so decorators always
+		// operate on live values rather than stale construction-time defaults.
+		evmParams = options.EvmKeeper.GetParams(ctx)
+		fmParams = options.FeeMarketKeeper.GetParams(ctx)
 		// Check for EVM extension options to route appropriately.
 		txWithExtensions, ok := tx.(ante.HasExtensionOptionsTx)
 		if ok {
