@@ -115,11 +115,19 @@ func (m *MsgRegisterSVMPQCKey) ProtoMessage()  {}
 // ---------------------------------------------------------------------------
 
 // RegisterInterfaces registers the SVM module's interface types.
-func RegisterInterfaces(_ codectypes.InterfaceRegistry) {
-	// TODO: Register sdk.Msg implementations once proto definitions are generated.
+func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
+	registry.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgDeployProgram{},
+		&MsgExecuteProgram{},
+		&MsgCreateAccount{},
+		&MsgRegisterSVMPQCKey{},
+	)
 }
 
 // RegisterLegacyAminoCodec registers the SVM module's types with the legacy amino codec.
-func RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {
-	// TODO: Register concrete types once proto definitions are generated.
+func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
+	cdc.RegisterConcrete(&MsgDeployProgram{}, "svm/MsgDeployProgram", nil)
+	cdc.RegisterConcrete(&MsgExecuteProgram{}, "svm/MsgExecuteProgram", nil)
+	cdc.RegisterConcrete(&MsgCreateAccount{}, "svm/MsgCreateAccount", nil)
+	cdc.RegisterConcrete(&MsgRegisterSVMPQCKey{}, "svm/MsgRegisterSVMPQCKey", nil)
 }
