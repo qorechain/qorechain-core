@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 // ReputationParams holds the weights for the reputation formula.
 // R_i = α·S_i + β·P_i + γ·C_i + δ·T_i
 type ReputationParams struct {
@@ -40,12 +42,13 @@ type ValidatorReputation struct {
 	JoinedAtHeight     int64   `json:"joined_at_height"`
 }
 
-// HistoricalScore records reputation for a specific epoch.
+// HistoricalScore records reputation for a specific block height.
 type HistoricalScore struct {
-	Epoch      uint64  `json:"epoch"`
-	Score      float64 `json:"score"`
-	StakeComp  float64 `json:"stake_comp"`
-	PerfComp   float64 `json:"perf_comp"`
-	ContribComp float64 `json:"contrib_comp"`
-	TimeComp   float64 `json:"time_comp"`
+	Height      int64     `json:"height"`
+	Score       float64   `json:"score"`
+	Timestamp   time.Time `json:"timestamp"`
+	StakeComp   float64   `json:"stake_comp"`
+	PerfComp    float64   `json:"perf_comp"`
+	ContribComp float64   `json:"contrib_comp"`
+	TimeComp    float64   `json:"time_comp"`
 }

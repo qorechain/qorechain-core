@@ -116,13 +116,18 @@ func (k Keeper) CalculateReputation(ctx sdk.Context, valAddr string) float64 {
 }
 
 // calculateReputationWithParams avoids redundant GetParams calls when computing
-// scores in batch (e.g., during EndBlocker).
+// scores in batch (e.g., during EndBlocker). It fetches the reputation from store.
 func (k Keeper) calculateReputationWithParams(ctx sdk.Context, valAddr string, params types.ReputationParams) float64 {
 	rep, found := k.GetValidatorReputation(ctx, valAddr)
 	if !found {
 		return params.MinScore
 	}
+	return k.calculateReputationFromExisting(ctx, rep, params).CompositeScore
+}
 
+// calculateReputationFromExisting computes the composite reputation score from
+// an already-loaded ValidatorReputation, avoiding a redundant store read.
+func (k Keeper) calculateReputationFromExisting(ctx sdk.Context, rep types.ValidatorReputation, params types.ReputationParams) types.ValidatorReputation {
 	// Component scores (each normalized to 0.0-1.0)
 	S := rep.StakeScore // Use stored stake score directly
 	P := k.calculatePerformanceScore(rep)
@@ -146,7 +151,14 @@ func (k Keeper) calculateReputationWithParams(ctx sdk.Context, valAddr string, p
 		smoothed = params.MinScore
 	}
 
-	return smoothed
+	rep.StakeScore = S
+	rep.PerformanceScore = P
+	rep.ContributionScore = C
+	rep.TimeScore = T
+	rep.CompositeScore = smoothed
+	rep.LastUpdatedHeight = ctx.BlockHeight()
+
+	return rep
 }
 
 func (k Keeper) calculatePerformanceScore(rep types.ValidatorReputation) float64 {
@@ -204,14 +216,33 @@ func (k Keeper) EndBlocker(ctx sdk.Context) error {
 			rep.ProposedBlocks++
 		}
 
-		// Recalculate composite score using pre-loaded params
-		rep.CompositeScore = k.calculateReputationWithParams(ctx, rep.Address, params)
-		rep.LastUpdatedHeight = ctx.BlockHeight()
+		// Recalculate composite score using the already-loaded rep (no double read).
+		rep = k.calculateReputationFromExisting(ctx, rep, params)
 
 		k.SetValidatorReputation(ctx, rep)
+
+		// Record historical score for this block.
+		k.RecordHistoricalScore(ctx, rep.Address, rep.CompositeScore)
 	}
 
 	return nil
+}
+
+// ---- Historical Scores ----
+
+// RecordHistoricalScore persists a validator's composite score at the current
+// block height. The key uses zero-padded height for correct lexicographic ordering.
+func (k Keeper) RecordHistoricalScore(ctx sdk.Context, valAddr string, score float64) {
+	key := append([]byte{}, types.HistoryPrefix...)
+	key = append(key, []byte(fmt.Sprintf("%s/%020d", valAddr, ctx.BlockHeight()))...)
+	hs := types.HistoricalScore{
+		Height:    ctx.BlockHeight(),
+		Score:     score,
+		Timestamp: ctx.BlockTime(),
+	}
+	bz, _ := json.Marshal(hs)
+	store := ctx.KVStore(k.storeKey)
+	store.Set(key, bz)
 }
 
 // ---- Genesis ----

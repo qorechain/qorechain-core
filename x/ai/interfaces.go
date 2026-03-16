@@ -19,8 +19,12 @@ type AIKeeper interface {
 	SetStats(ctx sdk.Context, stats types.AIStats)
 	IncrementTxsRouted(ctx sdk.Context)
 	IncrementAnomaliesDetected(ctx sdk.Context)
+	IncrementContractsScored(ctx sdk.Context)
+	IncrementTxsFlagged(ctx sdk.Context)
+	IncrementTxsRejected(ctx sdk.Context)
 	FlagTransaction(ctx sdk.Context, flagged types.FlaggedTx)
 	AnalyzeTransaction(ctx sdk.Context, tx types.TransactionInfo, history []types.TransactionInfo) (*types.AnomalyResult, error)
+	ScoreContract(ctx sdk.Context, code []byte, chain string) (*types.RiskScore, error)
 
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState
