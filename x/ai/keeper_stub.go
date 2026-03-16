@@ -61,7 +61,17 @@ func (k *StubKeeper) GetStats(_ sdk.Context) types.AIStats   { return types.AISt
 func (k *StubKeeper) SetStats(_ sdk.Context, _ types.AIStats) {}
 func (k *StubKeeper) IncrementTxsRouted(_ sdk.Context)        {}
 func (k *StubKeeper) IncrementAnomaliesDetected(_ sdk.Context) {}
+func (k *StubKeeper) IncrementContractsScored(_ sdk.Context)   {}
+func (k *StubKeeper) IncrementTxsFlagged(_ sdk.Context)        {}
+func (k *StubKeeper) IncrementTxsRejected(_ sdk.Context)       {}
 func (k *StubKeeper) FlagTransaction(_ sdk.Context, _ types.FlaggedTx) {}
+func (k *StubKeeper) ScoreContract(_ sdk.Context, _ []byte, _ string) (*types.RiskScore, error) {
+	return &types.RiskScore{
+		Score:          0.0,
+		Severity:       "LOW",
+		Recommendation: "deploy",
+	}, nil
+}
 func (k *StubKeeper) AnalyzeTransaction(_ sdk.Context, _ types.TransactionInfo, _ []types.TransactionInfo) (*types.AnomalyResult, error) {
 	return &types.AnomalyResult{
 		IsAnomalous: false,

@@ -141,6 +141,35 @@ func (k Keeper) IncrementAnomaliesDetected(ctx sdk.Context) {
 	k.SetStats(ctx, stats)
 }
 
+func (k Keeper) IncrementContractsScored(ctx sdk.Context) {
+	stats := k.GetStats(ctx)
+	stats.ContractsScored++
+	k.SetStats(ctx, stats)
+}
+
+func (k Keeper) IncrementTxsFlagged(ctx sdk.Context) {
+	stats := k.GetStats(ctx)
+	stats.TxsFlagged++
+	k.SetStats(ctx, stats)
+}
+
+func (k Keeper) IncrementTxsRejected(ctx sdk.Context) {
+	stats := k.GetStats(ctx)
+	stats.TxsRejected++
+	k.SetStats(ctx, stats)
+}
+
+// ScoreContract runs contract risk scoring and increments the stats counter.
+func (k Keeper) ScoreContract(ctx sdk.Context, code []byte, chain string) (*types.RiskScore, error) {
+	goCtx := context.Background()
+	result, err := k.engine.ScoreContractRisk(goCtx, code, chain)
+	if err != nil {
+		return nil, err
+	}
+	k.IncrementContractsScored(ctx)
+	return result, nil
+}
+
 // ---- Flagged TXs ----
 
 func (k Keeper) FlagTransaction(ctx sdk.Context, flagged types.FlaggedTx) {
@@ -168,6 +197,7 @@ func (k Keeper) AnalyzeTransaction(ctx sdk.Context, tx types.TransactionInfo, hi
 
 	if result.IsAnomalous {
 		stats.AnomaliesDetected++
+		stats.TxsFlagged++
 		k.FlagTransaction(ctx, types.FlaggedTx{
 			TxHash:       tx.TxHash,
 			AnomalyScore: result.Score,

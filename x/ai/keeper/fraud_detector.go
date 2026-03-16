@@ -41,7 +41,9 @@ func NewFraudDetector() *FraudDetector {
 }
 
 // DetectFraud runs all fraud detection layers on a transaction.
-func (fd *FraudDetector) DetectFraud(_ context.Context, tx types.TransactionInfo, history []types.TransactionInfo) (*types.FraudResult, error) {
+// The blockHeight parameter is used to generate deterministic investigation IDs
+// that are safe for consensus. Callers should pass ctx.BlockHeight().
+func (fd *FraudDetector) DetectFraud(_ context.Context, tx types.TransactionInfo, history []types.TransactionInfo, blockHeight int64) (*types.FraudResult, error) {
 	results := make([]subResult, 0, 5)
 
 	// Layer 1: Statistical Isolation Forest — general anomaly scoring
@@ -142,7 +144,7 @@ func (fd *FraudDetector) DetectFraud(_ context.Context, tx types.TransactionInfo
 		if len(hashSuffix) > 8 {
 			hashSuffix = hashSuffix[:8]
 		}
-		investigationID = fmt.Sprintf("INV-%d-%s", time.Now().UnixMilli(), hashSuffix)
+		investigationID = fmt.Sprintf("INV-%d-%s", blockHeight, hashSuffix)
 	}
 
 	return &types.FraudResult{

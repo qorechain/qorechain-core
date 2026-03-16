@@ -56,8 +56,9 @@ func (e *EnhancedEngine) ScoreContractRisk(ctx context.Context, code []byte, cha
 }
 
 // DetectFraud runs the Phase 2 multi-layered fraud detection.
-func (e *EnhancedEngine) DetectFraud(ctx context.Context, tx types.TransactionInfo, history []types.TransactionInfo) (*types.FraudResult, error) {
-	return e.fraudDetector.DetectFraud(ctx, tx, history)
+// blockHeight is used to generate deterministic investigation IDs.
+func (e *EnhancedEngine) DetectFraud(ctx context.Context, tx types.TransactionInfo, history []types.TransactionInfo, blockHeight int64) (*types.FraudResult, error) {
+	return e.fraudDetector.DetectFraud(ctx, tx, history, blockHeight)
 }
 
 // EstimateFee returns a fee estimate for the given urgency.
@@ -118,7 +119,7 @@ func (k Keeper) GetFraudInvestigation(ctx sdk.Context, id string) (*types.FraudI
 // StoreFeeSnapshot persists a fee snapshot at the given height.
 func (k Keeper) StoreFeeSnapshot(ctx sdk.Context, snap types.FeeSnapshot) {
 	store := ctx.KVStore(k.storeKey)
-	key := append(types.FeeHistoryPrefix, []byte(fmt.Sprintf("%d", snap.Height))...)
+	key := types.HeightKey(types.FeeHistoryPrefix, snap.Height)
 	bz, _ := json.Marshal(snap)
 	store.Set(key, bz)
 }
@@ -126,7 +127,7 @@ func (k Keeper) StoreFeeSnapshot(ctx sdk.Context, snap types.FeeSnapshot) {
 // StoreNetworkRecommendations persists network recommendations for an epoch.
 func (k Keeper) StoreNetworkRecommendations(ctx sdk.Context, epoch int64, recs []types.NetworkRecommendation) {
 	store := ctx.KVStore(k.storeKey)
-	key := append(types.NetworkRecommendationPrefix, []byte(fmt.Sprintf("%d", epoch))...)
+	key := types.HeightKey(types.NetworkRecommendationPrefix, epoch)
 	bz, _ := json.Marshal(recs)
 	store.Set(key, bz)
 }
@@ -184,7 +185,7 @@ func (k Keeper) AnalyzeTransactionEnhanced(ctx sdk.Context, tx types.Transaction
 	// Phase 2: fraud detection (if engine supports it)
 	var fraudResult *types.FraudResult
 	if enhanced, ok := k.engine.(*EnhancedEngine); ok {
-		fr, err := enhanced.DetectFraud(goCtx, tx, history)
+		fr, err := enhanced.DetectFraud(goCtx, tx, history, ctx.BlockHeight())
 		if err != nil {
 			k.logger.Error("fraud detection failed", "error", err)
 		} else {

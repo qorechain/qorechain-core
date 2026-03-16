@@ -74,6 +74,7 @@ func (d AIAnomalyDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool
 
 	// If the anomaly score exceeds the reject threshold, reject the TX
 	if result.Action == "reject" && result.Score > config.AnomalyThreshold {
+		d.aiKeeper.IncrementTxsRejected(ctx)
 		return ctx, types.ErrTxRejected.Wrapf("anomaly score %.2f exceeds threshold %.2f", result.Score, config.AnomalyThreshold)
 	}
 
