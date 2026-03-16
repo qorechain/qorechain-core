@@ -17,6 +17,7 @@ coverage.txt
 
 # Docker
 .env
+.env.sidecar
 *.env.local
 
 # IDE

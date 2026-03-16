@@ -1,4 +1,5 @@
 .git
+.env.sidecar
 build/
 docs/
 *.md

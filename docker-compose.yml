@@ -42,10 +42,10 @@ services:
     container_name: qorechain-ai-sidecar
     ports:
       - "50051:50051"   # gRPC
+    env_file:
+      - .env.sidecar
     environment:
-      - AWS_REGION=${AWS_REGION:-us-east-1}
-      - QCAI_ACCESS_KEY_ID=${QCAI_ACCESS_KEY_ID}
-      - QCAI_SECRET_ACCESS_KEY=${QCAI_SECRET_ACCESS_KEY}
+      - QCAI_AWS_REGION=${QCAI_AWS_REGION:-us-east-1}
       - AI_MODEL_ID=${AI_MODEL_ID}
       - LOG_LEVEL=info
     networks:
@@ -115,7 +115,7 @@ services:
       - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus-data:/prometheus
     ports:
-      - "9091:9090"
+      - "127.0.0.1:9091:9090"
     networks:
       - qorechain-net
     restart: unless-stopped
@@ -127,9 +127,9 @@ services:
     image: grafana/grafana:11.2.0
     container_name: qorechain-grafana
     ports:
-      - "3001:3000"
+      - "127.0.0.1:3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:?GRAFANA_PASSWORD must be set}
     volumes:
       - grafana-data:/var/lib/grafana
       - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards

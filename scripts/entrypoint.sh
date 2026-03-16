@@ -18,6 +18,6 @@ exec qorechaind start \
     --grpc.address "0.0.0.0:9090" \
     --api.enable true \
     --api.address "tcp://0.0.0.0:1317" \
-    --api.swagger true \
+    --api.swagger ${ENABLE_SWAGGER:-false} \
     --p2p.laddr "tcp://0.0.0.0:26656" \
     --minimum-gas-prices "${MIN_GAS_PRICE:-0.001uqor}"
