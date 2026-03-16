@@ -19,12 +19,12 @@ func (e *StubExecutor) Execute(_ []byte, _ []byte, _ []types.SVMAccount,
 }
 
 func (e *StubExecutor) ExecuteV2(_ []byte, _ []types.SVMAccount, _ []types.AccountMeta,
-	_ []byte, _ [32]byte, _ uint64) (*types.ExecutionResult, error) {
+	_ []byte, _ [32]byte, _ uint64, _ int64) (*types.ExecutionResult, error) {
 	return nil, types.ErrSVMDisabled.Wrap("SVM executor not available in community build")
 }
 
 func (e *StubExecutor) ExecuteNative(_ [32]byte, _ []types.SVMAccount, _ []types.AccountMeta,
-	_ []byte) (*types.ExecutionResult, error) {
+	_ []byte, _ int64) (*types.ExecutionResult, error) {
 	return nil, types.ErrSVMDisabled.Wrap("SVM executor not available in community build")
 }
 

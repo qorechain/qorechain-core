@@ -11,13 +11,13 @@ type SVMExecutor interface {
 	// are deserialized from the result buffer after execution.
 	ExecuteV2(program []byte, accounts []SVMAccount, metas []AccountMeta,
 		instructionData []byte, programID [32]byte,
-		computeBudget uint64) (*ExecutionResult, error)
+		computeBudget uint64, blockTime int64) (*ExecutionResult, error)
 
 	// ExecuteNative runs a native program directly (no BPF interpretation).
 	// The program is identified by its 32-byte ID and must be registered in
 	// the runtime's native program table.
 	ExecuteNative(programID [32]byte, accounts []SVMAccount, metas []AccountMeta,
-		instructionData []byte) (*ExecutionResult, error)
+		instructionData []byte, blockTime int64) (*ExecutionResult, error)
 
 	// ValidateProgram verifies a BPF ELF binary is well-formed.
 	ValidateProgram(bytecode []byte) error
