@@ -113,7 +113,7 @@ func (e *FFIExecutor) Execute(program []byte, instruction []byte, accounts []typ
 // ExecuteV2 runs a BPF program with full Solana-compatible account context.
 func (e *FFIExecutor) ExecuteV2(program []byte, accounts []types.SVMAccount, metas []types.AccountMeta,
 	instructionData []byte, programID [32]byte,
-	computeBudget uint64) (*types.ExecutionResult, error) {
+	computeBudget uint64, blockTime int64) (*types.ExecutionResult, error) {
 
 	if len(program) == 0 {
 		return nil, fmt.Errorf("empty program bytecode")
@@ -140,6 +140,7 @@ func (e *FFIExecutor) ExecuteV2(program []byte, accounts []types.SVMAccount, met
 		(*C.uint8_t)(unsafe.Pointer(&inputBuf[0])),
 		C.size_t(len(inputBuf)),
 		C.uint64_t(computeBudget),
+		C.int64_t(blockTime),
 		(*C.uint8_t)(unsafe.Pointer(&resultBuf[0])),
 		C.size_t(resultBufCap),
 		&resultLen,
@@ -172,7 +173,7 @@ func (e *FFIExecutor) ExecuteV2(program []byte, accounts []types.SVMAccount, met
 
 // ExecuteNative runs a native program directly (no BPF interpretation).
 func (e *FFIExecutor) ExecuteNative(programID [32]byte, accounts []types.SVMAccount, metas []types.AccountMeta,
-	instructionData []byte) (*types.ExecutionResult, error) {
+	instructionData []byte, blockTime int64) (*types.ExecutionResult, error) {
 
 	// Serialize accounts into BPF input format.
 	inputBuf := types.SerializeAccountsForBPF(accounts, metas, instructionData, programID)
@@ -186,6 +187,7 @@ func (e *FFIExecutor) ExecuteNative(programID [32]byte, accounts []types.SVMAcco
 		(*C.uint8_t)(unsafe.Pointer(&programID[0])),
 		(*C.uint8_t)(unsafe.Pointer(&inputBuf[0])),
 		C.size_t(len(inputBuf)),
+		C.int64_t(blockTime),
 		(*C.uint8_t)(unsafe.Pointer(&resultBuf[0])),
 		C.size_t(resultBufCap),
 		&resultLen,

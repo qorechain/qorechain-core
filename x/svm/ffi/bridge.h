@@ -35,6 +35,7 @@ int32_t qore_svm_execute_v2(
     const uint8_t* elf_bytes, size_t elf_len,
     uint8_t* input_data, size_t input_len,
     uint64_t compute_budget,
+    int64_t block_time,
     uint8_t* result_out, size_t result_cap,
     size_t* result_len,
     void* callback_ctx,
@@ -45,6 +46,7 @@ int32_t qore_svm_execute_v2(
 int32_t qore_svm_execute_native(
     const uint8_t* program_id,
     uint8_t* input_data, size_t input_len,
+    int64_t block_time,
     uint8_t* result_out, size_t result_cap,
     size_t* result_len);
 

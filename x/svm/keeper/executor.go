@@ -71,9 +71,11 @@ func (k *Keeper) ExecuteProgram(
 	var result *types.ExecutionResult
 	var err error
 
+	blockTime := ctx.BlockTime().Unix()
+
 	if isNativeProgram(programID) {
 		// Native program execution — no bytecode needed.
-		result, err = k.executor.ExecuteNative(programID, svmAccounts, accounts, instruction)
+		result, err = k.executor.ExecuteNative(programID, svmAccounts, accounts, instruction, blockTime)
 	} else {
 		// BPF program execution — verify the program account and load bytecode.
 		progAcc, lookupErr := k.GetAccount(ctx, programID)
@@ -93,7 +95,7 @@ func (k *Keeper) ExecuteProgram(
 		}
 
 		result, err = k.executor.ExecuteV2(bytecode, svmAccounts, accounts, instruction,
-			programID, params.ComputeBudgetMax)
+			programID, params.ComputeBudgetMax, blockTime)
 	}
 
 	if err != nil {
