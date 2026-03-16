@@ -13,6 +13,9 @@ const (
 
 	// ParamsKey is the key for module parameters.
 	ParamsKey = "params"
+
+	// MsgCounterKey is the key for the monotonic message counter (prevents same-block ID collisions).
+	MsgCounterKey = "msg_counter"
 )
 
 // CrossVM precompile address: 0x0000000000000000000000000000000000000901
