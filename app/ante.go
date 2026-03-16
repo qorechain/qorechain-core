@@ -178,6 +178,8 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		NewPQCVerifyDecorator(options.PQCKeeper, options.PQCClient),
 		// PQC hybrid signature verification — checks TX extension for dual Ed25519 + ML-DSA-87
 		NewPQCHybridVerifyDecorator(options.PQCKeeper, options.PQCClient),
+		// PQC anti-replay guard — rejects PQC-signed txs with stale/future timestamps
+		NewPQCReplayGuardDecorator(),
 		// AI anomaly check — runs after PQC, before standard decorators
 		NewAIAnomalyDecorator(options.AIKeeper),
 		// FairBlock threshold IBE check — passthrough stub in v1.2.0

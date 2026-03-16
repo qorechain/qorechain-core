@@ -52,6 +52,9 @@ func init() {
 	NewPQCHybridVerifyDecorator = func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator {
 		return pqcmod.NewPQCHybridVerifyDecorator(keeper, client)
 	}
+	NewPQCReplayGuardDecorator = func() sdk.AnteDecorator {
+		return pqcmod.DefaultPQCReplayGuard()
+	}
 
 	NewAIKeeper = func(_ codec.Codec, _ storetypes.StoreKey, logger log.Logger) aimod.AIKeeper {
 		return aimod.NewStubKeeper(logger)
