@@ -162,6 +162,11 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		wasmkeeper.NewGasRegisterDecorator(options.WasmKeeper.GetGasRegister()),
 		wasmkeeper.NewTxContractsDecorator(),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
+		// Cheap validators — reject malformed txs before expensive PQC/AI work
+		ante.NewExtensionOptionsDecorator(options.ExtensionOptionChecker),
+		ante.NewValidateBasicDecorator(),
+		ante.NewTxTimeoutHeightDecorator(),
+		ante.NewValidateMemoDecorator(options.AccountKeeper),
 		// PQC signature verification — runs before standard sig verify
 		NewPQCVerifyDecorator(options.PQCKeeper, options.PQCClient),
 		// PQC hybrid signature verification — checks TX extension for dual Ed25519 + ML-DSA-87
@@ -174,10 +179,6 @@ func newCosmosAnteHandler(options HandlerOptions) sdk.AnteHandler {
 		NewSVMComputeBudgetDecorator(options.SVMKeeper),
 		// SVM fee deduction — placeholder for future compute-unit fee logic
 		NewSVMDeductFeeDecorator(options.SVMKeeper),
-		ante.NewExtensionOptionsDecorator(options.ExtensionOptionChecker),
-		ante.NewValidateBasicDecorator(),
-		ante.NewTxTimeoutHeightDecorator(),
-		ante.NewValidateMemoDecorator(options.AccountKeeper),
 		// Use EVM fee market min gas price instead of standard min gas price
 		cosmosante.NewMinGasPriceDecorator(options.FeeMarketKeeper, options.EvmKeeper),
 		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),
