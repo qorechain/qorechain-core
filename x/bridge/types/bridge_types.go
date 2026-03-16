@@ -37,10 +37,11 @@ const (
 type OperationStatus string
 
 const (
-	OpStatusPending   OperationStatus = "pending"
-	OpStatusAttested  OperationStatus = "attested"
-	OpStatusExecuted  OperationStatus = "executed"
-	OpStatusFailed    OperationStatus = "failed"
+	OpStatusPending    OperationStatus = "pending"
+	OpStatusAttested   OperationStatus = "attested"
+	OpStatusExecuting  OperationStatus = "executing"
+	OpStatusExecuted   OperationStatus = "executed"
+	OpStatusFailed     OperationStatus = "failed"
 	OpStatusChallenged OperationStatus = "challenged"
 )
 

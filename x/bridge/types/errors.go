@@ -20,4 +20,6 @@ var (
 	ErrAssetNotSupported          = errors.Register(ModuleName, 16, "asset not supported on this chain")
 	ErrInvalidDestination         = errors.Register(ModuleName, 17, "invalid destination address")
 	ErrChallengePeriodActive      = errors.Register(ModuleName, 18, "challenge period still active")
+	ErrUnauthorizedAttestor       = errors.Register(ModuleName, 19, "attestor pubkey not registered as bridge validator")
+	ErrOperationExecuting         = errors.Register(ModuleName, 20, "operation is currently executing")
 )
