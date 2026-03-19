@@ -187,8 +187,8 @@ Response:
 
 The cross-VM module follows QoreChain's open-core pattern:
 
-- **Public build** (`!full`): Stub keeper that returns safe defaults. The module registers in genesis but cross-VM calls return "not available in public build" errors.
-- **Full build** (`full`): Full keeper with precompile registration, CosmWasm execution via `PermissionedKeeper`, event queue processing, and PQC-signed cross-VM messages.
+- **Public build** (`!internal`): Stub keeper that returns safe defaults. The module registers in genesis but cross-VM calls return "not available in public build" errors.
+- **Internal build** (`internal`): Full keeper with precompile registration, CosmWasm execution via `PermissionedKeeper`, event queue processing, and PQC-signed cross-VM messages.
 
 ## Security
 

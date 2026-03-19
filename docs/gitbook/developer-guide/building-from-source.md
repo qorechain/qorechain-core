@@ -1,6 +1,6 @@
 # Building from Source
 
-This guide walks you through building the `qorechaind` binary from source, covering both the community (open-core) build and the full full build.
+This guide walks you through building the `qorechaind` binary from source, covering both the community (open-core) build and the full internal build.
 
 ---
 
@@ -83,9 +83,9 @@ export LD_LIBRARY_PATH=$(pwd)/lib/linux_amd64:$LD_LIBRARY_PATH
 
 QoreChain follows an **open-core** model:
 
-- **Community build** -- Contains the full module interfaces, CLI commands, protobuf definitions, and message types for every QoreChain module (x/pqc, x/ai, x/reputation, x/qca, x/svm, x/crossvm, etc.). Keepers for full modules use **stub implementations** that return safe defaults or no-op responses. This allows third-party tooling, wallets, and indexers to integrate with all QoreChain APIs without requiring full code.
+- **Community build** -- Contains the full module interfaces, CLI commands, protobuf definitions, and message types for every QoreChain module (x/pqc, x/ai, x/reputation, x/qca, x/svm, x/crossvm, etc.). Keepers for internal modules use **stub implementations** that return safe defaults or no-op responses. This allows third-party tooling, wallets, and indexers to integrate with all QoreChain APIs without requiring internal code.
 
-- **Full (full) build** -- Enables the complete keeper implementations behind the `full` build tag. This includes the real AI anomaly detection logic, reinforcement-learning consensus parameter tuning, advanced reputation scoring, and all production-grade features.
+- **Full (internal) build** -- Enables the complete keeper implementations behind the `internal` build tag. This includes the real AI anomaly detection logic, reinforcement-learning consensus parameter tuning, advanced reputation scoring, and all production-grade features.
 
 Both builds produce the same `qorechaind` binary name and expose identical CLI commands and gRPC/REST endpoints. The difference is in the runtime behavior of the keeper logic behind those interfaces.
 
@@ -97,7 +97,7 @@ Both builds produce the same `qorechaind` binary name and expose identical CLI c
 CGO_ENABLED=1 go build -o qorechaind ./cmd/qorechaind/
 ```
 
-This compiles all public module interfaces with stub keepers for full features. The resulting binary is fully functional for:
+This compiles all public module interfaces with stub keepers for internal features. The resulting binary is fully functional for:
 
 - Running a validator node
 - Submitting and querying transactions
@@ -107,13 +107,13 @@ This compiles all public module interfaces with stub keepers for full features. 
 
 ---
 
-## Full Build (Full)
+## Full Build (Internal)
 
 ```bash
-CGO_ENABLED=1 go build -tags full -o qorechaind ./cmd/qorechaind/
+CGO_ENABLED=1 go build -tags internal -o qorechaind ./cmd/qorechaind/
 ```
 
-The `-tags full` flag activates the full keeper implementations. This build requires access to the `qorechain-extended` repository.
+The `-tags internal` flag activates the full keeper implementations. This build requires access to the `qorechain-internal` repository.
 
 ---
 

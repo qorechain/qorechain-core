@@ -155,7 +155,7 @@ When an algorithm is deprecated:
 
 To add a new PQC algorithm:
 
-1. **Rust layer** — Implement `PQCSignatureScheme` or `PQCKEMScheme` trait in `qorechain-extended/pqc/src/`
+1. **Rust layer** — Implement `PQCSignatureScheme` or `PQCKEMScheme` trait in `qorechain-internal/pqc/src/`
 2. **Registry** — Add the algorithm to `AlgorithmRegistry::new()` with a new ID
 3. **Go types** — Add the algorithm ID constant in `types/algorithm.go`
 4. **Governance** — Submit `MsgAddAlgorithm` proposal on-chain

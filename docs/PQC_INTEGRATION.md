@@ -97,7 +97,7 @@ Pure Go implementation using `golang.org/x/crypto/sha3`, no FFI dependency.
 
 ```bash
 # The PQC library must be available in lib/{os}_{arch}/
-# Download from releases or build from qorechain-extended repo
+# Download from releases or build from qorechain-internal repo
 
 # Build with CGO
 CGO_ENABLED=1 go build -o qorechaind ./cmd/qorechaind/

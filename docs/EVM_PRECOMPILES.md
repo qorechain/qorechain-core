@@ -155,11 +155,11 @@ function executeCrossVMCall(uint8 targetVM, string targetContract, bytes payload
 
 **Gas:** 50,000 flat (actual execution gas varies)
 
-## Community vs Full Build
+## Community vs Internal Build
 
 In the **community build** (default), all 6 precompiles return descriptive errors indicating the feature is not available. The EVM itself functions normally with default geth precompiles.
 
-In the **full build** (`-tags full`), all 6 precompiles are fully functional and connected to the PQC, AI, and CrossVM keeper modules.
+In the **internal build** (`-tags internal`), all 6 precompiles are fully functional and connected to the PQC, AI, and CrossVM keeper modules.
 
 ## Solidity Interfaces
 

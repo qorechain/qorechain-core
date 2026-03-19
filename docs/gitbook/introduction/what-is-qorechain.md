@@ -52,4 +52,4 @@ Smart accounts with three programmable types (multisig, social recovery, session
 
 ## Ecosystem
 
-QoreChain ships with **18 custom modules** covering security (pqc), AI (ai, reputation, rlconsensus), consensus (qca), virtual machines (vm, svm, crossvm), tokenomics (burn, xqore, inflation), bridges (bridge, babylon, multilayer), governance extensions (abstractaccount, fairblock, gasabstraction), and rollups (rdk). Together with 27 standard framework modules, the chain registers **45 genesis modules** in an open-core architecture -- the protocol layer is fully open source, with optional full extensions for enterprise deployments.
+QoreChain ships with **18 custom modules** covering security (pqc), AI (ai, reputation, rlconsensus), consensus (qca), virtual machines (vm, svm, crossvm), tokenomics (burn, xqore, inflation), bridges (bridge, babylon, multilayer), governance extensions (abstractaccount, fairblock, gasabstraction), and rollups (rdk). Together with 27 standard framework modules, the chain registers **45 genesis modules** in an open-core architecture -- the protocol layer is fully open source, with optional internal extensions for enterprise deployments.

@@ -376,11 +376,11 @@ The SVM runtime requires the Rust BPF execution engine (`libqoresvm`):
 # Build the Rust crate
 cd rust/qoresvm && cargo build --release
 
-# Build QoreChain with SVM support (full build)
-CGO_ENABLED=1 go build -tags full ./cmd/qorechaind/
+# Build QoreChain with SVM support (internal build)
+CGO_ENABLED=1 go build -tags internal ./cmd/qorechaind/
 
 # Public build (SVM stubs — RPC returns "not available")
 CGO_ENABLED=1 go build ./cmd/qorechaind/
 ```
 
-The public community build includes the SVM module interface and CLI commands but uses stub implementations. Full BPF execution and the JSON-RPC server require the full build.
+The public community build includes the SVM module interface and CLI commands but uses stub implementations. Full BPF execution and the JSON-RPC server require the internal build.
