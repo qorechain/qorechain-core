@@ -22,6 +22,7 @@ import (
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
+	lightnodemod "github.com/qorechain/qorechain-core/x/lightnode"
 	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
 	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
@@ -129,4 +130,9 @@ var (
 	) rdkmod.RDKKeeper
 	NewRDKAppModule   func(keeper rdkmod.RDKKeeper) module.AppModule
 	NewRDKModuleBasic func() module.AppModuleBasic
+
+	// LightNode module factories (v1.15.0 — light node registration + rewards)
+	NewLightNodeKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) lightnodemod.LightNodeKeeper
+	NewLightNodeAppModule   func(keeper lightnodemod.LightNodeKeeper) module.AppModule
+	NewLightNodeModuleBasic func() module.AppModuleBasic
 )
