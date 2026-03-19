@@ -52,6 +52,11 @@ func init() {
 	cfg.Seal()
 }
 
+// registerSidecarCmd is set by build-tag-specific init() functions.
+// With the "full" tag it wires in sidecar management commands;
+// without it the stub leaves the root command unchanged.
+var registerSidecarCmd func(*cobra.Command)
+
 // NewRootCmd creates a new root command for qorechaind.
 func NewRootCmd() *cobra.Command {
 	var (
@@ -168,6 +173,11 @@ func NewRootCmd() *cobra.Command {
 
 	if err := autoCliOpts.EnhanceRootCommand(rootCmd); err != nil {
 		panic(err)
+	}
+
+	// Register sidecar CLI commands (no-op in public builds).
+	if registerSidecarCmd != nil {
+		registerSidecarCmd(rootCmd)
 	}
 
 	return rootCmd
