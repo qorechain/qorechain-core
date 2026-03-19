@@ -1,0 +1,36 @@
+syntax = "proto3";
+package qorechain.sidecar.v1;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/qorechain/qorechain-core/sidecar/proto/sidecar/v1";
+
+service ValidatorService {
+  rpc ReportStats(stream ValidatorStats) returns (google.protobuf.Empty);
+  rpc GetStatus(StatusRequest) returns (ValidatorStatus);
+}
+
+message ValidatorStats {
+  string chain_id = 1;
+  uint64 blocks_proposed = 2;
+  uint64 blocks_signed = 3;
+  uint64 blocks_missed = 4;
+  string stake_amount = 5;
+  string rewards_earned = 6;
+  double uptime_percent = 7;
+  int64  timestamp = 8;
+}
+
+message StatusRequest {
+  string chain_id = 1;
+}
+
+message ValidatorStatus {
+  string chain_id = 1;
+  bool   active = 2;
+  string stake_amount = 3;
+  uint64 current_epoch = 4;
+  double uptime_percent = 5;
+  string sync_status = 6;
+  int64  last_block_time = 7;
+}

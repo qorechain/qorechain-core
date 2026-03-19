@@ -1,0 +1,86 @@
+syntax = "proto3";
+package qorechain.sidecar.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/sidecar/proto/sidecar/v1";
+
+service SidecarAdmin {
+  rpc Enable(EnableRequest) returns (EnableResponse);
+  rpc Disable(DisableRequest) returns (DisableResponse);
+  rpc Status(SidecarStatusRequest) returns (SidecarStatusResponse);
+  rpc Upgrade(UpgradeRequest) returns (UpgradeResponse);
+  rpc ImportKeys(ImportKeysRequest) returns (ImportKeysResponse);
+  rpc GenerateKeys(GenerateKeysRequest) returns (GenerateKeysResponse);
+}
+
+message EnableRequest {
+  string chain = 1;
+}
+
+message EnableResponse {
+  bool   success = 1;
+  string message = 2;
+  string container_id = 3;
+  string image_version = 4;
+}
+
+message DisableRequest {
+  string chain = 1;
+}
+
+message DisableResponse {
+  bool   success = 1;
+  string message = 2;
+}
+
+message SidecarStatusRequest {
+  string chain = 1;
+}
+
+message SidecarStatusResponse {
+  repeated SidecarInfo sidecars = 1;
+}
+
+message SidecarInfo {
+  string chain = 1;
+  string mode = 2;
+  string state = 3;
+  string image = 4;
+  string container_id = 5;
+  int64  uptime_seconds = 6;
+  int32  restart_count = 7;
+  uint64 blocks_proposed = 8;
+  uint64 blocks_signed = 9;
+  double uptime_percent = 10;
+  string rewards_earned = 11;
+}
+
+message UpgradeRequest {
+  string chain = 1;
+}
+
+message UpgradeResponse {
+  bool   success = 1;
+  string old_version = 2;
+  string new_version = 3;
+}
+
+message ImportKeysRequest {
+  string chain = 1;
+  bytes  key_data = 2;
+  string format = 3;
+}
+
+message ImportKeysResponse {
+  bool   success = 1;
+  string address = 2;
+}
+
+message GenerateKeysRequest {
+  string chain = 1;
+}
+
+message GenerateKeysResponse {
+  bool   success = 1;
+  string address = 2;
+  string public_key = 3;
+}

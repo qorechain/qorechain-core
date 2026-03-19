@@ -1,0 +1,22 @@
+syntax = "proto3";
+package qorechain.sidecar.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/sidecar/proto/sidecar/v1";
+
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+  }
+  ServingStatus status = 1;
+  string details = 2;
+}
