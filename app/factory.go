@@ -22,6 +22,7 @@ import (
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
+	licensemod "github.com/qorechain/qorechain-core/x/license"
 	lightnodemod "github.com/qorechain/qorechain-core/x/lightnode"
 	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
 	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
@@ -135,4 +136,9 @@ var (
 	NewLightNodeKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) lightnodemod.LightNodeKeeper
 	NewLightNodeAppModule   func(keeper lightnodemod.LightNodeKeeper) module.AppModule
 	NewLightNodeModuleBasic func() module.AppModuleBasic
+
+	// License module factories (v1.4.0 — validator bridge & multi-chain)
+	NewLicenseKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) licensemod.LicenseKeeper
+	NewLicenseAppModule   func(keeper licensemod.LicenseKeeper) module.AppModule
+	NewLicenseModuleBasic func() module.AppModuleBasic
 )

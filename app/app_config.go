@@ -166,6 +166,7 @@ var (
 					"babylon",
 					"rdk",
 					"lightnode",
+					"license",
 					// EVM post-block processing
 					"evm",
 					"feemarket",
@@ -227,6 +228,7 @@ var (
 					"gasabstraction",
 					"rdk",
 					"lightnode",
+					"license",
 				},
 				ExportGenesis: []string{
 					consensustypes.ModuleName,
@@ -277,6 +279,7 @@ var (
 					"gasabstraction",
 					"rdk",
 					"lightnode",
+					"license",
 				},
 			}),
 		},

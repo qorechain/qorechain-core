@@ -121,6 +121,9 @@ import (
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	gasabstractiontypes "github.com/qorechain/qorechain-core/x/gasabstraction/types"
 
+	licensemod "github.com/qorechain/qorechain-core/x/license"
+	licensetypes "github.com/qorechain/qorechain-core/x/license/types"
+
 	lightnodemod "github.com/qorechain/qorechain-core/x/lightnode"
 	lightnodetypes "github.com/qorechain/qorechain-core/x/lightnode/types"
 
@@ -234,6 +237,7 @@ type QoreChainApp struct {
 	GasAbstractionKeeper   gasabstractionmod.GasAbstractionKeeper
 	RDKKeeper              rdkmod.RDKKeeper       // v1.3.0 — Rollup Development Kit
 	LightNodeKeeper        lightnodemod.LightNodeKeeper // v1.15.0 — Light node registration + rewards
+	LicenseKeeper          licensemod.LicenseKeeper      // v1.4.0 — License-gated sidecar features
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -646,6 +650,16 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize License module (via factory, v1.4.0 — validator bridge & multi-chain) ---
+	licenseStoreKey := storetypes.NewKVStoreKey(licensetypes.StoreKey)
+	app.MountStores(licenseStoreKey)
+
+	app.LicenseKeeper = NewLicenseKeeper(
+		app.appCodec,
+		licenseStoreKey,
+		logger,
+	)
+
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
@@ -710,6 +724,7 @@ func NewQoreChainApp(
 		NewGasAbstractionAppModule(app.GasAbstractionKeeper),
 		NewRDKAppModule(app.RDKKeeper),
 		NewLightNodeAppModule(app.LightNodeKeeper),
+		NewLicenseAppModule(app.LicenseKeeper),
 	); err != nil {
 		panic(err)
 	}
