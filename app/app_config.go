@@ -150,6 +150,7 @@ var (
 					"rlconsensus",
 					"babylon",
 					"rdk",
+					"lightnode",
 				},
 				EndBlockers: []string{
 					govtypes.ModuleName,
@@ -164,6 +165,7 @@ var (
 					"rlconsensus",
 					"babylon",
 					"rdk",
+					"lightnode",
 					// EVM post-block processing
 					"evm",
 					"feemarket",
@@ -224,6 +226,7 @@ var (
 					"fairblock",
 					"gasabstraction",
 					"rdk",
+					"lightnode",
 				},
 				ExportGenesis: []string{
 					consensustypes.ModuleName,
@@ -273,6 +276,7 @@ var (
 					"fairblock",
 					"gasabstraction",
 					"rdk",
+					"lightnode",
 				},
 			}),
 		},

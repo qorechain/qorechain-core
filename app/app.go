@@ -121,6 +121,9 @@ import (
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	gasabstractiontypes "github.com/qorechain/qorechain-core/x/gasabstraction/types"
 
+	lightnodemod "github.com/qorechain/qorechain-core/x/lightnode"
+	lightnodetypes "github.com/qorechain/qorechain-core/x/lightnode/types"
+
 	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
 	rdktypes "github.com/qorechain/qorechain-core/x/rdk/types"
 
@@ -229,7 +232,8 @@ type QoreChainApp struct {
 	AbstractAccountKeeper  abstractaccountmod.AbstractAccountKeeper
 	FairBlockKeeper        fairblockmod.FairBlockKeeper
 	GasAbstractionKeeper   gasabstractionmod.GasAbstractionKeeper
-	RDKKeeper              rdkmod.RDKKeeper // v1.3.0 — Rollup Development Kit
+	RDKKeeper              rdkmod.RDKKeeper       // v1.3.0 — Rollup Development Kit
+	LightNodeKeeper        lightnodemod.LightNodeKeeper // v1.15.0 — Light node registration + rewards
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -631,6 +635,17 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize LightNode module (via factory, v1.15.0 — light node registration + rewards) ---
+	lightnodeStoreKey := storetypes.NewKVStoreKey(lightnodetypes.StoreKey)
+	app.MountStores(lightnodeStoreKey)
+
+	app.LightNodeKeeper = NewLightNodeKeeper(
+		app.appCodec,
+		lightnodeStoreKey,
+		app.BankKeeper,
+		logger,
+	)
+
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
@@ -694,6 +709,7 @@ func NewQoreChainApp(
 		NewFairBlockAppModule(app.FairBlockKeeper),
 		NewGasAbstractionAppModule(app.GasAbstractionKeeper),
 		NewRDKAppModule(app.RDKKeeper),
+		NewLightNodeAppModule(app.LightNodeKeeper),
 	); err != nil {
 		panic(err)
 	}

@@ -125,6 +125,8 @@ func NewRootCmd() *cobra.Command {
 	moduleBasicManager[gasabstractionBasic.Name()] = gasabstractionBasic
 	rdkBasic := app.NewRDKModuleBasic()
 	moduleBasicManager[rdkBasic.Name()] = rdkBasic
+	lightnodeBasic := app.NewLightNodeModuleBasic()
+	moduleBasicManager[lightnodeBasic.Name()] = lightnodeBasic
 
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",
