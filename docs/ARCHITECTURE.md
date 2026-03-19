@@ -127,6 +127,20 @@ FairBlock threshold identity-based encryption stub for encrypted mempool orderin
 
 Multi-denomination fee payment supporting IBC-received tokens. Static conversion rates for testnet (uqor 1:1, ibc/USDC 1:1, ibc/ATOM 10:1). Ante decorator converts non-native fee denominations to native equivalents.
 
+### x/license — On-Chain License Registry (v2.5.0)
+
+The license module manages an on-chain registry of operator licenses that gate access to privileged chain features such as bridge operation, sidecar management, and validator services.
+
+- **27 feature IDs** covering bridge watching, transaction relaying, validator operations, key management, cross-chain settlement, and sidecar administration across all supported external networks.
+- **License lifecycle**: Licenses follow a state machine: `grant → active → suspended / revoked / expired`.
+  - **Grant**: Issued via governance proposal (`LicenseGrantProposal`) or admin transaction (`MsgGrantLicense`).
+  - **Active**: Operator may use the licensed features. Validated on every relevant transaction by the license ante decorator.
+  - **Suspended**: Temporarily disabled by governance or automated risk triggers. Can be reactivated.
+  - **Revoked**: Permanently invalidated. Requires a new grant to restore access.
+  - **Expired**: Time-based expiry handled automatically by the module's `EndBlocker`, which scans active licenses each block and transitions any past their expiry timestamp.
+- **Queries**: `QueryLicense`, `QueryLicensesByOperator`, `QueryLicensesByFeature`, `QueryExpiringSoon`.
+- **Integration**: The `LicenseCheckDecorator` runs in the ante chain before sidecar and bridge operations, rejecting transactions from unlicensed operators.
+
 ## AnteHandler Chain
 
 ```
