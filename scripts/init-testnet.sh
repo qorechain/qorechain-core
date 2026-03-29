@@ -6,7 +6,7 @@ set -euo pipefail
 
 CHAIN_ID="${CHAIN_ID:-qorechain-diana}"
 MONIKER="${MONIKER:-qorechain-validator-1}"
-HOME_DIR="${HOME_DIR:-/root/.qorechaind}"
+HOME_DIR="${HOME_DIR:-/home/qorechaind/.qorechaind}"
 DENOM="uqor"
 KEYRING="test"
 

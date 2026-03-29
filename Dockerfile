@@ -37,7 +37,7 @@ RUN useradd -r -u 1000 -d /home/qorechaind -s /sbin/nologin qorechaind && \
 USER qorechaind
 WORKDIR /home/qorechaind
 
-# QoreChain RPC, P2P, REST, gRPC, Prometheus, EVM JSON-RPC, EVM WS
-EXPOSE 26657 26656 1317 9090 26660 8545 8546
+# QoreChain RPC, P2P, REST, gRPC, Prometheus, EVM JSON-RPC, EVM WS, SVM JSON-RPC
+EXPOSE 26657 26656 1317 9090 26660 8545 8546 8899
 
 ENTRYPOINT ["/scripts/entrypoint.sh"]

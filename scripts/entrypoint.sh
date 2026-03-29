@@ -1,9 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
-CHAIN_ID="${CHAIN_ID:-qorechain-testnet-1}"
-MONIKER="${MONIKER:-qorechain-validator-1}"
-HOME_DIR="/home/qorechaind/.qorechaind"
+export CHAIN_ID="${CHAIN_ID:-qorechain-diana}"
+export MONIKER="${MONIKER:-qorechain-validator-1}"
+export HOME_DIR="${HOME_DIR:-/home/qorechaind/.qorechaind}"
 
 # Initialize if not already initialized
 if [ ! -f "$HOME_DIR/config/genesis.json" ]; then
