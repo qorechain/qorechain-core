@@ -42,7 +42,7 @@ qorechaind genesis gentx validator "10000000000000${DENOM}" \
     --commission-rate "0.10" \
     --commission-max-rate "0.20" \
     --commission-max-change-rate "0.01" \
-    --min-self-delegation "1" \
+    --min-self-delegation "100000000000" \
     --keyring-backend "$KEYRING" \
     --home "$HOME_DIR"
 
@@ -56,9 +56,12 @@ jq '
   .app_state.staking.params.bond_denom = "uqor" |
   .app_state.staking.params.unbonding_time = "600s" |
   .app_state.staking.params.min_commission_rate = "0.050000000000000000" |
+  .app_state.staking.params.max_validators = 150 |
+  .app_state.staking.params.min_self_delegation = "100000000000" |
   .app_state.mint.minter.inflation = "0.130000000000000000" |
   .app_state.gov.params.min_deposit[0].denom = "uqor" |
-  .app_state.gov.params.min_deposit[0].amount = "10000000" |
+  .app_state.gov.params.min_deposit[0].amount = "10000000000" |
+  .app_state.gov.params.quorum = "0.100000000000000000" |
   .app_state.gov.params.voting_period = "600s" |
   .app_state.bank.denom_metadata = [
     {
