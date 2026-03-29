@@ -305,6 +305,11 @@ func NewQoreChainApp(
 
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
+	// Register governance hooks — reward proposers of passed proposals
+	app.GovKeeper.SetHooks(govtypes.NewMultiGovHooks(
+		NewProposalRewardHook(app.GovKeeper, app.BankKeeper),
+	))
+
 	// Governance authority address (used as keeper authority for IBC/EVM/Wasm modules)
 	authAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()
 
