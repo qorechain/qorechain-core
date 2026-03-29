@@ -47,4 +47,4 @@ Edit `~/.qorechaind/config/config.toml`:
 
 - **Prometheus**: Metrics at `:26660/metrics`
 - **Grafana**: Dashboards at `:3001` (admin/admin)
-- **REST API**: `:1317/cosmos/base/tendermint/v1beta1/node_info`
+- **REST API**: `:1317/node_info`

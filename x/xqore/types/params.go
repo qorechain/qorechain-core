@@ -34,7 +34,7 @@ func DefaultParams() Params {
 			{MinDuration: 90 * 24 * time.Hour, PenaltyRate: math.LegacyNewDecWithPrec(15, 2)}, // 3 months: 15%
 			{MinDuration: 180 * 24 * time.Hour, PenaltyRate: math.LegacyZeroDec()},            // 6 months: 0%
 		},
-		PenaltyBurnRate: math.LegacyNewDecWithPrec(50, 2), // 50%
+		PenaltyBurnRate: math.LegacyZeroDec(), // 0% burned — 100% redistributed (PvP rebase per QCW2)
 		RebaseInterval:  100,                               // every 100 blocks
 		Enabled:         true,
 	}
