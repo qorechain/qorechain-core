@@ -3,7 +3,7 @@ package keeper
 import (
 	"encoding/json"
 	"fmt"
-	"math"
+	"sort"
 
 	sdkmath "cosmossdk.io/math"
 
@@ -17,6 +17,7 @@ import (
 	"cosmossdk.io/core/comet"
 
 	"github.com/qorechain/qorechain-core/x/reputation/types"
+	"github.com/qorechain/qorechain-core/x/rlconsensus/mathutil"
 )
 
 // maxHistoricalBlocks is the maximum number of historical score entries
@@ -169,11 +170,9 @@ func (k Keeper) calculateReputationFromExisting(ctx sdk.Context, rep types.Valid
 		elapsed = sdkmath.LegacyZeroDec()
 	}
 
-	// exp() requires float64 — compute decay factor then convert back
-	lambdaF, _ := lambda.Float64()
-	elapsedF, _ := elapsed.Float64()
-	decayFactorF := math.Exp(-elapsedF / lambdaF)
-	decayFactor := sdkmath.LegacyMustNewDecFromStr(fmt.Sprintf("%.18f", decayFactorF))
+	// Deterministic exp approximation using Taylor series (no float64)
+	negRatio := elapsed.Neg().Quo(lambda)
+	decayFactor := mathutil.ExpApprox(negRatio)
 
 	oldComposite := rep.GetCompositeScoreDec()
 	one := sdkmath.LegacyOneDec()
@@ -208,20 +207,27 @@ func (k Keeper) calculateContributionScore(rep types.ValidatorReputation) sdkmat
 	if rep.CommunityVotes <= 0 {
 		return sdkmath.LegacyZeroDec()
 	}
-	// Logarithmic scale: math.Log1p requires float64, convert result back
-	raw := math.Min(math.Log1p(float64(rep.CommunityVotes))/5.0, 1.0)
-	return sdkmath.LegacyMustNewDecFromStr(fmt.Sprintf("%.18f", raw))
+	// Deterministic logarithmic scale using Taylor series (no float64)
+	votesDec := sdkmath.LegacyNewDec(int64(rep.CommunityVotes))
+	five := sdkmath.LegacyNewDec(5)
+	raw := mathutil.TaylorLn1PlusX(votesDec).Quo(five)
+	if raw.GT(sdkmath.LegacyOneDec()) {
+		raw = sdkmath.LegacyOneDec()
+	}
+	return raw
 }
 
 func (k Keeper) calculateTimeScore(ctx sdk.Context, rep types.ValidatorReputation) sdkmath.LegacyDec {
 	// Longevity bonus: longer participation = higher score
-	age := float64(ctx.BlockHeight() - rep.JoinedAtHeight)
-	if age <= 0 {
+	blocks := ctx.BlockHeight() - rep.JoinedAtHeight
+	if blocks <= 0 {
 		return sdkmath.LegacyZeroDec()
 	}
-	// Asymptotic approach to 1.0 over ~10,000 blocks: 1 - exp(-age/10000)
-	raw := 1.0 - math.Exp(-age/10000.0)
-	return sdkmath.LegacyMustNewDecFromStr(fmt.Sprintf("%.18f", raw))
+	// Deterministic asymptotic approach to 1.0 over ~10,000 blocks: 1 - exp(-age/10000)
+	ageDec := sdkmath.LegacyNewDec(blocks)
+	tenThousand := sdkmath.LegacyNewDec(10000)
+	negRatio := ageDec.Neg().Quo(tenThousand)
+	return sdkmath.LegacyOneDec().Sub(mathutil.ExpApprox(negRatio))
 }
 
 // ---- EndBlocker ----
@@ -256,7 +262,13 @@ func (k Keeper) EndBlocker(ctx sdk.Context) error {
 
 	// Ensure every signing validator has a reputation record.
 	// Newly-joined validators get JoinedAtHeight set to the current block.
+	// Sort addresses for deterministic iteration order.
+	signerAddrs := make([]string, 0, len(signers))
 	for addr := range signers {
+		signerAddrs = append(signerAddrs, addr)
+	}
+	sort.Strings(signerAddrs)
+	for _, addr := range signerAddrs {
 		if _, found := k.GetValidatorReputation(ctx, addr); !found {
 			k.SetValidatorReputation(ctx, types.ValidatorReputation{
 				Address:        addr,
