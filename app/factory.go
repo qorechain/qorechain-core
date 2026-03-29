@@ -83,9 +83,10 @@ var (
 	NewRLConsensusModuleBasic func() module.AppModuleBasic
 
 	// Burn module factories
-	NewBurnKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) burnmod.BurnKeeper
-	NewBurnAppModule   func(keeper burnmod.BurnKeeper) module.AppModule
-	NewBurnModuleBasic func() module.AppModuleBasic
+	NewBurnKeeper           func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) burnmod.BurnKeeper
+	NewBurnAppModule        func(keeper burnmod.BurnKeeper) module.AppModule
+	NewBurnModuleBasic      func() module.AppModuleBasic
+	NewBurnTxCountDecorator func(keeper burnmod.BurnKeeper) sdk.AnteDecorator
 
 	// xQORE module factories
 	NewXQOREKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) xqoremod.XQOREKeeper

@@ -33,6 +33,7 @@ import (
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
+	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
@@ -52,6 +53,7 @@ type HandlerOptions struct {
 	SVMBankKeeper        svmmod.SVMBankKeeper
 	FairBlockKeeper      fairblockmod.FairBlockKeeper
 	GasAbstractionKeeper gasabstractionmod.GasAbstractionKeeper
+	BurnKeeper           burnmod.BurnKeeper
 
 	// EVM keepers — the concrete AccountKeeper is needed because the EVM ante
 	// interfaces require GetSequence which the SDK ante.AccountKeeper interface lacks.
@@ -207,6 +209,8 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		ante.NewSigGasConsumeDecorator(options.AccountKeeper, options.SigGasConsumer),
 		ante.NewSigVerificationDecorator(options.AccountKeeper, options.SignModeHandler),
 		ante.NewIncrementSequenceDecorator(options.AccountKeeper),
+		// Burn module TX counter — counts transactions for milestone burn tracking
+		NewBurnTxCountDecorator(options.BurnKeeper),
 		// IBC redundant relay check — prevents relayers from wasting fees
 		ibcante.NewRedundantRelayDecorator(options.IBCKeeper),
 		// Track cumulative gas wanted for EIP-1559 base fee calculation

@@ -137,6 +137,9 @@ func init() {
 	NewBurnModuleBasic = func() module.AppModuleBasic {
 		return burnmod.AppModuleBasic{}
 	}
+	NewBurnTxCountDecorator = func(keeper burnmod.BurnKeeper) sdk.AnteDecorator {
+		return burnmod.NewBurnTxCountDecorator(keeper)
+	}
 
 	NewXQOREKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ bankkeeper.BaseKeeper, logger log.Logger) xqoremod.XQOREKeeper {
 		return xqoremod.NewStubKeeper(logger)

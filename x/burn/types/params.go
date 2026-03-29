@@ -8,16 +8,17 @@ import (
 
 // Params defines the configurable parameters for the burn module.
 type Params struct {
-	GasBurnRate       math.LegacyDec `json:"gas_burn_rate"`        // 0.30 — 30% of fees burned
-	ContractCreateFee math.Int       `json:"contract_create_fee"`  // flat QOR fee for contract creation
-	AIServiceBurnRate math.LegacyDec `json:"ai_service_burn_rate"` // 0.50 — 50% of AI service fees
-	BridgeBurnRate    math.LegacyDec `json:"bridge_burn_rate"`     // 1.00 — 100% of bridge fees
-	FailedTxBurnRate  math.LegacyDec `json:"failed_tx_burn_rate"`  // partial gas burn on failure
-	ValidatorShare    math.LegacyDec `json:"validator_share"`      // 0.37 — 37% to validators
-	TreasuryShare     math.LegacyDec `json:"treasury_share"`       // 0.20 — 20% to treasury
-	StakerShare       math.LegacyDec `json:"staker_share"`         // 0.10 — 10% to stakers
-	LightNodeShare    math.LegacyDec `json:"light_node_share"`     // 0.03 — 3% to light nodes
-	Enabled           bool           `json:"enabled"`
+	GasBurnRate            math.LegacyDec      `json:"gas_burn_rate"`             // 0.30 — 30% of fees burned
+	ContractCreateFee      math.Int             `json:"contract_create_fee"`       // flat QOR fee for contract creation
+	AIServiceBurnRate      math.LegacyDec       `json:"ai_service_burn_rate"`      // 0.50 — 50% of AI service fees
+	BridgeBurnRate         math.LegacyDec       `json:"bridge_burn_rate"`          // 1.00 — 100% of bridge fees
+	FailedTxBurnRate       math.LegacyDec       `json:"failed_tx_burn_rate"`       // partial gas burn on failure
+	ValidatorShare         math.LegacyDec       `json:"validator_share"`           // 0.37 — 37% to validators
+	TreasuryShare          math.LegacyDec       `json:"treasury_share"`            // 0.20 — 20% to treasury
+	StakerShare            math.LegacyDec       `json:"staker_share"`              // 0.10 — 10% to stakers
+	LightNodeShare         math.LegacyDec       `json:"light_node_share"`          // 0.03 — 3% to light nodes
+	MilestoneBurnSchedule  []MilestoneBurnTier  `json:"milestone_burn_schedule"`   // TX count milestone burns
+	Enabled                bool                 `json:"enabled"`
 }
 
 // DefaultParams returns the default burn module parameters.
@@ -33,6 +34,10 @@ func DefaultParams() Params {
 		TreasuryShare:     math.LegacyNewDecWithPrec(20, 2),  // 0.20 — 20%
 		StakerShare:       math.LegacyNewDecWithPrec(10, 2),  // 0.10 — 10%
 		LightNodeShare:    math.LegacyNewDecWithPrec(3, 2),   // 0.03 — 3%
+		MilestoneBurnSchedule: []MilestoneBurnTier{
+			{TxThreshold: 1_000_000, BurnAmount: math.NewInt(1_000_000_000_000)},    // 1M TX → burn 1M QOR
+			{TxThreshold: 10_000_000, BurnAmount: math.NewInt(10_000_000_000_000)},  // 10M TX → burn 10M QOR
+		},
 		Enabled:           true,
 	}
 }
@@ -61,6 +66,18 @@ func (p Params) Validate() error {
 	totalShares := p.ValidatorShare.Add(p.GasBurnRate).Add(p.TreasuryShare).Add(p.StakerShare).Add(p.LightNodeShare)
 	if !totalShares.Equal(math.LegacyOneDec()) {
 		return fmt.Errorf("fee shares must sum to 1.0, got %s", totalShares)
+	}
+	// Validate milestone burn schedule: thresholds must be strictly increasing, amounts positive
+	for i, tier := range p.MilestoneBurnSchedule {
+		if tier.TxThreshold == 0 {
+			return fmt.Errorf("milestone_burn_schedule[%d]: tx_threshold must be > 0", i)
+		}
+		if !tier.BurnAmount.IsPositive() {
+			return fmt.Errorf("milestone_burn_schedule[%d]: burn_amount must be positive", i)
+		}
+		if i > 0 && tier.TxThreshold <= p.MilestoneBurnSchedule[i-1].TxThreshold {
+			return fmt.Errorf("milestone_burn_schedule[%d]: tx_threshold must be strictly increasing", i)
+		}
 	}
 	return nil
 }

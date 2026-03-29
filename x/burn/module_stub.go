@@ -3,6 +3,7 @@
 package burn
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -21,9 +22,10 @@ import (
 )
 
 var (
-	_ module.AppModuleBasic = AppModuleBasic{}
-	_ module.HasGenesis     = AppModule{}
-	_ appmodule.AppModule   = AppModule{}
+	_ module.AppModuleBasic   = AppModuleBasic{}
+	_ module.HasGenesis       = AppModule{}
+	_ appmodule.AppModule     = AppModule{}
+	_ appmodule.HasEndBlocker = AppModule{}
 )
 
 type AppModuleBasic struct{}
@@ -87,5 +89,7 @@ func (am AppModule) ExportGenesis(ctx sdk.Context, _ codec.JSONCodec) json.RawMe
 	}
 	return bz
 }
+
+func (am AppModule) EndBlock(_ context.Context) error { return nil }
 
 func (AppModule) ConsensusVersion() uint64 { return 1 }

@@ -18,6 +18,7 @@ const (
 	BurnSourceAutoBuyback     BurnSource = "auto_buyback"
 	BurnSourceTGE             BurnSource = "tge"
 	BurnSourceRollupCreate    BurnSource = "rollup_create"
+	BurnSourceMilestone       BurnSource = "milestone"
 )
 
 // ValidBurnSources returns all valid burn sources.
@@ -26,7 +27,7 @@ func ValidBurnSources() []BurnSource {
 		BurnSourceGasFee, BurnSourceContractCreate, BurnSourceAIService,
 		BurnSourceBridgeFee, BurnSourceTreasuryBuyback, BurnSourceFailedTx,
 		BurnSourceXQOREPenalty, BurnSourceAutoBuyback, BurnSourceTGE,
-		BurnSourceRollupCreate,
+		BurnSourceRollupCreate, BurnSourceMilestone,
 	}
 }
 
@@ -53,6 +54,26 @@ type BurnStats struct {
 	TotalBurned    math.Int                `json:"total_burned"`
 	BurnsBySource  map[BurnSource]math.Int `json:"burns_by_source"`
 	LastBurnHeight int64                   `json:"last_burn_height"`
+}
+
+// MilestoneBurnTier defines a cumulative TX threshold that triggers a bonus burn.
+type MilestoneBurnTier struct {
+	TxThreshold uint64   `json:"tx_threshold"` // cumulative TX count to trigger burn
+	BurnAmount  math.Int `json:"burn_amount"`  // uqor to burn when threshold is crossed
+}
+
+// MilestoneState tracks milestone burn progress.
+type MilestoneState struct {
+	CumulativeTxCount   uint64 `json:"cumulative_tx_count"`
+	LastTriggeredIndex  int    `json:"last_triggered_index"` // index of last triggered tier (-1 = none)
+}
+
+// DefaultMilestoneState returns a zero-valued milestone state.
+func DefaultMilestoneState() MilestoneState {
+	return MilestoneState{
+		CumulativeTxCount:  0,
+		LastTriggeredIndex: -1,
+	}
 }
 
 // DefaultBurnStats returns zero-valued burn stats.

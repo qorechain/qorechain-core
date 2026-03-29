@@ -795,6 +795,7 @@ func (app *QoreChainApp) setAnteHandler(
 			TXCounterStoreService: runtime.NewKVStoreService(wasmStoreKey),
 			FairBlockKeeper:       app.FairBlockKeeper,
 			GasAbstractionKeeper:  app.GasAbstractionKeeper,
+			BurnKeeper:            app.BurnKeeper,
 		},
 	)
 	if err != nil {

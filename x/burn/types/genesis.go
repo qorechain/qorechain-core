@@ -4,17 +4,19 @@ import "fmt"
 
 // GenesisState defines the burn module's genesis state.
 type GenesisState struct {
-	Params  Params       `json:"params"`
-	Stats   BurnStats    `json:"stats"`
-	Records []BurnRecord `json:"records"`
+	Params         Params         `json:"params"`
+	Stats          BurnStats      `json:"stats"`
+	Records        []BurnRecord   `json:"records"`
+	MilestoneState MilestoneState `json:"milestone_state"`
 }
 
 // DefaultGenesisState returns the default genesis state.
 func DefaultGenesisState() *GenesisState {
 	return &GenesisState{
-		Params:  DefaultParams(),
-		Stats:   DefaultBurnStats(),
-		Records: []BurnRecord{},
+		Params:         DefaultParams(),
+		Stats:          DefaultBurnStats(),
+		Records:        []BurnRecord{},
+		MilestoneState: DefaultMilestoneState(),
 	}
 }
 

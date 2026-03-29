@@ -24,6 +24,11 @@ type BurnKeeper interface {
 	// Fee distribution (EndBlocker)
 	DistributeFees(ctx sdk.Context) error
 
+	// Milestone burn
+	IncrementBlockTxCount(ctx sdk.Context)
+	CheckMilestoneBurn(ctx sdk.Context, blockTxCount uint64) error
+	GetMilestoneState(ctx sdk.Context) types.MilestoneState
+
 	// Genesis
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState
