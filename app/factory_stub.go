@@ -234,7 +234,7 @@ func init() {
 	}
 
 	// License — stub factories
-	NewLicenseKeeper = func(_ codec.Codec, _ storetypes.StoreKey, logger log.Logger) licensemod.LicenseKeeper {
+	NewLicenseKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ string, logger log.Logger) licensemod.LicenseKeeper {
 		return licensemod.NewStubKeeper(logger)
 	}
 	NewLicenseAppModule = func(keeper licensemod.LicenseKeeper) module.AppModule {

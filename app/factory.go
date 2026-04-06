@@ -139,7 +139,7 @@ var (
 	NewLightNodeModuleBasic func() module.AppModuleBasic
 
 	// License module factories (v1.4.0 — validator bridge & multi-chain)
-	NewLicenseKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) licensemod.LicenseKeeper
+	NewLicenseKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, authority string, logger log.Logger) licensemod.LicenseKeeper
 	NewLicenseAppModule   func(keeper licensemod.LicenseKeeper) module.AppModule
 	NewLicenseModuleBasic func() module.AppModuleBasic
 )

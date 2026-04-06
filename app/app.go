@@ -663,6 +663,7 @@ func NewQoreChainApp(
 	app.LicenseKeeper = NewLicenseKeeper(
 		app.appCodec,
 		licenseStoreKey,
+		authAddr,
 		logger,
 	)
 
