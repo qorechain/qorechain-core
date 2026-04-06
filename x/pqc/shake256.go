@@ -9,6 +9,8 @@ package pqc
 // eventually replace SHA-256 in the state merkle tree.
 
 import (
+	"encoding/binary"
+
 	"golang.org/x/crypto/sha3"
 )
 
@@ -40,7 +42,13 @@ func SHAKE256Hash32(data []byte) [32]byte {
 // length-extension ambiguity.
 func SHAKE256ConcatHash(left, right []byte) [32]byte {
 	h := sha3.NewShake256()
+	// Length-prefix each input to prevent second-preimage attacks
+	var lenBuf [4]byte
+	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(left)))
+	h.Write(lenBuf[:])
 	h.Write(left)
+	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(right)))
+	h.Write(lenBuf[:])
 	h.Write(right)
 	var out [32]byte
 	h.Read(out[:])
@@ -52,7 +60,13 @@ func SHAKE256ConcatHash(left, right []byte) [32]byte {
 // (e.g., "leaf:" vs "node:" in a merkle tree).
 func SHAKE256DomainHash(domain string, data []byte) [32]byte {
 	h := sha3.NewShake256()
-	h.Write([]byte(domain))
+	domainBytes := []byte(domain)
+	var lenBuf [4]byte
+	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(domainBytes)))
+	h.Write(lenBuf[:])
+	h.Write(domainBytes)
+	binary.BigEndian.PutUint32(lenBuf[:], uint32(len(data)))
+	h.Write(lenBuf[:])
 	h.Write(data)
 	var out [32]byte
 	h.Read(out[:])

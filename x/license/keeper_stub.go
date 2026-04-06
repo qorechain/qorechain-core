@@ -22,11 +22,11 @@ func NewStubKeeper(logger log.Logger) *StubKeeper {
 
 func (k *StubKeeper) Logger() log.Logger { return k.logger }
 
-func (k *StubKeeper) GrantLicense(_ sdk.Context, _ types.License) error {
+func (k *StubKeeper) GrantLicense(_ sdk.Context, _ string, _ types.License) error {
 	return nil
 }
 
-func (k *StubKeeper) RevokeLicense(_ sdk.Context, _, _ string) error {
+func (k *StubKeeper) RevokeLicense(_ sdk.Context, _, _, _ string) error {
 	return nil
 }
 

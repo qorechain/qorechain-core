@@ -35,7 +35,8 @@ type LightNodeInfo struct {
 	TotalHeartbeats    uint64     `json:"total_heartbeats"`
 	ExpectedHeartbeats uint64     `json:"expected_heartbeats"`
 	DelegatedStake     string     `json:"delegated_stake"`
-	AccumulatedRewards string     `json:"accumulated_rewards"`
+	AccumulatedRewards       string     `json:"accumulated_rewards"`
+	InitialHeartbeatInterval int64      `json:"initial_heartbeat_interval"`
 }
 
 // LightNodeStats tracks aggregate statistics for the lightnode module.

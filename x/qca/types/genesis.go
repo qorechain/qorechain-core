@@ -18,5 +18,8 @@ func DefaultGenesisState() *GenesisState {
 
 // Validate performs basic genesis state validation.
 func (gs GenesisState) Validate() error {
+	if err := gs.Config.SlashingConfig.Validate(); err != nil {
+		return err
+	}
 	return nil
 }

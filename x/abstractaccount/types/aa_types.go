@@ -1,6 +1,29 @@
 package types
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
+
+const MaxSessionTTL = 30 * 24 * time.Hour // 30 days maximum
+
+// ValidateSessionKey checks that a session key is well-formed.
+func ValidateSessionKey(key SessionKey) error {
+	if key.Key == "" {
+		return fmt.Errorf("session key cannot be empty")
+	}
+	if key.Expiry.IsZero() {
+		return fmt.Errorf("session key expiry cannot be zero")
+	}
+	ttl := time.Until(key.Expiry)
+	if ttl > MaxSessionTTL {
+		return fmt.Errorf("session key TTL %v exceeds maximum %v", ttl, MaxSessionTTL)
+	}
+	if len(key.Permissions) == 0 {
+		return fmt.Errorf("session key must have at least one permission")
+	}
+	return nil
+}
 
 // AbstractAccountConfig holds the module configuration.
 type AbstractAccountConfig struct {

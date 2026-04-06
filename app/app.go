@@ -502,6 +502,7 @@ func NewQoreChainApp(
 		app.PQCKeeper,
 		app.BurnKeeper,
 		logger,
+		authAddr,
 	)
 
 	// --- Initialize CrossVM module (via factory) ---

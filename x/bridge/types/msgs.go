@@ -42,6 +42,9 @@ func (msg MsgBridgeDeposit) ValidateBasic() error {
 	if _, err := ParseAmount(msg.Amount); err != nil {
 		return err
 	}
+	if msg.SourceTxHash == "" {
+		return ErrInvalidAttestation.Wrap("source_tx_hash cannot be empty")
+	}
 	if len(msg.SourceTxHash) > 128 {
 		return ErrInvalidAttestation.Wrapf("source_tx_hash too long: %d, max 128", len(msg.SourceTxHash))
 	}

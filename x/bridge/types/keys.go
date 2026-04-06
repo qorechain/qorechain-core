@@ -13,5 +13,6 @@ var (
 	OperationPrefix     = []byte("bridge/operations/")
 	LockedAmountPrefix  = []byte("bridge/locked/")
 	CircuitBreakerPrefix = []byte("bridge/circuit-breakers/")
-	OperationCounterKey = []byte("bridge/op-counter")
+	OperationCounterKey  = []byte("bridge/op-counter")
+	TxHashIndexPrefix    = []byte("bridge/txhash-index/")
 )

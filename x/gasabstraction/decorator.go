@@ -1,6 +1,8 @@
 package gasabstraction
 
 import (
+	"fmt"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/gasabstraction/types"
@@ -34,8 +36,13 @@ func (d GasAbstractionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate
 	config := d.keeper.GetConfig(ctx)
 	fees := feeTx.GetFee()
 
-	// If fees are empty or in native denom, pass through
-	if fees.IsZero() || fees[0].Denom == config.NativeDenom {
+	// SECURITY: Reject zero fees — minimum fee required
+	if fees.IsZero() {
+		return ctx, fmt.Errorf("gas abstraction: zero fees not permitted; minimum fee required")
+	}
+
+	// If fee is in native denom, pass through to standard fee deduction
+	if fees[0].Denom == config.NativeDenom {
 		return next(ctx, tx, simulate)
 	}
 
