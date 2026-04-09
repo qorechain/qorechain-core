@@ -93,17 +93,17 @@ func TestSHAKE256ConcatHash_OrderMatters(t *testing.T) {
 	}
 }
 
-func TestSHAKE256ConcatHash_DiffersFromIndividual(t *testing.T) {
+func TestSHAKE256ConcatHash_DiffersFromRawConcat(t *testing.T) {
 	left := []byte("left")
 	right := []byte("right")
 
 	concat := SHAKE256ConcatHash(left, right)
 	direct := SHAKE256Hash32(append(left, right...))
 
-	// ConcatHash uses Write(left) + Write(right) which is equivalent to
-	// hashing the concatenation, so these should be equal.
-	if concat != direct {
-		t.Errorf("ConcatHash differs from direct concat hash:\n  concat: %x\n  direct: %x", concat, direct)
+	// ConcatHash length-prefixes each input to prevent second-preimage attacks,
+	// so it must differ from a raw concatenation hash.
+	if concat == direct {
+		t.Error("ConcatHash should differ from raw concat hash due to length prefixing")
 	}
 }
 
