@@ -32,6 +32,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.26.0] - 2026-05-07
+
+### Added — 20 new bridge license feature IDs
+
+License feature surface for the chains added in v2.25.0. Total `bridge_*` features now 36 (16 pre-existing + 20 new).
+
+**New feature constants:** `FeatureBridgeZKSyncEra`, `FeatureBridgeLinea`, `FeatureBridgeScroll`, `FeatureBridgeStarknet`, `FeatureBridgeBlast`, `FeatureBridgeMantle`, `FeatureBridgeHyperliquid`, `FeatureBridgeBerachain`, `FeatureBridgeSonic`, `FeatureBridgeMonad`, `FeatureBridgePlasma`, `FeatureBridgeFilecoin`, `FeatureBridgeCronos`, `FeatureBridgeKaia`, `FeatureBridgeSei`, `FeatureBridgeXRPL`, `FeatureBridgeStellar`, `FeatureBridgeHedera`, `FeatureBridgeAlgorand`, `FeatureBridgeInjective`.
+
+### Added — split helper functions
+
+`AllFeatureIDs()` is now composed from two stable-ordered slices:
+- `AllBridgeFeatureIDs()` — every `bridge_*` feature (36 entries in v2.26.0)
+- `AllValidatorFeatureIDs()` — every `validator_*` feature (10 entries; will grow in v2.27.0)
+
+This makes downstream iteration (e.g., listing bridge-only or validator-only licenses) more efficient and removes the brittle hand-maintained list-of-strings.
+
+### Tests
+
+7 new tests cover counts (36 bridges + 10 validators + 1 umbrella = 47 total), no-duplicate invariant, prefix invariants for both bridge and validator, presence of all 20 new IDs in the registered set, validity check edge cases (case-sensitivity, empty input, unregistered prefixes), and `ChainFromFeature` extraction.
+
+Validator licenses for the new chains and the 7 IBC chains follow in v2.27.0.
+
+---
+
 ## [2.25.0] - 2026-05-07
 
 ### Added — 20 new default chain configurations
