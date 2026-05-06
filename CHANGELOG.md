@@ -32,6 +32,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.32.0] - 2026-05-07
+
+### Added — Hedera bridge handler
+
+Per-`ChainType` handler for Hedera Hashgraph. Same shape as the prior new-architecture handlers (Starknet/XRPL/Stellar).
+
+**Behavior**
+- Source-tx-hash validation: Hedera transaction ID format `<shard>.<realm>.<account>@<seconds>.<nanos>`, all numeric segments (each ≤18 digits).
+- Address validation: Hedera account ID `<shard>.<realm>.<num>` (typically `0.0.<num>`).
+- Confirmation time: 12s (4 consensus rounds of safety margin on top of base finality).
+
+**Notes**
+- Watcher integration target: Hedera Consensus Service (HCS) topic subscriptions for ordered events + Mirror Node REST for transaction state lookup.
+
+### Tests
+3 new tests covering deposit ID matrix (8 cases including the minimum-nanos edge and a 19-digit overflow), account ID matrix (8 cases), and confirmation-time positivity.
+
+---
+
 ## [2.31.0] - 2026-05-07
 
 ### Added — Stellar bridge handler
