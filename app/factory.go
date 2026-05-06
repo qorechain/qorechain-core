@@ -16,6 +16,7 @@ import (
 
 	abstractaccountmod "github.com/qorechain/qorechain-core/x/abstractaccount"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
+	ammmod "github.com/qorechain/qorechain-core/x/amm"
 	babylonmod "github.com/qorechain/qorechain-core/x/babylon"
 	bridgemod "github.com/qorechain/qorechain-core/x/bridge"
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
@@ -142,4 +143,9 @@ var (
 	NewLicenseKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, authority string, logger log.Logger) licensemod.LicenseKeeper
 	NewLicenseAppModule   func(keeper licensemod.LicenseKeeper) module.AppModule
 	NewLicenseModuleBasic func() module.AppModuleBasic
+
+	// AMM module factories (v3.0.0 — native automated market maker)
+	NewAMMKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) ammmod.AMMKeeper
+	NewAMMAppModule   func(keeper ammmod.AMMKeeper) module.AppModule
+	NewAMMModuleBasic func() module.AppModuleBasic
 )

@@ -19,6 +19,7 @@ const (
 	BurnSourceTGE             BurnSource = "tge"
 	BurnSourceRollupCreate    BurnSource = "rollup_create"
 	BurnSourceMilestone       BurnSource = "milestone"
+	BurnSourceAMM             BurnSource = "amm"
 )
 
 // ValidBurnSources returns all valid burn sources.
@@ -27,7 +28,7 @@ func ValidBurnSources() []BurnSource {
 		BurnSourceGasFee, BurnSourceContractCreate, BurnSourceAIService,
 		BurnSourceBridgeFee, BurnSourceTreasuryBuyback, BurnSourceFailedTx,
 		BurnSourceXQOREPenalty, BurnSourceAutoBuyback, BurnSourceTGE,
-		BurnSourceRollupCreate, BurnSourceMilestone,
+		BurnSourceRollupCreate, BurnSourceMilestone, BurnSourceAMM,
 	}
 }
 

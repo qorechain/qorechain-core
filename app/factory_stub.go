@@ -24,6 +24,7 @@ import (
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
+	ammmod "github.com/qorechain/qorechain-core/x/amm"
 	licensemod "github.com/qorechain/qorechain-core/x/license"
 	lightnodemod "github.com/qorechain/qorechain-core/x/lightnode"
 	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
@@ -242,5 +243,16 @@ func init() {
 	}
 	NewLicenseModuleBasic = func() module.AppModuleBasic {
 		return licensemod.AppModuleBasic{}
+	}
+
+	// AMM — stub factories
+	NewAMMKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ bankkeeper.BaseKeeper, logger log.Logger) ammmod.AMMKeeper {
+		return ammmod.NewStubKeeper(logger)
+	}
+	NewAMMAppModule = func(keeper ammmod.AMMKeeper) module.AppModule {
+		return ammmod.NewAppModule(keeper)
+	}
+	NewAMMModuleBasic = func() module.AppModuleBasic {
+		return ammmod.AppModuleBasic{}
 	}
 }
