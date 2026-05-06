@@ -32,6 +32,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.28.0] - 2026-05-07
+
+### Added — AMM StableSwap pool variant
+
+The AMM module's stable-swap pool variant is now functional. `MsgCreatePool` accepts `PoolTypeStableSwap` with an `AmplificationCoefficient` in `[1, 5000]`, and `SwapExactIn` / `QuoteExactIn` route to the appropriate math based on pool type.
+
+**Math** (in the extended-build keeper):
+- 2-asset Curve invariant: `4A·(x+y) + D = 4A·D + D³ / (4·x·y)`
+- `D` solved via Newton iteration with a fixed step cap of 64 (determinism guard; empirical convergence is <8 steps near equilibrium)
+- `y` given fixed `x` and `D` solved via a second Newton iteration with the same cap
+- All math is integer (`cosmossdk.io/math.Int`); zero `float64`, zero platform-dependent operations
+
+**Behavior near equilibrium:** for stable-pair swaps where reserves are close in value, the stable-swap variant produces output ≥ the equivalent constant-product output — that's the entire point of the curve.
+
+### Tests
+
+9 new tests cover:
+- `D` invariant computation on a balanced pool (analytic baseline)
+- Bit-exact determinism across 256 invocations (consensus safety)
+- Bit-exact determinism across 32 goroutines × 50 iterations (no shared mutable state)
+- Output ≥ CP-output at equilibrium (low-slippage claim)
+- Boundary: invalid denom, zero reserves, zero amplification rejected with the right sentinel
+- Max-iterations termination on a pathologically skewed pool
+- `D` preservation across a fee-free swap (drift bounded at 0.1%)
+
+`QuoteExactOut` for stable-swap pools is currently `ErrNotImplemented` — the inverse requires a second iterative solver and lands in a follow-up. Stable-swap callers should use `QuoteExactIn`.
+
+---
+
 ## [2.27.0] - 2026-05-07
 
 ### Added — 27 new validator license feature IDs
