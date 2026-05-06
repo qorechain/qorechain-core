@@ -32,6 +32,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.33.0] - 2026-05-07
+
+### Added — Algorand bridge handler
+
+Final per-`ChainType` handler from the v3.0.0 §3.4 cross-network expansion. All 5 new chain architectures (Starknet/XRPL/Stellar/Hedera/Algorand) now have functional handlers in the extended build.
+
+**Behavior**
+- Source-tx-hash validation: 52-char base32 (RFC 4648 no-pad, uppercase A-Z + 2-7) — the SHA-512/256 of the canonical transaction encoding.
+- Address validation: 58-char base32 (32-byte public key + 4-byte checksum, base32-encoded). Trailing-checksum verification is deferred to the production handler.
+- Confirmation time: 13s (4 confirmation rounds × ~3.3s round time).
+
+### Tests
+3 new tests cover deposit hash matrix (5 cases including lowercase, wrong length, non-base32 digit), address matrix (10 cases including all four base32 alphabet boundaries: A, Z, 2, 7), and confirmation-time positivity.
+
+### Cross-network expansion summary
+After v2.33.0 the `qorechain-core` codebase has:
+- 17 ChainTypes (12 baseline + 5 added in v2.24.0)
+- 37 default chain configurations (17 baseline + 20 added in v2.25.0)
+- 74 license feature IDs (1 umbrella + 36 bridge + 37 validator)
+- 5 new dedicated bridge handlers in the extended build (Starknet/XRPL/Stellar/Hedera/Algorand)
+
+EVM-family chains continue to share the existing `evm_bridge.go` via per-chain config injection. Sidecar containers, orchestrator chain registry entries, and IBC Eureka v2 wiring follow on subsequent v2.x minor releases.
+
+---
+
 ## [2.32.0] - 2026-05-07
 
 ### Added — Hedera bridge handler
