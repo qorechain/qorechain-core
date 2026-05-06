@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.20.0] - 2026-05-07
+
+### Fixed
+- **Critical wiring bug** — full builds now correctly invoke the real light node keeper. Previously, the lightnode factory in extended builds silently fell through to a no-op stub, making heartbeat tracking, reward distribution, and the 3% block-fee share to light nodes inert. Fix lives in the extended-build factory; no public API changes.
+
+### Audit context
+A systematic codebase audit on 2026-05-07 surfaced this and several adjacent issues; fixes ship across v2.20.0–v2.22.0.
+
+---
+
 ## [1.4.0] - 2026-03-14
 
 ### Added
