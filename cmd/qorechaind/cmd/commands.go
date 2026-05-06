@@ -94,11 +94,15 @@ func initRootCmd(
 	// Use QoreChain EVM's custom server commands which include JSON-RPC support.
 	// This replaces server.AddCommandsWithStartCmdOptions with an EVM-aware
 	// start command that runs the JSON-RPC, WebSocket, and EVM indexer servers.
+	//
+	// The customizer wires the sidecar orchestrator into the start command's
+	// PreRunE — no-op in public builds, real orchestrator + Docker client in
+	// extended builds.
 	cosmosevmserver.AddCommands(
 		rootCmd,
 		cosmosevmserver.NewDefaultStartOptions(newApp, app.DefaultNodeHome),
 		appExport,
-		func(startCmd *cobra.Command) {},
+		WireSidecarHooks,
 	)
 
 	rootCmd.AddCommand(

@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.21.0] - 2026-05-07
+
+### Added
+- **`WireSidecarHooks(startCmd)` indirection** in `cmd/qorechaind/cmd/start_sidecar_stub.go` — no-op in public builds; in extended builds, wraps the start command's `PreRunE` to launch the sidecar orchestrator alongside the node and registers a SIGINT/SIGTERM listener for graceful shutdown.
+- `SIDECAR_DISABLED=1` env var (extended builds only) to opt out of orchestrator startup without rebuilding.
+
+### Fixed
+- **Sidecar orchestrator startup bug** — the `SidecarStartHook` type was defined since v2.5.0 but never invoked from any caller. License-gated bridge sidecars never spawned in production. Now wired through `cosmosevmserver.AddCommands`'s start-customizer callback.
+- Two pre-existing compile errors in extended builds that were masked by upstream CGO env failures during vet:
+  - `x/vm/precompiles/pqc_verify.go` — 4 call sites used `EncodePQCVerifyOutput(false)` in single-value context after the v2.16.0 audit changed the signature to `([]byte, error)`.
+  - `x/svm/rpc/handlers_token.go` — unused `encoding/base64` import.
+
+---
+
 ## [2.20.0] - 2026-05-07
 
 ### Fixed
