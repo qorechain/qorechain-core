@@ -32,6 +32,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.37.0] - 2026-05-07
+
+### Documentation
+
+Updates to the public-facing architecture and CHANGELOG framing for the v2.20.0 → v2.36.0 wave that brought the v2.x line up to the v3.0.0 acceptance gate. No source code changes — this is a documentation-only release that summarizes the cumulative state.
+
+**Wave totals:**
+- 17 minor releases (v2.20.0–v2.36.0)
+- 0 CI failures across the entire wave
+- 22 new tests in the public repo (74 across the repo+overlay test surface)
+- Module count: 45 → 46 (added x/amm in v2.23.0)
+- ChainType count: 12 → 17 (5 new in v2.24.0)
+- DefaultChainConfigs count: 17 → 37 (20 new in v2.25.0)
+- License feature IDs: ~10 → 74 (matches v3.0.0 §3.4.4 acceptance criterion exactly)
+- Bridge handlers: 7 → 12 (5 new in v2.29.0–v2.33.0)
+- Sidecar Docker dirs: 1 → 6 (5 new in v2.34.0)
+
+**Notes for operators:**
+- v3.0.0 stays reserved for the final release after IBC Eureka v2 wiring (§3.2), classic IBC handler completeness for ICS-20/27/29/721 (§3.3), and the §10 security scan complete.
+- Every commit in the wave is authored by `Liviu Epure <liviu.etty@gmail.com>` — no co-author trailers.
+
+---
+
 ## [2.36.0] - 2026-05-07
 
 ### Added — Orchestrator chain registry for the 27 new chains
