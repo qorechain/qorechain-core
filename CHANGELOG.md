@@ -32,13 +32,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [2.20.0] - 2026-05-07
+## [2.23.0] - 2026-05-07
 
-### Fixed
-- **Critical wiring bug** — full builds now correctly invoke the real light node keeper. Previously, the lightnode factory in extended builds silently fell through to a no-op stub, making heartbeat tracking, reward distribution, and the 3% block-fee share to light nodes inert. Fix lives in the extended-build factory; no public API changes.
+### Added — `x/amm` automated market maker module
 
-### Audit context
-A systematic codebase audit on 2026-05-07 surfaced this and several adjacent issues; fixes ship across v2.20.0–v2.22.0.
+Native on-chain AMM with constant-product (Uniswap-V2-style) pricing. Genesis module count moves from 45 to 46.
+
+- New `Pool` type with sorted-denom indexing (`TokenA < TokenB`), constant-product or stable-swap variant flag, status tracking (active/paused), and a TWAP-like weighted-average price.
+- 8 new messages: `MsgCreatePool`, `MsgAddLiquidity`, `MsgRemoveLiquidity`, `MsgSwapExactIn`, `MsgSwapExactOut`, `MsgPausePool`, `MsgResumePool`, `MsgSetParams`.
+- Module-wide kill switch (`Params.Enabled`), per-pool pause via governance, swap fee (default 30bps) split into LP-accrual and protocol-fee portions, MaxPoolsPerCreator cap, MinLiquidity floor, optional MaxSwapImpactBps slippage cap, configurable `PoolCreationFee` burned at creation.
+- Cross-VM hook so EVM contracts (and SVM via the existing precompile interface) can route swap calls into the AMM, resolving the pool by `(denomIn, denomOut)`.
+- Optional advisory route hint that clients may consult for multi-pool routing — never used to bind on-chain routing decisions, which remain deterministic.
+- Fee-distribution integration with `x/burn` via the new `BurnSourceAMM` constant.
+- Genesis import/export round-trips pool state with strict invariants (pool ID uniqueness, `next_pool_id > max(pool.ID)`, `sum(lp_balances per pool) == pool.LPSupply`, paused-pool IDs reference known pools).
+
+### Tests
+- 16 new public tests cover params bounds, pool validation, sorted-denom helpers, LP supply consistency, and StableSwap amplification bounds.
+- All math is integer (`cosmossdk.io/math.Int`); zero `float64` in any consensus path.
+
+### Audit-fix backlog (v2.20.0 – v2.22.0)
+- v2.20.0: critical light-node keeper wiring fix — full builds were silently using a no-op stub for the light node module.
+- v2.21.0: sidecar orchestrator was defined since v2.5.0 but never invoked from the start command; now wired through `PreRunE` with a SIGINT/SIGTERM listener for graceful shutdown.
+- v2.22.0: 60+ regression tests added to lock in the v2.6.2/v2.6.3/v2.13.0/v2.17.0 fixes (deterministic math, fee-split invariants, license expiry boundaries, light-node param bounds).
 
 ---
 
