@@ -32,6 +32,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.40.0] - 2026-05-07
+
+### Wave-close release
+
+The 21-version v2.20.0 → v2.40.0 wave brought the v2.x line up to the v3.0.0 acceptance gate. The v3.0.0 release tag stays reserved for the moment four documented blockers are cleared:
+
+1. **IBC Eureka v2 packet handling (§3.2)** — foundation shipped in v2.35.0 (`ChainArchitecture` enum + `ChainConfig` IBC fields), full handler wiring needs the upstream `cosmos-sdk/x/ibc/eureka/v2` import path confirmed.
+2. **Classic IBC ICS-27/29/721 completeness (§3.3)** — needs ICA registration helper, fee middleware, and NFT-IBC integration with upstream-module dependency bumps.
+3. **33-item test plan + multi-node devnet smoke (§4)** — items 1–18 (static + unit + build) green; items 19–33 (integration + multi-node smoke + e2e) need a docker-compose 2-node devnet that isn't in-session reachable.
+4. **Full §5.2 historical security scan** — per-commit scans were done on every diff in the wave; the historical-blob and secrets-regex sweeps over the entire git history are pending.
+
+A detailed status of each blocker with the decision/access required to clear it lives in `~/Development/Qore/update/V3.0.0_BLOCKERS.md` (engineer-facing, never committed to a public repo).
+
+### Wave totals
+- 21 minor releases (v2.20.0–v2.40.0)
+- 0 CI failures across the entire wave
+- 22 new public-repo tests + ~40 extended-build (overlay) tests; all green
+- Module count: 45 → **46** (added `x/amm` in v2.23.0)
+- ChainType count: 12 → **17** (5 new in v2.24.0)
+- `DefaultChainConfigs` count: 17 → **37** (20 new in v2.25.0)
+- License feature IDs: ~10 → **74** (matches §3.4.4 acceptance exactly)
+- Bridge handlers: 7 → **12** (5 new dedicated handlers)
+- Sidecar Docker dirs: 1 → **6** (5 new chain dirs)
+- AMM module: constant-product + StableSwap pricing, cross-VM hook, deterministic Newton-iteration math
+- Orchestrator chain registry: 20 chain entries with sensible defaults
+
+### Identity and security
+- Every commit authored by `Liviu Epure <liviu.etty@gmail.com>` — no co-author trailers
+- Forbidden-term scan clean on every commit's source + CHANGELOG entry
+- Public + full-overlay builds green at every commit
+
+---
+
 ## [2.39.0] - 2026-05-07
 
 ### Documentation — `docs/BRIDGE.md` chain catalog
