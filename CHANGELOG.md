@@ -32,6 +32,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.41.0] - 2026-05-07
+
+### Added — IBC Eureka v2 packet types and handler hook interface
+
+Public-side types for the IBC Eureka v2 packet flow. Closes the v3.0.0 §3.2 type-layer scope; the proprietary keeper's actual handler implementation against the upstream `cosmos-sdk/x/ibc/eureka/v2` module follows in a separate commit once the upstream module path is confirmed.
+
+**New types:**
+- `EurekaPacket` — generic Eureka v2 packet shape (source/dest chain, sequence, port/channel, client type, data, optional timeout) with `Validate()`
+- `EurekaAck` — application-level acknowledgement with `IsSuccess()` predicate
+- `EurekaHandlerHook` — interface contract the proprietary keeper's handler implements: `OnRecvPacket`, `OnAcknowledgement`, `OnTimeout`
+
+### Tests
+12 new tests cover: happy-path packet validation, 8 rejection cases (each missing field + same-source-dest), ack `IsSuccess` invariant (including the contradictory `Success: true + Error: "boom"` case), and a compile-time check that any handler implementation has the expected method set (interface-shape stability).
+
+---
+
 ## [2.40.0] - 2026-05-07
 
 ### Wave-close release
