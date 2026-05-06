@@ -32,6 +32,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.39.0] - 2026-05-07
+
+### Documentation — `docs/BRIDGE.md` chain catalog
+
+Updated the bridge documentation to reflect the full v2.24.0–v2.34.0 expansion. The Supported Chains section now contains four explicit groups:
+
+- **Baseline (10 chains)** — pre-v2.24.0 with status table
+- **Cross-network expansion EVM (14 chains)** — full enumeration
+- **Cross-network expansion non-EVM (5 chains)** — table with architecture + protocol path + default confirmations per chain
+- **IBC-connected (8 chains)** — including Injective added in v2.25.0
+- **Other (7 chains)** — NEAR, Bitcoin, Cardano, Polkadot, Tezos, Tron, Aptos — `Pending` until production handlers ship
+
+The doc also lists the **74 license feature ID** surface and the helper functions in `x/license/types/feature_ids.go`.
+
+---
+
 ## [2.38.0] - 2026-05-07
 
 ### Documentation — `docs/SIDECAR.md` operator guide

@@ -6,6 +6,10 @@ The QoreChain Bridge implements a hub-and-spoke multi-protocol bridge with PQC-s
 
 ## Supported Chains
 
+The bridge supports **37 default chain configurations** registered in `x/bridge/types/DefaultChainConfigs()` plus 8 IBC chains. All bridge operations are gated by per-chain on-chain licenses (see `x/license`).
+
+### Baseline EVM and major non-EVM (10)
+
 | Chain | Type | Protocol | Status |
 |-------|------|----------|--------|
 | Ethereum | EVM | QCB Native + IBC | Testnet |
@@ -15,8 +19,39 @@ The QoreChain Bridge implements a hub-and-spoke multi-protocol bridge with PQC-s
 | Avalanche | EVM | QCB Native + IBC | Testnet |
 | Polygon | EVM (PoS) | QCB Native + IBC | Testnet |
 | Arbitrum | Ethereum L2 | QCB Native + IBC | Testnet |
+| Optimism | Ethereum L2 (OP Stack) | QCB Native | Testnet |
+| Base | Ethereum L2 (OP Stack) | QCB Native | Testnet |
 | Sui | Move VM | QCB Native + IBC | Testnet |
-| IBC-compatible chains | IBC | QCB Native + IBC | Testnet |
+
+### Cross-network expansion v2.24.0–v2.34.0 — EVM-family (14)
+
+zkSync Era (L2 ZK), Linea (L2 ZK), Scroll (L2 ZK), Blast (L2 Optimistic, yield-bearing), Mantle (L2), Hyperliquid (HyperEVM L1), Berachain (L1, PoL), Sonic (L1), Sei (parallel EVM L1, dual EVM+IBC), Monad (parallel EVM L1, 30-block finality), Plasma (L1, stablecoin-focused, BTC-anchored), Filecoin FVM, Cronos, Kaia.
+
+### Cross-network expansion v2.24.0–v2.34.0 — non-EVM (5)
+
+| Chain | Architecture | Protocol | Default Confirmations |
+|-------|--------------|----------|------------------------|
+| Starknet | Cairo VM L2 | Dedicated handler + L1 state-update + STARK proof | 12 (L1) |
+| XRP Ledger | UNL consensus | Dedicated handler | 4 ledger closes |
+| Stellar | SCP | Dedicated handler | 5 ledger closes |
+| Hedera | Hashgraph | Dedicated handler + HCS subscription | 4 consensus rounds |
+| Algorand | Pure PoS | Dedicated handler | 4 rounds |
+
+### IBC-connected chains (8)
+
+Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, Injective. Packet flow via Hermes relayer; no sidecar container required.
+
+### Other (NEAR, Bitcoin, Cardano, Polkadot, Tezos, Tron, Aptos)
+
+These 7 chains have bridge configs but are flagged as `Pending` until production handlers ship.
+
+### License surface
+
+- **74 license feature IDs total** in `x/license/types/feature_ids.go`:
+  - 1 umbrella (`qcb_bridge`)
+  - 36 per-chain `bridge_*`
+  - 37 per-chain `validator_*` (10 baseline + 19 non-IBC v2.27.0 + 8 IBC v2.27.0)
+- Helper functions: `AllBridgeFeatureIDs()`, `AllValidatorFeatureIDs()`, `AllFeatureIDs()`, `IsValidFeatureID()`, `ChainFromFeature()`
 
 ## Architecture
 
