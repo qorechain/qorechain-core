@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.22.0] - 2026-05-07
+
+### Added
+- Regression tests covering the recent audit fixes:
+  - `x/burn/types/params_test.go` — locks in QCTokenomics v2 fee split (37/30/20/10/3) and the sum-to-1 invariant; rejects negative shares, shares > 1.0, non-monotonic milestone schedules, zero milestone amounts.
+  - `x/license/types/license_test.go` — `IsExpired` boundary table (7 cases), `IsActive` with suspended/expired interactions (7 cases), Marshal round-trip, suspension persistence.
+  - `x/lightnode/types/params_test.go` — locks `RewardShare = 0.03` matching `burn.LightNodeShare`; rejects zero `HeartbeatInterval`, zero `MaxLightNodes`, negative grace period, out-of-bounds shares.
+  - `x/rlconsensus/mathutil/determinism_test.go` — bit-exact determinism across 256 invocations and across 32 concurrent goroutines for `ExpApprox`, `TaylorLn1PlusX`, `SigmoidApprox`, `ReputationMultiplier`. Regression guard for the v2.6.2 fix.
+
+---
+
 ## [2.21.0] - 2026-05-07
 
 ### Added
