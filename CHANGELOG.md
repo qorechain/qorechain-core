@@ -32,6 +32,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.44.0] - 2026-05-07
+
+### Security — full pre-push scan complete
+
+Closes the §5.2 security scan blocker. All 7 scan blocks (current-tree forbidden terms, proprietary refs, full-history identity, full-history co-author, tag annotations, secrets regex, `.gitignore` correctness) pass clean.
+
+**Findings + remediation:**
+- `.gitignore` was missing `overlay.json` — added. The build-overlay file contains absolute paths to the proprietary repo and must never be committed to a public repo.
+
+**Verified clean:**
+- 0 forbidden-term hits in current tree (CometBFT / Tendermint / Anthropic / Baron Chain / AWS Bedrock / Claude*)
+- 0 source-level proprietary references
+- Single author + committer identity across full history (`Liviu Epure <liviu.etty@gmail.com>`)
+- 0 co-author / AI-attribution mentions in any commit message or tag annotation
+- 0 AWS keys / PEM private keys / BIP-39 mnemonics / GitHub PATs in full history
+- All 6 required `.gitignore` entries present
+
+The full scan report is archived (engineer-facing, never committed) at `~/Development/Qore/update/SECURITY_SCAN_v2.44.0.md`.
+
+---
+
 ## [2.43.0] - 2026-05-07
 
 ### Added — 2-node docker-compose devnet for multi-node smoke testing
