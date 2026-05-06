@@ -32,6 +32,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.29.0] - 2026-05-07
+
+### Added — Starknet bridge handler
+
+First per-`ChainType` handler from the v3.0.0 §3.4 cross-network expansion. The handler implements the same shape as the existing per-chain bridge handlers (`ValidateDeposit` / `ValidateWithdrawal` / `EstimateConfirmationTime`) for the Cairo-VM L2.
+
+**Behavior**
+- Source-tx-hash validation: 0x-prefixed hex up to 64 characters (Starknet felt encoding).
+- Address validation: Starknet contract/account addresses use the same felt format.
+- Confirmation time: 600s (~10 minutes for soft-finality with safe-block delay; the watcher upgrades attestations to hard-finality once the corresponding STARK proof is verified on L1).
+
+**Notes**
+- The handler is a thin validator at this stage; the full L1 state-update + STARK proof verification path is documented as the production roadmap inside the file.
+
+### Tests
+3 new tests in the extended-build keeper package cover deposit hash validation (valid hash accepted, missing prefix / non-hex / overlength rejected), address validation (boundary cases), and confirmation-time positivity.
+
+### Build infrastructure
+Added an empty `x/bridge/keeper/doc.go` placeholder in the public repo so `go vet` / `go test -overlay` can chdir into the package even with no overlay active. Same pattern as the v2.23.0 AMM keeper placeholder.
+
+---
+
 ## [2.28.0] - 2026-05-07
 
 ### Added — AMM StableSwap pool variant
