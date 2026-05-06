@@ -32,6 +32,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.35.0] - 2026-05-07
+
+### Added — `ChainArchitecture` enum + IBC fields on `ChainConfig`
+
+Foundation for the v3.0.0 §3.2 IBC Eureka v2 wiring. New `ChainArchitecture` enum disambiguates classic IBC vs the next-generation Eureka v2 stack:
+
+- `ChainArchEmpty` — non-IBC chains (default)
+- `ChainArchIBCClassic` — legacy IBC; the 7 baseline IBC chains (cosmoshub, osmosis, noble, celestia, stride, akash, babylon)
+- `ChainArchIBCEurekaV2` — next-gen IBC; new IBC chains added from v3.0.0 forward default here
+
+`ChainConfig` gains five new optional, omitempty-tagged fields populated only for IBC chains:
+- `Architecture` — the new enum
+- `IBCChannelID` / `IBCPortID` / `IBCConnectionID` — channel-level identifiers
+- `EurekaClientType` — for chains using Eureka v2 (e.g., `"tendermint"`, `"solomachine"`)
+
+### Tests
+4 new tests cover enum validity (positive + negative cases including case sensitivity), wire-format invariant (non-IBC chains never serialize the new fields, protecting external integrations), JSON round-trip preservation for populated IBC chains, and a baseline check that no default non-IBC chain has a non-empty Architecture.
+
+---
+
 ## [2.34.0] - 2026-05-07
 
 ### Added — 5 new sidecar Docker container scaffolds

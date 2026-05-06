@@ -119,7 +119,32 @@ func DefaultBridgeConfig() BridgeConfig {
 	}
 }
 
+// ChainArchitecture disambiguates the IBC flavour of a `ChainTypeIBC`
+// chain: legacy IBC (classic) vs IBC Eureka v2 (next-gen). Non-IBC
+// chains use ChainArchEmpty.
+type ChainArchitecture string
+
+const (
+	// ChainArchEmpty is the default for non-IBC chains.
+	ChainArchEmpty ChainArchitecture = ""
+
+	// ChainArchIBCClassic is the legacy IBC stack. Used for chains
+	// onboarded before IBC Eureka v2 (the 7 baseline IBC chains:
+	// cosmoshub, osmosis, noble, celestia, stride, akash, babylon).
+	ChainArchIBCClassic ChainArchitecture = "ibc_classic"
+
+	// ChainArchIBCEurekaV2 is the next-generation IBC stack. New
+	// IBC chains added from v3.0.0 forward default to Eureka v2.
+	// Existing IBC chains can be migrated by governance proposal.
+	ChainArchIBCEurekaV2 ChainArchitecture = "ibc_eureka_v2"
+)
+
 // ChainConfig holds the configuration for a specific external chain.
+//
+// IBC-specific fields (IBCChannelID, IBCPortID, IBCConnectionID,
+// EurekaClientType, Architecture) are only populated for chains where
+// ChainType == ChainTypeIBC; non-IBC chains leave them empty and the
+// JSON omitempty markers keep them out of the wire representation.
 type ChainConfig struct {
 	ChainID          string       `json:"chain_id"`
 	Name             string       `json:"name"`
@@ -130,6 +155,22 @@ type ChainConfig struct {
 	SupportedAssets  []string     `json:"supported_assets"`
 	MaxSingleTransfer string     `json:"max_single_transfer"` // Max single transfer in base denom
 	DailyLimit       string       `json:"daily_limit"`
+
+	// IBC-specific (v2.35.0+).
+	Architecture     ChainArchitecture `json:"architecture,omitempty"`
+	IBCChannelID     string            `json:"ibc_channel_id,omitempty"`
+	IBCPortID        string            `json:"ibc_port_id,omitempty"`
+	IBCConnectionID  string            `json:"ibc_connection_id,omitempty"`
+	EurekaClientType string            `json:"eureka_client_type,omitempty"` // e.g. "tendermint", "solomachine"
+}
+
+// IsValidChainArchitecture returns true if a is a recognised value.
+func IsValidChainArchitecture(a ChainArchitecture) bool {
+	switch a {
+	case ChainArchEmpty, ChainArchIBCClassic, ChainArchIBCEurekaV2:
+		return true
+	}
+	return false
 }
 
 // DefaultChainConfigs returns the default supported chain configurations.
