@@ -32,6 +32,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.34.0] - 2026-05-07
+
+### Added — 5 new sidecar Docker container scaffolds
+
+Per-chain watcher/validator sidecar dirs for the new architectures registered in v2.24.0–v2.33.0. Each follows the same pattern as the existing Ethereum sidecar (the reference implementation):
+
+- `sidecars/starknet/` — Cairo VM L2 sidecar (Starknet)
+- `sidecars/xrpl/` — XRP Ledger sidecar
+- `sidecars/stellar/` — Stellar Consensus Protocol sidecar
+- `sidecars/hedera/` — Hedera Hashgraph sidecar
+- `sidecars/algorand/` — Algorand sidecar
+
+Each contains:
+- `Dockerfile` — multi-stage build (golang:1.26-bookworm builder → debian:bookworm-slim runtime), `EXPOSE 8080` for the health endpoint, env-driven `MODE=watcher|validator|both`
+- `main.go` — gRPC client wiring, mode dispatch, health server (`/healthz` + `/readyz`), graceful SIGTERM/SIGINT shutdown
+- `watcher.go` — chain-event monitoring skeleton with documented finality rule per chain
+- `validator.go` — remote validator client management skeleton
+
+The skeletons emit heartbeat ticks and can be deployed today; production chain-specific event monitoring (decoding deposit events, finality verification) lands in subsequent releases as each chain's bridge integration matures.
+
+### Verified
+All 5 sidecar binaries compile cleanly (`go build -tags full -overlay=...`) at 8 MB each.
+
+---
+
 ## [2.33.0] - 2026-05-07
 
 ### Added — Algorand bridge handler
