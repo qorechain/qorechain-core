@@ -36,8 +36,12 @@ func TestNewChainTypes(t *testing.T) {
 
 func TestDefaultChainConfigsCount(t *testing.T) {
 	configs := DefaultChainConfigs()
-	if len(configs) != 17 {
-		t.Fatalf("expected 17 chain configs, got %d", len(configs))
+	// v1.2.0 baseline was 17. v2.25.0 added 20 more for the cross-network
+	// expansion (zkSync, Linea, Scroll, Starknet, Blast, Mantle,
+	// Hyperliquid, Berachain, Sonic, Sei, Monad, Plasma, XRPL, Stellar,
+	// Hedera, Algorand, Injective, Filecoin, Cronos, Kaia).
+	if len(configs) != 37 {
+		t.Fatalf("expected 37 chain configs, got %d", len(configs))
 	}
 }
 

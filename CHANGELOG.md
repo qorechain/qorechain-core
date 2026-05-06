@@ -32,6 +32,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.25.0] - 2026-05-07
+
+### Added — 20 new default chain configurations
+
+`DefaultChainConfigs()` now returns 37 configurations (up from 17). The new entries cover EVM L2/L1 chains (zkSync Era, Linea, Scroll, Blast, Mantle, Hyperliquid, Berachain, Sonic, Sei, Monad, Plasma, Filecoin FVM, Cronos, Kaia), the new architectures registered in v2.24.0 (Starknet, XRPL, Stellar, Hedera, Algorand), and one additional IBC chain (Injective).
+
+All new entries default to `BridgeStatusPending`; production deployment flips them to `Active` only after the bridge contract address is set and the operator confirms the route.
+
+### Tests
+
+6 new tests validate: total count (37), every new chain present, no duplicate `chain_id`, every config has a valid `ChainType` (cross-checks v2.24.0's `IsValidChainType`), every new ChainType is actually used in at least one config, and every config defaults to pending status.
+
+The pre-existing `TestDefaultChainConfigsCount` was updated from 17 → 37 with a comment listing the v2.25.0 additions.
+
+---
+
 ## [2.24.0] - 2026-05-07
 
 ### Added — 5 new chain architectures

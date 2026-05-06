@@ -323,6 +323,264 @@ func DefaultChainConfigs() []ChainConfig {
 			MaxSingleTransfer: "1000000000000",
 			DailyLimit:       "10000000000000",
 		},
+
+		// ----- New chain configs added in v2.25.0 (cross-network expansion §3.4) -----
+
+		// EVM L2 (ZK rollups)
+		{
+			ChainID:          "zksync_era",
+			Name:             "zkSync Era",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 12,
+			SupportedAssets:  []string{"ETH", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "linea",
+			Name:             "Linea",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 12,
+			SupportedAssets:  []string{"ETH", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+		{
+			ChainID:          "scroll",
+			Name:             "Scroll",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 12,
+			SupportedAssets:  []string{"ETH", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Cairo VM L2
+		{
+			ChainID:          "starknet",
+			Name:             "Starknet",
+			ChainType:        ChainTypeStarknet,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 12,
+			SupportedAssets:  []string{"ETH", "STRK", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// EVM L2 (Optimistic) — yield-bearing
+		{
+			ChainID:          "blast",
+			Name:             "Blast",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"ETH", "USDB"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// EVM L2
+		{
+			ChainID:          "mantle",
+			Name:             "Mantle",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"MNT", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// HyperEVM L1 — derivatives-focused
+		{
+			ChainID:          "hyperliquid",
+			Name:             "Hyperliquid",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// EVM L1 (Proof-of-Liquidity)
+		{
+			ChainID:          "berachain",
+			Name:             "Berachain",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"BERA", "HONEY"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// EVM L1
+		{
+			ChainID:          "sonic",
+			Name:             "Sonic",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"S", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Parallel EVM L1 (Cosmos-based; dual EVM + IBC)
+		{
+			ChainID:          "sei",
+			Name:             "Sei",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"SEI", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Parallel EVM L1 (high finality)
+		{
+			ChainID:          "monad",
+			Name:             "Monad",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 30,
+			SupportedAssets:  []string{"MON", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// EVM L1 (stablecoin-focused; BTC anchor)
+		{
+			ChainID:          "plasma",
+			Name:             "Plasma",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"XPL", "USDT"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// XRP Ledger
+		{
+			ChainID:          "xrpl",
+			Name:             "XRP Ledger",
+			ChainType:        ChainTypeXRPL,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 4,
+			SupportedAssets:  []string{"XRP", "RLUSD"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Stellar
+		{
+			ChainID:          "stellar",
+			Name:             "Stellar",
+			ChainType:        ChainTypeStellar,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 5,
+			SupportedAssets:  []string{"XLM", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Hedera
+		{
+			ChainID:          "hedera",
+			Name:             "Hedera",
+			ChainType:        ChainTypeHedera,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 4,
+			SupportedAssets:  []string{"HBAR", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Algorand
+		{
+			ChainID:          "algorand",
+			Name:             "Algorand",
+			ChainType:        ChainTypeAlgorand,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 4,
+			SupportedAssets:  []string{"ALGO", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Injective (IBC — cheapest path; reuses IBC handler)
+		{
+			ChainID:          "injective",
+			Name:             "Injective",
+			ChainType:        ChainTypeIBC,
+			BridgeContract:   "",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 1,
+			SupportedAssets:  []string{"INJ", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Filecoin FVM (EVM-compatible since 2023)
+		{
+			ChainID:          "filecoin",
+			Name:             "Filecoin (FVM)",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"FIL", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Cronos (EVM L1)
+		{
+			ChainID:          "cronos",
+			Name:             "Cronos",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 12,
+			SupportedAssets:  []string{"CRO", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
+
+		// Kaia (Klaytn + Finschia merged)
+		{
+			ChainID:          "kaia",
+			Name:             "Kaia",
+			ChainType:        ChainTypeEVM,
+			BridgeContract:   "0x0000000000000000000000000000000000000000",
+			Status:           BridgeStatusPending,
+			MinConfirmations: 10,
+			SupportedAssets:  []string{"KAIA", "USDC"},
+			MaxSingleTransfer: "1000000000000",
+			DailyLimit:       "10000000000000",
+		},
 	}
 }
 
