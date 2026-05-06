@@ -32,6 +32,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.31.0] - 2026-05-07
+
+### Added — Stellar bridge handler
+
+Per-`ChainType` handler for the Stellar Consensus Protocol (SCP). Same shape as Starknet (v2.29.0) and XRPL (v2.30.0).
+
+**Behavior**
+- Source-tx-hash validation: 64-char lowercase hex (Stellar canonical form, no prefix).
+- Address validation: StrKey-encoded ed25519 public keys — `G…` (account, 56 chars) or `M…` (muxed, 69 chars), both base32 (RFC 4648 alphabet, A–Z + 2–7).
+- Confirmation time: 25s (5 ledger closes × 5 seconds each, providing SCP quorum overlap).
+
+### Tests
+3 new tests cover hash format edge cases (lowercase canonical), address validation matrix (real account ID, muxed, wrong length, wrong prefix, non-base32 chars, empty), and confirmation-time positivity.
+
+---
+
 ## [2.30.0] - 2026-05-07
 
 ### Added — XRPL bridge handler
