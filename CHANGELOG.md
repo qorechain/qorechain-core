@@ -32,6 +32,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.27.0] - 2026-05-07
+
+### Added — 27 new validator license feature IDs
+
+Closes the validator-license portion of the cross-network expansion. Total `validator_*` features now 37 (10 baseline + 19 non-IBC v2.27.0 + 8 IBC v2.27.0).
+
+**19 non-IBC chain validator licenses:**
+
+`FeatureValidatorZKSyncEra`, `FeatureValidatorLinea`, `FeatureValidatorScroll`, `FeatureValidatorStarknet`, `FeatureValidatorBlast`, `FeatureValidatorMantle`, `FeatureValidatorHyperliquid`, `FeatureValidatorBerachain`, `FeatureValidatorSonic`, `FeatureValidatorSei`, `FeatureValidatorMonad`, `FeatureValidatorPlasma`, `FeatureValidatorXRPL`, `FeatureValidatorStellar`, `FeatureValidatorHedera`, `FeatureValidatorAlgorand`, `FeatureValidatorFilecoin`, `FeatureValidatorCronos`, `FeatureValidatorKaia`.
+
+**8 IBC chain validator licenses:**
+
+`FeatureValidatorCosmosHub`, `FeatureValidatorOsmosis`, `FeatureValidatorNoble`, `FeatureValidatorCelestia`, `FeatureValidatorStride`, `FeatureValidatorAkash`, `FeatureValidatorBabylon`, `FeatureValidatorInjective`.
+
+These IBC chains already have IBC connectivity at the protocol layer; their bridge function is implicit through the IBC handler. The new validator licenses cover the new role of running a remote validator on those chains as part of the cross-network validation strategy.
+
+### Total feature ID surface
+
+- 1 QCB-bridge umbrella
+- 36 `bridge_*` (16 baseline + 20 added in v2.26.0)
+- 37 `validator_*` (10 baseline + 19 non-IBC + 8 IBC)
+
+**Grand total: 74 feature IDs** — closes the §3.4.4 acceptance target.
+
+### Tests
+
+3 new tests added on top of v2.26.0's 7: validator no-duplicate invariant, presence check for all 27 new validator IDs, and bridge↔validator symmetry (every chain in `DefaultChainConfigs` has both a `bridge_*` and a `validator_*` feature). The pre-existing count test was updated from `47` → `74`.
+
+---
+
 ## [2.26.0] - 2026-05-07
 
 ### Added — 20 new bridge license feature IDs

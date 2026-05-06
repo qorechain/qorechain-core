@@ -76,6 +76,49 @@ const (
 	FeatureValidatorAvalanche = "validator_avalanche"
 	FeatureValidatorTON       = "validator_ton"
 	FeatureValidatorSui       = "validator_sui"
+
+	// ----- Validator licenses (v2.27.0): 19 new non-IBC chains -----
+	//
+	// Note: Injective (added as a chain in v2.25.0) is IBC-typed; its
+	// validator license is registered below in the IBC group, not here.
+
+	FeatureValidatorZKSyncEra   = "validator_zksync_era"
+	FeatureValidatorLinea       = "validator_linea"
+	FeatureValidatorScroll      = "validator_scroll"
+	FeatureValidatorStarknet    = "validator_starknet"
+	FeatureValidatorBlast       = "validator_blast"
+	FeatureValidatorMantle      = "validator_mantle"
+	FeatureValidatorHyperliquid = "validator_hyperliquid"
+	FeatureValidatorBerachain   = "validator_berachain"
+	FeatureValidatorSonic       = "validator_sonic"
+	FeatureValidatorSei         = "validator_sei"
+	FeatureValidatorMonad       = "validator_monad"
+	FeatureValidatorPlasma      = "validator_plasma"
+	FeatureValidatorXRPL        = "validator_xrpl"
+	FeatureValidatorStellar     = "validator_stellar"
+	FeatureValidatorHedera      = "validator_hedera"
+	FeatureValidatorAlgorand    = "validator_algorand"
+	FeatureValidatorFilecoin    = "validator_filecoin"
+	FeatureValidatorCronos      = "validator_cronos"
+	FeatureValidatorKaia        = "validator_kaia"
+
+	// ----- IBC validator licenses (v2.27.0): 7 chains -----
+	//
+	// These chains already have IBC connectivity; their bridge_* license is
+	// implicit through the IBC handler. The validator role (running a
+	// remote validator on these chains as part of cross-network validation)
+	// is the new feature granted here.
+
+	FeatureValidatorCosmosHub = "validator_cosmoshub"
+	FeatureValidatorOsmosis   = "validator_osmosis"
+	FeatureValidatorNoble     = "validator_noble"
+	FeatureValidatorCelestia  = "validator_celestia"
+	FeatureValidatorStride    = "validator_stride"
+	FeatureValidatorAkash     = "validator_akash"
+	FeatureValidatorBabylon   = "validator_babylon"
+
+	// IBC chain validator (added as a v2.25.0 chain — Injective)
+	FeatureValidatorInjective = "validator_injective"
 )
 
 // AllBridgeFeatureIDs returns every bridge_* license feature ID.
@@ -101,14 +144,31 @@ func AllBridgeFeatureIDs() []string {
 }
 
 // AllValidatorFeatureIDs returns every validator_* license feature ID.
-// Stable order. Will grow in v2.27.0 with the new chains' validator
-// licenses + the 7 IBC chains.
+// Stable order grouped by addition wave:
+//   - v1.4.0 baseline: 10 chains
+//   - v2.27.0 non-IBC additions: 19 chains
+//   - v2.27.0 IBC additions: 8 chains (7 pre-existing IBC + Injective)
+//
+// Total in v2.27.0 = 37 entries.
 func AllValidatorFeatureIDs() []string {
 	return []string{
+		// v1.4.0 baseline
 		FeatureValidatorEthereum, FeatureValidatorSolana, FeatureValidatorBSC,
 		FeatureValidatorPolygon, FeatureValidatorArbitrum, FeatureValidatorOptimism,
 		FeatureValidatorBase, FeatureValidatorAvalanche, FeatureValidatorTON,
 		FeatureValidatorSui,
+		// v2.27.0 non-IBC
+		FeatureValidatorZKSyncEra, FeatureValidatorLinea, FeatureValidatorScroll,
+		FeatureValidatorStarknet, FeatureValidatorBlast, FeatureValidatorMantle,
+		FeatureValidatorHyperliquid, FeatureValidatorBerachain, FeatureValidatorSonic,
+		FeatureValidatorSei, FeatureValidatorMonad, FeatureValidatorPlasma,
+		FeatureValidatorXRPL, FeatureValidatorStellar, FeatureValidatorHedera,
+		FeatureValidatorAlgorand, FeatureValidatorFilecoin, FeatureValidatorCronos,
+		FeatureValidatorKaia,
+		// v2.27.0 IBC validator licenses
+		FeatureValidatorCosmosHub, FeatureValidatorOsmosis, FeatureValidatorNoble,
+		FeatureValidatorCelestia, FeatureValidatorStride, FeatureValidatorAkash,
+		FeatureValidatorBabylon, FeatureValidatorInjective,
 	}
 }
 
