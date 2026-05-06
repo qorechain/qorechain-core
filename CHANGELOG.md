@@ -32,6 +32,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.24.0] - 2026-05-07
+
+### Added — 5 new chain architectures
+
+The bridge module now recognizes five additional chain types for cross-network expansion:
+
+- `ChainTypeStarknet` — Cairo VM L2
+- `ChainTypeXRPL` — XRP Ledger UNL consensus
+- `ChainTypeStellar` — Stellar Consensus Protocol
+- `ChainTypeHedera` — Hashgraph; HCS subscription model
+- `ChainTypeAlgorand` — Pure Proof-of-Stake
+
+New helpers:
+- `AllChainTypes()` returns the 17-element ordered list of every supported chain type.
+- `IsValidChainType(t)` validates an inbound chain type at the message/config boundary.
+
+Per-chain handler implementations and configuration entries follow in subsequent minor releases.
+
+### Tests
+- 5 new tests cover the ChainType ordering, validity check, wire-level string values (cross-system compatibility), and uniqueness invariant.
+
+---
+
 ## [2.23.0] - 2026-05-07
 
 ### Added — `x/amm` automated market maker module

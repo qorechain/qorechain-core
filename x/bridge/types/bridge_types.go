@@ -22,7 +22,53 @@ const (
 	ChainTypePolkadot ChainType = "polkadot"
 	ChainTypeTezos    ChainType = "tezos"
 	ChainTypeTron     ChainType = "tron"
+
+	// New ChainTypes added in v2.24.0 (cross-network expansion §3.4).
+	// Each requires a dedicated bridge handler in the extended build —
+	// EVM-family chains share evm_bridge.go via per-chain config injection,
+	// while these architectures need their own deposit/withdrawal verifiers.
+	ChainTypeStarknet ChainType = "starknet" // Cairo VM L2
+	ChainTypeXRPL     ChainType = "xrpl"     // XRP Ledger UNL consensus
+	ChainTypeStellar  ChainType = "stellar"  // Stellar Consensus Protocol
+	ChainTypeHedera   ChainType = "hedera"   // Hashgraph; HCS subscription model
+	ChainTypeAlgorand ChainType = "algorand" // Pure Proof-of-Stake
 )
+
+// AllChainTypes returns every supported ChainType. Used by validation and
+// CLI surfaces — order is stable for deterministic output.
+func AllChainTypes() []ChainType {
+	return []ChainType{
+		ChainTypeIBC,
+		ChainTypeEVM,
+		ChainTypeSolana,
+		ChainTypeTON,
+		ChainTypeSui,
+		ChainTypeAptos,
+		ChainTypeBitcoin,
+		ChainTypeNEAR,
+		ChainTypeCardano,
+		ChainTypePolkadot,
+		ChainTypeTezos,
+		ChainTypeTron,
+		ChainTypeStarknet,
+		ChainTypeXRPL,
+		ChainTypeStellar,
+		ChainTypeHedera,
+		ChainTypeAlgorand,
+	}
+}
+
+// IsValidChainType returns true if t is one of the supported ChainTypes.
+// Used by msg validation and config import to reject unknown chain types
+// at the boundary before any keeper code runs.
+func IsValidChainType(t ChainType) bool {
+	for _, ct := range AllChainTypes() {
+		if ct == t {
+			return true
+		}
+	}
+	return false
+}
 
 // BridgeStatus represents the current status of a bridge.
 type BridgeStatus string
