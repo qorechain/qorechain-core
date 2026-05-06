@@ -32,6 +32,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.38.0] - 2026-05-07
+
+### Documentation — `docs/SIDECAR.md` operator guide
+
+Expanded "Supported Chains" section with the full v2.24.0–v2.36.0 chain catalog:
+
+- **Baseline (10 chains)**: pre-v2.24.0 chains unchanged
+- **Cross-network expansion EVM (14 chains)**: zkSync Era, Linea, Scroll, Blast, Mantle, Hyperliquid, Berachain, Sonic, Sei, Monad, Plasma, Filecoin, Cronos, Kaia — all sharing the Ethereum sidecar with chain-specific config injection (default `FINALITY_BLOCKS` documented per chain; Monad's higher 30-block rule called out)
+- **Cross-network expansion non-EVM (5 chains)**: Starknet, XRPL, Stellar, Hedera, Algorand — dedicated sidecar images per chain with chain-appropriate confirmation env (`LEDGER_CONFIRMATIONS` / `CONSENSUS_ROUNDS` / `ROUND_CONFIRMATIONS`)
+- **IBC (8 chains)**: Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, Injective — no sidecar container; packet flow via Hermes relayer
+
+The doc also explains the `Architecture` override (`ibc_classic` vs `ibc_eureka_v2`) for new IBC chain onboardings from v3.0.0 forward.
+
+---
+
 ## [2.37.0] - 2026-05-07
 
 ### Documentation

@@ -129,6 +129,10 @@ data_dir = "/home/qorechain/.qorechaind/sidecar-data"
 
 ## Supported Chains
 
+The orchestrator ships with sensible defaults for every chain registered in `DefaultChainConfigs()`. Operators can override any field via the `[sidecar.chains.<chain>]` section of `app.toml`.
+
+### Baseline (pre-v3.0.0)
+
 | Chain      | Chain ID     | Sidecar Image Tag   | Bridge Type  |
 |------------|-------------|----------------------|--------------|
 | Ethereum   | `ethereum`  | `sidecar-eth:latest` | EVM Lock/Mint |
@@ -141,6 +145,52 @@ data_dir = "/home/qorechain/.qorechaind/sidecar-data"
 | TON        | `ton`       | `sidecar-ton:latest` | FunC Relay    |
 | NEAR       | `near`      | `sidecar-near:latest`| NEAR Relay    |
 | Aptos      | `aptos`     | `sidecar-apt:latest` | Move Relay    |
+
+### Cross-network expansion (v2.24.0–v2.34.0)
+
+EVM-family chains share the Ethereum sidecar with chain-specific config injection:
+
+| Chain        | Chain ID       | Family       | Default Finality (blocks) |
+|--------------|----------------|--------------|---------------------------|
+| zkSync Era   | `zksync_era`   | EVM L2 (ZK)  | 12 |
+| Linea        | `linea`        | EVM L2 (ZK)  | 12 |
+| Scroll       | `scroll`       | EVM L2 (ZK)  | 12 |
+| Blast        | `blast`        | EVM L2 (Optimistic, yield-bearing) | 10 |
+| Mantle       | `mantle`       | EVM L2       | 10 |
+| Hyperliquid  | `hyperliquid`  | HyperEVM L1 (derivatives) | 10 |
+| Berachain    | `berachain`    | EVM L1 (PoL) | 10 |
+| Sonic        | `sonic`        | EVM L1       | 10 |
+| Sei          | `sei`          | Parallel EVM L1 (Cosmos-based, dual EVM+IBC) | 10 |
+| Monad        | `monad`        | Parallel EVM L1 | 30 |
+| Plasma       | `plasma`       | EVM L1 (stablecoin-focused) | 10 |
+| Filecoin     | `filecoin`     | EVM L1 (FVM) | 10 |
+| Cronos       | `cronos`       | EVM L1       | 12 |
+| Kaia         | `kaia`         | EVM L1 (Klaytn+Finschia) | 10 |
+
+Non-EVM chains use dedicated sidecar images:
+
+| Chain        | Chain ID       | Sidecar Image                    | Confirmations |
+|--------------|----------------|----------------------------------|---------------|
+| Starknet     | `starknet`     | `sidecar-starknet:latest`        | 12 (L1)       |
+| XRP Ledger   | `xrpl`         | `sidecar-xrpl:latest`            | 4 ledger closes |
+| Stellar      | `stellar`      | `sidecar-stellar:latest`         | 5 ledger closes |
+| Hedera       | `hedera`       | `sidecar-hedera:latest`          | 4 consensus rounds |
+| Algorand     | `algorand`     | `sidecar-algorand:latest`        | 4 rounds      |
+
+IBC chains (no sidecar container; IBC packets flow via Hermes relayer):
+
+| Chain        | Chain ID     | Architecture     |
+|--------------|--------------|------------------|
+| Cosmos Hub   | `cosmoshub`  | IBC classic      |
+| Osmosis      | `osmosis`    | IBC classic      |
+| Noble        | `noble`      | IBC classic      |
+| Celestia     | `celestia`   | IBC classic      |
+| Stride       | `stride`     | IBC classic      |
+| Akash        | `akash`      | IBC classic      |
+| Babylon      | `babylon`    | IBC classic      |
+| Injective    | `injective`  | IBC classic      |
+
+For new IBC chain onboardings from v3.0.0 forward, default `Architecture` is `ibc_eureka_v2`. Use the `[chains.<chain>] architecture = "ibc_classic"` override in `app.toml` to onboard a chain on the legacy stack.
 
 ## Troubleshooting
 
