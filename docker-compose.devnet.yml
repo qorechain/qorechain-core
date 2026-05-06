@@ -1,0 +1,98 @@
+# 2-Node Devnet for §4.28–§4.30 multi-node smoke testing.
+#
+# Boot:
+#   docker compose -f docker-compose.devnet.yml up --build
+#
+# Smoke tests after boot:
+#   ./scripts/devnet/smoke.sh        — runs the §4.28–§4.30 acceptance items
+#
+# Tear down:
+#   docker compose -f docker-compose.devnet.yml down -v
+#
+# Validators share the network and reach BFT consensus once both are
+# producing blocks. The slashing test (§4.29) halts node 2 for >1 minute
+# and confirms the chain catches its liveness fault.
+services:
+  # ──────────────────────────────────────────────────────────────────
+  # qorechain-devnet-node-1 (primary validator)
+  # ──────────────────────────────────────────────────────────────────
+  qorechain-devnet-node-1:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qorechain-devnet-node-1
+    hostname: node-1
+    ports:
+      - "26657:26657"   # consensus RPC
+      - "26656:26656"   # consensus P2P
+      - "1317:1317"     # REST
+      - "9090:9090"     # gRPC
+      - "8545:8545"     # EVM JSON-RPC
+      - "8546:8546"     # EVM WS
+    volumes:
+      - devnet-node1-data:/home/qorechaind/.qorechaind
+      - ./scripts/devnet/init-node1.sh:/scripts/init-node.sh:ro
+    environment:
+      - CHAIN_ID=qorechain-devnet
+      - MONIKER=devnet-node-1
+      - NODE_INDEX=1
+      - SEED_ADDR=
+      - LD_LIBRARY_PATH=/usr/local/lib
+    networks:
+      qorechain-devnet:
+        ipv4_address: 172.30.0.11
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:26657/status | grep -q '\"latest_block_height\"' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+  # ──────────────────────────────────────────────────────────────────
+  # qorechain-devnet-node-2 (peer validator)
+  # ──────────────────────────────────────────────────────────────────
+  qorechain-devnet-node-2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qorechain-devnet-node-2
+    hostname: node-2
+    depends_on:
+      qorechain-devnet-node-1:
+        condition: service_healthy
+    ports:
+      - "26757:26657"
+      - "26756:26656"
+      - "1417:1317"
+      - "9091:9090"
+      - "8645:8545"
+      - "8646:8546"
+    volumes:
+      - devnet-node2-data:/home/qorechaind/.qorechaind
+      - ./scripts/devnet/init-node2.sh:/scripts/init-node.sh:ro
+    environment:
+      - CHAIN_ID=qorechain-devnet
+      - MONIKER=devnet-node-2
+      - NODE_INDEX=2
+      - SEED_ADDR=node-1:26656
+      - LD_LIBRARY_PATH=/usr/local/lib
+    networks:
+      qorechain-devnet:
+        ipv4_address: 172.30.0.12
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:26657/status | grep -q '\"latest_block_height\"' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+
+volumes:
+  devnet-node1-data:
+  devnet-node2-data:
+
+networks:
+  qorechain-devnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

@@ -32,6 +32,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.43.0] - 2026-05-07
+
+### Added — 2-node docker-compose devnet for multi-node smoke testing
+
+Closes the §4.28–§4.30 acceptance items at the configuration layer. Operators can now stand up a 2-validator local devnet, run finality + liveness-slashing + bridge-sidecar smoke tests, and verify the chain's behavior end-to-end before promoting a build.
+
+**New files:**
+- `docker-compose.devnet.yml` — two-validator config on the `172.30.0.0/24` subnet, with port-forwarded RPC/REST/gRPC/EVM endpoints (node-1 on the standard ports, node-2 on +100 offset)
+- `scripts/devnet/init-node1.sh` — genesis-creating validator init: creates a 100M-QOR-funded validator, self-delegates 50M QOR to bootstrap consensus, lowers `timeout_commit` to 1s for fast feedback
+- `scripts/devnet/init-node2.sh` — joining peer init: waits for node-1 to be reachable, pulls genesis over `/genesis`, discovers node-1's node ID, configures persistent peer
+- `scripts/devnet/smoke.sh` — runs the three multi-node smoke items with explicit exit codes (1/2/3 per §4.28/§4.29/§4.30)
+- `scripts/devnet/README.md` — operator runbook with boot / smoke / teardown commands
+
+### Smoke test coverage
+- **§4.28** (block production + <2s finality): waits for both nodes to reach height 5, then samples a 5-second window to confirm block rate
+- **§4.29** (liveness slashing): halts node-2 for 60s and verifies the slashing module's `signing_infos` endpoint reports the missed signatures, then restarts node-2
+- **§4.30** (bridge sidecar against Anvil): launches Anvil on `:18545` and verifies the JSON-RPC handshake; full attestation round-trip is out of smoke-test scope (requires deployed bridge contract)
+
+`anvil` is auto-detected; the smoke script skips §4.30 with a warning if Foundry isn't installed locally.
+
+---
+
 ## [2.42.0] - 2026-05-07
 
 ### Added — ICS-27 / ICS-29 / ICS-721 handler hooks
