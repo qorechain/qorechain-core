@@ -32,6 +32,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.42.0] - 2026-05-07
+
+### Added — ICS-27 / ICS-29 / ICS-721 handler hooks
+
+Public-side type and interface scaffolding for the v3.0.0 §3.3 classic IBC handler completeness work. The proprietary keeper integrates with the upstream cosmos-sdk modules; this commit defines the local public surface so call sites can be wired and tested independently of the upstream wiring.
+
+**ICS-27 (Interchain Accounts):**
+- `ICARegistration` — Owner / ConnectionID / optional Version
+- `ICAHandlerHook` — `RegisterICA`, `QueryICA`, `SubmitICATx`
+
+**ICS-29 (Fee Middleware):**
+- `FeePayload` — RecvFee / AckFee / TimeoutFee / Payee (string-encoded uqor amounts for big-int safety)
+- `FeeMiddlewareHook` — `EscrowPacketFees`, `PayPacketFee`, `RefundUnusedFees`
+- Routes through the v2.6.3 fee distribution split so relayer rewards settle through the standard 37/30/20/10/3 path
+
+**ICS-721 (NFT-IBC):**
+- `NFTPacketData` — ClassID / ClassURI / TokenIDs / TokenURIs / Sender / Receiver / Memo
+- `NFTHandlerHook` — `SendNFT`, `OnRecvNFTPacket`
+- `Validate()` enforces non-empty class+sender+receiver and aligned-length TokenIDs/TokenURIs
+
+### Tests
+13 new tests cover ICA registration validation (3 cases), fee payload validation (5 cases including all four required fields + happy path), NFT packet validation (5 cases including token-URI length-mismatch detection and the `nil TokenURIs` accepted-as-no-metadata path), and three compile-time interface-shape guards (one per hook interface) so accidental signature drift is caught at build time.
+
+The proprietary keeper's actual wiring against the upstream `cosmos-sdk/x/icaauth`, `ibc-go/modules/apps/29-fee`, and `ibc-go/modules/apps/nft-transfer` modules lands in a follow-up commit once the upstream module versions are pinned in `go.mod`.
+
+---
+
 ## [2.41.0] - 2026-05-07
 
 ### Added — IBC Eureka v2 packet types and handler hook interface
