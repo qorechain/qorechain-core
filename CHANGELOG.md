@@ -32,6 +32,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.36.0] - 2026-05-07
+
+### Added — Orchestrator chain registry for the 27 new chains
+
+The sidecar orchestrator now ships with sensible per-chain defaults for every chain registered in v2.25.0. Operators get a working baseline out of the box; the `[sidecar.chains.<chain>]` section of `app.toml` can override any field.
+
+**New extended-build helpers:**
+- `DefaultChainSpecs()` — fresh map of `chain → ChainConfig{Image, Version, ExtraEnv, ExtraPorts}` for every onboarded chain
+- `KnownChains()` — sorted list of chain IDs the orchestrator recognizes
+- `IsKnownChain(chain)` — boolean predicate
+
+**Defaults populated:**
+- EVM chains get a `FINALITY_BLOCKS` env hint (12 baseline; 30 for Monad's higher-finality rule)
+- Dedicated-sidecar chains (Starknet, XRPL, Stellar, Hedera, Algorand) get an explicit `Image` override pointing at their per-chain image in the registry
+- Each non-EVM chain gets a chain-appropriate confirmation env (`LEDGER_CONFIRMATIONS` / `CONSENSUS_ROUNDS` / `ROUND_CONFIRMATIONS`)
+- Injective is registered for completeness even though it uses Hermes for IBC packet flow
+
+### Tests
+5 new tests verify: no duplicate chain entries, sorted order, all 20 v2.25.0 chains have a spec, the returned map is fresh per call (no shared mutable state), every dedicated-sidecar chain has an `Image` override, every EVM chain has a `FINALITY_BLOCKS` hint.
+
+### Build infrastructure
+`sidecar/orchestrator/doc.go` placeholder added in the public repo so `go vet` / `go test -overlay` can chdir into the package — same pattern as the v2.23.0 AMM and v2.29.0 bridge keeper placeholders.
+
+---
+
 ## [2.35.0] - 2026-05-07
 
 ### Added — `ChainArchitecture` enum + IBC fields on `ChainConfig`
