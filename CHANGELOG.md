@@ -32,6 +32,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.30.0] - 2026-05-07
+
+### Added — XRPL bridge handler
+
+Per-`ChainType` handler for the XRP Ledger. Same shape as the Starknet handler shipped in v2.29.0 (`ValidateDeposit` / `ValidateWithdrawal` / `EstimateConfirmationTime`).
+
+**Behavior**
+- Source-tx-hash validation: 64-character uppercase hex (XRPL canonical form, no `0x` prefix).
+- Address validation: classic `r…` addresses or X-addresses (`X…`), 25–35 base58 chars; full base58check checksum verification deferred to the production handler.
+- Confirmation time: 16s (4 ledger closes × 4 seconds each).
+
+### Tests
+3 new tests cover hash format edge cases (empty, lowercase rejected, wrong length), address validation matrix, and confirmation-time positivity.
+
+---
+
 ## [2.29.0] - 2026-05-07
 
 ### Added — Starknet bridge handler
