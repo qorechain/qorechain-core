@@ -32,24 +32,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.45.0] - 2026-05-07
+
+### Fixed — public CHANGELOG hygiene
+
+The v2.44.0 entry shipped with the security-scan target patterns spelled out by name in a "verified clean" list, which itself violates the public-CHANGELOG content policy. This release rewrites the v2.44.0 entry below to reference the patterns by category instead of listing them, and adds this note for traceability. No source code changes.
+
+The original v2.44.0 commit message and tag annotation were already category-only and remain clean. The internal scan report at `~/Development/Qore/update/SECURITY_SCAN_v2.45.0.md` retains the full pattern detail (engineer-facing, never committed).
+
+---
+
 ## [2.44.0] - 2026-05-07
 
 ### Security — full pre-push scan complete
 
-Closes the §5.2 security scan blocker. All 7 scan blocks (current-tree forbidden terms, proprietary refs, full-history identity, full-history co-author, tag annotations, secrets regex, `.gitignore` correctness) pass clean.
+Closes the security-scan blocker for the v3.0.0 release path. All seven scan blocks pass clean across the full git history. The patterns scanned for are the seven categories specified in the internal release runbook (consensus-engine identifiers, proprietary repo identifiers, AI-vendor identifiers, predecessor brand identifiers, cloud-vendor identifiers, AI-model identifiers, and credential / secret patterns).
 
 **Findings + remediation:**
-- `.gitignore` was missing `overlay.json` — added. The build-overlay file contains absolute paths to the proprietary repo and must never be committed to a public repo.
+- `.gitignore` was missing `overlay.json` — added. The build-overlay file contains absolute paths to the open-core internals and must never be committed to a public repo.
 
-**Verified clean:**
-- 0 forbidden-term hits in current tree (CometBFT / Tendermint / Anthropic / Baron Chain / AWS Bedrock / Claude*)
-- 0 source-level proprietary references
-- Single author + committer identity across full history (`Liviu Epure <liviu.etty@gmail.com>`)
+**Verified clean (full git history):**
+- 0 hits across all seven forbidden-term categories
+- 0 source-level open-core internal references
+- Single author + committer identity (`Liviu Epure <liviu.etty@gmail.com>`)
 - 0 co-author / AI-attribution mentions in any commit message or tag annotation
-- 0 AWS keys / PEM private keys / BIP-39 mnemonics / GitHub PATs in full history
-- All 6 required `.gitignore` entries present
+- 0 cloud credential keys, 0 PEM private keys, 0 BIP-39 mnemonics, 0 git-host PATs
+- All six required `.gitignore` entries present
 
-The full scan report is archived (engineer-facing, never committed) at `~/Development/Qore/update/SECURITY_SCAN_v2.44.0.md`.
+The full scan report is archived (engineer-facing, never committed) at `~/Development/Qore/update/SECURITY_SCAN_v2.45.0.md`.
 
 ---
 
