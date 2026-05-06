@@ -121,6 +121,9 @@ import (
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	gasabstractiontypes "github.com/qorechain/qorechain-core/x/gasabstraction/types"
 
+	ammmod "github.com/qorechain/qorechain-core/x/amm"
+	ammtypes "github.com/qorechain/qorechain-core/x/amm/types"
+
 	licensemod "github.com/qorechain/qorechain-core/x/license"
 	licensetypes "github.com/qorechain/qorechain-core/x/license/types"
 
@@ -238,6 +241,7 @@ type QoreChainApp struct {
 	RDKKeeper              rdkmod.RDKKeeper       // v1.3.0 — Rollup Development Kit
 	LightNodeKeeper        lightnodemod.LightNodeKeeper // v1.15.0 — Light node registration + rewards
 	LicenseKeeper          licensemod.LicenseKeeper      // v1.4.0 — License-gated sidecar features
+	AMMKeeper              ammmod.AMMKeeper              // v3.0.0 — Native automated market maker
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -667,6 +671,17 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize AMM module (via factory, v3.0.0 — native automated market maker) ---
+	ammStoreKey := storetypes.NewKVStoreKey(ammtypes.StoreKey)
+	app.MountStores(ammStoreKey)
+
+	app.AMMKeeper = NewAMMKeeper(
+		app.appCodec,
+		ammStoreKey,
+		app.BankKeeper,
+		logger,
+	)
+
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
@@ -732,6 +747,7 @@ func NewQoreChainApp(
 		NewRDKAppModule(app.RDKKeeper),
 		NewLightNodeAppModule(app.LightNodeKeeper),
 		NewLicenseAppModule(app.LicenseKeeper),
+		NewAMMAppModule(app.AMMKeeper),
 	); err != nil {
 		panic(err)
 	}

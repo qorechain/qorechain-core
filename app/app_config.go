@@ -108,6 +108,8 @@ var (
 		{Account: "gasabstraction"},
 		// v1.3.0 modules
 		{Account: "rdk", Permissions: []string{authtypes.Minter, authtypes.Burner}},
+		// v3.0.0 modules
+		{Account: "amm", Permissions: []string{authtypes.Minter, authtypes.Burner}},
 	}
 
 	// blockAccAddrs defines blocked module account addresses.
@@ -159,6 +161,7 @@ var (
 					group.ModuleName,
 					protocolpooltypes.ModuleName,
 					"crossvm", // Process cross-VM message queue
+					"amm",     // Recompute weighted-average pool prices
 					"burn",
 					"xqore",
 					"inflation",
@@ -218,6 +221,7 @@ var (
 					"crossvm",
 					"multilayer",
 					"svm",
+					"amm",
 					"burn",
 					"xqore",
 					"inflation",
@@ -269,6 +273,7 @@ var (
 					"crossvm",
 					"multilayer",
 					"svm",
+					"amm",
 					"burn",
 					"xqore",
 					"inflation",
