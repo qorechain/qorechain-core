@@ -2,11 +2,32 @@
 
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.6.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v2.6.0)
+[![Version](https://img.shields.io/badge/version-3.0.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v3.0.0)
 
-QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, **25 direct cross-chain connections** spanning IBC, EVM, Move, UTXO, and account-model ecosystems, a **Rollup Development Kit (RDK)** enabling one-click deployment of application-specific rollups with four settlement paradigms, a **license-gated multi-chain validator bridge** for cross-chain operations, and a **light node network** with stake-weighted reward distribution. Built on QoreChain SDK v0.53 with 20 custom modules and 47 registered genesis modules.
+QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **native on-chain AMM** with constant-product and stable-swap pricing, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, **45 direct cross-chain connections** spanning IBC (with foundation for next-generation IBC v2), EVM, Move, UTXO, Cairo, UNL, SCP, Hashgraph, and account-model ecosystems, a **Rollup Development Kit (RDK)** enabling one-click deployment of application-specific rollups with four settlement paradigms, a **license-gated multi-chain validator bridge** for cross-chain operations across 37 chains, and a **light node network** with stake-weighted reward distribution. Built on Cosmos SDK v0.53 with 21 custom modules and 48 registered genesis modules.
 
 ## Innovations
+
+### Native AMM Module (v3.0.0)
+
+The `x/amm` module provides on-chain automated market making with two pricing curves:
+
+- **Constant-product** (`x*y=k`) — Uniswap-V2-style pools for the long tail of token pairs
+- **Stable-swap** — Curve-style invariant for low-slippage stable-pair swaps, solved via deterministic Newton iteration
+
+Eight messages cover the complete pool lifecycle: `MsgCreatePool`, `MsgAddLiquidity`, `MsgRemoveLiquidity`, `MsgSwapExactIn`, `MsgSwapExactOut`, `MsgPausePool`, `MsgResumePool`, `MsgSetParams`. Per-pool pause via governance, module-wide kill switch, configurable swap fee with LP-accrual + protocol-fee split, slippage cap, and pool creation fee burned through the standard burn engine. A cross-VM hook lets EVM contracts (and SVM via the existing precompile interface) route swap calls into the AMM, while keeping on-chain routing decisions deterministic. All math uses fixed-point integer arithmetic — zero floating-point in any consensus path.
+
+### IBC Eureka v2 Foundation (v3.0.0)
+
+A `ChainArchitecture` enum on every chain configuration disambiguates classic IBC vs the next-generation IBC v2 stack. New IBC chain onboardings from v3.0.0 forward default to IBC v2 with a configurable client type; existing chains continue on the classic stack and can be migrated by governance proposal. The `x/bridge` module ships public-side packet types and handler-hook interfaces for the next-generation stack and for ICS-27 (Interchain Accounts), ICS-29 (Fee Middleware), and ICS-721 (NFT-IBC) so the validator's cross-network operations can extend cleanly as the upstream modules mature.
+
+### Cross-Network Expansion (v3.0.0)
+
+QoreChain v3.0.0 expands the bridge surface to **37 default chain configurations** across **17 chain architectures** — adding five new architecture families (Cairo VM L2, XRP Ledger UNL, Stellar Consensus Protocol, Hashgraph, Pure Proof-of-Stake) and twenty new chain configurations (zkSync Era, Linea, Scroll, Starknet, Blast, Mantle, Hyperliquid, Berachain, Sonic, Sei, Monad, Plasma, XRPL, Stellar, Hedera, Algorand, Injective, Filecoin FVM, Cronos, Kaia). Each new architecture has a dedicated bridge handler with chain-appropriate confirmation rules; EVM-family chains share the canonical EVM handler with per-chain config injection. The license surface scales accordingly to **74 feature IDs** (1 umbrella + 36 per-chain bridge + 37 per-chain validator) covering all current and previously-onboarded chains.
+
+### Multi-Node Devnet Harness (v3.0.0)
+
+A two-validator local devnet ships with the repo via `docker-compose.devnet.yml` and helper scripts under `scripts/devnet/`. The genesis-creating validator and the joining peer use auto-discovery (genesis fetch + node-ID handshake) so a new operator can boot a working two-node consensus in one command. The included smoke runner exercises block production / finality, liveness slashing, and the bridge sidecar JSON-RPC handshake.
 
 ### Light Node Network (v2.0.0)
 
@@ -17,11 +38,11 @@ The `x/lightnode` module enables a decentralized network of light nodes that con
 - **Auto-Deactivation** — Nodes missing heartbeats beyond the grace period are automatically marked inactive and excluded from rewards until they resume
 - **3% Fee Share** — Light node operators receive 3% of block fees, taken from the validator share
 
-### License-Gated Validator Bridge (v2.1.0)
+### License-Gated Validator Bridge
 
 The `x/license` module provides an on-chain license registry that controls access to extended chain features. Each QoreChain validator can operate as a bridge watcher or full external validator for supported chains — provided they hold the appropriate license.
 
-- **27 Feature IDs** — Granular licenses for bridge watching (`bridge_ethereum`, `bridge_solana`, etc.) and validator operations (`validator_ethereum`, `validator_solana`, etc.) across all supported chains
+- **74 Feature IDs** — Granular licenses for bridge watching (`bridge_ethereum`, `bridge_solana`, …) and validator operations (`validator_ethereum`, `validator_solana`, …) across all supported chains, including dedicated licenses for the eight IBC-connected chains
 - **License Lifecycle** — Grant → Active → Suspended/Revoked/Expired with governance-controlled administration
 - **Auto-Expiry** — EndBlocker automatically expires licenses past their TTL, ensuring stale grants don't persist
 - **Sidecar Orchestration** — Licensed validators can run chain-specific sidecar containers managed by a built-in orchestrator that handles container lifecycle, health monitoring, and credential exchange
@@ -57,13 +78,13 @@ The `x/rdk` module is QoreChain's Rollup Development Kit — a protocol-native f
 - **Deep Multilayer Integration** — Every rollup is registered as a layer in `x/multilayer` via `RegisterSidechain`, with state anchored via `AnchorState` on each batch settlement.
 - **Configurable Sequencing** — Three sequencer modes: Dedicated (single operator), Shared (multi-operator set), and Based (host chain proposers order rollup transactions with configurable priority fee share).
 
-### 25 Direct Cross-Chain Connections (v1.2.0)
+### 45 Direct Cross-Chain Connections
 
-QoreChain connects to **25 blockchain ecosystems** through two complementary protocols:
+QoreChain connects to **45 blockchain ecosystems** through two complementary protocols:
 
-- **8 IBC channels** — Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, and the QoreChain loopback relay. Pre-configured Hermes relayer templates with client updates, misbehaviour detection, and packet clearing every 100 blocks.
-- **17 QCB bridge endpoints** — Ethereum, BSC, Solana, Avalanche, Polygon, Arbitrum, TON, Sui, Optimism, Base, Aptos, Bitcoin, NEAR, Cardano, Polkadot, Tezos, and TRON. Each chain has per-type address validation, configurable confirmation depth, circuit breaker volume caps, and PQC-signed validator attestations.
-- **12 chain types** — evm, solana, ton, move, sui_move, cosmos_ibc, aptos_move, utxo, near, cardano, polkadot, tezos, tron — covering every major blockchain architecture.
+- **8 IBC channels** — Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, Injective. Pre-configured Hermes relayer templates with client updates, misbehaviour detection, and packet clearing every 100 blocks.
+- **37 QCB bridge endpoints** — Spanning EVM L2/L1, Cairo L2, UNL ledger, SCP ledger, Hashgraph, Pure-PoS, Move, UTXO, and account-model architectures. Each chain has per-type address validation, configurable confirmation depth, circuit breaker volume caps, and PQC-signed validator attestations.
+- **17 chain types** — `evm`, `solana`, `ton`, `move`, `sui_move`, `cosmos_ibc`, `aptos_move`, `utxo`, `near`, `cardano`, `polkadot`, `tezos`, `tron`, `starknet`, `xrpl`, `stellar`, `hedera`, `algorand` — covering every major blockchain architecture.
 
 ### BTC Restaking via Babylon Protocol (v1.2.0)
 
@@ -102,7 +123,7 @@ QoreChain is the only blockchain with **production-ready post-quantum hybrid sig
 - **Seamless onboarding** — PQC public keys auto-register via TX extension on first use
 - **Three-way verification** — The `PQCHybridVerifyDecorator` handles all combinations of classical and PQC signatures
 
-### On-Chain Reinforcement Learning
+### On-Chain Reinforcement Learning (PRISM)
 
 A Go-native fixed-point MLP (~73,733 parameters) runs PPO inference directly in the block lifecycle, dynamically tuning consensus parameters (block time, gas limits, pool weights) without any external oracle or sidecar dependency. Deterministic Taylor series math ensures identical results across all validators.
 
@@ -134,10 +155,12 @@ Deploy and execute BPF programs using Solana-compatible tooling. Four native bui
 
 - **PQC-Primary Security** — Dilithium-5 signatures + ML-KEM-1024 key exchange, hybrid Ed25519 + ML-DSA-87 via TX extensions, SHAKE-256 hash foundation, algorithm-agile with governance-controlled migration
 - **Hybrid Signature Architecture** — Three enforcement modes (disabled/optional/required), auto-registration onboarding, three-way ante verification
+- **Native AMM** — Constant-product + stable-swap pricing curves, cross-VM swap routing, deterministic integer math
+- **IBC v2 Foundation** — `ChainArchitecture` enum, ICS-27/29/721 handler-hook interfaces, configurable client type per chain
 - **Light Node Network** — Stake-weighted rewards, heartbeat liveness proofs, automatic deactivation, 3% fee share
-- **License-Gated Operations** — On-chain license registry with 27 feature IDs, auto-expiry, sidecar container orchestration for multi-chain validator bridge
+- **License-Gated Operations** — On-chain license registry with 74 feature IDs, auto-expiry, sidecar container orchestration for multi-chain validator bridge
 - **Rollup Development Kit (RDK)** — 4 settlement modes, 3 DA backends, 4 preset profiles, settlement engine with EndBlocker auto-finalization
-- **25 Cross-Chain Connections** — 8 IBC channels + 17 QCB bridge endpoints spanning EVM, Move, UTXO, and account-model ecosystems with PQC-signed attestations
+- **45 Cross-Chain Connections** — 8 IBC channels + 37 QCB bridge endpoints across 17 chain architectures, with PQC-signed attestations
 - **BTC Restaking** — Babylon Protocol integration for Bitcoin finality guarantees via IBC-relayed epoch checkpoints
 - **Account Abstraction** — Programmable accounts with session keys, spending rules, and social recovery at the protocol layer
 - **MEV Protection** — FairBlock tIBE encrypted mempool framework with dedicated block lane
@@ -153,6 +176,7 @@ Deploy and execute BPF programs using Solana-compatible tooling. Four native bui
 - **Cross-VM Bridge** — EVM ↔ CosmWasm (precompile + events) + SVM (async messaging)
 - **Progressive Slashing** — Escalating penalties with temporal half-life decay, capped at 33% per infraction
 - **Multilayer Architecture** — Main Chain + Sidechains + Paychains + Rollups with cross-layer fee bundling and state anchoring
+- **Multi-Node Devnet Harness** — Two-validator `docker-compose.devnet.yml` + smoke-test runner shipped in-repo
 
 ## Quick Start
 
@@ -165,6 +189,17 @@ docker compose up -d
 ```
 
 This starts: QoreChain node (with EVM + CosmWasm + SVM runtimes), AI sidecar, block indexer, Postgres, Prometheus, and Grafana.
+
+### Two-Validator Devnet
+
+```bash
+git clone https://github.com/qorechain/qorechain-core.git
+cd qorechain-core
+docker compose -f docker-compose.devnet.yml up --build -d
+./scripts/devnet/smoke.sh
+```
+
+See [`scripts/devnet/README.md`](scripts/devnet/README.md) for the operator runbook.
 
 ### Build from Source
 
@@ -204,7 +239,14 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 │  │  │(Sol.) │◄──►│ (Wasm)   │◄──►│ (BPF) │                   │            │
 │  │  └───┬───┘    └────┬─────┘    └───┬───┘                   │            │
 │  │      └─────────┬───┘──────────────┘                       │            │
-│  │           x/crossvm (bridge)                               │            │
+│  │           x/crossvm (bridge)  ◄──►  x/amm (swap routing)  │            │
+│  └────────────────────────────────────────────────────────────┘            │
+│                                                                             │
+│  ┌──────────────────── On-Chain Markets ─────────────────────┐            │
+│  │  ┌───────┐                                                  │            │
+│  │  │ x/amm │  CP + StableSwap pools, cross-VM hook,           │            │
+│  │  │       │  protocol-fee share routed via x/burn            │            │
+│  │  └───────┘                                                  │            │
 │  └────────────────────────────────────────────────────────────┘            │
 │                                                                             │
 │  ┌────────────────────── Tokenomics ─────────────────────────┐            │
@@ -219,12 +261,13 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 │  ┌──────────── IBC / Bridges / License ─────────────────────┐            │
 │  │  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌─────────┐ │            │
 │  │  │x/bridge  │  │x/babylon │  │x/abstract │  │x/gas    │ │            │
-│  │  │17 QCB +  │  │BTC re-   │  │ account   │  │abstract.│ │            │
+│  │  │37 QCB +  │  │BTC re-   │  │ account   │  │abstract.│ │            │
 │  │  │8 IBC     │  │staking   │  │session key│  │multi-tok│ │            │
+│  │  │+ IBC v2  │  │          │  │           │  │         │ │            │
 │  │  └──────────┘  └──────────┘  └───────────┘  └─────────┘ │            │
 │  │  ┌──────────┐  ┌──────────┐                               │            │
 │  │  │x/fair    │  │x/license │  5-Lane: PQC|MEV|AI|Def|Free │            │
-│  │  │ block    │  │27 feature│  tIBE encrypted mempool       │            │
+│  │  │ block    │  │74 feature│  tIBE encrypted mempool       │            │
 │  │  │tIBE      │  │IDs, auto-│  Sidecar orchestration        │            │
 │  │  └──────────┘  │expiry    │                               │            │
 │  │                 └──────────┘                               │            │
@@ -278,20 +321,21 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 | **x/rlconsensus** | RL-based dynamic consensus tuning: fixed-point MLP, PPO inference, shadow/conservative/autonomous modes, circuit breaker, rollup advisory |
 | **x/reputation** | Validator reputation scoring: multi-factor formula with temporal decay |
 | **x/qca** | Consensus Engine Algorithm: triple-pool CPoS, bonding curve, progressive slashing, QDRW governance |
-| **x/burn** | Central burn accounting: 10 burn channels, EndBlocker fee distribution (37% validators / 30% burned / 20% treasury / 10% stakers / 3% light nodes) |
+| **x/burn** | Central burn accounting: 10 burn channels (incl. AMM protocol-fee channel), EndBlocker fee distribution (37% validators / 30% burned / 20% treasury / 10% stakers / 3% light nodes) |
 | **x/xqore** | Governance-boosted staking: lock QOR → mint xQORE (1:1), graduated exit penalties, PvP rebase redistribution |
 | **x/inflation** | Epoch-based emission decay: Y1 17.5% → Y2 11% → Y3-4 7% → Y5+ 2%, configurable epoch length |
-| **x/bridge** | Cross-chain bridge (QCB): 17 non-IBC endpoints across 12 chain types, PQC-signed validator attestations, circuit breaker volume caps |
+| **x/amm** | Native AMM: constant-product + stable-swap pricing curves, 8 messages (create / add / remove / swap-exact-in / swap-exact-out / pause / resume / set-params), cross-VM swap hook, deterministic integer math |
+| **x/bridge** | Cross-chain bridge (QCB): 37 default chain configurations across 17 chain architectures, PQC-signed validator attestations, circuit breaker volume caps, IBC v2 foundation (`ChainArchitecture` enum + ICS-27/29/721 handler hooks) |
 | **x/babylon** | BTC restaking adapter: Babylon Protocol IBC integration, epoch checkpoints to Bitcoin, staking position lifecycle |
 | **x/abstractaccount** | Smart account abstraction: multisig/social_recovery/session_based accounts, spending rules, session keys with expiry |
 | **x/fairblock** | MEV protection: threshold IBE encrypted mempool framework, FairBlockDecorator ante handler |
 | **x/gasabstraction** | Multi-token gas payment: accept IBC-transferred tokens (USDC, ATOM) for fees, GasAbstractionDecorator |
 | **x/rdk** | Rollup Development Kit: 4 settlement paradigms, 3 DA backends, 4 preset profiles, settlement engine with auto-finalization |
 | **x/multilayer** | Multi-layer architecture: Sidechains + Paychains + Rollups with cross-layer fee bundling and state anchoring |
-| **x/crossvm** | Cross-VM communication: EVM ↔ CosmWasm (precompile) + SVM (async events) |
+| **x/crossvm** | Cross-VM communication: EVM ↔ CosmWasm (precompile) + SVM (async events), AMM swap routing |
 | **x/svm** | SVM runtime: BPF program deployment/execution, native programs (System, SPL Token, ATA, Memo), 20 Solana-compatible JSON-RPC methods |
 | **x/lightnode** | Light node network: registration, heartbeat liveness, stake-weighted reward distribution, auto-deactivation |
-| **x/license** | On-chain license registry: 27 feature IDs for bridge/validator operations, auto-expiry, lifecycle management |
+| **x/license** | On-chain license registry: 74 feature IDs for bridge/validator operations across all supported chains, auto-expiry, lifecycle management |
 | **x/vm** | VM routing and lifecycle management |
 
 ## Cross-Chain Connectivity
@@ -307,8 +351,11 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 | Stride | `stride` | ustrd | Liquid staking |
 | Akash | `akash` | uakt | Decentralized compute |
 | Babylon | `bbn` | ubbn | BTC restaking checkpoints |
+| Injective | `inj` | inj | DeFi liquidity routing (added v3.0.0) |
 
-### QCB Bridge Endpoints (17)
+### QCB Bridge Endpoints (37)
+
+#### Baseline (17 chains)
 
 | Chain | Type | Confirmations | Supported Tokens |
 |-------|------|---------------|------------------|
@@ -329,6 +376,32 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 | Polkadot | polkadot | 12 | DOT |
 | Tezos | tezos | 2 | XTZ |
 | TRON | tron | 20 | TRX, USDT |
+
+#### Cross-Network Expansion (20 chains, v3.0.0)
+
+| Chain | Type | Confirmations | Supported Tokens |
+|-------|------|---------------|------------------|
+| zkSync Era | evm | 12 | ETH, USDC |
+| Linea | evm | 12 | ETH, USDC |
+| Scroll | evm | 12 | ETH, USDC |
+| Starknet | starknet | 12 | ETH, STRK, USDC |
+| Blast | evm | 10 | ETH, USDB |
+| Mantle | evm | 10 | MNT, USDC |
+| Hyperliquid | evm | 10 | USDC |
+| Berachain | evm | 10 | BERA, HONEY |
+| Sonic | evm | 10 | S, USDC |
+| Sei | evm | 10 | SEI, USDC |
+| Monad | evm | 30 | MON, USDC |
+| Plasma | evm | 10 | XPL, USDT |
+| XRP Ledger | xrpl | 4 | XRP, RLUSD |
+| Stellar | stellar | 5 | XLM, USDC |
+| Hedera | hedera | 4 | HBAR, USDC |
+| Algorand | algorand | 4 | ALGO, USDC |
+| Filecoin (FVM) | evm | 10 | FIL, USDC |
+| Cronos | evm | 12 | CRO, USDC |
+| Kaia | evm | 10 | KAIA, USDC |
+
+(Injective is listed in the IBC table above.)
 
 ## Token Economics
 
@@ -404,14 +477,15 @@ SigGasConsume → SigVerify → IncrementSequence
 - [Multilayer Architecture](docs/MULTILAYER.md)
 - [Rollup Development Kit (RDK)](docs/RDK.md)
 - [Running a Testnet Node](docs/RUNNING_TESTNET.md)
+- [Two-Validator Devnet](scripts/devnet/README.md)
 - [API Reference](docs/API_REFERENCE.md)
 
 ## Infrastructure
 
 - 3 separate Go modules: `qorechain-core/`, `sidecar/`, `indexer/`
 - 2 Rust crates: `qorepqc` (PQC cryptography), `qoresvm` (BPF executor + native programs)
-- 47 registered genesis modules, 20 custom modules
-- Docker Compose: 6-service deployment stack
+- 48 registered genesis modules, 21 custom modules
+- Docker Compose: 6-service deployment stack + 2-validator devnet stack
 - GitHub Actions: CI/CD workflows (build, release, docker)
 - IBC: 8 pre-configured Hermes relayer channel templates
 
