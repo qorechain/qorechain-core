@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.0.0] - 2026-05-07
+
+The first major release after v1.4.0. v3.0.0 brings a native on-chain automated market maker, expanded cross-network validator support across additional chain architectures, and the foundation for the next-generation IBC stack.
+
+### Added — native AMM module (`x/amm`)
+- New genesis module (count moves from 45 to 46).
+- Two pricing curves: constant-product (`x*y=k`) and stable-swap (Curve-style invariant solved via deterministic Newton iteration).
+- 8 messages: pool create / add liquidity / remove liquidity / swap-exact-in / swap-exact-out / pause / resume / set-params.
+- Per-pool pause via governance, module-wide kill switch, swap fee with LP-accrual + protocol-fee split, configurable pool creation fee, slippage cap.
+- Cross-VM hook so EVM contracts (and SVM via the existing precompile interface) can route swap calls into the AMM.
+- Optional advisory route hint for clients; on-chain routing remains deterministic.
+- Genesis import/export with strict invariants (pool ID uniqueness, LP supply consistency, paused-pool registry).
+- All math is integer; zero floating-point in any consensus path.
+
+### Added — cross-network expansion
+- Five new chain architectures recognised: Cairo VM L2, XRP Ledger UNL, Stellar Consensus Protocol, Hashgraph, and Pure Proof-of-Stake.
+- Twenty new default chain configurations span EVM L2 ZK rollups, EVM L2 optimistic / yield-bearing, EVM L1 (parallel-EVM, stablecoin-focused, BTC-anchored, FVM-compatible, etc.), the new non-EVM L1s, and one additional cosmos-IBC chain. Total `DefaultChainConfigs` count: 17 → 37.
+- Five dedicated bridge handlers for the new non-EVM architectures: deposit / withdrawal validation + chain-appropriate confirmation timing.
+- Five new sidecar Docker container scaffolds (per non-EVM chain), plus the orchestrator chain registry covering all twenty new chains with sensible default Docker images, finality hints, and confirmation env vars.
+- License surface grew from ~10 feature IDs to 74: 1 umbrella, 36 per-chain `bridge_*`, 37 per-chain `validator_*` (including extended licensing for the eight existing IBC chains).
+
+### Added — IBC v2 foundation
+- New `ChainArchitecture` enum and IBC-specific fields on `ChainConfig` (`IBCChannelID`, `IBCPortID`, `IBCConnectionID`, `EurekaClientType`).
+- Public-side packet types and handler-hook interfaces for the next-generation IBC stack and for ICS-27 / ICS-29 / ICS-721, with ~25 boundary tests covering happy-path validation, missing-field rejection, ack-success invariants, and compile-time interface-shape guards.
+
+### Added — multi-node devnet
+- Two-validator local devnet via `docker-compose.devnet.yml`.
+- Init scripts for the genesis-creating validator and the joining peer (peer discovery via `/genesis` + node-ID handshake).
+- Smoke-test runner covering block production / finality, liveness slashing, and the bridge sidecar JSON-RPC handshake.
+- Operator runbook in `scripts/devnet/README.md`.
+
+### Added — operator + bridge documentation
+- `docs/SIDECAR.md` Supported Chains section expanded with the full 37-chain catalog: baseline, EVM-family expansion, non-EVM with dedicated handlers, IBC, and pending entries.
+- `docs/BRIDGE.md` enriched with the full chain table and the 74-feature-ID license surface, including the helper functions in `x/license/types/feature_ids.go`.
+
+### Internal — release hygiene
+- Pre-push security scan complete (forbidden-term, source-level proprietary references, full-history identity, full-history co-author / AI attribution, tag annotations, secrets regex, `.gitignore` correctness).
+- All commits authored and committed by `Liviu Epure <liviu.etty@gmail.com>` across the entire git history; no co-author trailers anywhere.
+
+### Note on the v2.x range
+v2.x was the internal pre-3.0 trail (v2.20.0 → v2.45.0); the public CHANGELOG jumps directly from 1.4.0 → 3.0.0.
+
+---
+
 ## [2.22.0] - 2026-05-07
 
 ### Added
