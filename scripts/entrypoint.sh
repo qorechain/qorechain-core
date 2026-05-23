@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-
+#ni11
 export CHAIN_ID="${CHAIN_ID:-qorechain-diana}"
 export MONIKER="${MONIKER:-qorechain-validator-1}"
 export HOME_DIR="${HOME_DIR:-/home/qorechaind/.qorechaind}"
