@@ -9,7 +9,7 @@ MONIKER="${MONIKER:-qorechain-validator-1}"
 HOME_DIR="${HOME_DIR:-/home/qorechaind/.qorechaind}"
 DENOM="uqor"
 KEYRING="test"
-
+#ni13
 echo "=== QoreChain Testnet Initialization ==="
 echo "Chain ID:  $CHAIN_ID"
 echo "Moniker:   $MONIKER"
