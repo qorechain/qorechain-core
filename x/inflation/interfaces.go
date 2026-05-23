@@ -1,5 +1,5 @@
 package inflation
-
+//ni12
 import (
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
