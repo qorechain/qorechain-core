@@ -15,7 +15,7 @@ func TestIsValidChainArchitecture(t *testing.T) {
 		{ChainArchIBCClassic, true},
 		{ChainArchIBCEurekaV2, true},
 		{ChainArchitecture("ibc_v3"), false},
-		{ChainArchitecture("classic"), false},   // missing prefix
+		{ChainArchitecture("classic"), false},     // missing prefix
 		{ChainArchitecture("IBC_CLASSIC"), false}, // case-sensitive
 	}
 	for _, c := range cases {
@@ -59,14 +59,14 @@ func TestChainConfig_IBCFields_OmitemptyWireFormat(t *testing.T) {
 // fields populated, they survive a JSON round trip.
 func TestChainConfig_IBCFields_RoundTrip(t *testing.T) {
 	original := ChainConfig{
-		ChainID:          "cosmoshub",
-		Name:             "Cosmos Hub",
-		ChainType:        ChainTypeIBC,
-		Status:           BridgeStatusPending,
-		MinConfirmations: 1,
-		SupportedAssets:  []string{"ATOM"},
+		ChainID:           "cosmoshub",
+		Name:              "Cosmos Hub",
+		ChainType:         ChainTypeIBC,
+		Status:            BridgeStatusPending,
+		MinConfirmations:  1,
+		SupportedAssets:   []string{"ATOM"},
 		MaxSingleTransfer: "1000000000000",
-		DailyLimit:       "10000000000000",
+		DailyLimit:        "10000000000000",
 
 		Architecture:     ChainArchIBCEurekaV2,
 		IBCChannelID:     "channel-0",

@@ -9,8 +9,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
-	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
 	"github.com/qorechain/qorechain-core/x/qca/types"
+	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
 )
 
 // StakingReader provides read-only staking data for pool classification and bonding curve.

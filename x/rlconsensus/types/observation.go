@@ -11,31 +11,31 @@ const ObservationDimensions = 25
 
 // Observation vector dimension indices.
 const (
-	ObsBlockUtilization      = 0  // block gas used / block gas limit
-	ObsTxCount               = 1  // number of transactions in block
-	ObsAvgTxSize             = 2  // mean transaction size in bytes
-	ObsBlockTime             = 3  // time since previous block (ms)
-	ObsBlockTimeDelta        = 4  // block time - target block time (ms)
-	ObsGasPrice50th          = 5  // median gas price
-	ObsGasPrice95th          = 6  // 95th-percentile gas price
-	ObsMempoolSize           = 7  // number of pending transactions
-	ObsMempoolBytes          = 8  // total bytes of pending transactions
-	ObsValidatorCount        = 9  // active validator count
-	ObsValidatorGini         = 10 // Gini coefficient of validator power
-	ObsMissedBlockRatio      = 11 // fraction of validators that missed signing
-	ObsAvgCommitLatency      = 12 // average commit round latency (ms)
-	ObsMaxCommitLatency      = 13 // maximum commit round latency (ms)
-	ObsPrecommitRatio        = 14 // fraction of precommits received
-	ObsFailedTxRatio         = 15 // fraction of failed transactions
-	ObsAvgGasPerTx           = 16 // mean gas consumed per tx
-	ObsRewardPerValidator    = 17 // mean reward per validator in uqor
-	ObsSlashCount            = 18 // number of slashing events in window
-	ObsJailCount             = 19 // number of jail events in window
-	ObsInflationRate         = 20 // current inflation rate
-	ObsBondedRatio           = 21 // bonded tokens / total supply
-	ObsReputationMean        = 22 // mean reputation score across validators
-	ObsReputationStdDev      = 23 // standard deviation of reputation scores
-	ObsMEVEstimate           = 24 // estimated MEV extracted (heuristic)
+	ObsBlockUtilization   = 0  // block gas used / block gas limit
+	ObsTxCount            = 1  // number of transactions in block
+	ObsAvgTxSize          = 2  // mean transaction size in bytes
+	ObsBlockTime          = 3  // time since previous block (ms)
+	ObsBlockTimeDelta     = 4  // block time - target block time (ms)
+	ObsGasPrice50th       = 5  // median gas price
+	ObsGasPrice95th       = 6  // 95th-percentile gas price
+	ObsMempoolSize        = 7  // number of pending transactions
+	ObsMempoolBytes       = 8  // total bytes of pending transactions
+	ObsValidatorCount     = 9  // active validator count
+	ObsValidatorGini      = 10 // Gini coefficient of validator power
+	ObsMissedBlockRatio   = 11 // fraction of validators that missed signing
+	ObsAvgCommitLatency   = 12 // average commit round latency (ms)
+	ObsMaxCommitLatency   = 13 // maximum commit round latency (ms)
+	ObsPrecommitRatio     = 14 // fraction of precommits received
+	ObsFailedTxRatio      = 15 // fraction of failed transactions
+	ObsAvgGasPerTx        = 16 // mean gas consumed per tx
+	ObsRewardPerValidator = 17 // mean reward per validator in uqor
+	ObsSlashCount         = 18 // number of slashing events in window
+	ObsJailCount          = 19 // number of jail events in window
+	ObsInflationRate      = 20 // current inflation rate
+	ObsBondedRatio        = 21 // bonded tokens / total supply
+	ObsReputationMean     = 22 // mean reputation score across validators
+	ObsReputationStdDev   = 23 // standard deviation of reputation scores
+	ObsMEVEstimate        = 24 // estimated MEV extracted (heuristic)
 )
 
 // FixedPointScale is the scaling factor for converting LegacyDec string
@@ -47,7 +47,7 @@ const FixedPointScale = int64(100_000_000)
 // Values are stored as LegacyDec string representations for deterministic
 // serialization.
 type Observation struct {
-	Height int64    `json:"height"`
+	Height int64                         `json:"height"`
 	Values [ObservationDimensions]string `json:"values"`
 }
 

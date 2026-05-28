@@ -14,11 +14,11 @@ import (
 
 // MsgCreatePool creates a new liquidity pool.
 type MsgCreatePool struct {
-	Creator                  string     `json:"creator"` // bech32
-	PoolType                 PoolType   `json:"pool_type"`
-	InitialDepositA          sdk.Coin   `json:"initial_deposit_a"`
-	InitialDepositB          sdk.Coin   `json:"initial_deposit_b"`
-	AmplificationCoefficient uint32     `json:"amplification_coefficient,omitempty"`
+	Creator                  string   `json:"creator"` // bech32
+	PoolType                 PoolType `json:"pool_type"`
+	InitialDepositA          sdk.Coin `json:"initial_deposit_a"`
+	InitialDepositB          sdk.Coin `json:"initial_deposit_b"`
+	AmplificationCoefficient uint32   `json:"amplification_coefficient,omitempty"`
 }
 
 // MsgAddLiquidity adds proportional liquidity to an existing pool.
@@ -32,9 +32,9 @@ type MsgAddLiquidity struct {
 
 // MsgRemoveLiquidity burns LP tokens and returns proportional reserves.
 type MsgRemoveLiquidity struct {
-	Sender    string   `json:"sender"`
-	PoolID    uint64   `json:"pool_id"`
-	LPAmount  math.Int `json:"lp_amount"`
+	Sender     string   `json:"sender"`
+	PoolID     uint64   `json:"pool_id"`
+	LPAmount   math.Int `json:"lp_amount"`
 	MinAmountA math.Int `json:"min_amount_a"`
 	MinAmountB math.Int `json:"min_amount_b"`
 }
@@ -50,11 +50,11 @@ type MsgSwapExactIn struct {
 
 // MsgSwapExactOut swaps to a fixed output amount and enforces a maximum input.
 type MsgSwapExactOut struct {
-	Sender    string   `json:"sender"`
-	PoolID    uint64   `json:"pool_id"`
-	DenomIn   string   `json:"denom_in"`
-	TokenOut  sdk.Coin `json:"token_out"`
-	MaxIn     math.Int `json:"max_in"`
+	Sender   string   `json:"sender"`
+	PoolID   uint64   `json:"pool_id"`
+	DenomIn  string   `json:"denom_in"`
+	TokenOut sdk.Coin `json:"token_out"`
+	MaxIn    math.Int `json:"max_in"`
 }
 
 // MsgPausePool toggles a pool to PoolStatusPaused. Gov-only.

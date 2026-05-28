@@ -26,7 +26,7 @@ func TestTEEAttestation_JSONMarshal(t *testing.T) {
 		Platform:        TEEPlatformSGX,
 		AttestationData: []byte{0x01, 0x02, 0x03},
 		MeasurementHash: make([]byte, 32),
-		SignerHash:       make([]byte, 32),
+		SignerHash:      make([]byte, 32),
 		Timestamp:       time.Date(2026, 2, 25, 12, 0, 0, 0, time.UTC),
 		Signature:       []byte{0xAA, 0xBB},
 		ReportData:      []byte{0xCC},

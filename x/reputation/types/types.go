@@ -20,12 +20,12 @@ type ReputationParams struct {
 // DefaultReputationParams returns default parameters per whitepaper.
 func DefaultReputationParams() ReputationParams {
 	return ReputationParams{
-		Alpha:    sdkmath.LegacyNewDecWithPrec(30, 2).String(),  // 0.30
-		Beta:     sdkmath.LegacyNewDecWithPrec(35, 2).String(),  // 0.35
-		Gamma:    sdkmath.LegacyNewDecWithPrec(20, 2).String(),  // 0.20
-		Delta:    sdkmath.LegacyNewDecWithPrec(15, 2).String(),  // 0.15
-		Lambda:   sdkmath.LegacyNewDec(1000).String(),           // 1000
-		MinScore: sdkmath.LegacyNewDecWithPrec(1, 1).String(),   // 0.1
+		Alpha:    sdkmath.LegacyNewDecWithPrec(30, 2).String(), // 0.30
+		Beta:     sdkmath.LegacyNewDecWithPrec(35, 2).String(), // 0.35
+		Gamma:    sdkmath.LegacyNewDecWithPrec(20, 2).String(), // 0.20
+		Delta:    sdkmath.LegacyNewDecWithPrec(15, 2).String(), // 0.15
+		Lambda:   sdkmath.LegacyNewDec(1000).String(),          // 1000
+		MinScore: sdkmath.LegacyNewDecWithPrec(1, 1).String(),  // 0.1
 	}
 }
 
@@ -85,19 +85,19 @@ func (p ReputationParams) ParamMinScore() sdkmath.LegacyDec {
 
 // ValidatorReputation tracks reputation data for a single validator.
 type ValidatorReputation struct {
-	Address            string `json:"address"`
-	StakeScore         string `json:"stake_score"`
-	PerformanceScore   string `json:"performance_score"`
-	ContributionScore  string `json:"contribution_score"`
-	TimeScore          string `json:"time_score"`
-	CompositeScore     string `json:"composite_score"`
-	LastUpdatedHeight  int64  `json:"last_updated_height"`
-	UptimeBlocks       uint64 `json:"uptime_blocks"`
-	ProposedBlocks     uint64 `json:"proposed_blocks"`
-	MissedBlocks       uint64 `json:"missed_blocks"`
-	SlashingEvents     uint64 `json:"slashing_events"`
-	CommunityVotes     int64  `json:"community_votes"`
-	JoinedAtHeight     int64  `json:"joined_at_height"`
+	Address           string `json:"address"`
+	StakeScore        string `json:"stake_score"`
+	PerformanceScore  string `json:"performance_score"`
+	ContributionScore string `json:"contribution_score"`
+	TimeScore         string `json:"time_score"`
+	CompositeScore    string `json:"composite_score"`
+	LastUpdatedHeight int64  `json:"last_updated_height"`
+	UptimeBlocks      uint64 `json:"uptime_blocks"`
+	ProposedBlocks    uint64 `json:"proposed_blocks"`
+	MissedBlocks      uint64 `json:"missed_blocks"`
+	SlashingEvents    uint64 `json:"slashing_events"`
+	CommunityVotes    int64  `json:"community_votes"`
+	JoinedAtHeight    int64  `json:"joined_at_height"`
 }
 
 // GetCompositeScoreDec returns the CompositeScore as a LegacyDec.
@@ -109,6 +109,21 @@ func (v ValidatorReputation) GetCompositeScoreDec() sdkmath.LegacyDec {
 // GetStakeScoreDec returns the StakeScore as a LegacyDec.
 func (v ValidatorReputation) GetStakeScoreDec() sdkmath.LegacyDec {
 	return parseDec(v.StakeScore)
+}
+
+// GetPerformanceScoreDec returns the PerformanceScore as a LegacyDec.
+func (v ValidatorReputation) GetPerformanceScoreDec() sdkmath.LegacyDec {
+	return parseDec(v.PerformanceScore)
+}
+
+// GetContributionScoreDec returns the ContributionScore as a LegacyDec.
+func (v ValidatorReputation) GetContributionScoreDec() sdkmath.LegacyDec {
+	return parseDec(v.ContributionScore)
+}
+
+// GetTimeScoreDec returns the TimeScore as a LegacyDec.
+func (v ValidatorReputation) GetTimeScoreDec() sdkmath.LegacyDec {
+	return parseDec(v.TimeScore)
 }
 
 // parseDec parses a string to LegacyDec, returning zero on failure.

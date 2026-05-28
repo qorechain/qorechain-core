@@ -8,23 +8,23 @@ import (
 
 // Params defines the configurable parameters for the lightnode module.
 type Params struct {
-	RegistrationFee     math.Int       `json:"registration_fee"`      // uqor fee to register a light node
-	HeartbeatInterval   int64          `json:"heartbeat_interval"`    // blocks between required heartbeats
-	MinDelegatedStake   math.Int       `json:"min_delegated_stake"`   // minimum uqor delegated to be eligible
-	RewardShare         math.LegacyDec `json:"reward_share"`          // fraction of block rewards for light nodes
-	MinUptimeForRewards math.LegacyDec `json:"min_uptime_for_rewards"` // minimum uptime ratio to qualify for rewards
-	MaxLightNodes       uint64         `json:"max_light_nodes"`       // maximum number of registered light nodes
-	HeartbeatGracePeriod int64         `json:"heartbeat_grace_period"` // extra blocks allowed before marking inactive
+	RegistrationFee      math.Int       `json:"registration_fee"`       // uqor fee to register a light node
+	HeartbeatInterval    int64          `json:"heartbeat_interval"`     // blocks between required heartbeats
+	MinDelegatedStake    math.Int       `json:"min_delegated_stake"`    // minimum uqor delegated to be eligible
+	RewardShare          math.LegacyDec `json:"reward_share"`           // fraction of block rewards for light nodes
+	MinUptimeForRewards  math.LegacyDec `json:"min_uptime_for_rewards"` // minimum uptime ratio to qualify for rewards
+	MaxLightNodes        uint64         `json:"max_light_nodes"`        // maximum number of registered light nodes
+	HeartbeatGracePeriod int64          `json:"heartbeat_grace_period"` // extra blocks allowed before marking inactive
 }
 
 // DefaultParams returns the default lightnode module parameters.
 func DefaultParams() Params {
 	return Params{
-		RegistrationFee:      math.NewInt(1_000_000),              // 1 QOR in uqor
-		HeartbeatInterval:    1000,                                 // every 1000 blocks
-		MinDelegatedStake:    math.NewInt(100_000_000),            // 100 QOR in uqor
-		RewardShare:          math.LegacyNewDecWithPrec(3, 2),     // 0.03 (3%)
-		MinUptimeForRewards:  math.LegacyNewDecWithPrec(80, 2),   // 0.80 (80%)
+		RegistrationFee:      math.NewInt(1_000_000),           // 1 QOR in uqor
+		HeartbeatInterval:    1000,                             // every 1000 blocks
+		MinDelegatedStake:    math.NewInt(100_000_000),         // 100 QOR in uqor
+		RewardShare:          math.LegacyNewDecWithPrec(3, 2),  // 0.03 (3%)
+		MinUptimeForRewards:  math.LegacyNewDecWithPrec(80, 2), // 0.80 (80%)
 		MaxLightNodes:        10000,
 		HeartbeatGracePeriod: 100,
 	}

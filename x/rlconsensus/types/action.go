@@ -20,6 +20,6 @@ const (
 // Action represents the consensus parameter adjustments proposed by the RL agent
 // at a specific height. Values are stored as LegacyDec string representations.
 type Action struct {
-	Height int64                  `json:"height"`
+	Height int64                    `json:"height"`
 	Values [ActionDimensions]string `json:"values"`
 }

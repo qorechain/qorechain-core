@@ -72,9 +72,9 @@ func NewStubKeeper(logger log.Logger) *StubKeeper {
 	}
 }
 
-func (k *StubKeeper) PQCClient() PQCClient               { return k.client }
-func (k *StubKeeper) Logger() log.Logger                  { return k.logger }
-func (k *StubKeeper) GetParams(_ sdk.Context) types.Params { return types.DefaultParams() }
+func (k *StubKeeper) PQCClient() PQCClient                          { return k.client }
+func (k *StubKeeper) Logger() log.Logger                            { return k.logger }
+func (k *StubKeeper) GetParams(_ sdk.Context) types.Params          { return types.DefaultParams() }
 func (k *StubKeeper) SetParams(_ sdk.Context, _ types.Params) error { return nil }
 func (k *StubKeeper) GetPQCAccount(_ sdk.Context, _ string) (types.PQCAccountInfo, bool) {
 	return types.PQCAccountInfo{}, false

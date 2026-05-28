@@ -131,15 +131,15 @@ func (msg MsgRegisterBridgeValidator) GetSigners() []sdk.AccAddress {
 
 // MsgBridgeAttestation submits a validator attestation for a bridge event.
 type MsgBridgeAttestation struct {
-	Validator    string `json:"validator"`
-	Chain        string `json:"chain"`
-	EventType    string `json:"event_type"` // "deposit" | "withdrawal_complete"
-	OperationID  string `json:"operation_id"`
-	TxHash       string `json:"tx_hash"`
+	Validator    string      `json:"validator"`
+	Chain        string      `json:"chain"`
+	EventType    string      `json:"event_type"` // "deposit" | "withdrawal_complete"
+	OperationID  string      `json:"operation_id"`
+	TxHash       string      `json:"tx_hash"`
 	Amount       sdkmath.Int `json:"amount"`
-	Asset        string `json:"asset"`
-	Proof        []byte `json:"proof"`
-	PQCSignature []byte `json:"pqc_signature"`
+	Asset        string      `json:"asset"`
+	Proof        []byte      `json:"proof"`
+	PQCSignature []byte      `json:"pqc_signature"`
 }
 
 func (msg MsgBridgeAttestation) ValidateBasic() error {

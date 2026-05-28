@@ -2,13 +2,13 @@ package types
 
 // GenesisState defines the pqc module's genesis state.
 type GenesisState struct {
-	Params     Params           `json:"params"`
-	Accounts   []PQCAccountInfo `json:"accounts"`
-	Stats      PQCStats         `json:"stats"`
+	Params   Params           `json:"params"`
+	Accounts []PQCAccountInfo `json:"accounts"`
+	Stats    PQCStats         `json:"stats"`
 
 	// Algorithm agility genesis (v0.6.0)
-	Algorithms []AlgorithmInfo  `json:"algorithms"`
-	Migrations []MigrationInfo  `json:"migrations,omitempty"`
+	Algorithms []AlgorithmInfo `json:"algorithms"`
+	Migrations []MigrationInfo `json:"migrations,omitempty"`
 }
 
 // DefaultGenesisState returns the default genesis state.

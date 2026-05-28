@@ -20,10 +20,10 @@ const (
 type MessageStatus string
 
 const (
-	StatusPending   MessageStatus = "pending"
-	StatusExecuted  MessageStatus = "executed"
-	StatusFailed    MessageStatus = "failed"
-	StatusTimedOut  MessageStatus = "timed_out"
+	StatusPending  MessageStatus = "pending"
+	StatusExecuted MessageStatus = "executed"
+	StatusFailed   MessageStatus = "failed"
+	StatusTimedOut MessageStatus = "timed_out"
 )
 
 // CrossVMMessage represents a message passed between VMs.

@@ -31,7 +31,6 @@ import (
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/x/tx/signing"
 
-	evmvmtypes "github.com/cosmos/evm/x/vm/types"
 	_ "cosmossdk.io/x/circuit"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	_ "cosmossdk.io/x/evidence"
@@ -42,6 +41,7 @@ import (
 	_ "cosmossdk.io/x/nft/module"
 	_ "cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	evmvmtypes "github.com/cosmos/evm/x/vm/types"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/types/module"
@@ -408,4 +408,3 @@ var (
 func ProvideEVMCustomGetSigner() signing.CustomGetSigner {
 	return evmvmtypes.MsgEthereumTxCustomGetSigner
 }
-

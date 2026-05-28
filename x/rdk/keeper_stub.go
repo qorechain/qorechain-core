@@ -27,9 +27,9 @@ func (k *StubKeeper) Logger() log.Logger { return k.logger }
 func (k *StubKeeper) CreateRollup(_ sdk.Context, _ types.RollupConfig) (*types.RollupConfig, error) {
 	return nil, types.ErrRollupNotActive
 }
-func (k *StubKeeper) PauseRollup(_ sdk.Context, _ string, _ string) error  { return nil }
-func (k *StubKeeper) ResumeRollup(_ sdk.Context, _ string) error           { return nil }
-func (k *StubKeeper) StopRollup(_ sdk.Context, _ string) error             { return nil }
+func (k *StubKeeper) PauseRollup(_ sdk.Context, _ string, _ string) error { return nil }
+func (k *StubKeeper) ResumeRollup(_ sdk.Context, _ string) error          { return nil }
+func (k *StubKeeper) StopRollup(_ sdk.Context, _ string) error            { return nil }
 func (k *StubKeeper) GetRollup(_ sdk.Context, _ string) (*types.RollupConfig, error) {
 	return nil, types.ErrRollupNotFound
 }
@@ -73,8 +73,8 @@ func (k *StubKeeper) OptimizeGasConfig(_ sdk.Context, _ string) (*types.RollupGa
 }
 
 // Params / Genesis
-func (k *StubKeeper) GetParams(_ sdk.Context) types.Params       { return types.DefaultParams() }
-func (k *StubKeeper) SetParams(_ sdk.Context, _ types.Params) error { return nil }
+func (k *StubKeeper) GetParams(_ sdk.Context) types.Params            { return types.DefaultParams() }
+func (k *StubKeeper) SetParams(_ sdk.Context, _ types.Params) error   { return nil }
 func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()

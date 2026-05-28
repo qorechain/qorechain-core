@@ -25,12 +25,12 @@ func (k *StubKeeper) Logger() log.Logger { return k.logger }
 func (k *StubKeeper) GetConfig(_ sdk.Context) types.BridgeConfig {
 	return types.DefaultBridgeConfig()
 }
-func (k *StubKeeper) SetConfig(_ sdk.Context, _ types.BridgeConfig) error       { return nil }
+func (k *StubKeeper) SetConfig(_ sdk.Context, _ types.BridgeConfig) error { return nil }
 func (k *StubKeeper) GetChainConfig(_ sdk.Context, _ string) (types.ChainConfig, bool) {
 	return types.ChainConfig{}, false
 }
-func (k *StubKeeper) SetChainConfig(_ sdk.Context, _ types.ChainConfig) error    { return nil }
-func (k *StubKeeper) GetAllChainConfigs(_ sdk.Context) []types.ChainConfig       { return nil }
+func (k *StubKeeper) SetChainConfig(_ sdk.Context, _ types.ChainConfig) error { return nil }
+func (k *StubKeeper) GetAllChainConfigs(_ sdk.Context) []types.ChainConfig    { return nil }
 func (k *StubKeeper) GetBridgeValidator(_ sdk.Context, _ string) (types.BridgeValidator, bool) {
 	return types.BridgeValidator{}, false
 }
@@ -44,7 +44,7 @@ func (k *StubKeeper) GetOperation(_ sdk.Context, _ string) (types.BridgeOperatio
 }
 func (k *StubKeeper) SetOperation(_ sdk.Context, _ types.BridgeOperation) error { return nil }
 func (k *StubKeeper) GetAllOperations(_ sdk.Context) []types.BridgeOperation    { return nil }
-func (k *StubKeeper) NextOperationID(_ sdk.Context) string                       { return "op-0" }
+func (k *StubKeeper) NextOperationID(_ sdk.Context) string                      { return "op-0" }
 func (k *StubKeeper) GetLockedAmount(_ sdk.Context, _, _ string) types.LockedAmount {
 	return types.LockedAmount{}
 }

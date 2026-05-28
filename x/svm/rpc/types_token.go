@@ -47,7 +47,7 @@ type ProgramAccountResult struct {
 
 // BlockhashResult is the result of getRecentBlockhash/getLatestBlockhash.
 type BlockhashResult struct {
-	Context ContextResult  `json:"context"`
+	Context ContextResult   `json:"context"`
 	Value   *BlockhashValue `json:"value"`
 }
 

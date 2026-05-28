@@ -45,9 +45,9 @@ func IsValidBurnSource(s BurnSource) bool {
 // BurnRecord tracks a single burn event.
 type BurnRecord struct {
 	Source BurnSource `json:"source"`
-	Amount math.Int  `json:"amount"`
-	Height int64     `json:"height"`
-	TxHash string    `json:"tx_hash,omitempty"`
+	Amount math.Int   `json:"amount"`
+	Height int64      `json:"height"`
+	TxHash string     `json:"tx_hash,omitempty"`
 }
 
 // BurnStats tracks aggregate burn statistics.
@@ -65,8 +65,8 @@ type MilestoneBurnTier struct {
 
 // MilestoneState tracks milestone burn progress.
 type MilestoneState struct {
-	CumulativeTxCount   uint64 `json:"cumulative_tx_count"`
-	LastTriggeredIndex  int    `json:"last_triggered_index"` // index of last triggered tier (-1 = none)
+	CumulativeTxCount  uint64 `json:"cumulative_tx_count"`
+	LastTriggeredIndex int    `json:"last_triggered_index"` // index of last triggered tier (-1 = none)
 }
 
 // DefaultMilestoneState returns a zero-valued milestone state.

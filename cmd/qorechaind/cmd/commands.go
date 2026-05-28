@@ -45,7 +45,7 @@ func initConsensusConfig() *cmtcfg.Config {
 type QoreChainConfig struct {
 	serverconfig.Config `mapstructure:",squash"`
 
-	EVM     cosmosevmserverconfig.EVMConfig    `mapstructure:"evm"`
+	EVM     cosmosevmserverconfig.EVMConfig     `mapstructure:"evm"`
 	JSONRPC cosmosevmserverconfig.JSONRPCConfig `mapstructure:"json-rpc"`
 	TLS     cosmosevmserverconfig.TLSConfig     `mapstructure:"tls"`
 }

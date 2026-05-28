@@ -15,48 +15,48 @@ import (
 type FederatedRoundState string
 
 const (
-	FederatedRoundPending    FederatedRoundState = "pending"     // Waiting for participants
-	FederatedRoundTraining   FederatedRoundState = "training"    // Local training in progress
+	FederatedRoundPending     FederatedRoundState = "pending"     // Waiting for participants
+	FederatedRoundTraining    FederatedRoundState = "training"    // Local training in progress
 	FederatedRoundAggregating FederatedRoundState = "aggregating" // Collecting and merging updates
-	FederatedRoundComplete   FederatedRoundState = "complete"    // Round finished
-	FederatedRoundFailed     FederatedRoundState = "failed"      // Round failed (timeout/insufficient participants)
+	FederatedRoundComplete    FederatedRoundState = "complete"    // Round finished
+	FederatedRoundFailed      FederatedRoundState = "failed"      // Round failed (timeout/insufficient participants)
 )
 
 // FederatedUpdate represents a single node's contribution to a federated
 // learning round. Contains compressed gradient updates (not raw data).
 type FederatedUpdate struct {
-	NodeID      string    `json:"node_id"`       // Validator address
-	Round       uint64    `json:"round"`         // Federated round number
-	Gradients   []byte    `json:"gradients"`     // Compressed gradient tensor (FlatBuffers/protobuf)
-	SampleCount uint64    `json:"sample_count"`  // Number of local training samples
-	Loss        float64   `json:"loss"`          // Local training loss
+	NodeID      string    `json:"node_id"`           // Validator address
+	Round       uint64    `json:"round"`             // Federated round number
+	Gradients   []byte    `json:"gradients"`         // Compressed gradient tensor (FlatBuffers/protobuf)
+	SampleCount uint64    `json:"sample_count"`      // Number of local training samples
+	Loss        float64   `json:"loss"`              // Local training loss
 	Metrics     []byte    `json:"metrics,omitempty"` // Optional per-round metrics (JSON)
 	Timestamp   time.Time `json:"timestamp"`
-	Signature   []byte    `json:"signature"`     // PQC signature over (round || gradients || sample_count)
+	Signature   []byte    `json:"signature"` // PQC signature over (round || gradients || sample_count)
 }
 
 // FederatedRoundConfig defines parameters for a federated learning round.
 type FederatedRoundConfig struct {
-	MinParticipants   uint32        `json:"min_participants"`   // Minimum nodes required
-	MaxParticipants   uint32        `json:"max_participants"`   // Maximum nodes accepted
-	RoundTimeout      int64         `json:"round_timeout_sec"`  // Seconds before round expires
-	AggregationMethod string        `json:"aggregation_method"` // "fedavg", "fedprox", "scaffold"
-	LearningRate      float64       `json:"learning_rate"`
-	ClippingNorm      float64       `json:"clipping_norm"`      // Gradient clipping for privacy
-	NoiseMultiplier   float64       `json:"noise_multiplier"`   // Differential privacy noise (0 = disabled)
+	MinParticipants   uint32  `json:"min_participants"`   // Minimum nodes required
+	MaxParticipants   uint32  `json:"max_participants"`   // Maximum nodes accepted
+	RoundTimeout      int64   `json:"round_timeout_sec"`  // Seconds before round expires
+	AggregationMethod string  `json:"aggregation_method"` // "fedavg", "fedprox", "scaffold"
+	LearningRate      float64 `json:"learning_rate"`
+	ClippingNorm      float64 `json:"clipping_norm"`    // Gradient clipping for privacy
+	NoiseMultiplier   float64 `json:"noise_multiplier"` // Differential privacy noise (0 = disabled)
 }
 
 // FederatedRoundStatus provides a summary of a federated learning round.
 type FederatedRoundStatus struct {
-	Round             uint64              `json:"round"`
-	State             FederatedRoundState `json:"state"`
+	Round             uint64               `json:"round"`
+	State             FederatedRoundState  `json:"state"`
 	Config            FederatedRoundConfig `json:"config"`
-	TotalParticipants uint32              `json:"total_participants"`
-	UpdatesReceived   uint32              `json:"updates_received"`
-	AverageLoss       float64             `json:"average_loss"`
-	GlobalModelHash   []byte              `json:"global_model_hash,omitempty"` // Set after aggregation
-	StartedAt         time.Time           `json:"started_at"`
-	CompletedAt       *time.Time          `json:"completed_at,omitempty"`
+	TotalParticipants uint32               `json:"total_participants"`
+	UpdatesReceived   uint32               `json:"updates_received"`
+	AverageLoss       float64              `json:"average_loss"`
+	GlobalModelHash   []byte               `json:"global_model_hash,omitempty"` // Set after aggregation
+	StartedAt         time.Time            `json:"started_at"`
+	CompletedAt       *time.Time           `json:"completed_at,omitempty"`
 }
 
 // FederatedGlobalModel represents the aggregated model state after a round.

@@ -53,7 +53,7 @@ func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConf
 	return gs.Validate()
 }
 
-func (AppModuleBasic) GetTxCmd() *cobra.Command   { return cli.GetTxCmd() }
+func (AppModuleBasic) GetTxCmd() *cobra.Command    { return cli.GetTxCmd() }
 func (AppModuleBasic) GetQueryCmd() *cobra.Command { return cli.GetQueryCmd() }
 
 type AppModule struct {

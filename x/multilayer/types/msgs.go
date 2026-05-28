@@ -137,7 +137,7 @@ type MsgRouteTransaction struct {
 	Sender             string `json:"sender"`
 	TransactionPayload []byte `json:"transaction_payload"`
 	PreferredLayer     string `json:"preferred_layer,omitempty"` // Optional hint
-	MaxLatencyMs       uint64 `json:"max_latency_ms"`           // Max acceptable latency
+	MaxLatencyMs       uint64 `json:"max_latency_ms"`            // Max acceptable latency
 	MaxFee             string `json:"max_fee"`                   // Max fee willing to pay (uqor)
 }
 
@@ -158,8 +158,8 @@ func (msg MsgRouteTransaction) GetSigners() []sdk.AccAddress {
 
 // MsgRouteTransactionResponse is the response for MsgRouteTransaction
 type MsgRouteTransactionResponse struct {
-	Decision             *RoutingDecision `json:"decision"`
-	CrossLayerMessageID  string           `json:"cross_layer_message_id,omitempty"`
+	Decision            *RoutingDecision `json:"decision"`
+	CrossLayerMessageID string           `json:"cross_layer_message_id,omitempty"`
 }
 
 // MsgUpdateLayerStatus changes a layer's status (suspend, activate, decommission)
@@ -196,7 +196,7 @@ type MsgChallengeAnchor struct {
 	Challenger      string `json:"challenger"`
 	LayerID         string `json:"layer_id"`
 	AnchorHeight    uint64 `json:"anchor_height"`
-	FraudProof      []byte `json:"fraud_proof"`      // Proof that the anchor is invalid
+	FraudProof      []byte `json:"fraud_proof"` // Proof that the anchor is invalid
 	ChallengeReason string `json:"challenge_reason"`
 }
 

@@ -4,21 +4,21 @@ import "time"
 
 // BTCRestakingConfig holds the BTC restaking adapter configuration.
 type BTCRestakingConfig struct {
-	Enabled           bool   `json:"enabled"`
-	MinStakeAmount    int64  `json:"min_stake_amount"`
-	UnbondingPeriod   int64  `json:"unbonding_period"`
-	CheckpointInterval int64 `json:"checkpoint_interval"`
-	BabylonChainID    string `json:"babylon_chain_id"`
+	Enabled            bool   `json:"enabled"`
+	MinStakeAmount     int64  `json:"min_stake_amount"`
+	UnbondingPeriod    int64  `json:"unbonding_period"`
+	CheckpointInterval int64  `json:"checkpoint_interval"`
+	BabylonChainID     string `json:"babylon_chain_id"`
 }
 
 // DefaultBTCRestakingConfig returns default BTC restaking config.
 func DefaultBTCRestakingConfig() BTCRestakingConfig {
 	return BTCRestakingConfig{
-		Enabled:           false,
-		MinStakeAmount:    100000, // 0.001 BTC in satoshis
-		UnbondingPeriod:   144,    // ~1 day in BTC blocks
+		Enabled:            false,
+		MinStakeAmount:     100000, // 0.001 BTC in satoshis
+		UnbondingPeriod:    144,    // ~1 day in BTC blocks
 		CheckpointInterval: 10,
-		BabylonChainID:    "bbn-1",
+		BabylonChainID:     "bbn-1",
 	}
 }
 
@@ -36,12 +36,12 @@ type BTCStakingPosition struct {
 
 // BTCCheckpoint represents a BTC checkpoint record.
 type BTCCheckpoint struct {
-	EpochNum      uint64    `json:"epoch_num"`
-	BTCBlockHash  string    `json:"btc_block_hash"`
-	BTCBlockHeight int64    `json:"btc_block_height"`
-	StateRoot     string    `json:"state_root"`
-	SubmittedAt   time.Time `json:"submitted_at"`
-	Status        string    `json:"status"` // pending, confirmed, finalized
+	EpochNum       uint64    `json:"epoch_num"`
+	BTCBlockHash   string    `json:"btc_block_hash"`
+	BTCBlockHeight int64     `json:"btc_block_height"`
+	StateRoot      string    `json:"state_root"`
+	SubmittedAt    time.Time `json:"submitted_at"`
+	Status         string    `json:"status"` // pending, confirmed, finalized
 }
 
 // BabylonEpochSnapshot captures state at a checkpoint boundary.

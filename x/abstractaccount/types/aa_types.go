@@ -27,10 +27,10 @@ func ValidateSessionKey(key SessionKey) error {
 
 // AbstractAccountConfig holds the module configuration.
 type AbstractAccountConfig struct {
-	Enabled             bool  `json:"enabled"`
-	MaxSessionKeys      int   `json:"max_session_keys"`
-	MaxSpendingRules    int   `json:"max_spending_rules"`
-	DefaultSessionTTL   int64 `json:"default_session_ttl"` // seconds
+	Enabled           bool  `json:"enabled"`
+	MaxSessionKeys    int   `json:"max_session_keys"`
+	MaxSpendingRules  int   `json:"max_spending_rules"`
+	DefaultSessionTTL int64 `json:"default_session_ttl"` // seconds
 }
 
 // DefaultAbstractAccountConfig returns default configuration.
@@ -45,13 +45,13 @@ func DefaultAbstractAccountConfig() AbstractAccountConfig {
 
 // AbstractAccount represents a smart-contract backed account.
 type AbstractAccount struct {
-	Address          string         `json:"address"`
-	ContractAddress  string         `json:"contract_address"`
-	AccountType      string         `json:"account_type"` // multisig, social_recovery, session_based
-	SpendingRules    []SpendingRule `json:"spending_rules"`
-	SessionKeys      []SessionKey   `json:"session_keys"`
-	CreatedAt        time.Time      `json:"created_at"`
-	Owner            string         `json:"owner"`
+	Address         string         `json:"address"`
+	ContractAddress string         `json:"contract_address"`
+	AccountType     string         `json:"account_type"` // multisig, social_recovery, session_based
+	SpendingRules   []SpendingRule `json:"spending_rules"`
+	SessionKeys     []SessionKey   `json:"session_keys"`
+	CreatedAt       time.Time      `json:"created_at"`
+	Owner           string         `json:"owner"`
 }
 
 // SpendingRule defines spending limits for an abstract account.

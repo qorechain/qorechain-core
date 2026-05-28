@@ -24,15 +24,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/x/auth/types"
 
 	// IBC
+	ibctransfer "github.com/cosmos/ibc-go/v10/modules/apps/transfer"
 	ibc "github.com/cosmos/ibc-go/v10/modules/core"
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
-	ibctransfer "github.com/cosmos/ibc-go/v10/modules/apps/transfer"
 
 	// QoreChain EVM
-	evmvm "github.com/cosmos/evm/x/vm"
-	evmfeemarket "github.com/cosmos/evm/x/feemarket"
 	evmerc20 "github.com/cosmos/evm/x/erc20"
+	evmfeemarket "github.com/cosmos/evm/x/feemarket"
 	evmprecisebank "github.com/cosmos/evm/x/precisebank"
+	evmvm "github.com/cosmos/evm/x/vm"
 
 	// CosmWasm
 	wasm "github.com/CosmWasm/wasmd/x/wasm"

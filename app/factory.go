@@ -23,12 +23,12 @@ import (
 	crossvmmod "github.com/qorechain/qorechain-core/x/crossvm"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
+	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	licensemod "github.com/qorechain/qorechain-core/x/license"
 	lightnodemod "github.com/qorechain/qorechain-core/x/lightnode"
-	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
-	inflationmod "github.com/qorechain/qorechain-core/x/inflation"
 	multilayermod "github.com/qorechain/qorechain-core/x/multilayer"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
+	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
@@ -39,18 +39,18 @@ import (
 // In full builds, these are overridden by register.go files in each module.
 var (
 	// PQC module factories
-	NewPQCClient          func() pqcmod.PQCClient
-	NewPQCKeeper          func(cdc codec.Codec, storeKey storetypes.StoreKey, client pqcmod.PQCClient, logger log.Logger) pqcmod.PQCKeeper
-	NewPQCAppModule       func(keeper pqcmod.PQCKeeper) module.AppModule
-	NewPQCModuleBasic     func() module.AppModuleBasic
+	NewPQCClient                func() pqcmod.PQCClient
+	NewPQCKeeper                func(cdc codec.Codec, storeKey storetypes.StoreKey, client pqcmod.PQCClient, logger log.Logger) pqcmod.PQCKeeper
+	NewPQCAppModule             func(keeper pqcmod.PQCKeeper) module.AppModule
+	NewPQCModuleBasic           func() module.AppModuleBasic
 	NewPQCVerifyDecorator       func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator
 	NewPQCHybridVerifyDecorator func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator
 	NewPQCReplayGuardDecorator  func() sdk.AnteDecorator
 
 	// AI module factories
-	NewAIKeeper          func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) aimod.AIKeeper
-	NewAIAppModule       func(keeper aimod.AIKeeper) module.AppModule
-	NewAIModuleBasic     func() module.AppModuleBasic
+	NewAIKeeper           func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) aimod.AIKeeper
+	NewAIAppModule        func(keeper aimod.AIKeeper) module.AppModule
+	NewAIModuleBasic      func() module.AppModuleBasic
 	NewAIAnomalyDecorator func(keeper aimod.AIKeeper) sdk.AnteDecorator
 
 	// Bridge module factories
@@ -69,14 +69,14 @@ var (
 	NewMultilayerModuleBasic func() module.AppModuleBasic
 
 	// SVM module factories
-	NewSVMKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey,
+	NewSVMKeeper func(cdc codec.Codec, storeKey storetypes.StoreKey,
 		pqcKeeper pqcmod.PQCKeeper, aiKeeper aimod.AIKeeper,
 		crossvmKeeper crossvmmod.CrossVMKeeper,
 		logger log.Logger) svmmod.SVMKeeper
-	NewSVMAppModule               func(keeper svmmod.SVMKeeper) module.AppModule
-	NewSVMModuleBasic             func() module.AppModuleBasic
-	NewSVMComputeBudgetDecorator  func(keeper svmmod.SVMKeeper) sdk.AnteDecorator
-	NewSVMDeductFeeDecorator      func(keeper svmmod.SVMKeeper, bankKeeper svmmod.SVMBankKeeper) sdk.AnteDecorator
+	NewSVMAppModule              func(keeper svmmod.SVMKeeper) module.AppModule
+	NewSVMModuleBasic            func() module.AppModuleBasic
+	NewSVMComputeBudgetDecorator func(keeper svmmod.SVMKeeper) sdk.AnteDecorator
+	NewSVMDeductFeeDecorator     func(keeper svmmod.SVMKeeper, bankKeeper svmmod.SVMBankKeeper) sdk.AnteDecorator
 
 	// RL Consensus module factories
 	NewRLConsensusKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) rlconsensusmod.RLConsensusKeeper

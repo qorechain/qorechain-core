@@ -34,7 +34,7 @@ const (
 
 // AccountInfo represents a Solana-compatible account info response.
 type AccountInfo struct {
-	Data       []string `json:"data"`       // [base64-encoded, "base64"]
+	Data       []string `json:"data"` // [base64-encoded, "base64"]
 	Executable bool     `json:"executable"`
 	Lamports   uint64   `json:"lamports"`
 	Owner      string   `json:"owner"`

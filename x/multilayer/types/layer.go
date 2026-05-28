@@ -11,9 +11,9 @@ type LayerType string
 
 const (
 	LayerTypeUnspecified LayerType = ""
-	LayerTypeSidechain  LayerType = "sidechain" // Compute-heavy operations (DeFi, Gaming, IoT)
-	LayerTypePaychain   LayerType = "paychain"  // High-frequency microtransactions
-	LayerTypeRollup     LayerType = "rollup"    // Application-specific rollups (DeFi, Gaming, NFT, Enterprise)
+	LayerTypeSidechain   LayerType = "sidechain" // Compute-heavy operations (DeFi, Gaming, IoT)
+	LayerTypePaychain    LayerType = "paychain"  // High-frequency microtransactions
+	LayerTypeRollup      LayerType = "rollup"    // Application-specific rollups (DeFi, Gaming, NFT, Enterprise)
 )
 
 // LayerStatus defines the lifecycle status of a layer
@@ -59,9 +59,9 @@ type LayerConfig struct {
 	Description string      `json:"description"`
 
 	// Performance parameters
-	TargetBlockTimeMs        uint64 `json:"target_block_time_ms"`
-	MaxTransactionsPerBlock  uint64 `json:"max_transactions_per_block"`
-	MaxGasPerBlock           uint64 `json:"max_gas_per_block"`
+	TargetBlockTimeMs       uint64 `json:"target_block_time_ms"`
+	MaxTransactionsPerBlock uint64 `json:"max_transactions_per_block"`
+	MaxGasPerBlock          uint64 `json:"max_gas_per_block"`
 
 	// Security parameters
 	MinValidators            uint32 `json:"min_validators"`
@@ -69,12 +69,12 @@ type LayerConfig struct {
 	ChallengePeriodSeconds   uint64 `json:"challenge_period_seconds"`   // Dispute window for state transitions
 
 	// Fee parameters
-	BaseFeeMultiplier              string `json:"base_fee_multiplier"`                // Fee multiplier vs main chain (decimal string)
-	CrossLayerFeeBundlingEnabled   bool   `json:"cross_layer_fee_bundling_enabled"`   // CLFB support
+	BaseFeeMultiplier            string `json:"base_fee_multiplier"`              // Fee multiplier vs main chain (decimal string)
+	CrossLayerFeeBundlingEnabled bool   `json:"cross_layer_fee_bundling_enabled"` // CLFB support
 
 	// Capabilities
-	SupportedVMTypes  []string `json:"supported_vm_types,omitempty"`  // ["cosmwasm", "evm"]
-	SupportedDomains  []string `json:"supported_domains,omitempty"`  // ["defi", "gaming", "iot"]
+	SupportedVMTypes []string `json:"supported_vm_types,omitempty"` // ["cosmwasm", "evm"]
+	SupportedDomains []string `json:"supported_domains,omitempty"`  // ["defi", "gaming", "iot"]
 
 	// Timestamps
 	RegisteredAt *time.Time `json:"registered_at,omitempty"`
@@ -87,15 +87,15 @@ type LayerConfig struct {
 // StateAnchor represents a state root commitment from a subsidiary chain
 // anchored to the QoreChain main chain via Hierarchical Commitment Schemes (HCS)
 type StateAnchor struct {
-	LayerID              string    `json:"layer_id"`
-	LayerHeight          uint64    `json:"layer_height"`            // Block height on the subsidiary chain
-	StateRoot            []byte    `json:"state_root"`              // Merkle root of subsidiary chain state
-	ValidatorSetHash     []byte    `json:"validator_set_hash"`      // Hash of the validator set that signed
-	MainChainHeight      uint64    `json:"main_chain_height"`       // Main chain height when anchored
-	AnchoredAt           time.Time `json:"anchored_at"`
-	PQCAggregateSignature []byte   `json:"pqc_aggregate_signature"` // PQC (Dilithium-5) aggregate sig
-	TransactionCount     uint64    `json:"transaction_count"`       // Number of TXs since last anchor
-	CompressedStateProof []byte    `json:"compressed_state_proof"`  // CST: Compressed state transition proof
+	LayerID               string    `json:"layer_id"`
+	LayerHeight           uint64    `json:"layer_height"`       // Block height on the subsidiary chain
+	StateRoot             []byte    `json:"state_root"`         // Merkle root of subsidiary chain state
+	ValidatorSetHash      []byte    `json:"validator_set_hash"` // Hash of the validator set that signed
+	MainChainHeight       uint64    `json:"main_chain_height"`  // Main chain height when anchored
+	AnchoredAt            time.Time `json:"anchored_at"`
+	PQCAggregateSignature []byte    `json:"pqc_aggregate_signature"` // PQC (Dilithium-5) aggregate sig
+	TransactionCount      uint64    `json:"transaction_count"`       // Number of TXs since last anchor
+	CompressedStateProof  []byte    `json:"compressed_state_proof"`  // CST: Compressed state transition proof
 }
 
 // CrossLayerMessage represents a message routed between layers
@@ -107,8 +107,8 @@ type CrossLayerMessage struct {
 	Fees             sdk.Coins `json:"fees"`              // Pre-paid cross-layer fees
 	Sender           string    `json:"sender"`            // bech32 address
 	CreatedAt        time.Time `json:"created_at"`
-	TimeoutHeight    uint64    `json:"timeout_height"`    // Expiry height on destination
-	RoutingDecision  string    `json:"routing_decision"`  // QCAI routing rationale
+	TimeoutHeight    uint64    `json:"timeout_height"`   // Expiry height on destination
+	RoutingDecision  string    `json:"routing_decision"` // QCAI routing rationale
 }
 
 // RoutingDecision captures the QCAI Router's layer selection logic
@@ -124,7 +124,7 @@ type RoutingDecision struct {
 // LayerScore represents QCAI's score for a candidate layer
 type LayerScore struct {
 	LayerID          string `json:"layer_id"`
-	Score            string `json:"score"`            // Decimal string 0.0-1.0
+	Score            string `json:"score"`             // Decimal string 0.0-1.0
 	CongestionFactor string `json:"congestion_factor"` // Current congestion 0.0-1.0
 	CapabilityMatch  string `json:"capability_match"`  // How well layer matches TX requirements 0.0-1.0
 	CostFactor       string `json:"cost_factor"`       // Relative cost vs main chain 0.0-1.0

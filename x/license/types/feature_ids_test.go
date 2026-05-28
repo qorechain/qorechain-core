@@ -152,13 +152,13 @@ func TestIsValidFeatureID(t *testing.T) {
 		{FeatureBridgeXRPL, true},
 		{FeatureBridgeInjective, true},
 		{FeatureValidatorEthereum, true},
-		{FeatureValidatorStarknet, true},   // v2.27.0
-		{FeatureValidatorCosmosHub, true},  // v2.27.0 IBC
-		{FeatureValidatorInjective, true},  // v2.27.0 IBC
+		{FeatureValidatorStarknet, true},  // v2.27.0
+		{FeatureValidatorCosmosHub, true}, // v2.27.0 IBC
+		{FeatureValidatorInjective, true}, // v2.27.0 IBC
 		{"", false},
 		{"bridge_unknown", false},
 		{"validator_unknown", false},
-		{"BRIDGE_ETHEREUM", false},    // case-sensitive
+		{"BRIDGE_ETHEREUM", false}, // case-sensitive
 	}
 	for _, c := range cases {
 		if got := IsValidFeatureID(c.in); got != c.want {
@@ -177,9 +177,9 @@ func TestChainFromFeature(t *testing.T) {
 		{FeatureBridgeZKSyncEra, "zksync_era"},
 		{FeatureBridgeXRPL, "xrpl"},
 		{FeatureValidatorSolana, "solana"},
-		{FeatureQCBBridge, ""},          // not a chain-bound feature
+		{FeatureQCBBridge, ""}, // not a chain-bound feature
 		{"unknown", ""},
-		{"bridge_", ""},                  // empty suffix
+		{"bridge_", ""}, // empty suffix
 	}
 	for _, c := range cases {
 		if got := ChainFromFeature(c.in); got != c.want {

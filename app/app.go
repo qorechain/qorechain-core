@@ -1,4 +1,5 @@
 package app
+
 //ui#13
 import (
 	"fmt"
@@ -29,10 +30,10 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	"github.com/cosmos/cosmos-sdk/server"
-	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/server/api"
 	"github.com/cosmos/cosmos-sdk/server/config"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
@@ -53,41 +54,41 @@ import (
 	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
 	// IBC
+	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 	ibc "github.com/cosmos/ibc-go/v10/modules/core"
-	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
-	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
 	porttypes "github.com/cosmos/ibc-go/v10/modules/core/05-port/types"
 	ibcapi "github.com/cosmos/ibc-go/v10/modules/core/api"
+	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
+	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
-	ibctransfertypes "github.com/cosmos/ibc-go/v10/modules/apps/transfer/types"
 
 	// QoreChain EVM
-	srvflags "github.com/cosmos/evm/server/flags"
-	antetypes "github.com/cosmos/evm/ante/types"
 	evmante "github.com/cosmos/evm/ante/evm"
-	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
+	antetypes "github.com/cosmos/evm/ante/types"
+	srvflags "github.com/cosmos/evm/server/flags"
+	evmerc20 "github.com/cosmos/evm/x/erc20"
 	erc20keeper "github.com/cosmos/evm/x/erc20/keeper"
 	erc20types "github.com/cosmos/evm/x/erc20/types"
 	erc20v2 "github.com/cosmos/evm/x/erc20/v2"
+	evmfeemarket "github.com/cosmos/evm/x/feemarket"
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
+	evmprecisebank "github.com/cosmos/evm/x/precisebank"
 	precisebankkeeper "github.com/cosmos/evm/x/precisebank/keeper"
 	precisebanktypes "github.com/cosmos/evm/x/precisebank/types"
 	evmvm "github.com/cosmos/evm/x/vm"
-	evmfeemarket "github.com/cosmos/evm/x/feemarket"
-	evmerc20 "github.com/cosmos/evm/x/erc20"
-	evmprecisebank "github.com/cosmos/evm/x/precisebank"
+	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	// IBC transfer (standard ibc-go — EVM transfer wrapper removed in v0.6.0)
 	ibctransfer "github.com/cosmos/ibc-go/v10/modules/apps/transfer"
-	ibctransferv2 "github.com/cosmos/ibc-go/v10/modules/apps/transfer/v2"
 	ibctransferkeeper "github.com/cosmos/ibc-go/v10/modules/apps/transfer/keeper"
+	ibctransferv2 "github.com/cosmos/ibc-go/v10/modules/apps/transfer/v2"
 
 	// CosmWasm
+	wasm "github.com/CosmWasm/wasmd/x/wasm"
 	wasmkeeper "github.com/CosmWasm/wasmd/x/wasm/keeper"
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
-	wasm "github.com/CosmWasm/wasmd/x/wasm"
 
 	// Params (for legacy IBC subspace compatibility)
 	paramstypes "github.com/cosmos/cosmos-sdk/x/params/types"
@@ -222,26 +223,26 @@ type QoreChainApp struct {
 	WasmKeeper wasmkeeper.Keeper
 
 	// Custom QoreChain keepers (interface types for open-core architecture)
-	PQCKeeper        pqcmod.PQCKeeper
-	AIKeeper         aimod.AIKeeper
-	ReputationKeeper reputationkeeper.Keeper
-	QCAKeeper        qcakeeper.Keeper
-	BridgeKeeper     bridgemod.BridgeKeeper
-	CrossVMKeeper    crossvmmod.CrossVMKeeper
-	MultilayerKeeper  multilayermod.MultilayerKeeper
-	SVMKeeper         svmmod.SVMKeeper
-	RLConsensusKeeper rlconsensusmod.RLConsensusKeeper
-	BurnKeeper             burnmod.BurnKeeper
-	XQOREKeeper            xqoremod.XQOREKeeper
-	InflationKeeper        inflationmod.InflationKeeper
-	BabylonKeeper          babylonmod.BabylonKeeper
-	AbstractAccountKeeper  abstractaccountmod.AbstractAccountKeeper
-	FairBlockKeeper        fairblockmod.FairBlockKeeper
-	GasAbstractionKeeper   gasabstractionmod.GasAbstractionKeeper
-	RDKKeeper              rdkmod.RDKKeeper       // v1.3.0 — Rollup Development Kit
-	LightNodeKeeper        lightnodemod.LightNodeKeeper // v1.15.0 — Light node registration + rewards
-	LicenseKeeper          licensemod.LicenseKeeper      // v1.4.0 — License-gated sidecar features
-	AMMKeeper              ammmod.AMMKeeper              // v3.0.0 — Native automated market maker
+	PQCKeeper             pqcmod.PQCKeeper
+	AIKeeper              aimod.AIKeeper
+	ReputationKeeper      reputationkeeper.Keeper
+	QCAKeeper             qcakeeper.Keeper
+	BridgeKeeper          bridgemod.BridgeKeeper
+	CrossVMKeeper         crossvmmod.CrossVMKeeper
+	MultilayerKeeper      multilayermod.MultilayerKeeper
+	SVMKeeper             svmmod.SVMKeeper
+	RLConsensusKeeper     rlconsensusmod.RLConsensusKeeper
+	BurnKeeper            burnmod.BurnKeeper
+	XQOREKeeper           xqoremod.XQOREKeeper
+	InflationKeeper       inflationmod.InflationKeeper
+	BabylonKeeper         babylonmod.BabylonKeeper
+	AbstractAccountKeeper abstractaccountmod.AbstractAccountKeeper
+	FairBlockKeeper       fairblockmod.FairBlockKeeper
+	GasAbstractionKeeper  gasabstractionmod.GasAbstractionKeeper
+	RDKKeeper             rdkmod.RDKKeeper             // v1.3.0 — Rollup Development Kit
+	LightNodeKeeper       lightnodemod.LightNodeKeeper // v1.15.0 — Light node registration + rewards
+	LicenseKeeper         licensemod.LicenseKeeper     // v1.4.0 — License-gated sidecar features
+	AMMKeeper             ammmod.AMMKeeper             // v3.0.0 — Native automated market maker
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -398,7 +399,7 @@ func NewQoreChainApp(
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		app.appCodec,
 		runtime.NewKVStoreService(transferStoreKey),
-		paramstypes.Subspace{}, // legacy param subspace (not needed for fresh chains)
+		paramstypes.Subspace{},      // legacy param subspace (not needed for fresh chains)
 		app.IBCKeeper.ChannelKeeper, // ics4Wrapper
 		app.IBCKeeper.ChannelKeeper, // channelKeeper
 		app.MsgServiceRouter(),
@@ -800,7 +801,7 @@ func (app *QoreChainApp) setAnteHandler(
 				FeegrantKeeper:         app.FeeGrantKeeper,
 				SigGasConsumer:         sigVerificationGasConsumerWithPQC,
 				ExtensionOptionChecker: antetypes.HasDynamicFeeExtensionOption,
-				TxFeeChecker:          evmante.NewDynamicFeeChecker(&fmDefaults),
+				TxFeeChecker:           evmante.NewDynamicFeeChecker(&fmDefaults),
 			},
 			CircuitKeeper:         &app.CircuitKeeper,
 			PQCKeeper:             app.PQCKeeper,

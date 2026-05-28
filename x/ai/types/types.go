@@ -21,10 +21,10 @@ func DefaultAIConfig() AIConfig {
 // AIStats tracks module-level statistics.
 type AIStats struct {
 	TxsRouted         uint64 `json:"txs_routed"`
-	AnomaliesDetected  uint64 `json:"anomalies_detected"`
-	ContractsScored    uint64 `json:"contracts_scored"`
-	TxsFlagged         uint64 `json:"txs_flagged"`
-	TxsRejected        uint64 `json:"txs_rejected"`
+	AnomaliesDetected uint64 `json:"anomalies_detected"`
+	ContractsScored   uint64 `json:"contracts_scored"`
+	TxsFlagged        uint64 `json:"txs_flagged"`
+	TxsRejected       uint64 `json:"txs_rejected"`
 }
 
 // FlaggedTx records a flagged transaction.

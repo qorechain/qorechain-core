@@ -80,10 +80,10 @@ type stdSQLRows struct {
 	rows *sql.Rows
 }
 
-func (r *stdSQLRows) Next() bool         { return r.rows.Next() }
+func (r *stdSQLRows) Next() bool             { return r.rows.Next() }
 func (r *stdSQLRows) Scan(dest ...any) error { return r.rows.Scan(dest...) }
-func (r *stdSQLRows) Close() error        { return r.rows.Close() }
-func (r *stdSQLRows) Err() error          { return r.rows.Err() }
+func (r *stdSQLRows) Close() error           { return r.rows.Close() }
+func (r *stdSQLRows) Err() error             { return r.rows.Err() }
 
 // stdSQLResult wraps sql.Result to satisfy the Result interface.
 type stdSQLResult struct {
@@ -91,7 +91,7 @@ type stdSQLResult struct {
 }
 
 func (r *stdSQLResult) RowsAffected() (int64, error) { return r.result.RowsAffected() }
-func (r *stdSQLResult) LastInsertId() (int64, error)  { return r.result.LastInsertId() }
+func (r *stdSQLResult) LastInsertId() (int64, error) { return r.result.LastInsertId() }
 
 // Query executes a SELECT query and returns wrapped rows.
 func (p *StdSQLProvider) Query(ctx context.Context, query string, args ...any) (Rows, error) {

@@ -53,17 +53,17 @@ func NewStubKeeper(logger log.Logger) *StubKeeper {
 	}
 }
 
-func (k *StubKeeper) Engine() types.AIEngine                { return k.engine }
-func (k *StubKeeper) Logger() log.Logger                     { return k.logger }
-func (k *StubKeeper) GetConfig(_ sdk.Context) types.AIConfig { return types.DefaultAIConfig() }
-func (k *StubKeeper) SetConfig(_ sdk.Context, _ types.AIConfig) error { return nil }
-func (k *StubKeeper) GetStats(_ sdk.Context) types.AIStats   { return types.AIStats{} }
-func (k *StubKeeper) SetStats(_ sdk.Context, _ types.AIStats) {}
-func (k *StubKeeper) IncrementTxsRouted(_ sdk.Context)        {}
-func (k *StubKeeper) IncrementAnomaliesDetected(_ sdk.Context) {}
-func (k *StubKeeper) IncrementContractsScored(_ sdk.Context)   {}
-func (k *StubKeeper) IncrementTxsFlagged(_ sdk.Context)        {}
-func (k *StubKeeper) IncrementTxsRejected(_ sdk.Context)       {}
+func (k *StubKeeper) Engine() types.AIEngine                                 { return k.engine }
+func (k *StubKeeper) Logger() log.Logger                                     { return k.logger }
+func (k *StubKeeper) GetConfig(_ sdk.Context) types.AIConfig                 { return types.DefaultAIConfig() }
+func (k *StubKeeper) SetConfig(_ sdk.Context, _ types.AIConfig) error        { return nil }
+func (k *StubKeeper) GetStats(_ sdk.Context) types.AIStats                   { return types.AIStats{} }
+func (k *StubKeeper) SetStats(_ sdk.Context, _ types.AIStats)                {}
+func (k *StubKeeper) IncrementTxsRouted(_ sdk.Context)                       {}
+func (k *StubKeeper) IncrementAnomaliesDetected(_ sdk.Context)               {}
+func (k *StubKeeper) IncrementContractsScored(_ sdk.Context)                 {}
+func (k *StubKeeper) IncrementTxsFlagged(_ sdk.Context)                      {}
+func (k *StubKeeper) IncrementTxsRejected(_ sdk.Context)                     {}
 func (k *StubKeeper) FlagTransaction(_ sdk.Context, _ types.FlaggedTx) error { return nil }
 func (k *StubKeeper) ScoreContract(_ sdk.Context, _ []byte, _ string) (*types.RiskScore, error) {
 	return &types.RiskScore{
