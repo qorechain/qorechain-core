@@ -78,7 +78,7 @@ func TestHybridSignatureModeFromString(t *testing.T) {
 		{"0", HybridDisabled, false},
 		{"1", HybridOptional, false},
 		{"2", HybridRequired, false},
-		{"Optional", 0, true},   // mixed case not supported
+		{"Optional", 0, true}, // mixed case not supported
 		{"invalid", 0, true},
 		{"", 0, true},
 		{"3", 0, true},

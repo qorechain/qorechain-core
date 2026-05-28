@@ -110,7 +110,7 @@ func DefaultProofConfig() ProofConfig {
 
 // RollupGasConfig defines the gas model for a rollup.
 type RollupGasConfig struct {
-	GasModel     string `json:"gas_model"`     // "eip1559", "flat", "standard", "subsidized"
+	GasModel     string `json:"gas_model"`      // "eip1559", "flat", "standard", "subsidized"
 	BaseGasPrice string `json:"base_gas_price"` // decimal string (e.g. "0.001")
 	MaxGasLimit  uint64 `json:"max_gas_limit"`
 }

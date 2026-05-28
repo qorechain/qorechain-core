@@ -59,10 +59,10 @@ type ICAHandlerHook interface {
 //   - AckFee:  paid to the relayer that delivers the acknowledgement
 //   - TimeoutFee: paid to the relayer that proves a packet timed out
 type FeePayload struct {
-	RecvFee    string `json:"recv_fee"`    // uqor amount as string for big-int safety
+	RecvFee    string `json:"recv_fee"` // uqor amount as string for big-int safety
 	AckFee     string `json:"ack_fee"`
 	TimeoutFee string `json:"timeout_fee"`
-	Payee      string `json:"payee"`       // QoreChain address that receives the fee
+	Payee      string `json:"payee"` // QoreChain address that receives the fee
 }
 
 // Validate ensures all fee fields are populated and addresses look sane.

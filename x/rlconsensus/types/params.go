@@ -52,15 +52,15 @@ const (
 
 // Default string representations for LegacyDec fields.
 const (
-	DefaultMaxChangeConservative     = "0.10"
-	DefaultMaxChangeAutonomous       = "0.25"
-	DefaultCircuitBreakerThreshold   = "0.50"
-	DefaultBaseGasPrice              = "100"
-	DefaultRewardWeightThroughput    = "0.30"
-	DefaultRewardWeightFinality      = "0.25"
+	DefaultMaxChangeConservative        = "0.10"
+	DefaultMaxChangeAutonomous          = "0.25"
+	DefaultCircuitBreakerThreshold      = "0.50"
+	DefaultBaseGasPrice                 = "100"
+	DefaultRewardWeightThroughput       = "0.30"
+	DefaultRewardWeightFinality         = "0.25"
 	DefaultRewardWeightDecentralization = "0.20"
-	DefaultRewardWeightMEV           = "0.15"
-	DefaultRewardWeightFailedTxs     = "0.10"
+	DefaultRewardWeightMEV              = "0.15"
+	DefaultRewardWeightFailedTxs        = "0.10"
 )
 
 // RewardWeights defines the relative importance of each reward component.
@@ -117,17 +117,17 @@ func (rw RewardWeights) Validate() error {
 
 // Params defines the configurable parameters for the RL consensus module.
 type Params struct {
-	Enabled                 bool         `json:"enabled"`
-	ObservationInterval     uint64       `json:"observation_interval"`
-	AgentMode               AgentMode    `json:"agent_mode"`
-	MaxChangeConservative   string       `json:"max_change_conservative"`
-	MaxChangeAutonomous     string       `json:"max_change_autonomous"`
-	CircuitBreakerWindow    uint64       `json:"circuit_breaker_window"`
-	CircuitBreakerThreshold string       `json:"circuit_breaker_threshold"`
+	Enabled                 bool          `json:"enabled"`
+	ObservationInterval     uint64        `json:"observation_interval"`
+	AgentMode               AgentMode     `json:"agent_mode"`
+	MaxChangeConservative   string        `json:"max_change_conservative"`
+	MaxChangeAutonomous     string        `json:"max_change_autonomous"`
+	CircuitBreakerWindow    uint64        `json:"circuit_breaker_window"`
+	CircuitBreakerThreshold string        `json:"circuit_breaker_threshold"`
 	RewardWeights           RewardWeights `json:"reward_weights"`
-	DefaultBlockTimeMs      int64        `json:"default_block_time_ms"`
-	DefaultBaseGasPrice     string       `json:"default_base_gas_price"`
-	DefaultValidatorSetSize uint64       `json:"default_validator_set_size"`
+	DefaultBlockTimeMs      int64         `json:"default_block_time_ms"`
+	DefaultBaseGasPrice     string        `json:"default_base_gas_price"`
+	DefaultValidatorSetSize uint64        `json:"default_validator_set_size"`
 }
 
 // DefaultParams returns a default set of RL consensus parameters.

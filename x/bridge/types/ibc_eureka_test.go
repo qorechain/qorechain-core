@@ -91,6 +91,6 @@ func TestEurekaHandlerHook_InterfaceShape(t *testing.T) {
 
 type fakeEurekaHandler struct{}
 
-func (fakeEurekaHandler) OnRecvPacket(_ EurekaPacket) EurekaAck { return EurekaAck{Success: true} }
+func (fakeEurekaHandler) OnRecvPacket(_ EurekaPacket) EurekaAck               { return EurekaAck{Success: true} }
 func (fakeEurekaHandler) OnAcknowledgement(_ EurekaPacket, _ EurekaAck) error { return nil }
-func (fakeEurekaHandler) OnTimeout(_ EurekaPacket) error { return nil }
+func (fakeEurekaHandler) OnTimeout(_ EurekaPacket) error                      { return nil }

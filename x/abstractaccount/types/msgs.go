@@ -35,9 +35,9 @@ func (msg MsgCreateAbstractAccount) GetSigners() []sdk.AccAddress {
 
 // MsgUpdateSpendingRules updates spending rules for an abstract account.
 type MsgUpdateSpendingRules struct {
-	Owner         string         `json:"owner"`
-	AccountAddress string        `json:"account_address"`
-	Rules         []SpendingRule `json:"rules"`
+	Owner          string         `json:"owner"`
+	AccountAddress string         `json:"account_address"`
+	Rules          []SpendingRule `json:"rules"`
 }
 
 func (msg MsgUpdateSpendingRules) ValidateBasic() error {

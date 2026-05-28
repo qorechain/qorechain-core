@@ -7,7 +7,7 @@ const (
 )
 
 var (
-	ConfigKey         = []byte("aa/config")
-	AccountPrefix     = []byte("aa/acc/")
-	SessionKeyPrefix  = []byte("aa/session/")
+	ConfigKey        = []byte("aa/config")
+	AccountPrefix    = []byte("aa/acc/")
+	SessionKeyPrefix = []byte("aa/session/")
 )

@@ -8,37 +8,37 @@ import (
 
 // Params defines the configurable parameters for the burn module.
 type Params struct {
-	GasBurnRate            math.LegacyDec      `json:"gas_burn_rate"`             // 0.30 — 30% of fees burned
-	ContractCreateFee      math.Int             `json:"contract_create_fee"`       // flat QOR fee for contract creation
-	AIServiceBurnRate      math.LegacyDec       `json:"ai_service_burn_rate"`      // 0.50 — 50% of AI service fees
-	BridgeBurnRate         math.LegacyDec       `json:"bridge_burn_rate"`          // 1.00 — 100% of bridge fees
-	FailedTxBurnRate       math.LegacyDec       `json:"failed_tx_burn_rate"`       // partial gas burn on failure
-	ValidatorShare         math.LegacyDec       `json:"validator_share"`           // 0.37 — 37% to validators
-	TreasuryShare          math.LegacyDec       `json:"treasury_share"`            // 0.20 — 20% to treasury
-	StakerShare            math.LegacyDec       `json:"staker_share"`              // 0.10 — 10% to stakers
-	LightNodeShare         math.LegacyDec       `json:"light_node_share"`          // 0.03 — 3% to light nodes
-	MilestoneBurnSchedule  []MilestoneBurnTier  `json:"milestone_burn_schedule"`   // TX count milestone burns
-	Enabled                bool                 `json:"enabled"`
+	GasBurnRate           math.LegacyDec      `json:"gas_burn_rate"`           // 0.30 — 30% of fees burned
+	ContractCreateFee     math.Int            `json:"contract_create_fee"`     // flat QOR fee for contract creation
+	AIServiceBurnRate     math.LegacyDec      `json:"ai_service_burn_rate"`    // 0.50 — 50% of AI service fees
+	BridgeBurnRate        math.LegacyDec      `json:"bridge_burn_rate"`        // 1.00 — 100% of bridge fees
+	FailedTxBurnRate      math.LegacyDec      `json:"failed_tx_burn_rate"`     // partial gas burn on failure
+	ValidatorShare        math.LegacyDec      `json:"validator_share"`         // 0.37 — 37% to validators
+	TreasuryShare         math.LegacyDec      `json:"treasury_share"`          // 0.20 — 20% to treasury
+	StakerShare           math.LegacyDec      `json:"staker_share"`            // 0.10 — 10% to stakers
+	LightNodeShare        math.LegacyDec      `json:"light_node_share"`        // 0.03 — 3% to light nodes
+	MilestoneBurnSchedule []MilestoneBurnTier `json:"milestone_burn_schedule"` // TX count milestone burns
+	Enabled               bool                `json:"enabled"`
 }
 
 // DefaultParams returns the default burn module parameters.
 // Fee distribution per QCTokenomics v2: 37% validators, 30% burn, 20% treasury, 10% stakers, 3% light nodes.
 func DefaultParams() Params {
 	return Params{
-		GasBurnRate:       math.LegacyNewDecWithPrec(30, 2),  // 0.30 — 30% burned
-		ContractCreateFee: math.NewInt(100_000_000),           // 100 QOR in uqor
-		AIServiceBurnRate: math.LegacyNewDecWithPrec(50, 2),  // 0.50
-		BridgeBurnRate:    math.LegacyOneDec(),                // 1.00
-		FailedTxBurnRate:  math.LegacyNewDecWithPrec(10, 2),  // 0.10
-		ValidatorShare:    math.LegacyNewDecWithPrec(37, 2),  // 0.37 — 37%
-		TreasuryShare:     math.LegacyNewDecWithPrec(20, 2),  // 0.20 — 20%
-		StakerShare:       math.LegacyNewDecWithPrec(10, 2),  // 0.10 — 10%
-		LightNodeShare:    math.LegacyNewDecWithPrec(3, 2),   // 0.03 — 3%
+		GasBurnRate:       math.LegacyNewDecWithPrec(30, 2), // 0.30 — 30% burned
+		ContractCreateFee: math.NewInt(100_000_000),         // 100 QOR in uqor
+		AIServiceBurnRate: math.LegacyNewDecWithPrec(50, 2), // 0.50
+		BridgeBurnRate:    math.LegacyOneDec(),              // 1.00
+		FailedTxBurnRate:  math.LegacyNewDecWithPrec(10, 2), // 0.10
+		ValidatorShare:    math.LegacyNewDecWithPrec(37, 2), // 0.37 — 37%
+		TreasuryShare:     math.LegacyNewDecWithPrec(20, 2), // 0.20 — 20%
+		StakerShare:       math.LegacyNewDecWithPrec(10, 2), // 0.10 — 10%
+		LightNodeShare:    math.LegacyNewDecWithPrec(3, 2),  // 0.03 — 3%
 		MilestoneBurnSchedule: []MilestoneBurnTier{
-			{TxThreshold: 1_000_000, BurnAmount: math.NewInt(1_000_000_000_000)},    // 1M TX → burn 1M QOR
-			{TxThreshold: 10_000_000, BurnAmount: math.NewInt(10_000_000_000_000)},  // 10M TX → burn 10M QOR
+			{TxThreshold: 1_000_000, BurnAmount: math.NewInt(1_000_000_000_000)},   // 1M TX → burn 1M QOR
+			{TxThreshold: 10_000_000, BurnAmount: math.NewInt(10_000_000_000_000)}, // 10M TX → burn 10M QOR
 		},
-		Enabled:           true,
+		Enabled: true,
 	}
 }
 

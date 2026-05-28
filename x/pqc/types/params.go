@@ -22,10 +22,10 @@ type Params struct {
 func DefaultParams() Params {
 	return Params{
 		PQCPrimary:             true,
-		AllowClassicalFallback: true,              // Allow classical ECDSA fallback
-		MinSecurityLevel:       5,                 // NIST Level 5 (Dilithium-5)
-		DefaultMigrationBlocks:  DefaultMigrationBlocks,
-		DefaultSignatureAlgo:    AlgorithmDilithium5,
-		HybridSignatureMode:     HybridOptional, // PQC verified if present, classical fallback allowed
+		AllowClassicalFallback: true, // Allow classical ECDSA fallback
+		MinSecurityLevel:       5,    // NIST Level 5 (Dilithium-5)
+		DefaultMigrationBlocks: DefaultMigrationBlocks,
+		DefaultSignatureAlgo:   AlgorithmDilithium5,
+		HybridSignatureMode:    HybridOptional, // PQC verified if present, classical fallback allowed
 	}
 }

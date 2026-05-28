@@ -9,8 +9,8 @@ const (
 var (
 	ConfigKey                = []byte("qca/config")
 	StatsKey                 = []byte("qca/stats")
-	PoolClassificationPrefix = []byte("qca/pool/")        // + validator_addr
-	SlashingRecordPrefix     = []byte("qca/slash/")       // + validator_addr + "/" + height
+	PoolClassificationPrefix = []byte("qca/pool/")  // + validator_addr
+	SlashingRecordPrefix     = []byte("qca/slash/") // + validator_addr + "/" + height
 	BondingCurveStateKey     = []byte("qca/bonding_state")
 )
 

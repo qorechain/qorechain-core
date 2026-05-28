@@ -21,13 +21,13 @@ type LockMultiplierTier struct {
 
 // Params defines the configurable parameters for the xQORE module.
 type Params struct {
-	GovernanceMultiplier   math.LegacyDec       `json:"governance_multiplier"`    // max voting power multiplier (2.0x)
-	MinLockAmount          math.Int              `json:"min_lock_amount"`          // minimum QORE to lock
-	ExitPenaltySchedule    []PenaltyTier         `json:"exit_penalty_schedule"`
-	LockMultiplierSchedule []LockMultiplierTier  `json:"lock_multiplier_schedule"` // duration-based VP multipliers
-	PenaltyBurnRate        math.LegacyDec        `json:"penalty_burn_rate"`        // 0 = 100% redistributed (PvP)
-	RebaseInterval         int64                 `json:"rebase_interval"`          // blocks between rebases
-	Enabled                bool                  `json:"enabled"`
+	GovernanceMultiplier   math.LegacyDec       `json:"governance_multiplier"` // max voting power multiplier (2.0x)
+	MinLockAmount          math.Int             `json:"min_lock_amount"`       // minimum QORE to lock
+	ExitPenaltySchedule    []PenaltyTier        `json:"exit_penalty_schedule"`
+	LockMultiplierSchedule []LockMultiplierTier `json:"lock_multiplier_schedule"` // duration-based VP multipliers
+	PenaltyBurnRate        math.LegacyDec       `json:"penalty_burn_rate"`        // 0 = 100% redistributed (PvP)
+	RebaseInterval         int64                `json:"rebase_interval"`          // blocks between rebases
+	Enabled                bool                 `json:"enabled"`
 }
 
 // DefaultParams returns the default xQORE parameters.
@@ -42,14 +42,14 @@ func DefaultParams() Params {
 			{MinDuration: 180 * 24 * time.Hour, PenaltyRate: math.LegacyZeroDec()},            // 6 months: 0%
 		},
 		LockMultiplierSchedule: []LockMultiplierTier{
-			{MinDuration: 0, Multiplier: math.LegacyOneDec()},                                              // no lock: 1.0x
-			{MinDuration: 90 * 24 * time.Hour, Multiplier: math.LegacyMustNewDecFromStr("1.2")},            // 3 months: 1.2x
-			{MinDuration: 180 * 24 * time.Hour, Multiplier: math.LegacyMustNewDecFromStr("1.4")},           // 6 months: 1.4x
-			{MinDuration: 365 * 24 * time.Hour, Multiplier: math.LegacyMustNewDecFromStr("1.7")},           // 12 months: 1.7x
-			{MinDuration: 2 * 365 * 24 * time.Hour, Multiplier: math.LegacyNewDec(2)},                     // 24 months: 2.0x
+			{MinDuration: 0, Multiplier: math.LegacyOneDec()},                                    // no lock: 1.0x
+			{MinDuration: 90 * 24 * time.Hour, Multiplier: math.LegacyMustNewDecFromStr("1.2")},  // 3 months: 1.2x
+			{MinDuration: 180 * 24 * time.Hour, Multiplier: math.LegacyMustNewDecFromStr("1.4")}, // 6 months: 1.4x
+			{MinDuration: 365 * 24 * time.Hour, Multiplier: math.LegacyMustNewDecFromStr("1.7")}, // 12 months: 1.7x
+			{MinDuration: 2 * 365 * 24 * time.Hour, Multiplier: math.LegacyNewDec(2)},            // 24 months: 2.0x
 		},
 		PenaltyBurnRate: math.LegacyZeroDec(), // 0% burned — 100% redistributed (PvP rebase per QCW2)
-		RebaseInterval:  100,                               // every 100 blocks
+		RebaseInterval:  100,                  // every 100 blocks
 		Enabled:         true,
 	}
 }

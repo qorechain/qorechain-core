@@ -23,9 +23,9 @@ func TestICAHandlerHook_InterfaceShape(t *testing.T) {
 
 type fakeICAHandler struct{}
 
-func (fakeICAHandler) RegisterICA(_ ICARegistration) error                             { return nil }
-func (fakeICAHandler) QueryICA(_, _ string) (string, bool)                             { return "", false }
-func (fakeICAHandler) SubmitICATx(_, _ string, _ []byte) error                         { return nil }
+func (fakeICAHandler) RegisterICA(_ ICARegistration) error     { return nil }
+func (fakeICAHandler) QueryICA(_, _ string) (string, bool)     { return "", false }
+func (fakeICAHandler) SubmitICATx(_, _ string, _ []byte) error { return nil }
 
 // ----- Fee middleware tests -----
 
@@ -60,9 +60,9 @@ func TestFeeMiddlewareHook_InterfaceShape(t *testing.T) {
 
 type fakeFeeHook struct{}
 
-func (fakeFeeHook) EscrowPacketFees(_ string, _ FeePayload) error  { return nil }
-func (fakeFeeHook) PayPacketFee(_, _, _ string) error              { return nil }
-func (fakeFeeHook) RefundUnusedFees(_ string) error                { return nil }
+func (fakeFeeHook) EscrowPacketFees(_ string, _ FeePayload) error { return nil }
+func (fakeFeeHook) PayPacketFee(_, _, _ string) error             { return nil }
+func (fakeFeeHook) RefundUnusedFees(_ string) error               { return nil }
 
 // ----- NFT tests -----
 
@@ -124,5 +124,5 @@ func TestNFTHandlerHook_InterfaceShape(t *testing.T) {
 
 type fakeNFTHandler struct{}
 
-func (fakeNFTHandler) SendNFT(_, _ string, _ NFTPacketData) error  { return nil }
-func (fakeNFTHandler) OnRecvNFTPacket(_ NFTPacketData) error       { return nil }
+func (fakeNFTHandler) SendNFT(_, _ string, _ NFTPacketData) error { return nil }
+func (fakeNFTHandler) OnRecvNFTPacket(_ NFTPacketData) error      { return nil }

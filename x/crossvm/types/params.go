@@ -3,10 +3,10 @@ package types
 import "fmt"
 
 const (
-	DefaultMaxMessageSize  uint64 = 65536 // 64KB
-	DefaultMaxQueueSize    uint32 = 1000
-	DefaultQueueTimeoutBlocks int64 = 100 // messages expire after 100 blocks
-	DefaultEnabled         bool   = true
+	DefaultMaxMessageSize     uint64 = 65536 // 64KB
+	DefaultMaxQueueSize       uint32 = 1000
+	DefaultQueueTimeoutBlocks int64  = 100 // messages expire after 100 blocks
+	DefaultEnabled            bool   = true
 )
 
 // Params defines the parameters for the crossvm module.

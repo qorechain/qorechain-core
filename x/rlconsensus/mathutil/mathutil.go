@@ -65,7 +65,7 @@ func TaylorLn1PlusX(x sdkmath.LegacyDec) sdkmath.LegacyDec {
 
 	// Taylor series for ln(1 + u), where u = val - 1 and u is in (-1, 1].
 	u := val.Sub(one)
-	term := u    // u^n accumulator
+	term := u // u^n accumulator
 	sum := zero
 
 	for n := 1; n <= 15; n++ {

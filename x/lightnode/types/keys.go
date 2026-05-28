@@ -9,10 +9,10 @@ const (
 )
 
 var (
-	ParamsKey        = []byte("lightnode/params")
-	LightNodePrefix  = []byte("lightnode/nodes/")
-	RewardPoolKey    = []byte("lightnode/reward-pool")
-	StatsKey         = []byte("lightnode/stats")
+	ParamsKey       = []byte("lightnode/params")
+	LightNodePrefix = []byte("lightnode/nodes/")
+	RewardPoolKey   = []byte("lightnode/reward-pool")
+	StatsKey        = []byte("lightnode/stats")
 )
 
 // LightNodeKey returns the store key for a specific light node by operator address.

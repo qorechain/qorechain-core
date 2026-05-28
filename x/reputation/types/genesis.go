@@ -26,7 +26,7 @@ func (gs GenesisState) Validate() error {
 	lambda := p.ParamLambda()
 
 	sum := alpha.Add(beta).Add(gamma).Add(delta)
-	lower := sdkmath.LegacyNewDecWithPrec(99, 2) // 0.99
+	lower := sdkmath.LegacyNewDecWithPrec(99, 2)  // 0.99
 	upper := sdkmath.LegacyNewDecWithPrec(101, 2) // 1.01
 	if sum.LT(lower) || sum.GT(upper) {
 		return ErrInvalidParams.Wrapf("weights must sum to 1.0, got %s", sum.String())

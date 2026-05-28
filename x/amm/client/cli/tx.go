@@ -20,11 +20,11 @@ func GetTxCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(
-		placeholder("create-pool",      "Create a new liquidity pool"),
-		placeholder("add-liquidity",    "Add proportional liquidity to a pool"),
+		placeholder("create-pool", "Create a new liquidity pool"),
+		placeholder("add-liquidity", "Add proportional liquidity to a pool"),
 		placeholder("remove-liquidity", "Burn LP tokens and withdraw reserves"),
-		placeholder("swap-exact-in",    "Swap a fixed input amount, enforcing a minimum output"),
-		placeholder("swap-exact-out",   "Swap to a fixed output amount, enforcing a maximum input"),
+		placeholder("swap-exact-in", "Swap a fixed input amount, enforcing a minimum output"),
+		placeholder("swap-exact-out", "Swap to a fixed output amount, enforcing a maximum input"),
 	)
 	return cmd
 }

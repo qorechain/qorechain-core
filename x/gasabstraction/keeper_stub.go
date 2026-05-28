@@ -21,12 +21,16 @@ func NewStubKeeper(logger log.Logger) *StubKeeper {
 	}
 }
 
-func (k *StubKeeper) Logger() log.Logger                                             { return k.logger }
-func (k *StubKeeper) GetConfig(_ sdk.Context) types.GasAbstractionConfig             { return types.DefaultGasAbstractionConfig() }
-func (k *StubKeeper) SetConfig(_ sdk.Context, _ types.GasAbstractionConfig) error    { return nil }
-func (k *StubKeeper) IsEnabled(_ sdk.Context) bool                                   { return true }
-func (k *StubKeeper) GetAcceptedTokens(_ sdk.Context) []types.AcceptedFeeToken       { return types.DefaultGasAbstractionConfig().AcceptedTokens }
-func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState)                {}
+func (k *StubKeeper) Logger() log.Logger { return k.logger }
+func (k *StubKeeper) GetConfig(_ sdk.Context) types.GasAbstractionConfig {
+	return types.DefaultGasAbstractionConfig()
+}
+func (k *StubKeeper) SetConfig(_ sdk.Context, _ types.GasAbstractionConfig) error { return nil }
+func (k *StubKeeper) IsEnabled(_ sdk.Context) bool                                { return true }
+func (k *StubKeeper) GetAcceptedTokens(_ sdk.Context) []types.AcceptedFeeToken {
+	return types.DefaultGasAbstractionConfig().AcceptedTokens
+}
+func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()
 }

@@ -7,8 +7,8 @@ const (
 )
 
 var (
-	ConfigKey           = []byte("babylon/config")
+	ConfigKey             = []byte("babylon/config")
 	StakingPositionPrefix = []byte("babylon/pos/")
-	CheckpointPrefix    = []byte("babylon/cp/")
-	EpochSnapshotPrefix = []byte("babylon/epoch/")
+	CheckpointPrefix      = []byte("babylon/cp/")
+	EpochSnapshotPrefix   = []byte("babylon/epoch/")
 )

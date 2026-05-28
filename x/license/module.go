@@ -29,9 +29,9 @@ var (
 
 type AppModuleBasic struct{}
 
-func (AppModuleBasic) Name() string                                      { return types.ModuleName }
-func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino)     {}
-func (AppModuleBasic) RegisterInterfaces(_ codectypes.InterfaceRegistry)  {}
+func (AppModuleBasic) Name() string                                                    { return types.ModuleName }
+func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino)                   {}
+func (AppModuleBasic) RegisterInterfaces(_ codectypes.InterfaceRegistry)               {}
 func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
 
 func (AppModuleBasic) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
@@ -51,7 +51,7 @@ func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConf
 	return gs.Validate()
 }
 
-func (AppModuleBasic) GetTxCmd() *cobra.Command   { return cli.GetTxCmd() }
+func (AppModuleBasic) GetTxCmd() *cobra.Command    { return cli.GetTxCmd() }
 func (AppModuleBasic) GetQueryCmd() *cobra.Command { return cli.GetQueryCmd() }
 
 type AppModule struct {
@@ -63,8 +63,8 @@ func NewAppModule(k LicenseKeeper) AppModule {
 	return AppModule{AppModuleBasic: AppModuleBasic{}, keeper: k}
 }
 
-func (AppModule) IsOnePerModuleType() {}
-func (AppModule) IsAppModule()        {}
+func (AppModule) IsOnePerModuleType()      {}
+func (AppModule) IsAppModule()             {}
 func (AppModule) ConsensusVersion() uint64 { return 1 }
 
 func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, data json.RawMessage) {

@@ -69,11 +69,11 @@ func NewAppModule(k AMMKeeper) AppModule {
 func (AppModule) IsAppModule()        {}
 func (AppModule) IsOnePerModuleType() {}
 
-func (am AppModule) Name() string                                    { return ammtypes.ModuleName }
-func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry)      {}
-func (am AppModule) QuerierRoute() string                            { return ammtypes.QuerierRoute }
-func (am AppModule) RegisterServices(_ module.Configurator)          {}
-func (am AppModule) ConsensusVersion() uint64                        { return ConsensusVersion }
+func (am AppModule) Name() string                               { return ammtypes.ModuleName }
+func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
+func (am AppModule) QuerierRoute() string                       { return ammtypes.QuerierRoute }
+func (am AppModule) RegisterServices(_ module.Configurator)     {}
+func (am AppModule) ConsensusVersion() uint64                   { return ConsensusVersion }
 
 // InitGenesis loads the AMM module state from genesis JSON.
 func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, data json.RawMessage) {

@@ -23,15 +23,15 @@ const (
 
 // Params defines the configurable parameters for the SVM runtime module.
 type Params struct {
-	MaxProgramSize     uint64          `json:"max_program_size"`
-	MaxAccountDataSize uint64          `json:"max_account_data_size"`
-	ComputeBudgetMax   uint64          `json:"compute_budget_max"`
-	LamportsPerByte    uint64          `json:"lamports_per_byte"`
-	RentExemptionMulti math.LegacyDec  `json:"rent_exemption_multi"`
-	Enabled            bool            `json:"enabled"`
-	SVMSlotOffset      int64           `json:"svm_slot_offset"`
-	DefaultSigScheme   uint8           `json:"default_sig_scheme"`
-	MaxCPI             uint8           `json:"max_cpi"`
+	MaxProgramSize     uint64         `json:"max_program_size"`
+	MaxAccountDataSize uint64         `json:"max_account_data_size"`
+	ComputeBudgetMax   uint64         `json:"compute_budget_max"`
+	LamportsPerByte    uint64         `json:"lamports_per_byte"`
+	RentExemptionMulti math.LegacyDec `json:"rent_exemption_multi"`
+	Enabled            bool           `json:"enabled"`
+	SVMSlotOffset      int64          `json:"svm_slot_offset"`
+	DefaultSigScheme   uint8          `json:"default_sig_scheme"`
+	MaxCPI             uint8          `json:"max_cpi"`
 }
 
 // DefaultParams returns a default set of SVM parameters.

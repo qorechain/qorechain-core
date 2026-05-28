@@ -15,10 +15,10 @@ import (
 type TEEPlatform string
 
 const (
-	TEEPlatformSGX    TEEPlatform = "sgx"      // Intel SGX
-	TEEPlatformTDX    TEEPlatform = "tdx"      // Intel TDX
-	TEEPlatformSEVSNP TEEPlatform = "sev-snp"  // AMD SEV-SNP
-	TEEPlatformCCA    TEEPlatform = "arm-cca"   // ARM CCA
+	TEEPlatformSGX    TEEPlatform = "sgx"     // Intel SGX
+	TEEPlatformTDX    TEEPlatform = "tdx"     // Intel TDX
+	TEEPlatformSEVSNP TEEPlatform = "sev-snp" // AMD SEV-SNP
+	TEEPlatformCCA    TEEPlatform = "arm-cca" // ARM CCA
 )
 
 // TEEEnclaveStatus represents the operational state of a TEE enclave.
@@ -27,9 +27,9 @@ type TEEEnclaveStatus struct {
 	Platform    TEEPlatform `json:"platform"`
 	Active      bool        `json:"active"`
 	ModelLoaded bool        `json:"model_loaded"`
-	ModelHash   []byte      `json:"model_hash,omitempty"`   // SHA-256 of loaded model weights
-	MemoryUsage uint64      `json:"memory_usage"`           // bytes
-	Uptime      int64       `json:"uptime"`                 // seconds
+	ModelHash   []byte      `json:"model_hash,omitempty"` // SHA-256 of loaded model weights
+	MemoryUsage uint64      `json:"memory_usage"`         // bytes
+	Uptime      int64       `json:"uptime"`               // seconds
 }
 
 // TEEAttestation is the on-chain representation of a TEE attestation report.
@@ -37,11 +37,11 @@ type TEEEnclaveStatus struct {
 type TEEAttestation struct {
 	EnclaveID       string      `json:"enclave_id"`
 	Platform        TEEPlatform `json:"platform"`
-	AttestationData []byte      `json:"attestation_data"`     // Platform-specific attestation blob
-	MeasurementHash []byte      `json:"measurement_hash"`     // MRENCLAVE / launch digest
-	SignerHash      []byte      `json:"signer_hash"`          // MRSIGNER / author identity
+	AttestationData []byte      `json:"attestation_data"` // Platform-specific attestation blob
+	MeasurementHash []byte      `json:"measurement_hash"` // MRENCLAVE / launch digest
+	SignerHash      []byte      `json:"signer_hash"`      // MRSIGNER / author identity
 	Timestamp       time.Time   `json:"timestamp"`
-	Signature       []byte      `json:"signature"`            // Platform-signed attestation
+	Signature       []byte      `json:"signature"`             // Platform-signed attestation
 	ReportData      []byte      `json:"report_data,omitempty"` // Custom data bound to attestation
 }
 
@@ -49,10 +49,10 @@ type TEEAttestation struct {
 type TEEExecutionResult struct {
 	EnclaveID     string         `json:"enclave_id"`
 	ModelHash     []byte         `json:"model_hash"`
-	InputHash     []byte         `json:"input_hash"`       // Hash of inference input
-	Output        []byte         `json:"output"`           // Serialized inference output
-	OutputHash    []byte         `json:"output_hash"`      // Hash of output for on-chain verification
-	Attestation   TEEAttestation `json:"attestation"`      // Proof of execution
+	InputHash     []byte         `json:"input_hash"`  // Hash of inference input
+	Output        []byte         `json:"output"`      // Serialized inference output
+	OutputHash    []byte         `json:"output_hash"` // Hash of output for on-chain verification
+	Attestation   TEEAttestation `json:"attestation"` // Proof of execution
 	GasUsed       uint64         `json:"gas_used"`
 	ExecutionTime int64          `json:"execution_time_ms"`
 }

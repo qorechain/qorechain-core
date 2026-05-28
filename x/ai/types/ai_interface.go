@@ -32,9 +32,9 @@ type RoutingDecision struct {
 // AnomalyResult is the output of anomaly detection.
 type AnomalyResult struct {
 	IsAnomalous bool     `json:"is_anomalous"`
-	Score       float64  `json:"score"`      // 0.0 (normal) to 1.0 (highly anomalous)
-	Flags       []string `json:"flags"`      // e.g., ["high_frequency", "unusual_amount"]
-	Action      string   `json:"action"`     // "allow" | "flag" | "reject"
+	Score       float64  `json:"score"`  // 0.0 (normal) to 1.0 (highly anomalous)
+	Flags       []string `json:"flags"`  // e.g., ["high_frequency", "unusual_amount"]
+	Action      string   `json:"action"` // "allow" | "flag" | "reject"
 	Confidence  float64  `json:"confidence"`
 }
 

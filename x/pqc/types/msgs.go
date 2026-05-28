@@ -42,8 +42,8 @@ func (msg *MsgRegisterPQCKey) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-func (msg *MsgRegisterPQCKey) ProtoMessage() {}
-func (msg *MsgRegisterPQCKey) Reset()        {}
+func (msg *MsgRegisterPQCKey) ProtoMessage()  {}
+func (msg *MsgRegisterPQCKey) Reset()         {}
 func (msg *MsgRegisterPQCKey) String() string { return "MsgRegisterPQCKey" }
 
 // ---------------------------------------------------------------------------
@@ -86,8 +86,8 @@ func (msg *MsgRegisterPQCKeyV2) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-func (msg *MsgRegisterPQCKeyV2) ProtoMessage() {}
-func (msg *MsgRegisterPQCKeyV2) Reset()        {}
+func (msg *MsgRegisterPQCKeyV2) ProtoMessage()  {}
+func (msg *MsgRegisterPQCKeyV2) Reset()         {}
 func (msg *MsgRegisterPQCKeyV2) String() string { return "MsgRegisterPQCKeyV2" }
 
 // ---------------------------------------------------------------------------
@@ -135,8 +135,8 @@ func (msg *MsgMigratePQCKey) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-func (msg *MsgMigratePQCKey) ProtoMessage() {}
-func (msg *MsgMigratePQCKey) Reset()        {}
+func (msg *MsgMigratePQCKey) ProtoMessage()  {}
+func (msg *MsgMigratePQCKey) Reset()         {}
 func (msg *MsgMigratePQCKey) String() string { return "MsgMigratePQCKey" }
 
 // ---------------------------------------------------------------------------
@@ -165,8 +165,8 @@ func (msg *MsgAddAlgorithm) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-func (msg *MsgAddAlgorithm) ProtoMessage() {}
-func (msg *MsgAddAlgorithm) Reset()        {}
+func (msg *MsgAddAlgorithm) ProtoMessage()  {}
+func (msg *MsgAddAlgorithm) Reset()         {}
 func (msg *MsgAddAlgorithm) String() string { return "MsgAddAlgorithm" }
 
 // MsgDeprecateAlgorithm proposes deprecating an algorithm (starts migration period).
@@ -204,8 +204,8 @@ func (msg *MsgDeprecateAlgorithm) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-func (msg *MsgDeprecateAlgorithm) ProtoMessage() {}
-func (msg *MsgDeprecateAlgorithm) Reset()        {}
+func (msg *MsgDeprecateAlgorithm) ProtoMessage()  {}
+func (msg *MsgDeprecateAlgorithm) Reset()         {}
 func (msg *MsgDeprecateAlgorithm) String() string { return "MsgDeprecateAlgorithm" }
 
 // MsgDisableAlgorithm emergency-disables an algorithm (e.g., vulnerability discovered).
@@ -236,6 +236,6 @@ func (msg *MsgDisableAlgorithm) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-func (msg *MsgDisableAlgorithm) ProtoMessage() {}
-func (msg *MsgDisableAlgorithm) Reset()        {}
+func (msg *MsgDisableAlgorithm) ProtoMessage()  {}
+func (msg *MsgDisableAlgorithm) Reset()         {}
 func (msg *MsgDisableAlgorithm) String() string { return "MsgDisableAlgorithm" }

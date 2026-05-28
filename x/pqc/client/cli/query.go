@@ -48,7 +48,6 @@ func queryStoreKey(clientCtx client.Context, key []byte) ([]byte, error) {
 	return resp.Value, nil
 }
 
-
 // GetCmdQueryAlgorithms returns the command to list all registered PQC algorithms.
 func GetCmdQueryAlgorithms() *cobra.Command {
 	cmd := &cobra.Command{

@@ -38,10 +38,10 @@ func (msg MsgSubmitBTCCheckpoint) GetSigners() []sdk.AccAddress {
 
 // MsgBTCRestake initiates a BTC restaking position.
 type MsgBTCRestake struct {
-	Staker        string `json:"staker"`
-	BTCTxHash     string `json:"btc_tx_hash"`
-	AmountSatoshis int64 `json:"amount_satoshis"`
-	ValidatorAddr string `json:"validator_addr"`
+	Staker         string `json:"staker"`
+	BTCTxHash      string `json:"btc_tx_hash"`
+	AmountSatoshis int64  `json:"amount_satoshis"`
+	ValidatorAddr  string `json:"validator_addr"`
 }
 
 func (msg MsgBTCRestake) ValidateBasic() error {

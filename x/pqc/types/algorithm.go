@@ -9,8 +9,8 @@ type AlgorithmID uint32
 
 const (
 	AlgorithmUnspecified AlgorithmID = 0
-	AlgorithmDilithium5 AlgorithmID = 1 // NIST FIPS 204 — signatures
-	AlgorithmMLKEM1024  AlgorithmID = 2 // NIST FIPS 203 — key encapsulation
+	AlgorithmDilithium5  AlgorithmID = 1 // NIST FIPS 204 — signatures
+	AlgorithmMLKEM1024   AlgorithmID = 2 // NIST FIPS 203 — key encapsulation
 )
 
 // String returns the human-readable name for the algorithm.
@@ -94,16 +94,16 @@ const (
 // AlgorithmInfo describes a registered algorithm in the agility framework.
 type AlgorithmInfo struct {
 	ID             AlgorithmID     `json:"id"`
-	Name           string          `json:"name"`            // e.g., "dilithium5"
-	Category       string          `json:"category"`        // "signature" or "kem"
-	NISTLevel      uint32          `json:"nist_level"`      // Security category (1-5)
-	Status         AlgorithmStatus `json:"status"`          // Lifecycle state
+	Name           string          `json:"name"`       // e.g., "dilithium5"
+	Category       string          `json:"category"`   // "signature" or "kem"
+	NISTLevel      uint32          `json:"nist_level"` // Security category (1-5)
+	Status         AlgorithmStatus `json:"status"`     // Lifecycle state
 	PublicKeySize  uint32          `json:"public_key_size"`
 	PrivateKeySize uint32          `json:"private_key_size"`
 	SignatureSize  uint32          `json:"signature_size,omitempty"`  // 0 for KEM algorithms
-	CiphertextSize uint32         `json:"ciphertext_size,omitempty"` // 0 for signature algorithms
-	AddedAtHeight  int64           `json:"added_at_height"`          // Block height when registered
-	DeprecatedAt   int64           `json:"deprecated_at,omitempty"`  // 0 if not deprecated
+	CiphertextSize uint32          `json:"ciphertext_size,omitempty"` // 0 for signature algorithms
+	AddedAtHeight  int64           `json:"added_at_height"`           // Block height when registered
+	DeprecatedAt   int64           `json:"deprecated_at,omitempty"`   // 0 if not deprecated
 }
 
 // Validate performs basic validation on algorithm info.
@@ -131,12 +131,12 @@ func (a AlgorithmInfo) Validate() error {
 
 // MigrationInfo tracks the state of an ongoing algorithm migration.
 type MigrationInfo struct {
-	FromAlgorithmID    AlgorithmID `json:"from_algorithm_id"`
-	ToAlgorithmID      AlgorithmID `json:"to_algorithm_id"`
-	StartHeight        int64       `json:"start_height"`
-	EndHeight          int64       `json:"end_height"`          // StartHeight + MigrationBlocks
-	MigratedAccounts   uint64      `json:"migrated_accounts"`   // Counter
-	RemainingAccounts  uint64      `json:"remaining_accounts"`  // Counter
+	FromAlgorithmID   AlgorithmID `json:"from_algorithm_id"`
+	ToAlgorithmID     AlgorithmID `json:"to_algorithm_id"`
+	StartHeight       int64       `json:"start_height"`
+	EndHeight         int64       `json:"end_height"`         // StartHeight + MigrationBlocks
+	MigratedAccounts  uint64      `json:"migrated_accounts"`  // Counter
+	RemainingAccounts uint64      `json:"remaining_accounts"` // Counter
 }
 
 // DefaultDilithium5Info returns the default AlgorithmInfo for Dilithium-5.

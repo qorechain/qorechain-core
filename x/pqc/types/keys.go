@@ -13,9 +13,9 @@ const (
 
 // KV store key prefixes.
 var (
-	AccountPrefix   = []byte("pqc/accounts/")
-	ParamsKey       = []byte("pqc/params")
-	StatsKey        = []byte("pqc/stats")
+	AccountPrefix = []byte("pqc/accounts/")
+	ParamsKey     = []byte("pqc/params")
+	StatsKey      = []byte("pqc/stats")
 
 	// Algorithm agility keys (v0.6.0)
 	AlgorithmPrefix = []byte("pqc/algorithms/")

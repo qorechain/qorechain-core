@@ -8,7 +8,7 @@ const (
 
 var (
 	LicensePrefix = []byte("license/grants/")   // license/grants/{grantee}/{feature_id}
-	FeaturePrefix = []byte("license/features/")  // license/features/{feature_id} -> list of grantees
+	FeaturePrefix = []byte("license/features/") // license/features/{feature_id} -> list of grantees
 	ParamsKey     = []byte("license/params")
 )
 

@@ -21,16 +21,16 @@ import (
 
 	cosmosevmante "github.com/cosmos/evm/ante"
 	cosmosante "github.com/cosmos/evm/ante/cosmos"
-	antetypes "github.com/cosmos/evm/ante/types"
 	evmante "github.com/cosmos/evm/ante/evm"
-	evmtypes "github.com/cosmos/evm/x/vm/types"
+	antetypes "github.com/cosmos/evm/ante/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
 
 	ibcante "github.com/cosmos/ibc-go/v10/modules/core/ante"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 
-	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 	feemarketkeeper "github.com/cosmos/evm/x/feemarket/keeper"
+	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
@@ -45,9 +45,9 @@ type HandlerOptions struct {
 	ante.HandlerOptions
 
 	// QoreChain keepers
-	CircuitKeeper circuitante.CircuitBreaker
-	PQCKeeper     pqcmod.PQCKeeper
-	PQCClient     pqcmod.PQCClient
+	CircuitKeeper        circuitante.CircuitBreaker
+	PQCKeeper            pqcmod.PQCKeeper
+	PQCClient            pqcmod.PQCClient
 	AIKeeper             aimod.AIKeeper
 	SVMKeeper            svmmod.SVMKeeper
 	SVMBankKeeper        svmmod.SVMBankKeeper

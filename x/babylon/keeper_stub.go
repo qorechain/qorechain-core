@@ -21,10 +21,12 @@ func NewStubKeeper(logger log.Logger) *StubKeeper {
 	}
 }
 
-func (k *StubKeeper) Logger() log.Logger                                          { return k.logger }
-func (k *StubKeeper) GetConfig(_ sdk.Context) types.BTCRestakingConfig            { return types.DefaultBTCRestakingConfig() }
-func (k *StubKeeper) SetConfig(_ sdk.Context, _ types.BTCRestakingConfig) error   { return nil }
-func (k *StubKeeper) IsEnabled(_ sdk.Context) bool                                { return false }
+func (k *StubKeeper) Logger() log.Logger { return k.logger }
+func (k *StubKeeper) GetConfig(_ sdk.Context) types.BTCRestakingConfig {
+	return types.DefaultBTCRestakingConfig()
+}
+func (k *StubKeeper) SetConfig(_ sdk.Context, _ types.BTCRestakingConfig) error { return nil }
+func (k *StubKeeper) IsEnabled(_ sdk.Context) bool                              { return false }
 func (k *StubKeeper) GetStakingPosition(_ sdk.Context, _ string) (types.BTCStakingPosition, bool) {
 	return types.BTCStakingPosition{}, false
 }
