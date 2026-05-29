@@ -128,8 +128,8 @@ func initRootCmd(
 	rootCmd.AddCommand(
 		server.StatusCommand(),
 		genesisCommand(txConfig, basicManager),
-		queryCommand(),
-		txCommand(),
+		queryCommand(basicManager),
+		txCommand(basicManager),
 		keys.Commands(),
 	)
 }
@@ -142,7 +142,7 @@ func genesisCommand(txConfig client.TxConfig, basicManager module.BasicManager, 
 	return cmd
 }
 
-func queryCommand() *cobra.Command {
+func queryCommand(basicManager module.BasicManager) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                        "query",
 		Aliases:                    []string{"q"},
@@ -161,10 +161,16 @@ func queryCommand() *cobra.Command {
 		server.QueryBlockResultsCmd(),
 	)
 
+	// Wire the per-module query commands (GetQueryCmd). The custom QoreChain
+	// modules are registered manually rather than via depinject, so autocli's
+	// EnhanceRootCommand does not see them; AddQueryCommands picks up every
+	// module in the basic manager that implements GetQueryCmd.
+	basicManager.AddQueryCommands(cmd)
+
 	return cmd
 }
 
-func txCommand() *cobra.Command {
+func txCommand(basicManager module.BasicManager) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:                        "tx",
 		Short:                      "Transactions subcommands",
@@ -184,6 +190,10 @@ func txCommand() *cobra.Command {
 		authcmd.GetDecodeCommand(),
 		authcmd.GetSimulateCmd(),
 	)
+
+	// Wire the per-module tx commands (GetTxCmd) for the manually-registered
+	// custom modules, which autocli does not see.
+	basicManager.AddTxCommands(cmd)
 
 	return cmd
 }
