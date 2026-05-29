@@ -1,6 +1,5 @@
 package app
 
-//ui#13
 import (
 	"fmt"
 	"io"
@@ -65,6 +64,7 @@ import (
 	// QoreChain EVM
 	evmante "github.com/cosmos/evm/ante/evm"
 	antetypes "github.com/cosmos/evm/ante/types"
+	evmmempool "github.com/cosmos/evm/mempool"
 	srvflags "github.com/cosmos/evm/server/flags"
 	evmerc20 "github.com/cosmos/evm/x/erc20"
 	erc20keeper "github.com/cosmos/evm/x/erc20/keeper"
@@ -218,6 +218,11 @@ type QoreChainApp struct {
 	EVMKeeper         *evmkeeper.Keeper
 	Erc20Keeper       erc20keeper.Keeper
 	PreciseBankKeeper precisebankkeeper.Keeper
+
+	// EVMMempool is the experimental unified EVM+Cosmos mempool. It is wired
+	// only when the EVM chain config is installed (always, in practice) and
+	// powers the EVM JSON-RPC server's transaction pool.
+	EVMMempool *evmmempool.ExperimentalEVMMempool
 
 	// CosmWasm keeper
 	WasmKeeper wasmkeeper.Keeper
@@ -782,11 +787,52 @@ func NewQoreChainApp(
 	}
 	app.setAnteHandler(app.txConfig, maxGasWanted, wasmNodeConfig, wasmStoreKey)
 
+	// Wire the experimental EVM mempool after the ante handler is set. This
+	// enables the EVM JSON-RPC transaction pool (and nonce-gap support). It is
+	// guarded by the EVM chain config, which x/vm's keeper installs at
+	// construction, so in practice it always runs.
+	app.setupEVMMempool(logger)
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
 
 	return app
+}
+
+// setupEVMMempool installs the experimental EVM+Cosmos unified mempool and the
+// matching CheckTx / PrepareProposal handlers. Mirrors the cosmos/evm
+// integration guide; must be called after SetAnteHandler.
+func (app *QoreChainApp) setupEVMMempool(logger log.Logger) {
+	if evmtypes.GetChainConfig() == nil {
+		return
+	}
+
+	mempoolConfig := &evmmempool.EVMMempoolConfig{
+		AnteHandler:   app.AnteHandler(),
+		BlockGasLimit: 100_000_000,
+	}
+
+	evmMempool := evmmempool.NewExperimentalEVMMempool(
+		app.CreateQueryContext,
+		logger,
+		app.EVMKeeper,
+		app.FeeMarketKeeper,
+		app.txConfig,
+		app.clientCtx,
+		mempoolConfig,
+		0, // cosmosPoolMaxTx: 0 = unbounded cosmos pool
+	)
+	app.EVMMempool = evmMempool
+
+	app.SetMempool(evmMempool)
+	app.SetCheckTxHandler(evmmempool.NewCheckTxHandler(evmMempool))
+
+	proposalHandler := baseapp.NewDefaultProposalHandler(evmMempool, app)
+	proposalHandler.SetSignerExtractionAdapter(
+		evmmempool.NewEthSignerExtractionAdapter(sdkmempool.NewDefaultSignerExtractionAdapter()),
+	)
+	app.SetPrepareProposal(proposalHandler.PrepareProposalHandler())
 }
 
 func (app *QoreChainApp) setAnteHandler(
