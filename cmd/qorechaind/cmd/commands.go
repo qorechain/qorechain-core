@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"io"
+	"path/filepath"
 
 	cmtcfg "github.com/cometbft/cometbft/config"
 	dbm "github.com/cosmos/cosmos-db"
@@ -74,6 +75,25 @@ func initAppConfig() (string, interface{}) {
 	return customAppTemplate, qoreConfig
 }
 
+// initCmdWithQoreChainDenoms wraps the standard `init` command so that the
+// freshly written genesis is configured for the native uqor token: bank denom
+// metadata for uqor and the EVM coin pointed at uqor/aqor. The stock InitCmd
+// emits upstream default denoms, which leave x/vm InitGenesis unable to find
+// denom metadata for the EVM coin, so the node cannot start.
+func initCmdWithQoreChainDenoms(basicManager module.BasicManager) *cobra.Command {
+	cmd := genutilcli.InitCmd(basicManager, app.DefaultNodeHome)
+	stockRunE := cmd.RunE
+	cmd.RunE = func(c *cobra.Command, args []string) error {
+		if err := stockRunE(c, args); err != nil {
+			return err
+		}
+		clientCtx := client.GetClientContextFromCmd(c)
+		genFile := filepath.Join(clientCtx.HomeDir, "config", "genesis.json")
+		return app.PatchGenesisFileDenoms(clientCtx.Codec, genFile)
+	}
+	return cmd
+}
+
 func initRootCmd(
 	rootCmd *cobra.Command,
 	txConfig client.TxConfig,
@@ -85,7 +105,7 @@ func initRootCmd(
 	}
 
 	rootCmd.AddCommand(
-		genutilcli.InitCmd(basicManager, app.DefaultNodeHome),
+		initCmdWithQoreChainDenoms(basicManager),
 		debug.Cmd(),
 		pruning.Cmd(sdkNewApp, app.DefaultNodeHome),
 		snapshot.Cmd(sdkNewApp),

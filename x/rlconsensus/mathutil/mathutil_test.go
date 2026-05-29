@@ -194,3 +194,29 @@ func TestExpApprox_NegLn2(t *testing.T) {
 	// exp(-ln2) = 0.5
 	assertApprox(t, "exp(-ln2)", ExpApprox(dec("-0.693147")), dec("0.5"), dec("0.001"))
 }
+
+// The following guard large-magnitude inputs, where a bare 12-term Taylor
+// series diverges (terms x^n/n! grow before they shrink). These exercise the
+// range-reduction path. Regression for the reputation time-decay bug where
+// ExpApprox(-10) returned ~925 instead of ~0, flooring every long-gap
+// validator score to MinScore.
+
+func TestExpApprox_NegTwo(t *testing.T) {
+	// exp(-2) = 0.135335
+	assertApprox(t, "exp(-2)", ExpApprox(dec("-2")), dec("0.135335"), dec("0.0005"))
+}
+
+func TestExpApprox_NegFive(t *testing.T) {
+	// exp(-5) = 0.0067379
+	assertApprox(t, "exp(-5)", ExpApprox(dec("-5")), dec("0.0067379"), dec("0.0001"))
+}
+
+func TestExpApprox_NegTen(t *testing.T) {
+	// exp(-10) = 0.0000453999 — the exact value that triggered the bug
+	assertApprox(t, "exp(-10)", ExpApprox(dec("-10")), dec("0.0000454"), dec("0.00002"))
+}
+
+func TestExpApprox_PosThree(t *testing.T) {
+	// exp(3) = 20.0855
+	assertApprox(t, "exp(3)", ExpApprox(dec("3")), dec("20.0855"), dec("0.01"))
+}

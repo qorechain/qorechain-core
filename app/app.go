@@ -278,6 +278,11 @@ func NewQoreChainApp(
 				appOpts,
 				logger,
 			),
+			// Install the governance proposal-reward hook via depinject (one per
+			// module). The gov module's InvokeSetHooks runs during Build and sets
+			// the keeper's hooks, so a manual GovKeeper.SetHooks after Build would
+			// panic ("cannot set governance hooks twice").
+			depinject.ProvideInModule("gov_reward", ProvideGovHooks),
 		)
 	)
 
@@ -310,10 +315,9 @@ func NewQoreChainApp(
 
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
-	// Register governance hooks — reward proposers of passed proposals
-	app.GovKeeper.SetHooks(govtypes.NewMultiGovHooks(
-		NewProposalRewardHook(app.GovKeeper, app.BankKeeper),
-	))
+	// Governance hooks (ProposalRewardHook) are installed via depinject —
+	// see ProvideGovHooks. They must NOT be set manually here: the gov module's
+	// InvokeSetHooks already ran during Build, so a second SetHooks would panic.
 
 	// Governance authority address (used as keeper authority for IBC/EVM/Wasm modules)
 	authAddr := authtypes.NewModuleAddress(govtypes.ModuleName).String()

@@ -35,7 +35,8 @@ func (m *MsgDeployProgram) Reset() { *m = MsgDeployProgram{} }
 func (m *MsgDeployProgram) String() string {
 	return fmt.Sprintf("MsgDeployProgram{sender=%s}", m.Sender)
 }
-func (m *MsgDeployProgram) ProtoMessage() {}
+func (m *MsgDeployProgram) ProtoMessage()           {}
+func (m *MsgDeployProgram) XXX_MessageName() string { return "qorechain.svm.v1.MsgDeployProgram" }
 
 // MsgExecuteProgram executes an instruction on a deployed SVM program.
 type MsgExecuteProgram struct {
@@ -61,7 +62,8 @@ func (m *MsgExecuteProgram) Reset() { *m = MsgExecuteProgram{} }
 func (m *MsgExecuteProgram) String() string {
 	return fmt.Sprintf("MsgExecuteProgram{sender=%s}", m.Sender)
 }
-func (m *MsgExecuteProgram) ProtoMessage() {}
+func (m *MsgExecuteProgram) ProtoMessage()           {}
+func (m *MsgExecuteProgram) XXX_MessageName() string { return "qorechain.svm.v1.MsgExecuteProgram" }
 
 // MsgCreateAccount creates a new SVM data account with allocated space.
 type MsgCreateAccount struct {
@@ -88,7 +90,8 @@ func (m *MsgCreateAccount) Reset() { *m = MsgCreateAccount{} }
 func (m *MsgCreateAccount) String() string {
 	return fmt.Sprintf("MsgCreateAccount{sender=%s}", m.Sender)
 }
-func (m *MsgCreateAccount) ProtoMessage() {}
+func (m *MsgCreateAccount) ProtoMessage()           {}
+func (m *MsgCreateAccount) XXX_MessageName() string { return "qorechain.svm.v1.MsgCreateAccount" }
 
 // MsgRegisterSVMPQCKey registers a Dilithium-5 key for optional PQC upgrade
 // on an SVM account.
@@ -118,6 +121,9 @@ func (m *MsgRegisterSVMPQCKey) String() string {
 	return fmt.Sprintf("MsgRegisterSVMPQCKey{sender=%s}", m.Sender)
 }
 func (m *MsgRegisterSVMPQCKey) ProtoMessage() {}
+func (m *MsgRegisterSVMPQCKey) XXX_MessageName() string {
+	return "qorechain.svm.v1.MsgRegisterSVMPQCKey"
+}
 
 // ---------------------------------------------------------------------------
 // Codec Registration

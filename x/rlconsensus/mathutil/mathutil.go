@@ -169,17 +169,41 @@ func ReputationMultiplier(r sdkmath.LegacyDec) sdkmath.LegacyDec {
 	return result
 }
 
-// ExpApprox computes exp(x) using a Taylor series with 12 terms:
+// ExpApprox computes exp(x) using a 12-term Taylor series with range reduction.
 //
-//	exp(x) = 1 + x + x^2/2! + x^3/3! + ... + x^12/12!
+// A bare Taylor series (1 + x + x^2/2! + ... + x^12/12!) is only accurate for
+// |x| <= ~1; for larger magnitudes the terms x^n/n! grow before they shrink, so
+// truncating at n=12 diverges catastrophically (e.g. exp(-10) returned ~925
+// instead of ~0.0000454, which floored long-gap validator reputation scores to
+// MinScore). To stay accurate for any magnitude we use range reduction:
+//
+//	exp(x) = exp(x / 2^k)^(2^k)
+//
+// k is chosen as the smallest value making |x / 2^k| <= 1, where the Taylor
+// series is accurate; the result is then squared k times. For |x| <= 1, k=0 and
+// the computation is identical to the plain series. Fully deterministic
+// (LegacyDec throughout, integer halving for the reduction count).
 func ExpApprox(x sdkmath.LegacyDec) sdkmath.LegacyDec {
-	sum := one
-	term := one // term_n = x^n / n!
+	// Range reduction: halve x until |x| <= 1, counting the halvings.
+	xr := x
+	k := 0
+	for xr.Abs().GT(one) && k < 64 {
+		xr = xr.QuoInt64(2)
+		k++
+	}
 
+	// 12-term Taylor series on the reduced argument (|xr| <= 1).
+	sum := one
+	term := one // term_n = xr^n / n!
 	for n := int64(1); n <= 12; n++ {
 		nDec := sdkmath.LegacyNewDec(n)
-		term = term.Mul(x).Quo(nDec)
+		term = term.Mul(xr).Quo(nDec)
 		sum = sum.Add(term)
+	}
+
+	// Undo the reduction: square k times so exp(xr)^(2^k) == exp(x).
+	for i := 0; i < k; i++ {
+		sum = sum.Mul(sum)
 	}
 
 	return sum

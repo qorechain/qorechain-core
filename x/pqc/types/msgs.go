@@ -42,9 +42,10 @@ func (msg *MsgRegisterPQCKey) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-func (msg *MsgRegisterPQCKey) ProtoMessage()  {}
-func (msg *MsgRegisterPQCKey) Reset()         {}
-func (msg *MsgRegisterPQCKey) String() string { return "MsgRegisterPQCKey" }
+func (msg *MsgRegisterPQCKey) ProtoMessage()           {}
+func (msg *MsgRegisterPQCKey) Reset()                  {}
+func (msg *MsgRegisterPQCKey) String() string          { return "MsgRegisterPQCKey" }
+func (msg *MsgRegisterPQCKey) XXX_MessageName() string { return "qorechain.pqc.v1.MsgRegisterPQCKey" }
 
 // ---------------------------------------------------------------------------
 // MsgRegisterPQCKeyV2 — algorithm-aware key registration (v0.6.0)
@@ -89,6 +90,9 @@ func (msg *MsgRegisterPQCKeyV2) GetSigners() []sdk.AccAddress {
 func (msg *MsgRegisterPQCKeyV2) ProtoMessage()  {}
 func (msg *MsgRegisterPQCKeyV2) Reset()         {}
 func (msg *MsgRegisterPQCKeyV2) String() string { return "MsgRegisterPQCKeyV2" }
+func (msg *MsgRegisterPQCKeyV2) XXX_MessageName() string {
+	return "qorechain.pqc.v1.MsgRegisterPQCKeyV2"
+}
 
 // ---------------------------------------------------------------------------
 // MsgMigratePQCKey — dual-signature key migration (v0.6.0)
@@ -138,6 +142,9 @@ func (msg *MsgMigratePQCKey) GetSigners() []sdk.AccAddress {
 func (msg *MsgMigratePQCKey) ProtoMessage()  {}
 func (msg *MsgMigratePQCKey) Reset()         {}
 func (msg *MsgMigratePQCKey) String() string { return "MsgMigratePQCKey" }
+func (msg *MsgMigratePQCKey) XXX_MessageName() string {
+	return "qorechain.pqc.v1.MsgMigratePQCKey"
+}
 
 // ---------------------------------------------------------------------------
 // Governance proposal messages (v0.6.0 — SDK v1 style: sdk.Msg)
@@ -168,6 +175,9 @@ func (msg *MsgAddAlgorithm) GetSigners() []sdk.AccAddress {
 func (msg *MsgAddAlgorithm) ProtoMessage()  {}
 func (msg *MsgAddAlgorithm) Reset()         {}
 func (msg *MsgAddAlgorithm) String() string { return "MsgAddAlgorithm" }
+func (msg *MsgAddAlgorithm) XXX_MessageName() string {
+	return "qorechain.pqc.v1.MsgAddAlgorithm"
+}
 
 // MsgDeprecateAlgorithm proposes deprecating an algorithm (starts migration period).
 type MsgDeprecateAlgorithm struct {
@@ -207,6 +217,9 @@ func (msg *MsgDeprecateAlgorithm) GetSigners() []sdk.AccAddress {
 func (msg *MsgDeprecateAlgorithm) ProtoMessage()  {}
 func (msg *MsgDeprecateAlgorithm) Reset()         {}
 func (msg *MsgDeprecateAlgorithm) String() string { return "MsgDeprecateAlgorithm" }
+func (msg *MsgDeprecateAlgorithm) XXX_MessageName() string {
+	return "qorechain.pqc.v1.MsgDeprecateAlgorithm"
+}
 
 // MsgDisableAlgorithm emergency-disables an algorithm (e.g., vulnerability discovered).
 type MsgDisableAlgorithm struct {
@@ -239,3 +252,6 @@ func (msg *MsgDisableAlgorithm) GetSigners() []sdk.AccAddress {
 func (msg *MsgDisableAlgorithm) ProtoMessage()  {}
 func (msg *MsgDisableAlgorithm) Reset()         {}
 func (msg *MsgDisableAlgorithm) String() string { return "MsgDisableAlgorithm" }
+func (msg *MsgDisableAlgorithm) XXX_MessageName() string {
+	return "qorechain.pqc.v1.MsgDisableAlgorithm"
+}

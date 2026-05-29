@@ -32,6 +32,19 @@ func NewProposalRewardHook(govKeeper *govkeeper.Keeper, bankKeeper bankkeeper.Ba
 	}
 }
 
+// ProvideGovHooks wires ProposalRewardHook into the gov keeper through depinject.
+//
+// Under the depinject (v0.53) flow the gov keeper's hooks are installed during
+// appBuilder.Build() by the gov module's InvokeSetHooks, which collects every
+// GovHooksWrapper provided one-per-module. Because that runs unconditionally
+// (setting an empty MultiGovHooks when no wrappers exist), calling
+// GovKeeper.SetHooks() manually afterwards panics with "cannot set governance
+// hooks twice". Providing the wrapper here instead lets depinject install our
+// hook as part of that same pass.
+func ProvideGovHooks(govKeeper *govkeeper.Keeper, bankKeeper bankkeeper.BaseKeeper) govtypes.GovHooksWrapper {
+	return govtypes.GovHooksWrapper{GovHooks: NewProposalRewardHook(govKeeper, bankKeeper)}
+}
+
 func (h ProposalRewardHook) AfterProposalSubmission(_ context.Context, _ uint64) error { return nil }
 func (h ProposalRewardHook) AfterProposalDeposit(_ context.Context, _ uint64, _ sdk.AccAddress) error {
 	return nil

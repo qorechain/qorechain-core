@@ -50,6 +50,10 @@ func init() {
 	cfg.SetBech32PrefixForValidator("qorvaloper", "qorvaloperpub")
 	cfg.SetBech32PrefixForConsensusNode("qorvalcons", "qorvalconspub")
 	cfg.Seal()
+
+	// Native token defaults: staking/mint/gov denoms derive from
+	// sdk.DefaultBondDenom, so set it before any DefaultGenesis is produced.
+	sdk.DefaultBondDenom = app.BaseDenom // uqor
 }
 
 // registerSidecarCmd is set by build-tag-specific init() functions.

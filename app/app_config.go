@@ -101,6 +101,9 @@ var (
 		{Account: "burn", Permissions: []string{authtypes.Burner}},
 		{Account: "xqore", Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: "inflation", Permissions: []string{authtypes.Minter}},
+		// lightnode receives the 3% light-node share of the fee split (burn
+		// DistributeFees) and pays it out to registered light nodes.
+		{Account: "lightnode"},
 		// v1.2.0 modules
 		{Account: "babylon"},
 		{Account: "abstractaccount"},
@@ -133,6 +136,10 @@ var (
 				PreBlockers: []string{
 					upgradetypes.ModuleName,
 					authtypes.ModuleName,
+					// cosmos/evm x/vm implements PreBlock (sets the EVM block
+					// context); the runtime requires every PreBlock module to be
+					// listed here.
+					"evm",
 				},
 				BeginBlockers: []string{
 					minttypes.ModuleName,
@@ -143,6 +150,8 @@ var (
 					stakingtypes.ModuleName,
 					authz.ModuleName,
 					epochstypes.ModuleName,
+					// IBC core implements BeginBlock (client/connection upkeep).
+					"ibc",
 					// EVM: feemarket MUST come before evm
 					"feemarket",
 					"evm",
@@ -160,8 +169,9 @@ var (
 					feegrant.ModuleName,
 					group.ModuleName,
 					protocolpooltypes.ModuleName,
-					"crossvm", // Process cross-VM message queue
-					"amm",     // Recompute weighted-average pool prices
+					"crossvm",    // Process cross-VM message queue
+					"amm",        // Recompute weighted-average pool prices
+					"reputation", // Update validator reputation from last commit
 					"burn",
 					"xqore",
 					"inflation",
@@ -191,7 +201,6 @@ var (
 					slashingtypes.ModuleName,
 					govtypes.ModuleName,
 					minttypes.ModuleName,
-					genutiltypes.ModuleName,
 					evidencetypes.ModuleName,
 					authz.ModuleName,
 					feegrant.ModuleName,
@@ -205,10 +214,13 @@ var (
 					// IBC modules (before EVM — transfer needs IBC core)
 					"ibc",
 					"transfer",
-					// EVM modules (feemarket before evm, precisebank before evm)
+					// EVM modules. feemarket first (base-fee params). evm MUST
+					// init before precisebank: evm InitGenesis installs the global
+					// EVM coin info (denom/decimals) that precisebank reads when
+					// computing its conversion factor.
 					"feemarket",
-					"precisebank",
 					"evm",
+					"precisebank",
 					"erc20",
 					// CosmWasm (after IBC modules)
 					"wasm",
@@ -233,6 +245,11 @@ var (
 					"rdk",
 					"lightnode",
 					"license",
+					// genutil runs LAST: DeliverGenTxs executes the validator
+					// gentxs through the ante handler, which reads feemarket/evm
+					// params — so every module that initialises those params
+					// (feemarket, evm, …) must run before genutil.
+					genutiltypes.ModuleName,
 				},
 				ExportGenesis: []string{
 					consensustypes.ModuleName,

@@ -31,7 +31,8 @@ func (m *MsgSetAgentMode) Reset() { *m = MsgSetAgentMode{} }
 func (m *MsgSetAgentMode) String() string {
 	return fmt.Sprintf("MsgSetAgentMode{authority=%s, mode=%s}", m.Authority, m.Mode)
 }
-func (m *MsgSetAgentMode) ProtoMessage() {}
+func (m *MsgSetAgentMode) ProtoMessage()           {}
+func (m *MsgSetAgentMode) XXX_MessageName() string { return "qorechain.rlconsensus.v1.MsgSetAgentMode" }
 
 // ---------------------------------------------------------------------------
 // MsgResumeAgent
@@ -53,7 +54,8 @@ func (m *MsgResumeAgent) Reset() { *m = MsgResumeAgent{} }
 func (m *MsgResumeAgent) String() string {
 	return fmt.Sprintf("MsgResumeAgent{authority=%s}", m.Authority)
 }
-func (m *MsgResumeAgent) ProtoMessage() {}
+func (m *MsgResumeAgent) ProtoMessage()           {}
+func (m *MsgResumeAgent) XXX_MessageName() string { return "qorechain.rlconsensus.v1.MsgResumeAgent" }
 
 // ---------------------------------------------------------------------------
 // MsgUpdatePolicy
@@ -79,7 +81,8 @@ func (m *MsgUpdatePolicy) Reset() { *m = MsgUpdatePolicy{} }
 func (m *MsgUpdatePolicy) String() string {
 	return fmt.Sprintf("MsgUpdatePolicy{authority=%s, epoch=%d}", m.Authority, m.Weights.Epoch)
 }
-func (m *MsgUpdatePolicy) ProtoMessage() {}
+func (m *MsgUpdatePolicy) ProtoMessage()           {}
+func (m *MsgUpdatePolicy) XXX_MessageName() string { return "qorechain.rlconsensus.v1.MsgUpdatePolicy" }
 
 // ---------------------------------------------------------------------------
 // MsgUpdateRewardWeights
@@ -106,3 +109,6 @@ func (m *MsgUpdateRewardWeights) String() string {
 	return fmt.Sprintf("MsgUpdateRewardWeights{authority=%s}", m.Authority)
 }
 func (m *MsgUpdateRewardWeights) ProtoMessage() {}
+func (m *MsgUpdateRewardWeights) XXX_MessageName() string {
+	return "qorechain.rlconsensus.v1.MsgUpdateRewardWeights"
+}

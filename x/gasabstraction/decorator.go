@@ -23,6 +23,13 @@ func NewGasAbstractionDecorator(keeper GasAbstractionKeeper) GasAbstractionDecor
 // If gas abstraction is disabled or fee is in native denom, passes through.
 // Otherwise, verifies the fee denom is accepted and marks context for conversion.
 func (d GasAbstractionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	// Genesis transactions (gentxs) are delivered during InitChain at block
+	// height 0 and legitimately carry no fee; simulate runs (gas estimation)
+	// likewise have no real fee. Exempt both from the fee policy.
+	if ctx.BlockHeight() == 0 || simulate {
+		return next(ctx, tx, simulate)
+	}
+
 	if !d.keeper.IsEnabled(ctx) {
 		return next(ctx, tx, simulate)
 	}

@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.0.3-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v3.0.3)
+[![Version](https://img.shields.io/badge/version-3.1.0-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v3.1.0)
 
 QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **native on-chain AMM** with constant-product and stable-swap pricing, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, **45 direct cross-chain connections** spanning IBC (with foundation for next-generation IBC v2), EVM, Move, UTXO, Cairo, UNL, SCP, Hashgraph, and account-model ecosystems, a **Rollup Development Kit (RDK)** enabling one-click deployment of application-specific rollups with four settlement paradigms, a **license-gated multi-chain validator bridge** for cross-chain operations across 37 chains, and a **light node network** with stake-weighted reward distribution. Built on Cosmos SDK v0.53 with 21 custom modules and 48 registered genesis modules.
 
