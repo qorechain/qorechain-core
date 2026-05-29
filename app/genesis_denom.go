@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	sdkmath "cosmossdk.io/math"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	genutiltypes "github.com/cosmos/cosmos-sdk/x/genutil/types"
+	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 )
 
@@ -55,6 +58,21 @@ func ApplyQoreChainDenoms(cdc codec.JSONCodec, appState map[string]json.RawMessa
 			ExtendedDenom: ExtendedDenom, // aqor
 		}
 		appState[evmtypes.ModuleName] = cdc.MustMarshalJSON(&evmGen)
+	}
+
+	// Calibrate the fee market for the 6-decimal uqor base denom. The
+	// cosmos/evm default base_fee (1e9) is tuned for 18-decimal chains and makes
+	// a transfer cost ~400 QOR. At 0.1 uqor/gas a typical transfer (~100k gas)
+	// costs ~0.01 QOR. Fees are gas-proportional (not a hard %-of-value floor).
+	if raw, ok := appState[feemarkettypes.ModuleName]; ok {
+		var fmGen feemarkettypes.GenesisState
+		if err := cdc.UnmarshalJSON(raw, &fmGen); err != nil {
+			return fmt.Errorf("unmarshal feemarket genesis: %w", err)
+		}
+		feeRate := sdkmath.LegacyNewDecWithPrec(1, 1) // 0.1 uqor per gas
+		fmGen.Params.BaseFee = feeRate
+		fmGen.Params.MinGasPrice = feeRate
+		appState[feemarkettypes.ModuleName] = cdc.MustMarshalJSON(&fmGen)
 	}
 
 	return nil

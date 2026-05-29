@@ -154,6 +154,18 @@ func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, f
 	)
 }
 
+// genesisExemptDecorator wraps an ante decorator and skips it during InitChain
+// (block height 0). Genesis transactions (gentxs) are delivered fee-free, so
+// fee-floor decorators like the min-gas-price check must not run against them.
+type genesisExemptDecorator struct{ inner sdk.AnteDecorator }
+
+func (d genesisExemptDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
+	if ctx.BlockHeight() == 0 {
+		return next(ctx, tx, simulate)
+	}
+	return d.inner.AnteHandle(ctx, tx, simulate, next)
+}
+
 // newCosmosAnteHandler returns an AnteHandler for standard QoreChain SDK transactions.
 // This path includes:
 //   - EVM message rejection (MsgEthereumTx must use extension options)
@@ -198,12 +210,18 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		NewSVMComputeBudgetDecorator(options.SVMKeeper),
 		// SVM fee deduction — charges uqor per SVM execute/deploy message
 		NewSVMDeductFeeDecorator(options.SVMKeeper, options.SVMBankKeeper),
-		// Use EVM fee market min gas price instead of standard min gas price
-		cosmosante.NewMinGasPriceDecorator(fmParams),
+		// Use EVM fee market min gas price instead of standard min gas price.
+		// Exempt at genesis (height 0): gentxs are delivered fee-free during
+		// InitChain, but the min-gas-price floor would otherwise reject them.
+		genesisExemptDecorator{cosmosante.NewMinGasPriceDecorator(fmParams)},
 		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),
 		// Gas abstraction — convert non-native fee denoms for fee deduction
 		NewGasAbstractionDecorator(options.GasAbstractionKeeper),
-		ante.NewDeductFeeDecorator(options.AccountKeeper, options.BankKeeper, options.FeegrantKeeper, options.TxFeeChecker),
+		// Build the fee checker from the live, per-block-refreshed feemarket
+		// params (fmParams) rather than options.TxFeeChecker, which is bound to
+		// stale DefaultParams (base_fee 1e9) and would ignore the calibrated
+		// base_fee for cosmos-path txs.
+		ante.NewDeductFeeDecorator(options.AccountKeeper, options.BankKeeper, options.FeegrantKeeper, evmante.NewDynamicFeeChecker(fmParams)),
 		ante.NewSetPubKeyDecorator(options.AccountKeeper),
 		ante.NewValidateSigCountDecorator(options.AccountKeeper),
 		ante.NewSigGasConsumeDecorator(options.AccountKeeper, options.SigGasConsumer),
