@@ -71,7 +71,7 @@ Implements reputation-weighted proposer selection that integrates with Consensus
 
 ### x/burn — Central Burn Accounting
 
-Ten burn channels feed a unified accounting module: transaction fees, slashing, governance, cross-VM gas, bridge fees, inflation surplus, xQORE penalties, reputation penalties, system cleanup, and rollup creation burns. The EndBlocker splits collected fees: 40% validators, 30% burned, 20% treasury, 10% stakers. Tracks total burned, per-source breakdown, and burn history.
+Ten burn channels feed a unified accounting module: transaction fees, slashing, governance, cross-VM gas, bridge fees, inflation surplus, xQORE penalties, reputation penalties, system cleanup, and rollup creation burns. The EndBlocker splits collected fees: 37% validators, 30% burned, 20% treasury, 10% stakers, and 3% light nodes. Tracks total burned, per-source breakdown, and burn history.
 
 ### x/xqore — Governance-Boosted Staking
 
@@ -87,11 +87,10 @@ On-chain RL agent with Go-native fixed-point MLP (~73,733 parameters). PPO infer
 
 ### x/bridge — Cross-Chain Bridge (QCB)
 
-Hub-and-spoke multi-protocol bridge supporting 25 direct cross-chain connections:
-- **IBC chains** (8): QoreChain Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon
-- **EVM chains** (6): Ethereum, BSC, Avalanche, Optimism, Base, Tron
-- **Non-IBC chains** (5): Solana, TON, Aptos, Bitcoin, NEAR
-- **Additional** (2): Cardano, Polkadot, Tezos
+Hub-and-spoke multi-protocol bridge supporting 45 direct cross-chain connections:
+- **IBC channels** (8): Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, Injective
+- **QCB bridge endpoints** (37): EVM, Move, UTXO, Cairo, UNL, SCP, Hashgraph, Pure-PoS, and account-model ecosystems
+- **Chain architecture families** (17): `evm`, `solana`, `ton`, `move`, `sui_move`, `cosmos_ibc`, `aptos_move`, `utxo`, `near`, `cardano`, `polkadot`, `tezos`, `tron`, `starknet`, `xrpl`, `stellar`, `hedera`, `algorand`
 - Native IBC with PQC-secured packets
 
 Security: 7-of-10 PQC multisig, 24h challenge period, circuit breakers. Bridge withdrawal fees route to the x/burn module.
@@ -131,7 +130,7 @@ Multi-denomination fee payment supporting IBC-received tokens. Static conversion
 
 The license module manages an on-chain registry of operator licenses that gate access to privileged chain features such as bridge operation, sidecar management, and validator services.
 
-- **27 feature IDs** covering bridge watching, transaction relaying, validator operations, key management, cross-chain settlement, and sidecar administration across all supported external networks.
+- **74 feature IDs** covering bridge watching, transaction relaying, validator operations, key management, cross-chain settlement, and sidecar administration across all supported external networks.
 - **License lifecycle**: Licenses follow a state machine: `grant → active → suspended / revoked / expired`.
   - **Grant**: Issued via governance proposal (`LicenseGrantProposal`) or admin transaction (`MsgGrantLicense`).
   - **Active**: Operator may use the licensed features. Validated on every relevant transaction by the license ante decorator.
