@@ -84,7 +84,7 @@ QoreChain connects to **45 blockchain ecosystems** through two complementary pro
 
 - **8 IBC channels** — Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, Injective. Pre-configured Hermes relayer templates with client updates, misbehaviour detection, and packet clearing every 100 blocks.
 - **37 QCB bridge endpoints** — Spanning EVM L2/L1, Cairo L2, UNL ledger, SCP ledger, Hashgraph, Pure-PoS, Move, UTXO, and account-model architectures. Each chain has per-type address validation, configurable confirmation depth, circuit breaker volume caps, and PQC-signed validator attestations.
-- **17 chain types** — `evm`, `solana`, `ton`, `move`, `sui_move`, `cosmos_ibc`, `aptos_move`, `utxo`, `near`, `cardano`, `polkadot`, `tezos`, `tron`, `starknet`, `xrpl`, `stellar`, `hedera`, `algorand` — covering every major blockchain architecture.
+- **18 chain types** — `evm`, `solana`, `ton`, `move`, `sui_move`, `cosmos_ibc`, `aptos_move`, `utxo`, `near`, `cardano`, `polkadot`, `tezos`, `tron`, `starknet`, `xrpl`, `stellar`, `hedera`, `algorand` — covering every major blockchain architecture.
 
 ### BTC Restaking via Babylon Protocol (v1.2.0)
 
