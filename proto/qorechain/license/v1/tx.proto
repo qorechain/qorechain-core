@@ -1,0 +1,52 @@
+syntax = "proto3";
+package qorechain.license.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/license/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+// Msg defines the license module's transaction service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc GrantLicense(MsgGrantLicense) returns (MsgGrantLicenseResponse);
+  rpc RevokeLicense(MsgRevokeLicense) returns (MsgRevokeLicenseResponse);
+  rpc SuspendLicense(MsgSuspendLicense) returns (MsgSuspendLicenseResponse);
+  rpc ResumeLicense(MsgResumeLicense) returns (MsgResumeLicenseResponse);
+}
+
+message MsgGrantLicense {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string grantee = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string feature_id = 3 [(gogoproto.customname) = "FeatureID"];
+  int64 expires_at = 4;
+  string metadata = 5;
+}
+message MsgGrantLicenseResponse {}
+
+message MsgRevokeLicense {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string grantee = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string feature_id = 3 [(gogoproto.customname) = "FeatureID"];
+}
+message MsgRevokeLicenseResponse {}
+
+message MsgSuspendLicense {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string grantee = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string feature_id = 3 [(gogoproto.customname) = "FeatureID"];
+}
+message MsgSuspendLicenseResponse {}
+
+message MsgResumeLicense {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string grantee = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string feature_id = 3 [(gogoproto.customname) = "FeatureID"];
+}
+message MsgResumeLicenseResponse {}

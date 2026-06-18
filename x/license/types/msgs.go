@@ -6,20 +6,16 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// MsgGrantLicense, MsgRevokeLicense, MsgSuspendLicense and MsgResumeLicense are
+// generated from proto/qorechain/license/v1/tx.proto (see tx.pb.go). The
+// ValidateBasic methods below are attached to those generated types.
+
 const (
 	TypeMsgGrantLicense   = "grant_license"
 	TypeMsgRevokeLicense  = "revoke_license"
 	TypeMsgSuspendLicense = "suspend_license"
 	TypeMsgResumeLicense  = "resume_license"
 )
-
-type MsgGrantLicense struct {
-	Authority string `json:"authority"`
-	Grantee   string `json:"grantee"`
-	FeatureID string `json:"feature_id"`
-	ExpiresAt int64  `json:"expires_at"`
-	Metadata  string `json:"metadata"`
-}
 
 func (msg MsgGrantLicense) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
@@ -37,12 +33,6 @@ func (msg MsgGrantLicense) ValidateBasic() error {
 	return nil
 }
 
-type MsgRevokeLicense struct {
-	Authority string `json:"authority"`
-	Grantee   string `json:"grantee"`
-	FeatureID string `json:"feature_id"`
-}
-
 func (msg MsgRevokeLicense) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
 		return fmt.Errorf("invalid authority address: %w", err)
@@ -56,12 +46,6 @@ func (msg MsgRevokeLicense) ValidateBasic() error {
 	return nil
 }
 
-type MsgSuspendLicense struct {
-	Authority string `json:"authority"`
-	Grantee   string `json:"grantee"`
-	FeatureID string `json:"feature_id"`
-}
-
 func (msg MsgSuspendLicense) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
 		return fmt.Errorf("invalid authority address: %w", err)
@@ -73,12 +57,6 @@ func (msg MsgSuspendLicense) ValidateBasic() error {
 		return fmt.Errorf("feature_id cannot be empty")
 	}
 	return nil
-}
-
-type MsgResumeLicense struct {
-	Authority string `json:"authority"`
-	Grantee   string `json:"grantee"`
-	FeatureID string `json:"feature_id"`
 }
 
 func (msg MsgResumeLicense) ValidateBasic() error {

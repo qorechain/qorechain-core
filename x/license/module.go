@@ -23,15 +23,29 @@ import (
 var (
 	_ module.AppModuleBasic   = AppModuleBasic{}
 	_ module.HasGenesis       = AppModule{}
+	_ module.HasServices      = AppModule{}
 	_ appmodule.AppModule     = AppModule{}
 	_ appmodule.HasEndBlocker = AppModule{}
 )
 
+// RegisterServices registers the license Msg service so grant/revoke/suspend/
+// resume transactions route to the keeper.
+func (am AppModule) RegisterServices(cfg module.Configurator) {
+	types.RegisterMsgServer(cfg.MsgServer(), NewMsgServer(am.keeper))
+}
+
 type AppModuleBasic struct{}
 
-func (AppModuleBasic) Name() string                                                    { return types.ModuleName }
-func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino)                   {}
-func (AppModuleBasic) RegisterInterfaces(_ codectypes.InterfaceRegistry)               {}
+func (AppModuleBasic) Name() string                                  { return types.ModuleName }
+func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
+func (AppModuleBasic) RegisterInterfaces(reg codectypes.InterfaceRegistry) {
+	reg.RegisterImplementations((*sdk.Msg)(nil),
+		&types.MsgGrantLicense{},
+		&types.MsgRevokeLicense{},
+		&types.MsgSuspendLicense{},
+		&types.MsgResumeLicense{},
+	)
+}
 func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
 
 func (AppModuleBasic) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {

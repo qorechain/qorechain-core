@@ -1,12 +1,13 @@
 package cli
 
 import (
-	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/client/tx"
 
 	"github.com/qorechain/qorechain-core/x/license/types"
 )
@@ -30,22 +31,31 @@ func GetTxCmd() *cobra.Command {
 	return cmd
 }
 
-// CmdGrant returns the command to grant a license to a validator.
+// CmdGrant returns the command to grant a license to a grantee.
 func CmdGrant() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "grant [validator-addr] [feature-id]",
-		Short: "Grant a license to a validator",
+		Use:   "grant [grantee-addr] [feature-id]",
+		Short: "Grant a license to a grantee (authority = --from)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-			expiresAt, _ := cmd.Flags().GetString("expires-at")
+			expiresStr, _ := cmd.Flags().GetString("expires-at")
+			expiresAt, err := strconv.ParseInt(expiresStr, 10, 64)
+			if err != nil {
+				return err
+			}
 			metadata, _ := cmd.Flags().GetString("metadata")
-			fmt.Fprintf(clientCtx.Output, "Granting license %s to %s (expires: %s, metadata: %s) from %s\n",
-				args[1], args[0], expiresAt, metadata, clientCtx.GetFromAddress())
-			return nil
+			msg := &types.MsgGrantLicense{
+				Authority: clientCtx.GetFromAddress().String(),
+				Grantee:   args[0],
+				FeatureID: args[1],
+				ExpiresAt: expiresAt,
+				Metadata:  metadata,
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 	cmd.Flags().String("expires-at", "0", "Block height when license expires (0 for perpetual)")
@@ -54,20 +64,23 @@ func CmdGrant() *cobra.Command {
 	return cmd
 }
 
-// CmdRevoke returns the command to revoke a license from a validator.
+// CmdRevoke returns the command to revoke a license from a grantee.
 func CmdRevoke() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "revoke [validator-addr] [feature-id]",
-		Short: "Revoke a license from a validator",
+		Use:   "revoke [grantee-addr] [feature-id]",
+		Short: "Revoke a license from a grantee (authority = --from)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(clientCtx.Output, "Revoking license %s from %s (from %s)\n",
-				args[1], args[0], clientCtx.GetFromAddress())
-			return nil
+			msg := &types.MsgRevokeLicense{
+				Authority: clientCtx.GetFromAddress().String(),
+				Grantee:   args[0],
+				FeatureID: args[1],
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 	flags.AddTxFlagsToCmd(cmd)
@@ -77,17 +90,20 @@ func CmdRevoke() *cobra.Command {
 // CmdSuspend returns the command to suspend a license.
 func CmdSuspend() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "suspend [validator-addr] [feature-id]",
-		Short: "Suspend a license",
+		Use:   "suspend [grantee-addr] [feature-id]",
+		Short: "Suspend a license (authority = --from)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(clientCtx.Output, "Suspending license %s for %s (from %s)\n",
-				args[1], args[0], clientCtx.GetFromAddress())
-			return nil
+			msg := &types.MsgSuspendLicense{
+				Authority: clientCtx.GetFromAddress().String(),
+				Grantee:   args[0],
+				FeatureID: args[1],
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 	flags.AddTxFlagsToCmd(cmd)
@@ -97,17 +113,20 @@ func CmdSuspend() *cobra.Command {
 // CmdResume returns the command to resume a suspended license.
 func CmdResume() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "resume [validator-addr] [feature-id]",
-		Short: "Resume a suspended license",
+		Use:   "resume [grantee-addr] [feature-id]",
+		Short: "Resume a suspended license (authority = --from)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(clientCtx.Output, "Resuming license %s for %s (from %s)\n",
-				args[1], args[0], clientCtx.GetFromAddress())
-			return nil
+			msg := &types.MsgResumeLicense{
+				Authority: clientCtx.GetFromAddress().String(),
+				Grantee:   args[0],
+				FeatureID: args[1],
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 	flags.AddTxFlagsToCmd(cmd)
