@@ -1,0 +1,60 @@
+syntax = "proto3";
+package qorechain.svm.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/svm/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+  rpc DeployProgram(MsgDeployProgram) returns (MsgDeployProgramResponse);
+  rpc CreateAccount(MsgCreateAccount) returns (MsgCreateAccountResponse);
+  rpc ExecuteProgram(MsgExecuteProgram) returns (MsgExecuteProgramResponse);
+  rpc RegisterSVMPQCKey(MsgRegisterSVMPQCKey) returns (MsgRegisterSVMPQCKeyResponse);
+}
+
+message MsgDeployProgram {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes bytecode = 2;
+}
+message MsgDeployProgramResponse {
+  bytes program_id = 1 [(gogoproto.customtype) = "Bytes32", (gogoproto.nullable) = false, (gogoproto.customname) = "ProgramID"];
+}
+
+message MsgCreateAccount {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes owner = 2 [(gogoproto.customtype) = "Bytes32", (gogoproto.nullable) = false];
+  uint64 space = 3;
+  uint64 lamports = 4;
+  bytes salt = 5;
+}
+message MsgCreateAccountResponse {}
+
+message SvmAccountMeta {
+  bytes address = 1 [(gogoproto.customtype) = "Bytes32", (gogoproto.nullable) = false];
+  bool is_signer = 2;
+  bool is_writable = 3;
+}
+
+message MsgExecuteProgram {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes program_id = 2 [(gogoproto.customtype) = "Bytes32", (gogoproto.nullable) = false, (gogoproto.customname) = "ProgramID"];
+  repeated SvmAccountMeta accounts = 3 [(gogoproto.nullable) = false];
+  bytes data = 4;
+}
+message MsgExecuteProgramResponse {
+  bytes result = 1;
+}
+
+message MsgRegisterSVMPQCKey {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes svm_addr = 2 [(gogoproto.customtype) = "Bytes32", (gogoproto.nullable) = false, (gogoproto.customname) = "SVMAddr"];
+  bytes pqc_pub_key = 3 [(gogoproto.customname) = "PQCPubKey"];
+}
+message MsgRegisterSVMPQCKeyResponse {}

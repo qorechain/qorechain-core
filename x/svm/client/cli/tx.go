@@ -114,7 +114,7 @@ Currently the Accounts field is empty, suitable for programs with no input accou
 
 			msg := &types.MsgExecuteProgram{
 				Sender:    clientCtx.GetFromAddress().String(),
-				ProgramID: programID,
+				ProgramID: types.Bytes32(programID),
 				Data:      data,
 			}
 
@@ -164,7 +164,7 @@ The lamports argument is the number of lamports to fund the account with.`,
 
 			msg := &types.MsgCreateAccount{
 				Sender:   clientCtx.GetFromAddress().String(),
-				Owner:    owner,
+				Owner:    types.Bytes32(owner),
 				Space:    space,
 				Lamports: lamports,
 			}
