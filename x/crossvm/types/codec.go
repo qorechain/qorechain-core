@@ -3,15 +3,15 @@ package types
 import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 // RegisterInterfaces registers the crossvm module's interface types.
-// MsgCrossVMCall and MsgProcessQueue are registered as amino concrete types
-// below. Full protobuf interface registration (sdk.Msg implementations) will
-// be added once .proto code generation is in place.
-func RegisterInterfaces(_ codectypes.InterfaceRegistry) {
-	// No proto-generated sdk.Msg implementations yet; amino registration
-	// in RegisterLegacyAminoCodec covers JSON/amino serialization paths.
+func RegisterInterfaces(reg codectypes.InterfaceRegistry) {
+	reg.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgCrossVMCall{},
+		&MsgProcessQueue{},
+	)
 }
 
 // RegisterLegacyAminoCodec registers the crossvm module's types with the legacy amino codec.

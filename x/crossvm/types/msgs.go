@@ -6,17 +6,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// MsgCrossVMCall triggers a cross-VM contract call.
-// This type will be promoted to a proper sdk.Msg (with proto.Message)
-// once protobuf definitions are generated.
-type MsgCrossVMCall struct {
-	Sender         string    `json:"sender"`
-	SourceVM       VMType    `json:"source_vm"`
-	TargetVM       VMType    `json:"target_vm"`
-	TargetContract string    `json:"target_contract"`
-	Payload        []byte    `json:"payload"`
-	Funds          sdk.Coins `json:"funds"`
-}
+// MsgCrossVMCall and MsgProcessQueue are generated from
+// proto/qorechain/crossvm/v1/tx.proto (see tx.pb.go). The ValidateBasic
+// methods below are attached to those generated types.
 
 func (m *MsgCrossVMCall) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
@@ -41,13 +33,6 @@ func (m *MsgCrossVMCall) ValidateBasic() error {
 		return errorsmod.Wrap(ErrInvalidMessage, "invalid funds")
 	}
 	return nil
-}
-
-// MsgProcessQueue triggers processing of the pending cross-VM message queue.
-// This is typically called by the module's EndBlocker automatically,
-// but can also be triggered manually by an authorized account.
-type MsgProcessQueue struct {
-	Authority string `json:"authority"`
 }
 
 func (m *MsgProcessQueue) ValidateBasic() error {
