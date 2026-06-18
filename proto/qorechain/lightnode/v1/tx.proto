@@ -1,0 +1,44 @@
+syntax = "proto3";
+package qorechain.lightnode.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/lightnode/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+
+// Msg defines the lightnode module's transaction service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc RegisterLightNode(MsgRegisterLightNode) returns (MsgRegisterLightNodeResponse);
+  rpc Heartbeat(MsgHeartbeat) returns (MsgHeartbeatResponse);
+  rpc DeregisterLightNode(MsgDeregisterLightNode) returns (MsgDeregisterLightNodeResponse);
+  rpc ClaimLightNodeRewards(MsgClaimLightNodeRewards) returns (MsgClaimLightNodeRewardsResponse);
+}
+
+message MsgRegisterLightNode {
+  option (cosmos.msg.v1.signer) = "operator";
+  string operator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string node_type = 2;
+  string version = 3;
+  repeated string capabilities = 4;
+}
+message MsgRegisterLightNodeResponse {}
+
+message MsgHeartbeat {
+  option (cosmos.msg.v1.signer) = "operator";
+  string operator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+message MsgHeartbeatResponse {}
+
+message MsgDeregisterLightNode {
+  option (cosmos.msg.v1.signer) = "operator";
+  string operator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+message MsgDeregisterLightNodeResponse {}
+
+message MsgClaimLightNodeRewards {
+  option (cosmos.msg.v1.signer) = "operator";
+  string operator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+message MsgClaimLightNodeRewardsResponse {}

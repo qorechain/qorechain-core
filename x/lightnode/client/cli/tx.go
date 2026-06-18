@@ -1,9 +1,13 @@
 package cli
 
 import (
+	"strings"
+
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/client/tx"
 
 	"github.com/qorechain/qorechain-core/x/lightnode/types"
 )
@@ -36,10 +40,22 @@ func CmdRegister() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-			return cmd.Help()
+			capsCSV, _ := cmd.Flags().GetString("capabilities")
+			var caps []string
+			if capsCSV != "" {
+				caps = strings.Split(capsCSV, ",")
+			}
+			msg := &types.MsgRegisterLightNode{
+				Operator:     clientCtx.GetFromAddress().String(),
+				NodeType:     args[0],
+				Version:      args[1],
+				Capabilities: caps,
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
+	cmd.Flags().String("capabilities", "", "comma-separated capability list")
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -53,10 +69,11 @@ func CmdHeartbeat() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-			return cmd.Help()
+			msg := &types.MsgHeartbeat{Operator: clientCtx.GetFromAddress().String()}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -70,10 +87,11 @@ func CmdDeregister() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-			return cmd.Help()
+			msg := &types.MsgDeregisterLightNode{Operator: clientCtx.GetFromAddress().String()}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -87,9 +105,10 @@ func CmdClaimRewards() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-			return cmd.Help()
+			msg := &types.MsgClaimLightNodeRewards{Operator: clientCtx.GetFromAddress().String()}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }

@@ -4,6 +4,12 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+// MsgRegisterLightNode, MsgHeartbeat, MsgDeregisterLightNode and
+// MsgClaimLightNodeRewards are generated from
+// proto/qorechain/lightnode/v1/tx.proto (see tx.pb.go). MsgUpdateLightNodeParams
+// remains hand-written (embeds Params; migrated to proto in a later pass).
+// The methods below are attached to the generated message types.
+
 // Message type constants.
 const (
 	TypeMsgRegisterLightNode     = "register_light_node"
@@ -12,14 +18,6 @@ const (
 	TypeMsgClaimLightNodeRewards = "claim_light_node_rewards"
 	TypeMsgUpdateLightNodeParams = "update_light_node_params"
 )
-
-// MsgRegisterLightNode registers a new light node on the network.
-type MsgRegisterLightNode struct {
-	Operator     string   `json:"operator"`
-	NodeType     string   `json:"node_type"`
-	Version      string   `json:"version"`
-	Capabilities []string `json:"capabilities"`
-}
 
 func (msg MsgRegisterLightNode) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Operator); err != nil {
@@ -42,11 +40,6 @@ func (msg MsgRegisterLightNode) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-// MsgHeartbeat submits a liveness heartbeat for a registered light node.
-type MsgHeartbeat struct {
-	Operator string `json:"operator"`
-}
-
 func (msg MsgHeartbeat) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Operator); err != nil {
 		return err
@@ -62,11 +55,6 @@ func (msg MsgHeartbeat) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-// MsgDeregisterLightNode removes a light node from the registry.
-type MsgDeregisterLightNode struct {
-	Operator string `json:"operator"`
-}
-
 func (msg MsgDeregisterLightNode) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Operator); err != nil {
 		return err
@@ -80,11 +68,6 @@ func (msg MsgDeregisterLightNode) GetSigners() []sdk.AccAddress {
 		return nil
 	}
 	return []sdk.AccAddress{addr}
-}
-
-// MsgClaimLightNodeRewards claims accumulated rewards for a light node.
-type MsgClaimLightNodeRewards struct {
-	Operator string `json:"operator"`
 }
 
 func (msg MsgClaimLightNodeRewards) ValidateBasic() error {
