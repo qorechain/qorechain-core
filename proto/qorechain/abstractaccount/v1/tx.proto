@@ -1,0 +1,42 @@
+syntax = "proto3";
+package qorechain.abstractaccount.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/abstractaccount/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+// SpendingRule defines spending limits for an abstract account.
+message SpendingRule {
+  string id = 1 [(gogoproto.customname) = "ID"];
+  int64 daily_limit = 2;
+  int64 per_tx_limit = 3;
+  repeated string allowed_denoms = 4;
+  bool enabled = 5;
+}
+
+// Msg defines the abstractaccount module's transaction service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc CreateAbstractAccount(MsgCreateAbstractAccount) returns (MsgCreateAbstractAccountResponse);
+  rpc UpdateSpendingRules(MsgUpdateSpendingRules) returns (MsgUpdateSpendingRulesResponse);
+}
+
+message MsgCreateAbstractAccount {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string account_type = 2;
+}
+message MsgCreateAbstractAccountResponse {
+  string address = 1;
+}
+
+message MsgUpdateSpendingRules {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string account_address = 2;
+  repeated SpendingRule rules = 3 [(gogoproto.nullable) = false];
+}
+message MsgUpdateSpendingRulesResponse {}

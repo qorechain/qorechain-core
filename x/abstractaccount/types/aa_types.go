@@ -54,14 +54,8 @@ type AbstractAccount struct {
 	Owner           string         `json:"owner"`
 }
 
-// SpendingRule defines spending limits for an abstract account.
-type SpendingRule struct {
-	ID            string   `json:"id"`
-	DailyLimit    int64    `json:"daily_limit"`    // in base denom units
-	PerTxLimit    int64    `json:"per_tx_limit"`   // in base denom units
-	AllowedDenoms []string `json:"allowed_denoms"` // empty = all denoms
-	Enabled       bool     `json:"enabled"`
-}
+// SpendingRule is generated from proto/qorechain/abstractaccount/v1/tx.proto
+// (see tx.pb.go). AbstractAccount.SpendingRules references the generated type.
 
 // SessionKey represents a temporary key with limited permissions.
 type SessionKey struct {

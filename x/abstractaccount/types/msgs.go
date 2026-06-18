@@ -6,11 +6,9 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// MsgCreateAbstractAccount creates a new abstract account.
-type MsgCreateAbstractAccount struct {
-	Owner       string `json:"owner"`
-	AccountType string `json:"account_type"` // multisig, social_recovery, session_based
-}
+// MsgCreateAbstractAccount and MsgUpdateSpendingRules are generated from
+// proto/qorechain/abstractaccount/v1/tx.proto (see tx.pb.go). The methods
+// below are attached to those generated types.
 
 func (msg MsgCreateAbstractAccount) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Owner); err != nil {
@@ -18,11 +16,10 @@ func (msg MsgCreateAbstractAccount) ValidateBasic() error {
 	}
 	switch msg.AccountType {
 	case "multisig", "social_recovery", "session_based":
-		// valid
+		return nil
 	default:
 		return fmt.Errorf("invalid account type: %s", msg.AccountType)
 	}
-	return nil
 }
 
 func (msg MsgCreateAbstractAccount) GetSigners() []sdk.AccAddress {
@@ -31,13 +28,6 @@ func (msg MsgCreateAbstractAccount) GetSigners() []sdk.AccAddress {
 		return nil
 	}
 	return []sdk.AccAddress{addr}
-}
-
-// MsgUpdateSpendingRules updates spending rules for an abstract account.
-type MsgUpdateSpendingRules struct {
-	Owner          string         `json:"owner"`
-	AccountAddress string         `json:"account_address"`
-	Rules          []SpendingRule `json:"rules"`
 }
 
 func (msg MsgUpdateSpendingRules) ValidateBasic() error {
