@@ -3,9 +3,14 @@ package types
 import (
 	"fmt"
 
-	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
+
+// The MsgBridgeDeposit, MsgBridgeWithdraw, MsgRegisterBridgeValidator and
+// MsgBridgeAttestation structs are generated from
+// proto/qorechain/bridge/v1/tx.proto (see tx.pb.go). The ValidateBasic,
+// GetSigners and GetSignBytes methods below are attached to those generated
+// types.
 
 // Message type constants.
 const (
@@ -14,17 +19,6 @@ const (
 	TypeMsgRegisterBridgeValidator = "register_bridge_validator"
 	TypeMsgBridgeAttestation       = "bridge_attestation"
 )
-
-// MsgBridgeDeposit initiates a deposit from an external chain.
-type MsgBridgeDeposit struct {
-	Sender              string `json:"sender"`
-	SourceChain         string `json:"source_chain"`
-	SourceTxHash        string `json:"source_tx_hash"`
-	Asset               string `json:"asset"`
-	Amount              string `json:"amount"`
-	BridgeValidatorSigs []byte `json:"bridge_validator_sigs"`
-	PQCCommitment       []byte `json:"pqc_commitment"`
-}
 
 func (msg MsgBridgeDeposit) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Sender); err != nil {
@@ -54,18 +48,9 @@ func (msg MsgBridgeDeposit) ValidateBasic() error {
 func (msg MsgBridgeDeposit) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.Sender)
 	if err != nil {
-		return nil // ValidateBasic should catch this first
+		return nil
 	}
 	return []sdk.AccAddress{addr}
-}
-
-// MsgBridgeWithdraw initiates a withdrawal to an external chain.
-type MsgBridgeWithdraw struct {
-	Sender             string `json:"sender"`
-	DestinationChain   string `json:"destination_chain"`
-	DestinationAddress string `json:"destination_address"`
-	Asset              string `json:"asset"`
-	Amount             string `json:"amount"`
 }
 
 func (msg MsgBridgeWithdraw) ValidateBasic() error {
@@ -93,16 +78,9 @@ func (msg MsgBridgeWithdraw) ValidateBasic() error {
 func (msg MsgBridgeWithdraw) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.Sender)
 	if err != nil {
-		return nil // ValidateBasic should catch this first
+		return nil
 	}
 	return []sdk.AccAddress{addr}
-}
-
-// MsgRegisterBridgeValidator registers a validator for bridge operations.
-type MsgRegisterBridgeValidator struct {
-	ValidatorAddress string   `json:"validator_address"`
-	PQCPubkey        []byte   `json:"pqc_pubkey"`
-	SupportedChains  []string `json:"supported_chains"`
 }
 
 func (msg MsgRegisterBridgeValidator) ValidateBasic() error {
@@ -124,22 +102,9 @@ func (msg MsgRegisterBridgeValidator) ValidateBasic() error {
 func (msg MsgRegisterBridgeValidator) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.ValidatorAddress)
 	if err != nil {
-		return nil // ValidateBasic should catch this first
+		return nil
 	}
 	return []sdk.AccAddress{addr}
-}
-
-// MsgBridgeAttestation submits a validator attestation for a bridge event.
-type MsgBridgeAttestation struct {
-	Validator    string      `json:"validator"`
-	Chain        string      `json:"chain"`
-	EventType    string      `json:"event_type"` // "deposit" | "withdrawal_complete"
-	OperationID  string      `json:"operation_id"`
-	TxHash       string      `json:"tx_hash"`
-	Amount       sdkmath.Int `json:"amount"`
-	Asset        string      `json:"asset"`
-	Proof        []byte      `json:"proof"`
-	PQCSignature []byte      `json:"pqc_signature"`
 }
 
 func (msg MsgBridgeAttestation) ValidateBasic() error {
@@ -161,7 +126,7 @@ func (msg MsgBridgeAttestation) ValidateBasic() error {
 func (msg MsgBridgeAttestation) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.Validator)
 	if err != nil {
-		return nil // ValidateBasic should catch this first
+		return nil
 	}
 	return []sdk.AccAddress{addr}
 }

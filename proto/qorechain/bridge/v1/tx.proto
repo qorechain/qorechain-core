@@ -1,0 +1,73 @@
+syntax = "proto3";
+package qorechain.bridge.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/bridge/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+// Msg defines the bridge module's transaction service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // BridgeDeposit credits assets bridged in from a source chain.
+  rpc BridgeDeposit(MsgBridgeDeposit) returns (MsgBridgeDepositResponse);
+
+  // BridgeWithdraw initiates a withdrawal to a destination chain.
+  rpc BridgeWithdraw(MsgBridgeWithdraw) returns (MsgBridgeWithdrawResponse);
+
+  // RegisterBridgeValidator registers a validator for bridge attestation duty.
+  rpc RegisterBridgeValidator(MsgRegisterBridgeValidator) returns (MsgRegisterBridgeValidatorResponse);
+
+  // BridgeAttestation submits a validator attestation for a bridge operation.
+  rpc BridgeAttestation(MsgBridgeAttestation) returns (MsgBridgeAttestationResponse);
+}
+
+message MsgBridgeDeposit {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string source_chain = 2;
+  string source_tx_hash = 3;
+  string asset = 4;
+  string amount = 5;
+  bytes bridge_validator_sigs = 6;
+  bytes pqc_commitment = 7 [(gogoproto.customname) = "PQCCommitment"];
+}
+message MsgBridgeDepositResponse {}
+
+message MsgBridgeWithdraw {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string destination_chain = 2;
+  string destination_address = 3;
+  string asset = 4;
+  string amount = 5;
+}
+message MsgBridgeWithdrawResponse {}
+
+message MsgRegisterBridgeValidator {
+  option (cosmos.msg.v1.signer) = "validator_address";
+
+  string validator_address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes pqc_pubkey = 2 [(gogoproto.customname) = "PQCPubkey"];
+  repeated string supported_chains = 3;
+}
+message MsgRegisterBridgeValidatorResponse {}
+
+message MsgBridgeAttestation {
+  option (cosmos.msg.v1.signer) = "validator";
+
+  string validator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string chain = 2;
+  string event_type = 3;
+  string operation_id = 4 [(gogoproto.customname) = "OperationID"];
+  string tx_hash = 5;
+  string amount = 6 [(gogoproto.customtype) = "cosmossdk.io/math.Int", (gogoproto.nullable) = false];
+  string asset = 7;
+  bytes proof = 8;
+  bytes pqc_signature = 9 [(gogoproto.customname) = "PQCSignature"];
+}
+message MsgBridgeAttestationResponse {}
