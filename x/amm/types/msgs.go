@@ -4,71 +4,14 @@ import (
 	"fmt"
 
 	sdkerrors "cosmossdk.io/errors"
-	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// AMM message types. Wire-level representation lives in proto/qorechain/amm/v1
-// — these Go structs are the canonical types used by the keeper, ante
-// handler, and CLI.
-
-// MsgCreatePool creates a new liquidity pool.
-type MsgCreatePool struct {
-	Creator                  string   `json:"creator"` // bech32
-	PoolType                 PoolType `json:"pool_type"`
-	InitialDepositA          sdk.Coin `json:"initial_deposit_a"`
-	InitialDepositB          sdk.Coin `json:"initial_deposit_b"`
-	AmplificationCoefficient uint32   `json:"amplification_coefficient,omitempty"`
-}
-
-// MsgAddLiquidity adds proportional liquidity to an existing pool.
-type MsgAddLiquidity struct {
-	Sender   string   `json:"sender"`
-	PoolID   uint64   `json:"pool_id"`
-	AmountA  sdk.Coin `json:"amount_a"`
-	AmountB  sdk.Coin `json:"amount_b"`
-	MinLPOut math.Int `json:"min_lp_out"`
-}
-
-// MsgRemoveLiquidity burns LP tokens and returns proportional reserves.
-type MsgRemoveLiquidity struct {
-	Sender     string   `json:"sender"`
-	PoolID     uint64   `json:"pool_id"`
-	LPAmount   math.Int `json:"lp_amount"`
-	MinAmountA math.Int `json:"min_amount_a"`
-	MinAmountB math.Int `json:"min_amount_b"`
-}
-
-// MsgSwapExactIn swaps a fixed input amount and enforces a minimum output.
-type MsgSwapExactIn struct {
-	Sender   string   `json:"sender"`
-	PoolID   uint64   `json:"pool_id"`
-	TokenIn  sdk.Coin `json:"token_in"`
-	DenomOut string   `json:"denom_out"`
-	MinOut   math.Int `json:"min_out"`
-}
-
-// MsgSwapExactOut swaps to a fixed output amount and enforces a maximum input.
-type MsgSwapExactOut struct {
-	Sender   string   `json:"sender"`
-	PoolID   uint64   `json:"pool_id"`
-	DenomIn  string   `json:"denom_in"`
-	TokenOut sdk.Coin `json:"token_out"`
-	MaxIn    math.Int `json:"max_in"`
-}
-
-// MsgPausePool toggles a pool to PoolStatusPaused. Gov-only.
-type MsgPausePool struct {
-	Authority string `json:"authority"`
-	PoolID    uint64 `json:"pool_id"`
-	Reason    string `json:"reason,omitempty"`
-}
-
-// MsgResumePool clears the paused flag. Gov-only.
-type MsgResumePool struct {
-	Authority string `json:"authority"`
-	PoolID    uint64 `json:"pool_id"`
-}
+// MsgCreatePool, MsgAddLiquidity, MsgRemoveLiquidity, MsgSwapExactIn,
+// MsgSwapExactOut, MsgPausePool and MsgResumePool are generated from
+// proto/qorechain/amm/v1/tx.proto (see tx.pb.go). MsgSetParams remains
+// hand-written (embeds Params; migrated to proto in a later pass). The
+// ValidateBasic / GetSigners methods below are attached to the generated types.
 
 // MsgSetParams updates module Params. Gov-only.
 type MsgSetParams struct {

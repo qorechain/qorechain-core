@@ -1,0 +1,85 @@
+syntax = "proto3";
+package qorechain.amm.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/amm/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "cosmos/base/v1beta1/coin.proto";
+import "gogoproto/gogo.proto";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+  rpc CreatePool(MsgCreatePool) returns (MsgCreatePoolResponse);
+  rpc AddLiquidity(MsgAddLiquidity) returns (MsgAddLiquidityResponse);
+  rpc RemoveLiquidity(MsgRemoveLiquidity) returns (MsgRemoveLiquidityResponse);
+  rpc SwapExactIn(MsgSwapExactIn) returns (MsgSwapExactInResponse);
+  rpc SwapExactOut(MsgSwapExactOut) returns (MsgSwapExactOutResponse);
+  rpc PausePool(MsgPausePool) returns (MsgPausePoolResponse);
+  rpc ResumePool(MsgResumePool) returns (MsgResumePoolResponse);
+}
+
+message MsgCreatePool {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string pool_type = 2 [(gogoproto.casttype) = "PoolType"];
+  cosmos.base.v1beta1.Coin initial_deposit_a = 3 [(gogoproto.nullable) = false];
+  cosmos.base.v1beta1.Coin initial_deposit_b = 4 [(gogoproto.nullable) = false];
+  uint32 amplification_coefficient = 5;
+}
+message MsgCreatePoolResponse { uint64 pool_id = 1 [(gogoproto.customname) = "PoolID"]; }
+
+message MsgAddLiquidity {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 pool_id = 2 [(gogoproto.customname) = "PoolID"];
+  cosmos.base.v1beta1.Coin amount_a = 3 [(gogoproto.nullable) = false];
+  cosmos.base.v1beta1.Coin amount_b = 4 [(gogoproto.nullable) = false];
+  string min_lp_out = 5 [(gogoproto.customtype) = "cosmossdk.io/math.Int", (gogoproto.nullable) = false, (gogoproto.customname) = "MinLPOut"];
+}
+message MsgAddLiquidityResponse {}
+
+message MsgRemoveLiquidity {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 pool_id = 2 [(gogoproto.customname) = "PoolID"];
+  string lp_amount = 3 [(gogoproto.customtype) = "cosmossdk.io/math.Int", (gogoproto.nullable) = false, (gogoproto.customname) = "LPAmount"];
+  string min_amount_a = 4 [(gogoproto.customtype) = "cosmossdk.io/math.Int", (gogoproto.nullable) = false];
+  string min_amount_b = 5 [(gogoproto.customtype) = "cosmossdk.io/math.Int", (gogoproto.nullable) = false];
+}
+message MsgRemoveLiquidityResponse {}
+
+message MsgSwapExactIn {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 pool_id = 2 [(gogoproto.customname) = "PoolID"];
+  cosmos.base.v1beta1.Coin token_in = 3 [(gogoproto.nullable) = false];
+  string denom_out = 4;
+  string min_out = 5 [(gogoproto.customtype) = "cosmossdk.io/math.Int", (gogoproto.nullable) = false];
+}
+message MsgSwapExactInResponse {}
+
+message MsgSwapExactOut {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 pool_id = 2 [(gogoproto.customname) = "PoolID"];
+  string denom_in = 3;
+  cosmos.base.v1beta1.Coin token_out = 4 [(gogoproto.nullable) = false];
+  string max_in = 5 [(gogoproto.customtype) = "cosmossdk.io/math.Int", (gogoproto.nullable) = false];
+}
+message MsgSwapExactOutResponse {}
+
+message MsgPausePool {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 pool_id = 2 [(gogoproto.customname) = "PoolID"];
+  string reason = 3;
+}
+message MsgPausePoolResponse {}
+
+message MsgResumePool {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 pool_id = 2 [(gogoproto.customname) = "PoolID"];
+}
+message MsgResumePoolResponse {}

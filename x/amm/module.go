@@ -30,10 +30,16 @@ func (AppModuleBasic) Name() string { return ammtypes.ModuleName }
 
 func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
-func (AppModuleBasic) RegisterInterfaces(_ cdctypes.InterfaceRegistry) {
-	// Proto-derived registrations land here once proto stubs are generated;
-	// keep empty so the chain still boots from genesis with the JSON wire
-	// types defined in x/amm/types.
+func (AppModuleBasic) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {
+	reg.RegisterImplementations((*sdk.Msg)(nil),
+		&ammtypes.MsgCreatePool{},
+		&ammtypes.MsgAddLiquidity{},
+		&ammtypes.MsgRemoveLiquidity{},
+		&ammtypes.MsgSwapExactIn{},
+		&ammtypes.MsgSwapExactOut{},
+		&ammtypes.MsgPausePool{},
+		&ammtypes.MsgResumePool{},
+	)
 }
 
 func (AppModuleBasic) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
@@ -72,7 +78,11 @@ func (AppModule) IsOnePerModuleType() {}
 func (am AppModule) Name() string                               { return ammtypes.ModuleName }
 func (am AppModule) RegisterInvariants(_ sdk.InvariantRegistry) {}
 func (am AppModule) QuerierRoute() string                       { return ammtypes.QuerierRoute }
-func (am AppModule) RegisterServices(_ module.Configurator)     {}
+func (am AppModule) RegisterServices(cfg module.Configurator) {
+	if am.keeper != nil {
+		ammtypes.RegisterMsgServer(cfg.MsgServer(), NewMsgServer(am.keeper))
+	}
+}
 func (am AppModule) ConsensusVersion() uint64                   { return ConsensusVersion }
 
 // InitGenesis loads the AMM module state from genesis JSON.
