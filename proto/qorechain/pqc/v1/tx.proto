@@ -1,0 +1,86 @@
+syntax = "proto3";
+package qorechain.pqc.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/pqc/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+// Msg defines the PQC module's transaction service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // RegisterPQCKey registers a PQC keypair for an account (legacy v1, defaults to Dilithium-5).
+  rpc RegisterPQCKey(MsgRegisterPQCKey) returns (MsgRegisterPQCKeyResponse);
+
+  // RegisterPQCKeyV2 registers a PQC key with explicit algorithm selection.
+  rpc RegisterPQCKeyV2(MsgRegisterPQCKeyV2) returns (MsgRegisterPQCKeyV2Response);
+
+  // MigratePQCKey migrates an account's PQC key from one algorithm to another.
+  rpc MigratePQCKey(MsgMigratePQCKey) returns (MsgMigratePQCKeyResponse);
+
+  // DeprecateAlgorithm starts the migration period for an algorithm (governance).
+  rpc DeprecateAlgorithm(MsgDeprecateAlgorithm) returns (MsgDeprecateAlgorithmResponse);
+
+  // DisableAlgorithm emergency-disables an algorithm (governance).
+  rpc DisableAlgorithm(MsgDisableAlgorithm) returns (MsgDisableAlgorithmResponse);
+}
+
+// MsgRegisterPQCKey registers a PQC keypair for an account.
+// Deprecated: use MsgRegisterPQCKeyV2 which includes algorithm_id.
+message MsgRegisterPQCKey {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes dilithium_pubkey = 2;
+  bytes ecdsa_pubkey = 3 [(gogoproto.customname) = "ECDSAPubkey"];
+  string key_type = 4;
+}
+message MsgRegisterPQCKeyResponse {}
+
+// MsgRegisterPQCKeyV2 registers a PQC key with explicit algorithm selection.
+message MsgRegisterPQCKeyV2 {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes public_key = 2;
+  uint32 algorithm_id = 3 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "AlgorithmID"];
+  bytes ecdsa_pubkey = 4 [(gogoproto.customname) = "ECDSAPubkey"];
+  string key_type = 5;
+}
+message MsgRegisterPQCKeyV2Response {}
+
+// MsgMigratePQCKey migrates an account's PQC key, proving ownership of both keys.
+message MsgMigratePQCKey {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes old_public_key = 2;
+  bytes new_public_key = 3;
+  uint32 new_algorithm_id = 4 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "NewAlgorithmID"];
+  bytes old_signature = 5;
+  bytes new_signature = 6;
+}
+message MsgMigratePQCKeyResponse {}
+
+// MsgDeprecateAlgorithm proposes deprecating an algorithm (starts migration period).
+message MsgDeprecateAlgorithm {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint32 algorithm_id = 2 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "AlgorithmID"];
+  int64 migration_blocks = 3;
+  uint32 replacement_algorithm_id = 4 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "ReplacementAlgID"];
+}
+message MsgDeprecateAlgorithmResponse {}
+
+// MsgDisableAlgorithm emergency-disables an algorithm (e.g., vulnerability discovered).
+message MsgDisableAlgorithm {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint32 algorithm_id = 2 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "AlgorithmID"];
+  string reason = 3;
+}
+message MsgDisableAlgorithmResponse {}

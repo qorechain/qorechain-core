@@ -1,0 +1,7 @@
+version: v2
+plugins:
+  - local: protoc-gen-gocosmos
+    out: .
+    opt:
+      - plugins=grpc
+      - Mgoogle/protobuf/any.proto=github.com/cosmos/gogoproto/types/any
