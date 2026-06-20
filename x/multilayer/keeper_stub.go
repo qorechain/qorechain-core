@@ -68,10 +68,8 @@ func (k *StubKeeper) ChallengeAnchor(_ sdk.Context, _ *types.MsgChallengeAnchor)
 func (k *StubKeeper) RouteTransaction(_ sdk.Context, _ *types.MsgRouteTransaction) (*types.MsgRouteTransactionResponse, error) {
 	// In stub mode, all transactions stay on main chain
 	return &types.MsgRouteTransactionResponse{
-		Decision: &types.RoutingDecision{
-			SelectedLayer: "main",
-			Reason:        "multi-layer routing requires full build; defaulting to main chain",
-		},
+		SelectedLayer: "main",
+		Reason:        "multi-layer routing requires full build; defaulting to main chain",
 	}, nil
 }
 
