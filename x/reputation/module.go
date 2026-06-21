@@ -24,9 +24,15 @@ import (
 var (
 	_ module.AppModuleBasic   = AppModuleBasic{}
 	_ module.HasGenesis       = AppModule{}
+	_ module.HasServices      = AppModule{}
 	_ appmodule.AppModule     = AppModule{}
 	_ appmodule.HasEndBlocker = AppModule{}
 )
+
+// RegisterServices registers the reputation gRPC query service.
+func (am AppModule) RegisterServices(cfg module.Configurator) {
+	types.RegisterQueryServer(cfg.QueryServer(), keeper.NewQueryServer(am.keeper))
+}
 
 type AppModuleBasic struct{}
 

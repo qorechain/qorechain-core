@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 
 	"github.com/qorechain/qorechain-core/x/rlconsensus/types"
 )
@@ -42,14 +43,16 @@ func GetCmdQueryAgentStatus() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			fmt.Println("Query agent status")
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
-			return nil
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.AgentStatus(cmd.Context(), &types.QueryAgentStatusRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -111,14 +114,16 @@ func GetCmdQueryParams() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			fmt.Println("Query module params")
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
-			return nil
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 

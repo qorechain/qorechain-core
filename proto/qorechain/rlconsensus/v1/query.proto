@@ -1,0 +1,46 @@
+syntax = "proto3";
+package qorechain.rlconsensus.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/rlconsensus/types";
+
+import "gogoproto/gogo.proto";
+
+// Query defines the rlconsensus module's gRPC query service.
+service Query {
+  // AgentStatus returns the live RL agent status (epoch, steps, mode).
+  rpc AgentStatus(QueryAgentStatusRequest) returns (QueryAgentStatusResponse);
+  // Params returns the rlconsensus module parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+}
+
+message QueryAgentStatusRequest {}
+message QueryAgentStatusResponse {
+  string mode = 1;
+  uint64 current_epoch = 2;
+  uint64 total_steps = 3;
+  int64 last_observation_at = 4;
+  int64 last_action_at = 5;
+  bool circuit_breaker_active = 6;
+  int64 blocks_since_revert = 7;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse {
+  bool enabled = 1;
+  uint64 observation_interval = 2;
+  string agent_mode = 3;
+  string max_change_conservative = 4;
+  string max_change_autonomous = 5;
+  uint64 circuit_breaker_window = 6;
+  string circuit_breaker_threshold = 7;
+  // Reward weights (flattened to avoid clashing with the hand-written
+  // types.RewardWeights struct used in genesis state).
+  string reward_weight_throughput = 8;
+  string reward_weight_finality = 9;
+  string reward_weight_decentralization = 10;
+  string reward_weight_mev = 11 [(gogoproto.customname) = "RewardWeightMEV"];
+  string reward_weight_failed_txs = 12;
+  int64 default_block_time_ms = 13;
+  string default_base_gas_price = 14;
+  uint64 default_validator_set_size = 15;
+}

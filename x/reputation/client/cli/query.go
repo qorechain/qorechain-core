@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -30,26 +27,19 @@ func GetQueryCmd() *cobra.Command {
 func CmdQueryParams() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "params",
-		Short: "Query the current reputation module parameters",
+		Short: "Query the current reputation formula weights (alpha/beta/gamma/delta/lambda/min_score)",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-
-			route := fmt.Sprintf("custom/%s/params", types.ModuleName)
-			resBz, _, err := clientCtx.QueryWithData(route, nil)
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.Params(cmd.Context(), &types.QueryParamsRequest{})
 			if err != nil {
 				return err
 			}
-
-			var params types.ReputationParams
-			if err := json.Unmarshal(resBz, &params); err != nil {
-				return fmt.Errorf("failed to unmarshal params: %w", err)
-			}
-
-			return clientCtx.PrintObjectLegacy(params)
+			return clientCtx.PrintProto(res)
 		},
 	}
 	flags.AddQueryFlagsToCmd(cmd)

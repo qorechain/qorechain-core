@@ -1,0 +1,20 @@
+syntax = "proto3";
+package qorechain.reputation.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/reputation/types";
+
+// Query defines the reputation module's gRPC query service.
+service Query {
+  // Params returns the reputation formula weights (R_i = α·S_i + β·P_i + γ·C_i + δ·T_i).
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse {
+  string alpha = 1;
+  string beta = 2;
+  string gamma = 3;
+  string delta = 4;
+  string lambda = 5;
+  string min_score = 6;
+}

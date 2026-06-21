@@ -1,0 +1,41 @@
+syntax = "proto3";
+package qorechain.qca.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/qca/types";
+
+// Query defines the qca module's gRPC query service.
+service Query {
+  // Config returns the live QCA consensus configuration (pool, bonding curve,
+  // slashing and QDRW sub-configs flattened).
+  rpc Config(QueryConfigRequest) returns (QueryConfigResponse);
+}
+
+message QueryConfigRequest {}
+message QueryConfigResponse {
+  bool use_reputation_weighting = 1;
+  double min_reputation_score = 2;
+
+  // PoolConfig
+  uint64 pool_classification_interval = 3;
+  string pool_weight_rpos = 4;
+  string pool_weight_dpos = 5;
+  uint64 pool_min_delegation_dpos = 6;
+  uint64 pool_rep_percentile_rpos = 7;
+
+  // BondingCurveConfig
+  string bonding_alpha = 8;
+  string bonding_beta = 9;
+  string bonding_phase_multiplier = 10;
+
+  // SlashingConfig
+  string slashing_base_rate = 11;
+  string slashing_escalation_factor = 12;
+  string slashing_max_penalty = 13;
+  uint64 slashing_decay_halflife = 14;
+
+  // QDRWConfig
+  bool qdrw_enabled = 15;
+  string qdrw_xqore_multiplier = 16;
+  string qdrw_rep_min_multiplier = 17;
+  string qdrw_rep_max_multiplier = 18;
+}
