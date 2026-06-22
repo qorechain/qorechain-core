@@ -1,0 +1,54 @@
+syntax = "proto3";
+package qorechain.rlconsensus.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/rlconsensus/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "gogoproto/gogo.proto";
+
+// Msg defines the rlconsensus module's governance-authority transactions.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // SetAgentMode changes the RL agent operating mode (shadow/conservative/autonomous/paused).
+  rpc SetAgentMode(MsgSetAgentMode) returns (MsgSetAgentModeResponse);
+  // ResumeAgent resumes the agent from paused back to shadow mode.
+  rpc ResumeAgent(MsgResumeAgent) returns (MsgResumeAgentResponse);
+  // UpdatePolicy replaces the policy network weights (passed as JSON).
+  rpc UpdatePolicy(MsgUpdatePolicy) returns (MsgUpdatePolicyResponse);
+  // UpdateRewardWeights changes the reward function weighting.
+  rpc UpdateRewardWeights(MsgUpdateRewardWeights) returns (MsgUpdateRewardWeightsResponse);
+}
+
+message MsgSetAgentMode {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  // mode cast to the named AgentMode (uint8) Go type.
+  uint32 mode = 2 [(gogoproto.casttype) = "AgentMode", (gogoproto.customname) = "Mode"];
+}
+message MsgSetAgentModeResponse {}
+
+message MsgResumeAgent {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+}
+message MsgResumeAgentResponse {}
+
+message MsgUpdatePolicy {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  // JSON-encoded types.PolicyWeights (epoch + MLP config + weight vector).
+  string weights_json = 2;
+}
+message MsgUpdatePolicyResponse {}
+
+message MsgUpdateRewardWeights {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  string throughput = 2;
+  string finality = 3;
+  string decentralization = 4;
+  string mev = 5 [(gogoproto.customname) = "MEV"];
+  string failed_txs = 6;
+}
+message MsgUpdateRewardWeightsResponse {}

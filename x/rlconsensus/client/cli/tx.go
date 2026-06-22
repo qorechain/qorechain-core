@@ -2,11 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
+	"github.com/cosmos/cosmos-sdk/client/tx"
 
 	"github.com/qorechain/qorechain-core/x/rlconsensus/types"
 )
@@ -30,6 +32,22 @@ func GetTxCmd() *cobra.Command {
 	return cmd
 }
 
+// parseAgentMode converts a human-readable mode string to the AgentMode enum.
+func parseAgentMode(s string) (types.AgentMode, error) {
+	switch s {
+	case "shadow":
+		return types.AgentModeShadow, nil
+	case "conservative":
+		return types.AgentModeConservative, nil
+	case "autonomous":
+		return types.AgentModeAutonomous, nil
+	case "paused":
+		return types.AgentModePaused, nil
+	default:
+		return 0, fmt.Errorf("invalid agent mode %q: must be one of shadow, conservative, autonomous, paused", s)
+	}
+}
+
 // GetCmdSetAgentMode returns the command to set the RL agent operating mode.
 func GetCmdSetAgentMode() *cobra.Command {
 	cmd := &cobra.Command{
@@ -48,19 +66,20 @@ Valid modes:
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
-			mode := args[0]
-			switch mode {
-			case "shadow", "conservative", "autonomous", "paused":
-				// valid
-			default:
-				return fmt.Errorf("invalid agent mode %q: must be one of shadow, conservative, autonomous, paused", mode)
+			mode, err := parseAgentMode(args[0])
+			if err != nil {
+				return err
 			}
 
-			fmt.Printf("Setting agent mode to: %s\n", mode)
-			fmt.Println("(Full transaction support will be added with proto definitions)")
-			return nil
+			msg := &types.MsgSetAgentMode{
+				Authority: clientCtx.GetFromAddress().String(),
+				Mode:      mode,
+			}
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 
@@ -80,11 +99,14 @@ func GetCmdResumeAgent() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
-			fmt.Println("Resuming RL agent to shadow mode")
-			fmt.Println("(Full transaction support will be added with proto definitions)")
-			return nil
+			msg := &types.MsgResumeAgent{
+				Authority: clientCtx.GetFromAddress().String(),
+			}
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 
@@ -107,11 +129,20 @@ with epoch, MLP configuration, and the flattened weight vector.`,
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
-			fmt.Printf("Updating policy weights from file: %s\n", args[0])
-			fmt.Println("(Full transaction support will be added with proto definitions)")
-			return nil
+			data, err := os.ReadFile(args[0])
+			if err != nil {
+				return fmt.Errorf("failed to read weights file %q: %w", args[0], err)
+			}
+
+			msg := &types.MsgUpdatePolicy{
+				Authority:   clientCtx.GetFromAddress().String(),
+				WeightsJson: string(data),
+			}
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 
@@ -122,28 +153,35 @@ with epoch, MLP configuration, and the flattened weight vector.`,
 // GetCmdUpdateRewardWeights returns the command to update reward function weights.
 func GetCmdUpdateRewardWeights() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "update-reward-weights [w1] [w2] [w3] [w4] [w5]",
+		Use:   "update-reward-weights [throughput] [finality] [decentralization] [mev] [failed-txs]",
 		Short: "Update the reward function weights",
 		Long: `Update the reward function weights.
 
 Weights are specified as five decimal values that must sum to 1.0:
-  w1 - throughput weight
-  w2 - finality weight
-  w3 - decentralization weight
-  w4 - MEV weight
-  w5 - failed transactions weight`,
+  throughput        - throughput weight
+  finality          - finality weight
+  decentralization  - decentralization weight
+  mev               - MEV weight
+  failed-txs        - failed transactions weight`,
 		Args: cobra.ExactArgs(5),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
 
-			fmt.Printf("Updating reward weights: throughput=%s finality=%s decentralization=%s mev=%s failed_txs=%s\n",
-				args[0], args[1], args[2], args[3], args[4])
-			fmt.Println("(Full transaction support will be added with proto definitions)")
-			return nil
+			msg := &types.MsgUpdateRewardWeights{
+				Authority:        clientCtx.GetFromAddress().String(),
+				Throughput:       args[0],
+				Finality:         args[1],
+				Decentralization: args[2],
+				MEV:              args[3],
+				FailedTxs:        args[4],
+			}
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 

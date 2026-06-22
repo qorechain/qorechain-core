@@ -1,7 +1,7 @@
 package types
 
 import (
-	"fmt"
+	"encoding/json"
 
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -10,12 +10,6 @@ import (
 // ---------------------------------------------------------------------------
 // MsgSetAgentMode
 // ---------------------------------------------------------------------------
-
-// MsgSetAgentMode changes the RL agent's operating mode.
-type MsgSetAgentMode struct {
-	Authority string    `json:"authority"`
-	Mode      AgentMode `json:"mode"`
-}
 
 func (m *MsgSetAgentMode) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
@@ -27,21 +21,14 @@ func (m *MsgSetAgentMode) ValidateBasic() error {
 	return nil
 }
 
-func (m *MsgSetAgentMode) Reset() { *m = MsgSetAgentMode{} }
-func (m *MsgSetAgentMode) String() string {
-	return fmt.Sprintf("MsgSetAgentMode{authority=%s, mode=%s}", m.Authority, m.Mode)
+func (m *MsgSetAgentMode) GetSigners() []sdk.AccAddress {
+	addr, _ := sdk.AccAddressFromBech32(m.Authority)
+	return []sdk.AccAddress{addr}
 }
-func (m *MsgSetAgentMode) ProtoMessage()           {}
-func (m *MsgSetAgentMode) XXX_MessageName() string { return "qorechain.rlconsensus.v1.MsgSetAgentMode" }
 
 // ---------------------------------------------------------------------------
 // MsgResumeAgent
 // ---------------------------------------------------------------------------
-
-// MsgResumeAgent resumes the RL agent from a paused state back to shadow mode.
-type MsgResumeAgent struct {
-	Authority string `json:"authority"`
-}
 
 func (m *MsgResumeAgent) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
@@ -50,65 +37,69 @@ func (m *MsgResumeAgent) ValidateBasic() error {
 	return nil
 }
 
-func (m *MsgResumeAgent) Reset() { *m = MsgResumeAgent{} }
-func (m *MsgResumeAgent) String() string {
-	return fmt.Sprintf("MsgResumeAgent{authority=%s}", m.Authority)
+func (m *MsgResumeAgent) GetSigners() []sdk.AccAddress {
+	addr, _ := sdk.AccAddressFromBech32(m.Authority)
+	return []sdk.AccAddress{addr}
 }
-func (m *MsgResumeAgent) ProtoMessage()           {}
-func (m *MsgResumeAgent) XXX_MessageName() string { return "qorechain.rlconsensus.v1.MsgResumeAgent" }
 
 // ---------------------------------------------------------------------------
 // MsgUpdatePolicy
 // ---------------------------------------------------------------------------
 
-// MsgUpdatePolicy replaces the current policy weights with a new set.
-type MsgUpdatePolicy struct {
-	Authority string        `json:"authority"`
-	Weights   PolicyWeights `json:"weights"`
+// PolicyWeightsFromJSON decodes the WeightsJson field into a PolicyWeights.
+func (m *MsgUpdatePolicy) PolicyWeightsFromJSON() (PolicyWeights, error) {
+	var w PolicyWeights
+	if err := json.Unmarshal([]byte(m.WeightsJson), &w); err != nil {
+		return PolicyWeights{}, err
+	}
+	return w, nil
 }
 
 func (m *MsgUpdatePolicy) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
 		return errorsmod.Wrapf(ErrInvalidPolicyWeights, "invalid authority address: %s", err)
 	}
-	if err := m.Weights.Validate(); err != nil {
+	w, err := m.PolicyWeightsFromJSON()
+	if err != nil {
+		return errorsmod.Wrapf(ErrInvalidPolicyWeights, "invalid weights json: %s", err)
+	}
+	if err := w.Validate(); err != nil {
 		return errorsmod.Wrapf(ErrInvalidPolicyWeights, "invalid weights: %s", err)
 	}
 	return nil
 }
 
-func (m *MsgUpdatePolicy) Reset() { *m = MsgUpdatePolicy{} }
-func (m *MsgUpdatePolicy) String() string {
-	return fmt.Sprintf("MsgUpdatePolicy{authority=%s, epoch=%d}", m.Authority, m.Weights.Epoch)
+func (m *MsgUpdatePolicy) GetSigners() []sdk.AccAddress {
+	addr, _ := sdk.AccAddressFromBech32(m.Authority)
+	return []sdk.AccAddress{addr}
 }
-func (m *MsgUpdatePolicy) ProtoMessage()           {}
-func (m *MsgUpdatePolicy) XXX_MessageName() string { return "qorechain.rlconsensus.v1.MsgUpdatePolicy" }
 
 // ---------------------------------------------------------------------------
 // MsgUpdateRewardWeights
 // ---------------------------------------------------------------------------
 
-// MsgUpdateRewardWeights changes the reward function weighting.
-type MsgUpdateRewardWeights struct {
-	Authority string        `json:"authority"`
-	Weights   RewardWeights `json:"weights"`
+// RewardWeightsValue reconstructs the RewardWeights struct from the flat fields.
+func (m *MsgUpdateRewardWeights) RewardWeightsValue() RewardWeights {
+	return RewardWeights{
+		Throughput:       m.Throughput,
+		Finality:         m.Finality,
+		Decentralization: m.Decentralization,
+		MEV:              m.MEV,
+		FailedTxs:        m.FailedTxs,
+	}
 }
 
 func (m *MsgUpdateRewardWeights) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
 		return errorsmod.Wrapf(ErrInvalidRewardWeights, "invalid authority address: %s", err)
 	}
-	if err := m.Weights.Validate(); err != nil {
+	if err := m.RewardWeightsValue().Validate(); err != nil {
 		return errorsmod.Wrapf(ErrInvalidRewardWeights, "invalid weights: %s", err)
 	}
 	return nil
 }
 
-func (m *MsgUpdateRewardWeights) Reset() { *m = MsgUpdateRewardWeights{} }
-func (m *MsgUpdateRewardWeights) String() string {
-	return fmt.Sprintf("MsgUpdateRewardWeights{authority=%s}", m.Authority)
-}
-func (m *MsgUpdateRewardWeights) ProtoMessage() {}
-func (m *MsgUpdateRewardWeights) XXX_MessageName() string {
-	return "qorechain.rlconsensus.v1.MsgUpdateRewardWeights"
+func (m *MsgUpdateRewardWeights) GetSigners() []sdk.AccAddress {
+	addr, _ := sdk.AccAddressFromBech32(m.Authority)
+	return []sdk.AccAddress{addr}
 }
