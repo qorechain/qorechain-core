@@ -20,9 +20,10 @@ func TestAllFeatureIDs_Counts(t *testing.T) {
 	if len(validators) != 37 {
 		t.Errorf("AllValidatorFeatureIDs count = %d, want 37", len(validators))
 	}
+	// 3 umbrella/operator features: qcb_bridge + lightnode_operator + validator_operator
 	all := AllFeatureIDs()
-	if len(all) != 1+36+37 {
-		t.Errorf("AllFeatureIDs count = %d, want %d", len(all), 1+36+37)
+	if len(all) != 3+36+37 {
+		t.Errorf("AllFeatureIDs count = %d, want %d", len(all), 3+36+37)
 	}
 }
 
