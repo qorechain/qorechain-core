@@ -674,6 +674,8 @@ func NewQoreChainApp(
 
 	// Gate bridge-validator registration on per-chain validator licenses.
 	app.BridgeKeeper.SetLicenseChecker(app.LicenseKeeper)
+	// Wire the bank keeper so the bridge actually mints/burns bridged tokens.
+	app.BridgeKeeper.SetBankKeeper(app.BankKeeper)
 
 	// --- Initialize LightNode module (via factory, v1.15.0 — light node registration + rewards) ---
 	lightnodeStoreKey := storetypes.NewKVStoreKey(lightnodetypes.StoreKey)

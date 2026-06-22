@@ -60,3 +60,4 @@ func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()
 }
 func (k *StubKeeper) SetLicenseChecker(_ BridgeLicenseChecker) {}
+func (k *StubKeeper) SetBankKeeper(_ BridgeBankKeeper)         {}

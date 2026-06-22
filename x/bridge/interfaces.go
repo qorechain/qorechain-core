@@ -1,6 +1,8 @@
 package bridge
 
 import (
+	"context"
+
 	"cosmossdk.io/log"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -37,9 +39,23 @@ type BridgeKeeper interface {
 	// SetLicenseChecker wires the license keeper post-construction so that
 	// bridge-validator registration is gated on per-chain validator licenses.
 	SetLicenseChecker(lc BridgeLicenseChecker)
+
+	// SetBankKeeper wires the bank keeper post-construction so the bridge can
+	// actually mint/burn bridged tokens on verified deposits/withdrawals.
+	SetBankKeeper(bk BridgeBankKeeper)
 }
 
 // BridgeLicenseChecker is the license surface the bridge module consumes.
 type BridgeLicenseChecker interface {
 	HasActiveLicense(ctx sdk.Context, grantee, featureID string) bool
+}
+
+// BridgeBankKeeper is the bank surface the bridge module consumes (matches the
+// SDK bank keeper; sdk.Context satisfies context.Context).
+type BridgeBankKeeper interface {
+	MintCoins(ctx context.Context, moduleName string, amounts sdk.Coins) error
+	SendCoinsFromModuleToAccount(ctx context.Context, senderModule string, recipientAddr sdk.AccAddress, amt sdk.Coins) error
+	SendCoinsFromAccountToModule(ctx context.Context, senderAddr sdk.AccAddress, recipientModule string, amt sdk.Coins) error
+	BurnCoins(ctx context.Context, moduleName string, amounts sdk.Coins) error
+	GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin
 }
