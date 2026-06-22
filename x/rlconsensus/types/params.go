@@ -135,7 +135,7 @@ func DefaultParams() Params {
 	return Params{
 		Enabled:                 DefaultEnabled,
 		ObservationInterval:     DefaultObservationInterval,
-		AgentMode:               AgentModeShadow,
+		AgentMode:               AgentModeConservative,
 		MaxChangeConservative:   DefaultMaxChangeConservative,
 		MaxChangeAutonomous:     DefaultMaxChangeAutonomous,
 		CircuitBreakerWindow:    DefaultCircuitBreakerWindow,

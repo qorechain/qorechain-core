@@ -21,12 +21,12 @@ type GenesisState struct {
 }
 
 // DefaultGenesis returns a genesis state with default parameters,
-// shadow mode agent status, and no policy weights.
+// conservative-mode agent status, and no policy weights.
 func DefaultGenesis() *GenesisState {
 	return &GenesisState{
 		Params: DefaultParams(),
 		AgentStatus: AgentStatus{
-			Mode:                 AgentModeShadow,
+			Mode:                 AgentModeConservative,
 			CurrentEpoch:         0,
 			TotalSteps:           0,
 			LastObservationAt:    0,
