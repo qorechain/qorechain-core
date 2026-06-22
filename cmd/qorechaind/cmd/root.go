@@ -141,6 +141,18 @@ func NewRootCmd() *cobra.Command {
 	ammBasic := app.NewAMMModuleBasic()
 	moduleBasicManager[ammBasic.Name()] = ammBasic
 
+	// The client context's InterfaceRegistry and amino codec are built by
+	// depinject from AppConfig, which only covers depinject-wired modules. The
+	// custom modules above are registered manually, so their Msg/interface types
+	// are otherwise absent from the CLI codec — Any type-URL resolution then
+	// fails (e.g. `--generate-only -o json`, and any JSON rendering of their
+	// txs). Register every basic's interfaces onto the client InterfaceRegistry
+	// so offline encoding and proto-JSON output resolve for all modules. (The
+	// legacy amino codec is intentionally not re-registered here: go-amino
+	// rejects the re-registration of concretes already supplied by depinject,
+	// and the proto-JSON path used by the CLI relies only on the registry.)
+	moduleBasicManager.RegisterInterfaces(clientCtx.InterfaceRegistry)
+
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",
 		Short:         "QoreChain — Quantum-Safe AI-Native Blockchain",
