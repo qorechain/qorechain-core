@@ -11,6 +11,36 @@ service Query {
   rpc AgentStatus(QueryAgentStatusRequest) returns (QueryAgentStatusResponse);
   // Params returns the rlconsensus module parameters.
   rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  // Observation returns the latest 25-dim observation vector captured by the agent.
+  rpc Observation(QueryObservationRequest) returns (QueryObservationResponse);
+  // Reward returns the latest reward signal (total + per-component deltas).
+  rpc Reward(QueryRewardRequest) returns (QueryRewardResponse);
+  // Policy returns the current policy network summary (epoch, params, update height).
+  rpc Policy(QueryPolicyRequest) returns (QueryPolicyResponse);
+}
+
+message QueryObservationRequest {}
+message QueryObservationResponse {
+  int64 height = 1;
+  repeated string values = 2;
+}
+
+message QueryRewardRequest {}
+message QueryRewardResponse {
+  int64 height = 1;
+  string total_reward = 2;
+  string throughput_delta = 3;
+  string finality_delta = 4;
+  string decentralization_delta = 5;
+  string mev_estimate = 6 [(gogoproto.customname) = "MEVEstimate"];
+  string failed_tx_ratio = 7;
+}
+
+message QueryPolicyRequest {}
+message QueryPolicyResponse {
+  uint64 epoch = 1;
+  int64 updated_at = 2;
+  uint64 weight_count = 3;
 }
 
 message QueryAgentStatusRequest {}

@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -68,14 +66,16 @@ func GetCmdQueryObservation() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			fmt.Println("Query latest observation")
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
-			return nil
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.Observation(cmd.Context(), &types.QueryObservationRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -91,14 +91,16 @@ func GetCmdQueryReward() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			fmt.Println("Query latest reward")
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
-			return nil
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.Reward(cmd.Context(), &types.QueryRewardRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -139,13 +141,15 @@ func GetCmdQueryPolicy() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			fmt.Println("Query current policy")
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
-			return nil
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.Policy(cmd.Context(), &types.QueryPolicyRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }

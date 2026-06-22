@@ -1,0 +1,48 @@
+syntax = "proto3";
+package qorechain.crossvm.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/crossvm/types";
+
+// Query defines the crossvm module's gRPC query service.
+service Query {
+  // Params returns the crossvm module parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  // PendingMessages returns the current cross-VM message queue.
+  rpc PendingMessages(QueryPendingMessagesRequest) returns (QueryPendingMessagesResponse);
+  // Message returns a single cross-VM message by id.
+  rpc Message(QueryMessageRequest) returns (QueryMessageResponse);
+}
+
+message CrossVMMessageView {
+  string id = 1;
+  string source_vm = 2;
+  string target_vm = 3;
+  string sender = 4;
+  string source_contract = 5;
+  string target_contract = 6;
+  string payload_hex = 7;
+  string status = 8;
+  int64 created_height = 9;
+  int64 executed_height = 10;
+  string error = 11;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse {
+  uint64 max_message_size = 1;
+  uint32 max_queue_size = 2;
+  int64 queue_timeout_blocks = 3;
+  bool enabled = 4;
+}
+
+message QueryPendingMessagesRequest {}
+message QueryPendingMessagesResponse {
+  repeated CrossVMMessageView messages = 1;
+  uint32 count = 2;
+}
+
+message QueryMessageRequest { string id = 1; }
+message QueryMessageResponse {
+  CrossVMMessageView message = 1;
+  bool found = 2;
+}
