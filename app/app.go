@@ -659,6 +659,19 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize License module (via factory, v1.4.0 — validator bridge & multi-chain) ---
+	// Constructed BEFORE LightNode so the lightnode keeper can gate registration
+	// behind an authority-granted operator license.
+	licenseStoreKey := storetypes.NewKVStoreKey(licensetypes.StoreKey)
+	app.MountStores(licenseStoreKey)
+
+	app.LicenseKeeper = NewLicenseKeeper(
+		app.appCodec,
+		licenseStoreKey,
+		authAddr,
+		logger,
+	)
+
 	// --- Initialize LightNode module (via factory, v1.15.0 — light node registration + rewards) ---
 	lightnodeStoreKey := storetypes.NewKVStoreKey(lightnodetypes.StoreKey)
 	app.MountStores(lightnodeStoreKey)
@@ -667,17 +680,8 @@ func NewQoreChainApp(
 		app.appCodec,
 		lightnodeStoreKey,
 		app.BankKeeper,
-		logger,
-	)
-
-	// --- Initialize License module (via factory, v1.4.0 — validator bridge & multi-chain) ---
-	licenseStoreKey := storetypes.NewKVStoreKey(licensetypes.StoreKey)
-	app.MountStores(licenseStoreKey)
-
-	app.LicenseKeeper = NewLicenseKeeper(
-		app.appCodec,
-		licenseStoreKey,
-		authAddr,
+		app.StakingKeeper,
+		app.LicenseKeeper,
 		logger,
 	)
 

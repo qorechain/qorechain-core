@@ -5,6 +5,16 @@ const (
 	// at all (independent of any specific chain license).
 	FeatureQCBBridge = "qcb_bridge"
 
+	// Light-node operator license: required (in addition to a min QOR stake) to
+	// register a light node. Granted by the governance authority after the
+	// off-chain (dashboard) registration fee is paid.
+	FeatureLightNodeOperator = "lightnode_operator"
+
+	// Base validator license: required to create a validator at all (in addition
+	// to the min QOR self-bond). Granted by the governance authority. (Distinct
+	// from FeatureValidatorBase below, which is the Base-chain validator license.)
+	FeatureValidatorOperator = "validator_operator"
+
 	// ----- Bridge licenses (pre-v2.26.0): 16 chains -----
 
 	FeatureBridgeEthereum  = "bridge_ethereum"
@@ -173,7 +183,7 @@ func AllValidatorFeatureIDs() []string {
 }
 
 func AllFeatureIDs() []string {
-	out := []string{FeatureQCBBridge}
+	out := []string{FeatureQCBBridge, FeatureLightNodeOperator, FeatureValidatorOperator}
 	out = append(out, AllBridgeFeatureIDs()...)
 	out = append(out, AllValidatorFeatureIDs()...)
 	return out

@@ -15,6 +15,7 @@ import (
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
 	abstractaccountmod "github.com/qorechain/qorechain-core/x/abstractaccount"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
@@ -224,7 +225,7 @@ func init() {
 	}
 
 	// LightNode — stub factories
-	NewLightNodeKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ bankkeeper.BaseKeeper, logger log.Logger) lightnodemod.LightNodeKeeper {
+	NewLightNodeKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ bankkeeper.BaseKeeper, _ *stakingkeeper.Keeper, _ licensemod.LicenseKeeper, logger log.Logger) lightnodemod.LightNodeKeeper {
 		return lightnodemod.NewStubKeeper(logger)
 	}
 	NewLightNodeAppModule = func(keeper lightnodemod.LightNodeKeeper) module.AppModule {

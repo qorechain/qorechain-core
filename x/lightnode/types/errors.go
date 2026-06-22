@@ -13,4 +13,6 @@ var (
 	ErrHeartbeatTooEarly    = errors.Register(ModuleName, 9, "heartbeat submitted too early")
 	ErrUnauthorized         = errors.Register(ModuleName, 10, "unauthorized")
 	ErrInvalidVersion       = errors.Register(ModuleName, 11, "invalid node version")
+	ErrNoOperatorLicense    = errors.Register(ModuleName, 12, "light node operator license required (granted by governance authority after dashboard fee)")
+	ErrInsufficientStake    = errors.Register(ModuleName, 13, "insufficient delegated stake to register a light node")
 )

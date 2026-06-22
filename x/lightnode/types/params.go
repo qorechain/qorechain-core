@@ -22,7 +22,7 @@ func DefaultParams() Params {
 	return Params{
 		RegistrationFee:      math.NewInt(1_000_000),           // 1 QOR in uqor
 		HeartbeatInterval:    1000,                             // every 1000 blocks
-		MinDelegatedStake:    math.NewInt(100_000_000),         // 100 QOR in uqor
+		MinDelegatedStake:    math.NewInt(1_000_000_000),       // 1000 QOR in uqor
 		RewardShare:          math.LegacyNewDecWithPrec(3, 2),  // 0.03 (3%)
 		MinUptimeForRewards:  math.LegacyNewDecWithPrec(80, 2), // 0.80 (80%)
 		MaxLightNodes:        10000,

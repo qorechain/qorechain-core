@@ -13,6 +13,7 @@ import (
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
 	abstractaccountmod "github.com/qorechain/qorechain-core/x/abstractaccount"
 	aimod "github.com/qorechain/qorechain-core/x/ai"
@@ -135,7 +136,7 @@ var (
 	NewRDKModuleBasic func() module.AppModuleBasic
 
 	// LightNode module factories (v1.15.0 — light node registration + rewards)
-	NewLightNodeKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) lightnodemod.LightNodeKeeper
+	NewLightNodeKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, stakingKeeper *stakingkeeper.Keeper, licenseKeeper licensemod.LicenseKeeper, logger log.Logger) lightnodemod.LightNodeKeeper
 	NewLightNodeAppModule   func(keeper lightnodemod.LightNodeKeeper) module.AppModule
 	NewLightNodeModuleBasic func() module.AppModuleBasic
 
