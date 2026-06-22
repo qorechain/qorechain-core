@@ -52,6 +52,13 @@ type SVMKeeper interface {
 	// GetLatestBlockhash returns the most recent recorded block hash + its slot.
 	GetLatestBlockhash(ctx sdk.Context) ([]byte, uint64)
 
+	// GetSignaturesForAddress returns up to limit recent transaction signatures
+	// involving the given address, newest first.
+	GetSignaturesForAddress(ctx sdk.Context, addr [32]byte, limit int) []string
+
+	// GetSVMTransaction returns the stored transaction record for a signature.
+	GetSVMTransaction(ctx sdk.Context, signature string) (*types.SVMTxRecord, bool)
+
 	// GetParams returns the module parameters.
 	GetParams(ctx sdk.Context) types.Params
 

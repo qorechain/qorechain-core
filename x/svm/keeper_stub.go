@@ -67,6 +67,12 @@ func (k *StubKeeper) GetCurrentSlot(_ sdk.Context) uint64 {
 func (k *StubKeeper) BeginBlock(_ sdk.Context)                          {}
 func (k *StubKeeper) IsRecentBlockhash(_ sdk.Context, _ []byte) bool    { return false }
 func (k *StubKeeper) GetLatestBlockhash(_ sdk.Context) ([]byte, uint64) { return nil, 0 }
+func (k *StubKeeper) GetSignaturesForAddress(_ sdk.Context, _ [32]byte, _ int) []string {
+	return nil
+}
+func (k *StubKeeper) GetSVMTransaction(_ sdk.Context, _ string) (*types.SVMTxRecord, bool) {
+	return nil, false
+}
 
 func (k *StubKeeper) GetParams(_ sdk.Context) types.Params {
 	return types.DefaultParams()
