@@ -34,6 +34,7 @@ import (
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
+	licensemod "github.com/qorechain/qorechain-core/x/license"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
@@ -54,6 +55,7 @@ type HandlerOptions struct {
 	FairBlockKeeper      fairblockmod.FairBlockKeeper
 	GasAbstractionKeeper gasabstractionmod.GasAbstractionKeeper
 	BurnKeeper           burnmod.BurnKeeper
+	LicenseKeeper        licensemod.LicenseKeeper
 
 	// EVM keepers — the concrete AccountKeeper is needed because the EVM ante
 	// interfaces require GetSequence which the SDK ante.AccountKeeper interface lacks.
@@ -196,6 +198,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		ante.NewValidateBasicDecorator(),
 		ante.NewTxTimeoutHeightDecorator(),
 		ante.NewValidateMemoDecorator(options.AccountKeeper),
+		// Validator licensing gate — MsgCreateValidator requires an active
+		// validator_operator license + >=100,000 QOR self-bond (height-0 exempt).
+		NewValidatorLicenseDecorator(options.LicenseKeeper),
 		// PQC signature verification — runs before standard sig verify
 		NewPQCVerifyDecorator(options.PQCKeeper, options.PQCClient),
 		// PQC hybrid signature verification — checks TX extension for dual Ed25519 + ML-DSA-87

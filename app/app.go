@@ -672,6 +672,9 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// Gate bridge-validator registration on per-chain validator licenses.
+	app.BridgeKeeper.SetLicenseChecker(app.LicenseKeeper)
+
 	// --- Initialize LightNode module (via factory, v1.15.0 — light node registration + rewards) ---
 	lightnodeStoreKey := storetypes.NewKVStoreKey(lightnodetypes.StoreKey)
 	app.MountStores(lightnodeStoreKey)
@@ -874,6 +877,7 @@ func (app *QoreChainApp) setAnteHandler(
 			FairBlockKeeper:       app.FairBlockKeeper,
 			GasAbstractionKeeper:  app.GasAbstractionKeeper,
 			BurnKeeper:            app.BurnKeeper,
+			LicenseKeeper:         app.LicenseKeeper,
 		},
 	)
 	if err != nil {

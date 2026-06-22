@@ -33,4 +33,13 @@ type BridgeKeeper interface {
 
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState
+
+	// SetLicenseChecker wires the license keeper post-construction so that
+	// bridge-validator registration is gated on per-chain validator licenses.
+	SetLicenseChecker(lc BridgeLicenseChecker)
+}
+
+// BridgeLicenseChecker is the license surface the bridge module consumes.
+type BridgeLicenseChecker interface {
+	HasActiveLicense(ctx sdk.Context, grantee, featureID string) bool
 }

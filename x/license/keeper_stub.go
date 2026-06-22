@@ -50,8 +50,11 @@ func (k *StubKeeper) GetLicenseHolders(_ sdk.Context, _ string) ([]types.License
 	return nil, nil
 }
 
+// HasActiveLicense in the stub (open-source, non-full build) is permissive:
+// licensing is enforced only in the full proprietary build. Returning true here
+// means the public build does not gate validator/lightnode/bridge actions.
 func (k *StubKeeper) HasActiveLicense(_ sdk.Context, _, _ string) bool {
-	return false
+	return true
 }
 
 func (k *StubKeeper) GetAuthority() string { return k.authority }
