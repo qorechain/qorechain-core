@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -91,10 +92,17 @@ func GetCmdExecuteProgram() *cobra.Command {
 The program-id-base58 argument is the base58-encoded 32-byte program address.
 The data-hex argument is the hex-encoded instruction data to pass to the program.
 
-Note: Account metadata (--accounts flag) will be added in a future release.
-Currently the Accounts field is empty, suitable for programs with no input accounts.`,
-		Example: `  # Execute an instruction on a deployed program
-  qorechaind tx svm execute <program-id-base58> <instruction-data-hex> --from mykey`,
+Input accounts are supplied with repeated --accounts flags in the form
+<base58-address>:<modifiers>, where modifiers is any combination of:
+  s  - account is a signer
+  w  - account is writable
+A bare address (or empty modifiers) denotes a read-only, non-signer account.`,
+		Example: `  # Execute with no input accounts
+  qorechaind tx svm execute <program-id-base58> <instruction-data-hex> --from mykey
+
+  # Execute passing a writable signer and a read-only account
+  qorechaind tx svm execute <prog> <data-hex> \
+    --accounts <addrA>:sw --accounts <addrB> --from mykey`,
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -112,9 +120,19 @@ Currently the Accounts field is empty, suitable for programs with no input accou
 				return fmt.Errorf("invalid hex-encoded instruction data: %w", err)
 			}
 
+			accountSpecs, err := cmd.Flags().GetStringArray(flagAccounts)
+			if err != nil {
+				return err
+			}
+			accounts, err := parseAccountMetas(accountSpecs)
+			if err != nil {
+				return err
+			}
+
 			msg := &types.MsgExecuteProgram{
 				Sender:    clientCtx.GetFromAddress().String(),
 				ProgramID: types.Bytes32(programID),
+				Accounts:  accounts,
 				Data:      data,
 			}
 
@@ -126,8 +144,41 @@ Currently the Accounts field is empty, suitable for programs with no input accou
 		},
 	}
 
+	cmd.Flags().StringArray(flagAccounts, nil, "input account as <base58-address>:<modifiers> (modifiers: s=signer, w=writable); repeatable")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
+}
+
+// flagAccounts is the repeatable flag for SVM instruction input accounts.
+const flagAccounts = "accounts"
+
+// parseAccountMetas converts CLI account specs (<base58>:<modifiers>) into the
+// SvmAccountMeta list expected by MsgExecuteProgram.
+func parseAccountMetas(specs []string) ([]types.SvmAccountMeta, error) {
+	if len(specs) == 0 {
+		return nil, nil
+	}
+	metas := make([]types.SvmAccountMeta, 0, len(specs))
+	for _, spec := range specs {
+		addrStr, mods, _ := strings.Cut(spec, ":")
+		addr, err := types.Base58Decode(addrStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid base58 account address %q: %w", addrStr, err)
+		}
+		meta := types.SvmAccountMeta{Address: types.Bytes32(addr)}
+		for _, m := range mods {
+			switch m {
+			case 's', 'S':
+				meta.IsSigner = true
+			case 'w', 'W':
+				meta.IsWritable = true
+			default:
+				return nil, fmt.Errorf("invalid account modifier %q in %q (allowed: s, w)", string(m), spec)
+			}
+		}
+		metas = append(metas, meta)
+	}
+	return metas, nil
 }
 
 // GetCmdCreateAccount returns the command to create a new SVM data account.
