@@ -7,9 +7,19 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 
 	"github.com/qorechain/qorechain-core/x/svm/types"
 )
+
+// svmQueryClient builds a gRPC query client from the CLI client context.
+func svmQueryClient(cmd *cobra.Command) (client.Context, types.QueryClient, error) {
+	clientCtx, err := client.GetClientQueryContext(cmd)
+	if err != nil {
+		return client.Context{}, nil, err
+	}
+	return clientCtx, types.NewQueryClient(clientCtx), nil
+}
 
 // GetQueryCmd returns the CLI query commands for the SVM module.
 func GetQueryCmd() *cobra.Command {
@@ -38,24 +48,22 @@ func GetCmdQueryAccount() *cobra.Command {
 		Long:  "Query an SVM account's lamports, data size, owner, and executable status by its base58-encoded address.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientQueryContext(cmd)
+			clientCtx, qc, err := svmQueryClient(cmd)
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			addr, err := types.Base58Decode(args[0])
-			if err != nil {
+			if _, err := types.Base58Decode(args[0]); err != nil {
 				return fmt.Errorf("invalid base58 address: %w", err)
 			}
-			_ = addr
-
-			fmt.Printf("Querying SVM account: %s\n", args[0])
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
-			return nil
+			res, err := qc.Account(cmd.Context(), &types.QueryAccountRequest{Address: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -67,24 +75,22 @@ func GetCmdQueryProgram() *cobra.Command {
 		Long:  "Query a deployed SVM program's metadata, including deployer, bytecode hash, and deployment height.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientQueryContext(cmd)
+			clientCtx, qc, err := svmQueryClient(cmd)
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			addr, err := types.Base58Decode(args[0])
-			if err != nil {
+			if _, err := types.Base58Decode(args[0]); err != nil {
 				return fmt.Errorf("invalid base58 address: %w", err)
 			}
-			_ = addr
-
-			fmt.Printf("Querying SVM program: %s\n", args[0])
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
-			return nil
+			res, err := qc.Program(cmd.Context(), &types.QueryProgramRequest{Address: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -112,6 +118,7 @@ func GetCmdQueryParams() *cobra.Command {
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -123,17 +130,18 @@ func GetCmdQuerySlot() *cobra.Command {
 		Long:  "Query the current SVM virtual slot. Full gRPC query support will be added with proto definitions.",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientQueryContext(cmd)
+			clientCtx, qc, err := svmQueryClient(cmd)
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			fmt.Println("Current SVM slot:")
-			fmt.Println("(Full gRPC query support will be added with proto definitions)")
-			return nil
+			res, err := qc.Slot(cmd.Context(), &types.QuerySlotRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }

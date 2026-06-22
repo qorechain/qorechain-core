@@ -1,0 +1,55 @@
+syntax = "proto3";
+package qorechain.svm.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/svm/types";
+
+// Query defines the gRPC query service for the SVM module.
+service Query {
+  // Slot returns the current SVM virtual slot.
+  rpc Slot(QuerySlotRequest) returns (QuerySlotResponse);
+  // Account returns the SVM account at a base58 address.
+  rpc Account(QueryAccountRequest) returns (QueryAccountResponse);
+  // Program returns program metadata for a base58 program address.
+  rpc Program(QueryProgramRequest) returns (QueryProgramResponse);
+}
+
+message QuerySlotRequest {}
+message QuerySlotResponse {
+  uint64 slot = 1;
+}
+
+message QueryAccountRequest {
+  // address is the base58-encoded 32-byte SVM account address.
+  string address = 1;
+}
+message QueryAccountResponse {
+  SVMAccountInfo account = 1;
+}
+
+message QueryProgramRequest {
+  // address is the base58-encoded 32-byte program address.
+  string address = 1;
+}
+message QueryProgramResponse {
+  ProgramInfo program = 1;
+}
+
+// SVMAccountInfo is the query-facing view of an SVM account.
+message SVMAccountInfo {
+  string address = 1;
+  uint64 lamports = 2;
+  uint64 data_len = 3;
+  bytes data = 4;
+  string owner = 5;
+  bool executable = 6;
+  uint64 rent_epoch = 7;
+}
+
+// ProgramInfo is the query-facing view of program metadata.
+message ProgramInfo {
+  string program_address = 1;
+  string upgrade_authority = 2;
+  uint64 deploy_slot = 3;
+  uint64 last_deploy_slot = 4;
+  string data_account = 5;
+}
