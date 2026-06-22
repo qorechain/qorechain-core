@@ -162,6 +162,8 @@ var (
 					"babylon",
 					"rdk",
 					"lightnode",
+					// SVM: advance slot + record block hash for replay protection
+					"svm",
 				},
 				EndBlockers: []string{
 					govtypes.ModuleName,

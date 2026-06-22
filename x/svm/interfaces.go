@@ -42,6 +42,16 @@ type SVMKeeper interface {
 	// GetCurrentSlot returns the current SVM slot number.
 	GetCurrentSlot(ctx sdk.Context) uint64
 
+	// BeginBlock advances the slot to the chain height and records the block
+	// hash into the recent-blockhash window (replay protection).
+	BeginBlock(ctx sdk.Context)
+
+	// IsRecentBlockhash reports whether the hash is within the last 150 slots.
+	IsRecentBlockhash(ctx sdk.Context, hash []byte) bool
+
+	// GetLatestBlockhash returns the most recent recorded block hash + its slot.
+	GetLatestBlockhash(ctx sdk.Context) ([]byte, uint64)
+
 	// GetParams returns the module parameters.
 	GetParams(ctx sdk.Context) types.Params
 

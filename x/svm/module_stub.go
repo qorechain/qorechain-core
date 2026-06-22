@@ -3,6 +3,7 @@
 package svm
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -22,10 +23,14 @@ import (
 )
 
 var (
-	_ module.AppModuleBasic = AppModuleBasic{}
-	_ module.HasGenesis     = AppModule{}
-	_ appmodule.AppModule   = AppModule{}
+	_ module.AppModuleBasic     = AppModuleBasic{}
+	_ module.HasGenesis         = AppModule{}
+	_ appmodule.AppModule       = AppModule{}
+	_ appmodule.HasBeginBlocker = AppModule{}
 )
+
+// BeginBlock is a no-op in the public (stub) build.
+func (am AppModule) BeginBlock(_ context.Context) error { return nil }
 
 type AppModuleBasic struct{}
 
