@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 
 	"github.com/qorechain/qorechain-core/x/lightnode/types"
 )
@@ -37,11 +38,15 @@ func CmdQueryLightNode() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-			_ = args[0]
-			return cmd.Help()
+			qc := types.NewQueryClient(clientCtx)
+			res, err := qc.LightNode(cmd.Context(), &types.QueryLightNodeRequest{Address: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -55,61 +60,80 @@ func CmdQueryLightNodes() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-			return cmd.Help()
+			qc := types.NewQueryClient(clientCtx)
+			res, err := qc.LightNodes(cmd.Context(), &types.QueryLightNodesRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
 func CmdQueryParams() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "params",
-		Short: "Query the lightnode module parameters",
+		Short: "Query lightnode module parameters",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-			return cmd.Help()
+			qc := types.NewQueryClient(clientCtx)
+			res, err := qc.Params(cmd.Context(), &types.QueryParamsRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
 func CmdQueryRewards() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rewards [address]",
-		Short: "Query accumulated rewards for a light node",
+		Short: "Query an operator's accumulated (claimable) rewards",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-			_ = args[0]
-			return cmd.Help()
+			qc := types.NewQueryClient(clientCtx)
+			res, err := qc.Rewards(cmd.Context(), &types.QueryRewardsRequest{Address: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
 func CmdQueryStats() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "stats",
-		Short: "Query light node network statistics",
+		Short: "Query module-level light node statistics",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-			return cmd.Help()
+			qc := types.NewQueryClient(clientCtx)
+			res, err := qc.Stats(cmd.Context(), &types.QueryStatsRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }

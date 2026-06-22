@@ -1,0 +1,62 @@
+syntax = "proto3";
+package qorechain.lightnode.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/lightnode/types";
+
+// Query defines the lightnode module's gRPC query service.
+service Query {
+  // LightNode returns a single light node by operator address.
+  rpc LightNode(QueryLightNodeRequest) returns (QueryLightNodeResponse);
+  // LightNodes lists all registered light nodes.
+  rpc LightNodes(QueryLightNodesRequest) returns (QueryLightNodesResponse);
+  // Params returns the lightnode module parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  // Rewards returns an operator's accumulated (claimable) rewards.
+  rpc Rewards(QueryRewardsRequest) returns (QueryRewardsResponse);
+  // Stats returns module-level light node statistics.
+  rpc Stats(QueryStatsRequest) returns (QueryStatsResponse);
+}
+
+// LightNodeView is a flat representation of a registered light node.
+message LightNodeView {
+  string address = 1;
+  string node_type = 2;
+  string version = 3;
+  repeated string capabilities = 4;
+  string status = 5;
+  int64 registered_at = 6;
+  int64 last_heartbeat = 7;
+  uint64 total_heartbeats = 8;
+  uint64 expected_heartbeats = 9;
+  string delegated_stake = 10;
+  string accumulated_rewards = 11;
+  int64 initial_heartbeat_interval = 12;
+}
+
+message QueryLightNodeRequest { string address = 1; }
+message QueryLightNodeResponse { LightNodeView node = 1; bool found = 2; }
+
+message QueryLightNodesRequest {}
+message QueryLightNodesResponse { repeated LightNodeView nodes = 1; }
+
+message QueryParamsRequest {}
+message QueryParamsResponse {
+  string registration_fee = 1;
+  int64 heartbeat_interval = 2;
+  string min_delegated_stake = 3;
+  string reward_share = 4;
+  string min_uptime_for_rewards = 5;
+  uint64 max_light_nodes = 6;
+  int64 heartbeat_grace_period = 7;
+}
+
+message QueryRewardsRequest { string address = 1; }
+message QueryRewardsResponse { string accumulated_rewards = 1; }
+
+message QueryStatsRequest {}
+message QueryStatsResponse {
+  uint64 total_registered = 1;
+  uint64 total_active = 2;
+  string total_rewards = 3;
+  int64 last_reward_height = 4;
+}
