@@ -14,8 +14,8 @@ type LicenseKeeper interface {
 	// License management
 	GrantLicense(ctx sdk.Context, caller string, license types.License) error
 	RevokeLicense(ctx sdk.Context, caller string, grantee, featureID string) error
-	SuspendLicense(ctx sdk.Context, grantee, featureID string) error
-	ResumeLicense(ctx sdk.Context, grantee, featureID string) error
+	SuspendLicense(ctx sdk.Context, caller string, grantee, featureID string) error
+	ResumeLicense(ctx sdk.Context, caller string, grantee, featureID string) error
 
 	// Queries
 	GetLicense(ctx sdk.Context, grantee, featureID string) (types.License, error)

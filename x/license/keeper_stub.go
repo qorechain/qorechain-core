@@ -30,11 +30,11 @@ func (k *StubKeeper) RevokeLicense(_ sdk.Context, _, _, _ string) error {
 	return nil
 }
 
-func (k *StubKeeper) SuspendLicense(_ sdk.Context, _, _ string) error {
+func (k *StubKeeper) SuspendLicense(_ sdk.Context, _, _, _ string) error {
 	return nil
 }
 
-func (k *StubKeeper) ResumeLicense(_ sdk.Context, _, _ string) error {
+func (k *StubKeeper) ResumeLicense(_ sdk.Context, _, _, _ string) error {
 	return nil
 }
 

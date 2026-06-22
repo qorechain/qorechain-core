@@ -47,7 +47,7 @@ func (s msgServer) RevokeLicense(goCtx context.Context, msg *types.MsgRevokeLice
 
 func (s msgServer) SuspendLicense(goCtx context.Context, msg *types.MsgSuspendLicense) (*types.MsgSuspendLicenseResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	if err := s.keeper.SuspendLicense(ctx, msg.Grantee, msg.FeatureID); err != nil {
+	if err := s.keeper.SuspendLicense(ctx, msg.Authority, msg.Grantee, msg.FeatureID); err != nil {
 		return nil, err
 	}
 	return &types.MsgSuspendLicenseResponse{}, nil
@@ -55,7 +55,7 @@ func (s msgServer) SuspendLicense(goCtx context.Context, msg *types.MsgSuspendLi
 
 func (s msgServer) ResumeLicense(goCtx context.Context, msg *types.MsgResumeLicense) (*types.MsgResumeLicenseResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
-	if err := s.keeper.ResumeLicense(ctx, msg.Grantee, msg.FeatureID); err != nil {
+	if err := s.keeper.ResumeLicense(ctx, msg.Authority, msg.Grantee, msg.FeatureID); err != nil {
 		return nil, err
 	}
 	return &types.MsgResumeLicenseResponse{}, nil
