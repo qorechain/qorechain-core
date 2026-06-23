@@ -185,6 +185,11 @@ type ChainConfig struct {
 	// aggregate-quorum verifier (Sui). The configured per-chain committee must
 	// aggregate-sign the canonical deposit digest.
 	BLSQuorumEnabled bool `json:"bls_quorum_enabled,omitempty"`
+
+	// StarknetEnabled routes this chain's deposits through the Starknet
+	// Pedersen-Merkle storage-proof verifier: a proof that the bridge contract's
+	// storage holds the deposit value under the trusted Starknet state root.
+	StarknetEnabled bool `json:"starknet_enabled,omitempty"`
 }
 
 // IsValidChainArchitecture returns true if a is a recognised value.
