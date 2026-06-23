@@ -175,6 +175,11 @@ type ChainConfig struct {
 	// VAA verifier (secp256k1 guardian quorum) — used for Solana and other
 	// Wormhole-connected chains. The deposit proof carries the full VAA bytes.
 	WormholeEnabled bool `json:"wormhole_enabled,omitempty"`
+
+	// Ed25519QuorumEnabled routes this chain's deposits through the ed25519
+	// validator-quorum verifier (Stellar, Hedera, TON, Algorand, XRPL). The
+	// configured per-chain validator set must sign the canonical deposit digest.
+	Ed25519QuorumEnabled bool `json:"ed25519_quorum_enabled,omitempty"`
 }
 
 // IsValidChainArchitecture returns true if a is a recognised value.
