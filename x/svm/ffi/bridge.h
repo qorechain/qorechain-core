@@ -21,6 +21,15 @@ int32_t qore_svm_execute(
     uint64_t compute_budget,
     uint8_t* result_out, size_t* result_cap);
 
+// Execution with a CPI program registry (programs: count[u64] then
+// count*{id[32]|elf_len[u64]|elf_bytes}) enabling BPF->BPF cross-program calls.
+int32_t qore_svm_execute_with_programs(
+    const uint8_t* elf_bytes, size_t elf_len,
+    uint8_t* input_data, size_t input_len,
+    const uint8_t* programs, size_t programs_len,
+    uint64_t compute_budget,
+    uint8_t* result_out, size_t* result_cap);
+
 // Deployment (stub — returns error until program store is implemented)
 int32_t qore_svm_deploy_program(
     const uint8_t* elf_bytes, size_t elf_len,
