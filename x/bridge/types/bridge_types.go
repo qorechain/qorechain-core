@@ -190,6 +190,12 @@ type ChainConfig struct {
 	// Pedersen-Merkle storage-proof verifier: a proof that the bridge contract's
 	// storage holds the deposit value under the trusted Starknet state root.
 	StarknetEnabled bool `json:"starknet_enabled,omitempty"`
+
+	// L2AnchoredEnabled routes this chain's deposits through the L2-rollup
+	// verifier for chains that settle to Ethereum (Arbitrum, Polygon). The deposit
+	// is proven against the Ethereum light client's finalized execution state
+	// root: L1-committed L2 state root, then the L2 deposit, via MPT proofs.
+	L2AnchoredEnabled bool `json:"l2_anchored_enabled,omitempty"`
 }
 
 // IsValidChainArchitecture returns true if a is a recognised value.
