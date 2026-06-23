@@ -216,7 +216,7 @@ The message is submitted to a queue and processed by the EndBlocker in the next 
 
 ## Module Integration
 
-CosmWasm contracts can interact with QoreChain SDK modules through standard message passing:
+CosmWasm contracts can interact with Cosmos SDK modules through standard message passing:
 
 ```rust
 // Send native tokens via the bank module

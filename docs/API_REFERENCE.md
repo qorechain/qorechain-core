@@ -1,8 +1,8 @@
 # QoreChain API Reference
 
-## Standard QoreChain SDK Endpoints
+## Standard Cosmos SDK Endpoints
 
-All standard QoreChain SDK REST and gRPC endpoints are available:
+All standard Cosmos SDK REST and gRPC endpoints are available:
 - REST: `http://localhost:1317`
 - gRPC: `localhost:9090`
 - RPC: `http://localhost:26657`

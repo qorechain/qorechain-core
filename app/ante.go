@@ -73,9 +73,9 @@ type HandlerOptions struct {
 
 // NewAnteHandler returns an AnteHandler with dual routing:
 //   - EVM path: for transactions with ExtensionOptionsEthereumTx
-//   - QoreChain SDK path: for standard QoreChain SDK transactions
+//   - Cosmos SDK path: for standard Cosmos SDK transactions
 //
-// The QoreChain SDK path includes PQC verification and AI anomaly detection.
+// The Cosmos SDK path includes PQC verification and AI anomaly detection.
 // The EVM path uses the EVMMonoDecorator which handles all EVM-specific checks.
 func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 	if options.AccountKeeper == nil {
@@ -120,7 +120,7 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 					// EVM transaction — route to mono decorator
 					return evmHandler(ctx, tx, sim)
 				case "/cosmos.evm.ante.v1.ExtensionOptionDynamicFeeTx":
-					// QoreChain SDK tx with dynamic fee — route to QoreChain SDK path
+					// Cosmos SDK tx with dynamic fee — route to Cosmos SDK path
 					return cosmosHandler(ctx, tx, sim)
 				default:
 					return ctx, errorsmod.Wrapf(
@@ -131,7 +131,7 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 			}
 		}
 
-		// Standard QoreChain SDK transaction — route to QoreChain SDK path.
+		// Standard Cosmos SDK transaction — route to Cosmos SDK path.
 		switch tx.(type) {
 		case sdk.Tx:
 			return cosmosHandler(ctx, tx, sim)
@@ -168,7 +168,7 @@ func (d genesisExemptDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate 
 	return d.inner.AnteHandle(ctx, tx, simulate, next)
 }
 
-// newCosmosAnteHandler returns an AnteHandler for standard QoreChain SDK transactions.
+// newCosmosAnteHandler returns an AnteHandler for standard Cosmos SDK transactions.
 // This path includes:
 //   - EVM message rejection (MsgEthereumTx must use extension options)
 //   - AuthZ limiter (prevents EVM msgs in authz)
@@ -179,7 +179,7 @@ func (d genesisExemptDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate 
 //   - EVM gas wanted tracking
 func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
-		// Reject MsgEthereumTx on the QoreChain SDK path — must use ExtensionOptionsEthereumTx
+		// Reject MsgEthereumTx on the Cosmos SDK path — must use ExtensionOptionsEthereumTx
 		cosmosante.NewRejectMessagesDecorator(),
 		// Prevent MsgEthereumTx and MsgCreateVestingAccount from being used in authz
 		cosmosante.NewAuthzLimiterDecorator(

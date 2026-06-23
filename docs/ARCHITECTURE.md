@@ -2,7 +2,7 @@
 
 ## Overview
 
-QoreChain is a Layer 1 blockchain built on QoreChain SDK v0.53 with seven key innovations:
+QoreChain is a Layer 1 blockchain built on Cosmos SDK v0.53 with seven key innovations:
 1. Post-quantum cryptography at genesis with hybrid Ed25519 + ML-DSA-87 signatures (not retrofitted)
 2. AI-native consensus optimization with on-chain reinforcement learning
 3. Triple-VM runtime (EVM + CosmWasm + SVM) with cross-VM messaging
@@ -154,7 +154,7 @@ SetPubKey → ValidateSigCount → SigGasConsume → SigVerify → IncrementSequ
 
 ```
 Docker Compose Stack:
-  - qorechain-node (Consensus Engine Engine + QoreChain SDK)
+  - qorechain-node (Consensus Engine Engine + Cosmos SDK)
   - ai-sidecar (gRPC + QCAI Backend)
   - indexer (WebSocket + Postgres)
   - postgres (Block data storage)

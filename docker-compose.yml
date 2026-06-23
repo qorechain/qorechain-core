@@ -10,8 +10,8 @@ services:
     ports:
       - "26657:26657"   # Consensus Engine Engine RPC
       - "26656:26656"   # Consensus Engine Engine P2P
-      - "1317:1317"     # QoreChain SDK REST API
-      - "9090:9090"     # QoreChain SDK gRPC
+      - "1317:1317"     # Cosmos SDK REST API
+      - "9090:9090"     # Cosmos SDK gRPC
       - "26660:26660"   # Prometheus metrics
       - "8545:8545"     # EVM JSON-RPC (HTTP)
       - "8546:8546"     # EVM JSON-RPC (WebSocket)

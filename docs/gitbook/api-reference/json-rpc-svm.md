@@ -180,7 +180,7 @@ if (accountInfo) {
 
 ## Notes
 
-- **Address format**: SVM accounts use base58-encoded public keys (standard Solana format), not the `qor1` Bech32 prefix used by the native QoreChain SDK modules.
+- **Address format**: SVM accounts use base58-encoded public keys (standard Solana format), not the `qor1` Bech32 prefix used by the native Cosmos SDK modules.
 - **Cross-VM bridging**: To move assets between EVM and SVM runtimes, use the Cross-VM module (`x/crossvm`). See the [Transaction Commands](../cli-reference/transaction-commands.md) for `crossvm call` syntax.
 - **Program deployment**: Deploy BPF programs via the CLI (`qorechaind tx svm deploy-program`) or programmatically through the SVM runtime.
 - **Compute budget**: The SVM runtime enforces a compute budget of 1,400,000 compute units per transaction by default. This is configurable via module parameters.

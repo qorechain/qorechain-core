@@ -1,6 +1,6 @@
 # QoreChain Documentation
 
-QoreChain is a quantum-safe, AI-native Layer 1 blockchain engineered with post-quantum cryptography at genesis, a triple-VM runtime (EVM, CosmWasm, SVM), on-chain reinforcement learning consensus optimization, 25 direct cross-chain connections, and a Rollup Development Kit for deploying application-specific chains. Built on QoreChain SDK v0.53 with 18 custom modules and 45 registered genesis modules, QoreChain delivers production-grade security against both classical and quantum adversaries while maintaining full compatibility with existing blockchain tooling.
+QoreChain is a quantum-safe, AI-native Layer 1 blockchain engineered with post-quantum cryptography at genesis, a triple-VM runtime (EVM, CosmWasm, SVM), on-chain reinforcement learning consensus optimization, 25 direct cross-chain connections, and a Rollup Development Kit for deploying application-specific chains. Built on Cosmos SDK v0.53 with 18 custom modules and 45 registered genesis modules, QoreChain delivers production-grade security against both classical and quantum adversaries while maintaining full compatibility with existing blockchain tooling.
 
 ## Quick Links
 
@@ -20,4 +20,4 @@ QoreChain is a quantum-safe, AI-native Layer 1 blockchain engineered with post-q
 | Denomination Exponent | 10^6 (1 QOR = 1,000,000 uqor) |
 | Bech32 Prefix | `qor` (addresses: `qor1...`, validators: `qorvaloper...`) |
 | Version | v1.3.0 |
-| Framework | QoreChain SDK v0.53 |
+| Framework | Cosmos SDK v0.53 |

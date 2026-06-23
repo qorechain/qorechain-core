@@ -27,7 +27,7 @@ var (
 	_ appmodule.AppModule   = AppModule{}
 )
 
-// AppModuleBasic implements the QoreChain SDK AppModuleBasic interface
+// AppModuleBasic implements the Cosmos SDK AppModuleBasic interface
 // for the multi-layer architecture module.
 type AppModuleBasic struct{}
 
@@ -59,7 +59,7 @@ func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConf
 func (AppModuleBasic) GetTxCmd() *cobra.Command    { return cli.GetTxCmd() }
 func (AppModuleBasic) GetQueryCmd() *cobra.Command { return cli.GetQueryCmd() }
 
-// AppModule implements the QoreChain SDK AppModule interface
+// AppModule implements the Cosmos SDK AppModule interface
 // for the multi-layer architecture module (stub build).
 type AppModule struct {
 	AppModuleBasic

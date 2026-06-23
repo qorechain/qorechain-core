@@ -10,7 +10,7 @@ QoreChain supports two bridge protocols operating in parallel:
 
 | Protocol | Connections | Security Model | Use Case |
 |---|---|---|---|
-| **IBC** | 8 channels | Standard IBC + PQC packet signatures | QoreChain SDK-compatible chains |
+| **IBC** | 8 channels | Standard IBC + PQC packet signatures | Cosmos SDK-compatible chains |
 | **QCB** | 17 endpoints | 7-of-10 Dilithium-5 multisig | Non-IBC chains (EVM, Solana, TON, etc.) |
 
 **Total**: 25 active bridge connections across 12 distinct chain types.

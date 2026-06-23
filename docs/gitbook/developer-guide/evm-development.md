@@ -139,7 +139,7 @@ This conversion is transparent -- when you check a balance via `eth_getBalance`,
 
 ## ERC-20 Token Pairs
 
-The `x/erc20` module provides automatic registration of **token pairs** between native QoreChain SDK denominations and ERC-20 contracts:
+The `x/erc20` module provides automatic registration of **token pairs** between native Cosmos SDK denominations and ERC-20 contracts:
 
 - Native tokens can be used within EVM contracts as ERC-20s
 - ERC-20 tokens deployed on the EVM can be converted to native denominations
@@ -165,7 +165,7 @@ EVM transactions use **classical ECDSA (secp256k1)** signatures for full compati
 For post-quantum security within the EVM:
 
 - Use the **PQC Verify precompile** (`0x0000...0A01`) to verify ML-DSA-87 signatures on-chain from Solidity. See [EVM Precompiles](evm-precompiles.md).
-- **Cross-VM messages** from EVM to CosmWasm or SVM can be PQC-signed at the QoreChain SDK transaction layer.
+- **Cross-VM messages** from EVM to CosmWasm or SVM can be PQC-signed at the Cosmos SDK transaction layer.
 - Accounts can optionally register PQC public keys via `x/pqc` for hybrid security.
 
 ---

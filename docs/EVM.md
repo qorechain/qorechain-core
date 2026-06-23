@@ -2,7 +2,7 @@
 
 ## Overview
 
-QoreChain v0.5.0 introduces a dual VM runtime enabling full EVM (Ethereum Virtual Machine) compatibility alongside the existing QoreChain SDK runtime. This allows developers to deploy Solidity smart contracts on QoreChain while benefiting from the chain's PQC security, AI-native processing, and cross-VM communication capabilities.
+QoreChain v0.5.0 introduces a dual VM runtime enabling full EVM (Ethereum Virtual Machine) compatibility alongside the existing Cosmos SDK runtime. This allows developers to deploy Solidity smart contracts on QoreChain while benefiting from the chain's PQC security, AI-native processing, and cross-VM communication capabilities.
 
 ## Architecture
 
@@ -47,14 +47,14 @@ Wraps the bank module to handle the decimal precision difference between QoreCha
 QoreChain uses a dual ante handler that automatically routes transactions:
 
 - **Ethereum transactions** (containing `ExtensionOptionsEthereumTx`): Routed through the EVM mono decorator → `EVMMonoDecorator` → `TxListenerDecorator`
-- **QoreChain SDK transactions**: Routed through the standard QoreChain SDK path with PQC verification, AI anomaly detection, and CosmWasm decorators
+- **Cosmos SDK transactions**: Routed through the standard Cosmos SDK path with PQC verification, AI anomaly detection, and CosmWasm decorators
 
 ```
               ┌─ Has EthereumTx extension? ─┐
               │                              │
              YES                            NO
               │                              │
-     EVM Path:                    QoreChain SDK Path:
+     EVM Path:                    Cosmos SDK Path:
      EVMMonoDecorator             SetUpContext
      TxListenerDecorator          WasmLimitSim
                                   WasmCountTX
