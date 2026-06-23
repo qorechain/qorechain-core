@@ -594,6 +594,11 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// Wire the xQORE module as the QCA QDRW voting-power xQORE source so
+	// quadratic-reputation voting power reflects real xQORE balances (the
+	// XQOREKeeper satisfies rlconsensus.TokenomicsKeeper via GetXQOREBalance).
+	app.QCAKeeper.SetTokenomicsKeeper(app.XQOREKeeper)
+
 	// --- Initialize Inflation module (via factory) ---
 	inflationStoreKey := storetypes.NewKVStoreKey(inflationtypes.StoreKey)
 	app.MountStores(inflationStoreKey)

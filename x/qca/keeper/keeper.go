@@ -11,6 +11,7 @@ import (
 
 	"github.com/qorechain/qorechain-core/x/qca/types"
 	reputationkeeper "github.com/qorechain/qorechain-core/x/reputation/keeper"
+	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 )
 
 // StakingReader provides read-only staking data for pool classification and bonding curve.
@@ -35,6 +36,9 @@ type Keeper struct {
 	logger           log.Logger
 	stakingKeeper    StakingReader // optional, set after creation
 	rlKeeper         RLReader      // optional, set after creation
+	// tokenomicsKeeper supplies xQORE balances for QDRW voting power. Defaults
+	// to the nil implementation (zero xQORE) until wired to the xQORE module.
+	tokenomicsKeeper rlconsensusmod.TokenomicsKeeper
 }
 
 // NewKeeper creates a new QCA keeper.
@@ -51,6 +55,7 @@ func NewKeeper(
 		reputationKeeper: reputationKeeper,
 		selector:         selector,
 		logger:           logger.With("module", types.ModuleName),
+		tokenomicsKeeper: rlconsensusmod.NilTokenomicsKeeper{},
 	}
 }
 
@@ -64,6 +69,22 @@ func (k *Keeper) SetStakingKeeper(sk StakingReader) {
 // SetRLKeeper sets the optional RL consensus keeper dependency.
 func (k *Keeper) SetRLKeeper(rl RLReader) {
 	k.rlKeeper = rl
+}
+
+// SetTokenomicsKeeper wires the xQORE balance source used for QDRW voting power.
+func (k *Keeper) SetTokenomicsKeeper(tk rlconsensusmod.TokenomicsKeeper) {
+	if tk == nil {
+		tk = rlconsensusmod.NilTokenomicsKeeper{}
+	}
+	k.tokenomicsKeeper = tk
+}
+
+// TokenomicsKeeper returns the configured xQORE balance source (never nil).
+func (k Keeper) TokenomicsKeeper() rlconsensusmod.TokenomicsKeeper {
+	if k.tokenomicsKeeper == nil {
+		return rlconsensusmod.NilTokenomicsKeeper{}
+	}
+	return k.tokenomicsKeeper
 }
 
 // ---- Config ----
