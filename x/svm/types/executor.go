@@ -13,6 +13,13 @@ type SVMExecutor interface {
 		instructionData []byte, programID [32]byte,
 		computeBudget uint64, blockTime int64) (*ExecutionResult, error)
 
+	// ExecuteV2WithPrograms runs a BPF program like ExecuteV2 but also supplies a
+	// registry of other deployed programs (keyed by 32-byte program ID), enabling
+	// BPF->BPF cross-program invocation from the Solana-compatible execution path.
+	ExecuteV2WithPrograms(program []byte, accounts []SVMAccount, metas []AccountMeta,
+		instructionData []byte, programID [32]byte, programs map[[32]byte][]byte,
+		computeBudget uint64, blockTime int64) (*ExecutionResult, error)
+
 	// ExecuteNative runs a native program directly (no BPF interpretation).
 	// The program is identified by its 32-byte ID and must be registered in
 	// the runtime's native program table.
