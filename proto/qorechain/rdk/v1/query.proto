@@ -1,0 +1,78 @@
+syntax = "proto3";
+package qorechain.rdk.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/rdk/types";
+
+// Query defines the gRPC query service for the rdk (rollup) module.
+service Query {
+  // Params returns the module parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  // Rollup returns a single rollup config by ID.
+  rpc Rollup(QueryRollupRequest) returns (QueryRollupResponse);
+  // Rollups lists all rollups.
+  rpc Rollups(QueryRollupsRequest) returns (QueryRollupsResponse);
+  // Batch returns a settlement batch by (rollup_id, batch_index).
+  rpc Batch(QueryBatchRequest) returns (QueryBatchResponse);
+  // LatestBatch returns the latest settlement batch for a rollup.
+  rpc LatestBatch(QueryLatestBatchRequest) returns (QueryLatestBatchResponse);
+}
+
+// ParamsView is the query-facing view of the module parameters.
+message ParamsView {
+  uint32 max_rollups = 1;
+  int64 min_stake_for_rollup = 2;
+  string rollup_creation_burn_rate = 3;
+  uint64 default_challenge_window = 4;
+  uint64 max_da_blob_size = 5;
+  uint64 blob_retention_blocks = 6;
+  uint32 max_batches_per_block = 7;
+}
+
+// RollupView is the query-facing view of a rollup config (scalar fields).
+message RollupView {
+  string rollup_id = 1;
+  string creator = 2;
+  string profile = 3;
+  string settlement_mode = 4;
+  string da_backend = 5;
+  uint64 block_time_ms = 6;
+  uint64 max_tx_per_block = 7;
+  string vm_type = 8;
+  string status = 9;
+  int64 stake_amount = 10;
+  string layer_id = 11;
+  int64 created_height = 12;
+}
+
+// BatchView is the query-facing view of a settlement batch.
+message BatchView {
+  string rollup_id = 1;
+  uint64 batch_index = 2;
+  string state_root = 3;
+  string prev_state_root = 4;
+  uint64 tx_count = 5;
+  string data_hash = 6;
+  string proof_type = 7;
+  string status = 8;
+  int64 submitted_at = 9;
+  int64 finalized_at = 10;
+  string withdrawals_root = 11;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { ParamsView params = 1; }
+
+message QueryRollupRequest { string rollup_id = 1; }
+message QueryRollupResponse { RollupView rollup = 1; }
+
+message QueryRollupsRequest {}
+message QueryRollupsResponse { repeated RollupView rollups = 1; }
+
+message QueryBatchRequest {
+  string rollup_id = 1;
+  uint64 batch_index = 2;
+}
+message QueryBatchResponse { BatchView batch = 1; }
+
+message QueryLatestBatchRequest { string rollup_id = 1; }
+message QueryLatestBatchResponse { BatchView batch = 1; }

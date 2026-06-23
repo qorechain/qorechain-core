@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/client/flags"
 
 	"github.com/qorechain/qorechain-core/x/rdk/types"
 )
@@ -18,7 +19,6 @@ func GetQueryCmd() *cobra.Command {
 		SuggestionsMinimumDistance: 2,
 		RunE:                       client.ValidateCmd,
 	}
-
 	cmd.AddCommand(
 		CmdQueryRollup(),
 		CmdQueryListRollups(),
@@ -26,7 +26,6 @@ func GetQueryCmd() *cobra.Command {
 		CmdQueryConfig(),
 		CmdSuggestProfile(),
 	)
-
 	return cmd
 }
 
@@ -41,13 +40,14 @@ func CmdQueryRollup() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			fmt.Printf("Query rollup: %s\n", args[0])
-			fmt.Println("Use the qor_getRollupStatus JSON-RPC endpoint for full rollup data.")
-			return nil
+			res, err := types.NewQueryClient(clientCtx).Rollup(cmd.Context(), &types.QueryRollupRequest{RollupId: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -62,46 +62,46 @@ func CmdQueryListRollups() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			creator, _ := cmd.Flags().GetString("creator")
-			if creator != "" {
-				fmt.Printf("Listing rollups by creator: %s\n", creator)
-			} else {
-				fmt.Println("Listing all rollups")
+			res, err := types.NewQueryClient(clientCtx).Rollups(cmd.Context(), &types.QueryRollupsRequest{})
+			if err != nil {
+				return err
 			}
-			fmt.Println("Use the qor_listRollups JSON-RPC endpoint for rollup data.")
-			return nil
+			return clientCtx.PrintProto(res)
 		},
 	}
-	cmd.Flags().String("creator", "", "Filter by creator address")
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
-// CmdQueryBatch queries a settlement batch.
+// CmdQueryBatch queries a settlement batch (latest, or a specific --index).
 func CmdQueryBatch() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "batch [rollup-id]",
-		Short: "Query a settlement batch",
+		Short: "Query a settlement batch (latest by default, or --index)",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
+			qc := types.NewQueryClient(clientCtx)
 			index, _ := cmd.Flags().GetInt64("index")
 			if index >= 0 {
-				fmt.Printf("Query batch %d for rollup: %s\n", index, args[0])
-			} else {
-				fmt.Printf("Query latest batch for rollup: %s\n", args[0])
+				res, err := qc.Batch(cmd.Context(), &types.QueryBatchRequest{RollupId: args[0], BatchIndex: uint64(index)})
+				if err != nil {
+					return err
+				}
+				return clientCtx.PrintProto(res)
 			}
-			fmt.Println("Use the qor_getSettlementBatch JSON-RPC endpoint for batch data.")
-			return nil
+			res, err := qc.LatestBatch(cmd.Context(), &types.QueryLatestBatchRequest{RollupId: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 	cmd.Flags().Int64("index", -1, "Batch index (default: latest)")
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -116,17 +116,14 @@ func CmdQueryConfig() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			fmt.Println("RDK module parameters:")
-			fmt.Println("  max_rollups: 100")
-			fmt.Println("  min_stake: 10000 QOR")
-			fmt.Println("  burn_rate: 1%")
-			fmt.Println("  challenge_window: 7 days")
-			fmt.Println("  max_da_blob_size: 2 MB")
-			return nil
+			res, err := types.NewQueryClient(clientCtx).Params(cmd.Context(), &types.QueryParamsRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -138,13 +135,10 @@ func CmdSuggestProfile() *cobra.Command {
 		Long:  "Returns a recommended rollup configuration profile (defi, gaming, nft, enterprise) based on the specified use case.",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientQueryContext(cmd)
-			if err != nil {
+			if _, err := client.GetClientQueryContext(cmd); err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			fmt.Printf("Suggested profile for '%s': use qor_suggestRollupProfile RPC\n", args[0])
+			fmt.Printf("Suggested profile for '%s': use the qor_suggestRollupProfile RPC\n", args[0])
 			return nil
 		},
 	}
