@@ -162,6 +162,14 @@ type ChainConfig struct {
 	IBCPortID        string            `json:"ibc_port_id,omitempty"`
 	IBCConnectionID  string            `json:"ibc_connection_id,omitempty"`
 	EurekaClientType string            `json:"eureka_client_type,omitempty"` // e.g. "tendermint", "solomachine"
+
+	// Light-client deposit verification (opt-in). When LightClientEnabled is
+	// true, deposits from this chain are verified by the on-chain light client
+	// (the deposit Msg's proof field) instead of the PQC-attestation path.
+	// LockEventSig is the hex topic0 of the bridge lock event; BridgeContract is
+	// the lock contract address (reused from above).
+	LightClientEnabled bool   `json:"light_client_enabled,omitempty"`
+	LockEventSig       string `json:"lock_event_sig,omitempty"`
 }
 
 // IsValidChainArchitecture returns true if a is a recognised value.
