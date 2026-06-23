@@ -180,6 +180,11 @@ type ChainConfig struct {
 	// validator-quorum verifier (Stellar, Hedera, TON, Algorand, XRPL). The
 	// configured per-chain validator set must sign the canonical deposit digest.
 	Ed25519QuorumEnabled bool `json:"ed25519_quorum_enabled,omitempty"`
+
+	// BLSQuorumEnabled routes this chain's deposits through the BLS12-381
+	// aggregate-quorum verifier (Sui). The configured per-chain committee must
+	// aggregate-sign the canonical deposit digest.
+	BLSQuorumEnabled bool `json:"bls_quorum_enabled,omitempty"`
 }
 
 // IsValidChainArchitecture returns true if a is a recognised value.
