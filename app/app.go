@@ -540,6 +540,9 @@ func NewQoreChainApp(
 		multilayerStoreKey,
 		logger,
 	)
+	// Authenticate state anchors against the layer creator's registered
+	// Dilithium key (PQCKeeper is created earlier above).
+	app.MultilayerKeeper.SetAnchorVerifier(pqcAnchorVerifier{pqc: app.PQCKeeper})
 
 	// --- Initialize SVM module (via factory) ---
 	svmStoreKey := storetypes.NewKVStoreKey(svmtypes.StoreKey)

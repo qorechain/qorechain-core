@@ -96,6 +96,8 @@ func (k *StubKeeper) SetParams(_ sdk.Context, _ types.Params) error {
 	return nil
 }
 
+func (k *StubKeeper) SetAnchorVerifier(_ types.AnchorSignatureVerifier) {}
+
 func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {

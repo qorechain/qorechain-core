@@ -36,6 +36,10 @@ type MultilayerKeeper interface {
 	GetParams(ctx sdk.Context) types.Params
 	SetParams(ctx sdk.Context, params types.Params) error
 
+	// SetAnchorVerifier wires the PQC verifier used to authenticate state
+	// anchors against the layer creator's registered Dilithium key.
+	SetAnchorVerifier(v types.AnchorSignatureVerifier)
+
 	// Genesis
 	InitGenesis(ctx sdk.Context, state types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState
