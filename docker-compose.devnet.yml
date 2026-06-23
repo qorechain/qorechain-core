@@ -22,6 +22,9 @@ services:
       dockerfile: Dockerfile
     container_name: qorechain-devnet-node-1
     hostname: node-1
+    # Run the mounted devnet init script, not the image's default single-chain
+    # bootstrap entrypoint.
+    entrypoint: ["/scripts/init-node.sh"]
     ports:
       - "26657:26657"   # consensus RPC
       - "26656:26656"   # consensus P2P
@@ -57,6 +60,9 @@ services:
       dockerfile: Dockerfile
     container_name: qorechain-devnet-node-2
     hostname: node-2
+    # Run the mounted devnet init script, not the image's default single-chain
+    # bootstrap entrypoint.
+    entrypoint: ["/scripts/init-node.sh"]
     depends_on:
       qorechain-devnet-node-1:
         condition: service_healthy

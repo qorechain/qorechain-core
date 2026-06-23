@@ -30,15 +30,20 @@ if [ ! -f "$HOME_DIR/config/genesis.json" ]; then
     sleep 2
   done
 
-  # Fetch genesis from node-1
+  # Fetch genesis from node-1. The /genesis endpoint is capped (~20MB); assemble
+  # it from genesis_chunked so this works regardless of genesis size. jq (not
+  # python3) is the JSON tool present in the runtime image.
   echo "[init-node2] Fetching genesis from $SEED_RPC"
-  curl -fsS "$SEED_RPC/genesis" \
-    | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin)['result']['genesis']))" \
-    > "$HOME_DIR/config/genesis.json"
+  TOTAL=$(curl -fsS "$SEED_RPC/genesis_chunked?chunk=0" | jq -r '.result.total')
+  : > "$HOME_DIR/config/genesis.b64"
+  for c in $(seq 0 $((TOTAL - 1))); do
+    curl -fsS "$SEED_RPC/genesis_chunked?chunk=$c" | jq -r '.result.data' >> "$HOME_DIR/config/genesis.b64"
+  done
+  base64 -d "$HOME_DIR/config/genesis.b64" > "$HOME_DIR/config/genesis.json"
+  rm -f "$HOME_DIR/config/genesis.b64"
 
   # Discover node-1's node ID for persistent_peers
-  NODE_1_ID=$(curl -fsS "$SEED_RPC/status" \
-    | python3 -c "import sys,json; print(json.load(sys.stdin)['result']['node_info']['id'])")
+  NODE_1_ID=$(curl -fsS "$SEED_RPC/status" | jq -r '.result.node_info.id')
 
   PEERS="${NODE_1_ID}@node-1:26656"
   sed -i "s|persistent_peers = \"\"|persistent_peers = \"$PEERS\"|" \
@@ -51,7 +56,14 @@ if [ ! -f "$HOME_DIR/config/genesis.json" ]; then
   # Allow inbound peers
   sed -i 's/laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' \
     "$HOME_DIR/config/config.toml"
+
+  # Expose the REST API on all interfaces (the API address has no start flag).
+  sed -i 's|address = "tcp://localhost:1317"|address = "tcp://0.0.0.0:1317"|' \
+    "$HOME_DIR/config/app.toml"
 fi
 
 echo "[init-node2] Starting qorechaind"
-exec qorechaind start --home "$HOME_DIR"
+exec qorechaind start --home "$HOME_DIR" \
+  --api.enable \
+  --grpc.enable --grpc.address "0.0.0.0:9090" \
+  --json-rpc.enable --json-rpc.address "0.0.0.0:8545" --json-rpc.ws-address "0.0.0.0:8546"

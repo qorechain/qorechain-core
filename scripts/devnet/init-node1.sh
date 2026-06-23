@@ -41,7 +41,14 @@ if [ ! -f "$HOME_DIR/config/genesis.json" ]; then
   # Allow inbound peers from node-2
   sed -i 's/laddr = "tcp:\/\/127.0.0.1:26657"/laddr = "tcp:\/\/0.0.0.0:26657"/' \
     "$HOME_DIR/config/config.toml"
+
+  # Expose the REST API on all interfaces (the API address has no start flag).
+  sed -i 's|address = "tcp://localhost:1317"|address = "tcp://0.0.0.0:1317"|' \
+    "$HOME_DIR/config/app.toml"
 fi
 
 echo "[init-node1] Starting qorechaind"
-exec qorechaind start --home "$HOME_DIR"
+exec qorechaind start --home "$HOME_DIR" \
+  --api.enable \
+  --grpc.enable --grpc.address "0.0.0.0:9090" \
+  --json-rpc.enable --json-rpc.address "0.0.0.0:8545" --json-rpc.ws-address "0.0.0.0:8546"
