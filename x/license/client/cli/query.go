@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -19,67 +17,76 @@ func GetQueryCmd() *cobra.Command {
 		SuggestionsMinimumDistance: 2,
 		RunE:                       client.ValidateCmd,
 	}
-
 	cmd.AddCommand(
 		CmdQueryList(),
 		CmdQueryCheck(),
 		CmdQueryHolders(),
 	)
-
 	return cmd
 }
 
-// CmdQueryList returns the command to list all licenses for a validator.
+// CmdQueryList lists all licenses held by a grantee.
 func CmdQueryList() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "list [validator-addr]",
-		Short: "List all licenses for a validator",
+		Use:   "list [grantee-addr]",
+		Short: "List all licenses held by a grantee",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(clientCtx.Output, "Querying licenses for %s...\n", args[0])
-			return nil
+			res, err := types.NewQueryClient(clientCtx).List(cmd.Context(), &types.QueryListRequest{Grantee: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
-// CmdQueryCheck returns the command to check if a validator has an active license.
+// CmdQueryCheck checks a single (grantee, feature) license grant.
 func CmdQueryCheck() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "check [validator-addr] [feature-id]",
-		Short: "Check if a validator has an active license",
+		Use:   "check [grantee-addr] [feature-id]",
+		Short: "Check a grantee's license for a feature",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(clientCtx.Output, "Checking license %s for %s...\n", args[1], args[0])
-			return nil
+			res, err := types.NewQueryClient(clientCtx).Check(cmd.Context(),
+				&types.QueryCheckRequest{Grantee: args[0], FeatureId: args[1]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }
 
-// CmdQueryHolders returns the command to list all validators with a given license.
+// CmdQueryHolders lists all grantees holding a given feature license.
 func CmdQueryHolders() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "holders [feature-id]",
-		Short: "List all validators with a given license",
+		Short: "List all grantees holding a given feature license",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientQueryContext(cmd)
 			if err != nil {
 				return err
 			}
-			fmt.Fprintf(clientCtx.Output, "Querying holders of %s...\n", args[0])
-			return nil
+			res, err := types.NewQueryClient(clientCtx).Holders(cmd.Context(),
+				&types.QueryHoldersRequest{FeatureId: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
 		},
 	}
 	flags.AddQueryFlagsToCmd(cmd)

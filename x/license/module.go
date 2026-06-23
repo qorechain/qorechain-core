@@ -32,6 +32,7 @@ var (
 // resume transactions route to the keeper.
 func (am AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterMsgServer(cfg.MsgServer(), NewMsgServer(am.keeper))
+	types.RegisterQueryServer(cfg.QueryServer(), NewQueryServer(am.keeper))
 }
 
 type AppModuleBasic struct{}

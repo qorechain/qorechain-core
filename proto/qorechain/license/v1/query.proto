@@ -1,0 +1,41 @@
+syntax = "proto3";
+package qorechain.license.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/license/types";
+
+// Query defines the gRPC query service for the license module.
+service Query {
+  // Check returns a single license grant for (grantee, feature_id).
+  rpc Check(QueryCheckRequest) returns (QueryCheckResponse);
+  // Holders lists every grantee holding a given feature license.
+  rpc Holders(QueryHoldersRequest) returns (QueryHoldersResponse);
+  // List returns every license held by a grantee.
+  rpc List(QueryListRequest) returns (QueryListResponse);
+}
+
+// LicenseView is the query-facing view of a license grant.
+message LicenseView {
+  string grantee = 1;
+  string feature_id = 2;
+  int64 expires_at = 3;
+  int64 granted_at = 4;
+  string granted_by = 5;
+  bool suspended = 6;
+  string metadata = 7;
+}
+
+message QueryCheckRequest {
+  string grantee = 1;
+  string feature_id = 2;
+}
+message QueryCheckResponse {
+  LicenseView license = 1;
+  // active is true when the grant exists and is not suspended.
+  bool active = 2;
+}
+
+message QueryHoldersRequest { string feature_id = 1; }
+message QueryHoldersResponse { repeated LicenseView licenses = 1; }
+
+message QueryListRequest { string grantee = 1; }
+message QueryListResponse { repeated LicenseView licenses = 1; }
