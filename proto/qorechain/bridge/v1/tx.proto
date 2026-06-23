@@ -22,6 +22,10 @@ service Msg {
 
   // BridgeAttestation submits a validator attestation for a bridge operation.
   rpc BridgeAttestation(MsgBridgeAttestation) returns (MsgBridgeAttestationResponse);
+
+  // UpdateEthLightClient advances the on-chain Ethereum light client with a
+  // verified Altair LightClientUpdate (carried as an opaque encoded bundle).
+  rpc UpdateEthLightClient(MsgUpdateEthLightClient) returns (MsgUpdateEthLightClientResponse);
 }
 
 message MsgBridgeDeposit {
@@ -71,3 +75,13 @@ message MsgBridgeAttestation {
   bytes pqc_signature = 9 [(gogoproto.customname) = "PQCSignature"];
 }
 message MsgBridgeAttestationResponse {}
+
+message MsgUpdateEthLightClient {
+  option (cosmos.msg.v1.signer) = "relayer";
+
+  string relayer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // Encoded Altair LightClientUpdate bundle verified against the stored sync
+  // committee before advancing the on-chain light client.
+  bytes update = 2;
+}
+message MsgUpdateEthLightClientResponse {}
