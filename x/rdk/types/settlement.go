@@ -26,3 +26,14 @@ type SettlementBatch struct {
 	FinalizedAt   int64         `json:"finalized_at"`   // Block height
 	Status        BatchStatus   `json:"status"`
 }
+
+// BatchChallengeRecord records an open fraud-proof challenge against an
+// optimistic batch, including the challenger's escrowed bond.
+type BatchChallengeRecord struct {
+	RollupID    string `json:"rollup_id"`
+	BatchIndex  uint64 `json:"batch_index"`
+	Challenger  string `json:"challenger"`   // bech32 address that posted the challenge
+	Bond        int64  `json:"bond"`         // escrowed challenge bond (uqor)
+	Proof       []byte `json:"proof"`        // submitted fraud proof
+	ChallengedAt int64 `json:"challenged_at"` // block height
+}

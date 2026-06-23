@@ -7,6 +7,7 @@ const (
 	EventRollupStopped    = "rollup_stopped"
 	EventBatchSubmitted   = "batch_submitted"
 	EventBatchChallenged  = "batch_challenged"
+	EventChallengeResolved = "challenge_resolved"
 	EventBatchFinalized   = "batch_finalized"
 	EventBatchRejected    = "batch_rejected"
 	EventDABlobStored     = "da_blob_stored"

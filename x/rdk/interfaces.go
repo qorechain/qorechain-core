@@ -22,7 +22,8 @@ type RDKKeeper interface {
 
 	// Settlement
 	SubmitBatch(ctx sdk.Context, batch types.SettlementBatch) error
-	ChallengeBatch(ctx sdk.Context, rollupID string, batchIndex uint64, proof []byte) error
+	ChallengeBatch(ctx sdk.Context, challenger, rollupID string, batchIndex uint64, proof []byte) error
+	ResolveChallenge(ctx sdk.Context, resolver, rollupID string, batchIndex uint64, fraudUpheld bool) error
 	FinalizeBatch(ctx sdk.Context, rollupID string, batchIndex uint64) error
 	GetBatch(ctx sdk.Context, rollupID string, batchIndex uint64) (*types.SettlementBatch, error)
 	GetLatestBatch(ctx sdk.Context, rollupID string) (*types.SettlementBatch, error)

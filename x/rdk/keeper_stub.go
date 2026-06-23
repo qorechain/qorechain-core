@@ -42,7 +42,10 @@ func (k *StubKeeper) ListRollupsByCreator(_ sdk.Context, _ string) ([]*types.Rol
 
 // Settlement
 func (k *StubKeeper) SubmitBatch(_ sdk.Context, _ types.SettlementBatch) error { return nil }
-func (k *StubKeeper) ChallengeBatch(_ sdk.Context, _ string, _ uint64, _ []byte) error {
+func (k *StubKeeper) ChallengeBatch(_ sdk.Context, _, _ string, _ uint64, _ []byte) error {
+	return nil
+}
+func (k *StubKeeper) ResolveChallenge(_ sdk.Context, _, _ string, _ uint64, _ bool) error {
 	return nil
 }
 func (k *StubKeeper) FinalizeBatch(_ sdk.Context, _ string, _ uint64) error { return nil }

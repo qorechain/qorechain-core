@@ -45,6 +45,16 @@ func (m *MsgChallengeBatch) ValidateBasic() error {
 	return nil
 }
 
+func (m *MsgResolveChallenge) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Resolver); err != nil {
+		return fmt.Errorf("invalid resolver address: %w", err)
+	}
+	if m.RollupID == "" {
+		return fmt.Errorf("rollup_id cannot be empty")
+	}
+	return nil
+}
+
 func (m *MsgPauseRollup) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Creator); err != nil {
 		return fmt.Errorf("invalid creator address: %w", err)

@@ -25,4 +25,6 @@ var (
 	ErrVerificationKeyMissing = errorsmod.Register(ModuleName, 21, "ZK verification key not configured for rollup")
 	ErrStarkNotSupported      = errorsmod.Register(ModuleName, 22, "STARK proof verification is not yet supported")
 	ErrProofVerifyFailed      = errorsmod.Register(ModuleName, 23, "ZK proof verification failed")
+	ErrNoOpenChallenge        = errorsmod.Register(ModuleName, 24, "no open challenge for this batch")
+	ErrBatchNotChallenged     = errorsmod.Register(ModuleName, 25, "batch is not in challenged state")
 )
