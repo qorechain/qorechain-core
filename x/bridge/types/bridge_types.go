@@ -170,6 +170,11 @@ type ChainConfig struct {
 	// the lock contract address (reused from above).
 	LightClientEnabled bool   `json:"light_client_enabled,omitempty"`
 	LockEventSig       string `json:"lock_event_sig,omitempty"`
+
+	// WormholeEnabled routes this chain's deposits through the Wormhole guardian
+	// VAA verifier (secp256k1 guardian quorum) — used for Solana and other
+	// Wormhole-connected chains. The deposit proof carries the full VAA bytes.
+	WormholeEnabled bool `json:"wormhole_enabled,omitempty"`
 }
 
 // IsValidChainArchitecture returns true if a is a recognised value.
