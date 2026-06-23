@@ -81,6 +81,7 @@ func (am AppModule) QuerierRoute() string                       { return ammtype
 func (am AppModule) RegisterServices(cfg module.Configurator) {
 	if am.keeper != nil {
 		ammtypes.RegisterMsgServer(cfg.MsgServer(), NewMsgServer(am.keeper))
+		ammtypes.RegisterQueryServer(cfg.QueryServer(), NewQueryServer(am.keeper))
 	}
 }
 func (am AppModule) ConsensusVersion() uint64                   { return ConsensusVersion }

@@ -1,0 +1,93 @@
+syntax = "proto3";
+package qorechain.amm.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/amm/types";
+
+// Query defines the gRPC query service for the AMM module.
+service Query {
+  // Params returns the module parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  // Pool returns a single pool by ID.
+  rpc Pool(QueryPoolRequest) returns (QueryPoolResponse);
+  // Pools lists all pools.
+  rpc Pools(QueryPoolsRequest) returns (QueryPoolsResponse);
+  // PoolByDenoms finds a pool by its (denom_a, denom_b) tuple.
+  rpc PoolByDenoms(QueryPoolByDenomsRequest) returns (QueryPoolByDenomsResponse);
+  // LPBalance returns an account's LP balance for a pool.
+  rpc LPBalance(QueryLPBalanceRequest) returns (QueryLPBalanceResponse);
+  // QuoteExactIn quotes the output for a fixed-input swap.
+  rpc QuoteExactIn(QueryQuoteExactInRequest) returns (QueryQuoteExactInResponse);
+  // QuoteExactOut quotes the input required for a fixed-output swap.
+  rpc QuoteExactOut(QueryQuoteExactOutRequest) returns (QueryQuoteExactOutResponse);
+}
+
+// ParamsView is the query-facing view of the module parameters. Integer amounts
+// are rendered as decimal strings.
+message ParamsView {
+  uint32 swap_fee_bps = 1;
+  uint32 protocol_fee_bps = 2;
+  string min_liquidity = 3;
+  uint32 max_pools_per_creator = 4;
+  uint32 lp_token_decimals = 5;
+  string pool_creation_fee = 6;
+  uint32 max_swap_impact_bps = 7;
+  bool enabled = 8;
+}
+
+// PoolView is the query-facing view of a pool.
+message PoolView {
+  uint64 id = 1;
+  string pool_type = 2;
+  string creator = 3;
+  string token_a = 4;
+  string token_b = 5;
+  string reserve_a = 6;
+  string reserve_b = 7;
+  string lp_supply = 8;
+  string lp_denom = 9;
+  int64 created_at = 10;
+  string status = 11;
+  string weighted_avg_price = 12;
+  uint32 amplification_coefficient = 13;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { ParamsView params = 1; }
+
+message QueryPoolRequest { uint64 pool_id = 1; }
+message QueryPoolResponse { PoolView pool = 1; }
+
+message QueryPoolsRequest {}
+message QueryPoolsResponse { repeated PoolView pools = 1; }
+
+message QueryPoolByDenomsRequest {
+  string denom_a = 1;
+  string denom_b = 2;
+}
+message QueryPoolByDenomsResponse { PoolView pool = 1; }
+
+message QueryLPBalanceRequest {
+  uint64 pool_id = 1;
+  string address = 2;
+}
+message QueryLPBalanceResponse { string balance = 1; }
+
+message QueryQuoteExactInRequest {
+  uint64 pool_id = 1;
+  string denom_in = 2;
+  string amount_in = 3;
+}
+message QueryQuoteExactInResponse {
+  string amount_out = 1;
+  string fee = 2;
+}
+
+message QueryQuoteExactOutRequest {
+  uint64 pool_id = 1;
+  string denom_out = 2;
+  string amount_out = 3;
+}
+message QueryQuoteExactOutResponse {
+  string amount_in = 1;
+  string fee = 2;
+}
