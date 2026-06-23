@@ -1,0 +1,34 @@
+syntax = "proto3";
+package qorechain.pqc.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/pqc/types";
+
+// Query defines the gRPC query service for the PQC module.
+service Query {
+  // Account returns the registered PQC key information for an address.
+  rpc Account(QueryAccountRequest) returns (QueryAccountResponse);
+}
+
+message QueryAccountRequest {
+  // address is the bech32 account address whose PQC key is requested.
+  string address = 1;
+}
+
+message QueryAccountResponse {
+  // found reports whether the account has a registered PQC key.
+  bool found = 1;
+  PQCAccountView account = 2;
+}
+
+// PQCAccountView is the query-facing view of a registered PQC account.
+message PQCAccountView {
+  string address = 1;
+  bytes public_key = 2;
+  uint32 algorithm_id = 3;
+  string algorithm_name = 4;
+  bytes ecdsa_pubkey = 5;
+  string key_type = 6;
+  int64 created_at_height = 7;
+  bytes migration_public_key = 8;
+  uint32 migration_algorithm_id = 9;
+}
