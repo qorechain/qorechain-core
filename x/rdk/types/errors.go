@@ -22,4 +22,7 @@ var (
 	ErrInvalidProofSystem    = errorsmod.Register(ModuleName, 18, "invalid proof system")
 	ErrBasedSequencerOnly    = errorsmod.Register(ModuleName, 19, "based settlement requires based sequencer")
 	ErrChallengeBondRequired = errorsmod.Register(ModuleName, 20, "challenge bond is required")
+	ErrVerificationKeyMissing = errorsmod.Register(ModuleName, 21, "ZK verification key not configured for rollup")
+	ErrStarkNotSupported      = errorsmod.Register(ModuleName, 22, "STARK proof verification is not yet supported")
+	ErrProofVerifyFailed      = errorsmod.Register(ModuleName, 23, "ZK proof verification failed")
 )

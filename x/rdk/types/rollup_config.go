@@ -91,6 +91,7 @@ func DefaultSequencerConfig() SequencerConfig {
 type ProofConfig struct {
 	System             ProofSystem `json:"system"`
 	VerifierAddress    string      `json:"verifier_address,omitempty"` // On-chain verifier contract (ZK)
+	VerificationKey    []byte      `json:"verification_key,omitempty"` // Serialized Groth16 BLS12-381 verifying key (ZK-SNARK)
 	ChallengeWindowSec uint64      `json:"challenge_window_sec"`       // Fraud proof window in seconds (Optimistic)
 	ChallengeBond      int64       `json:"challenge_bond"`             // Bond required to submit challenge (uqor)
 	MaxProofSize       uint64      `json:"max_proof_size"`             // Max proof bytes
