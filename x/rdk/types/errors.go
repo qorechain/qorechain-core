@@ -27,4 +27,5 @@ var (
 	ErrProofVerifyFailed      = errorsmod.Register(ModuleName, 23, "ZK proof verification failed")
 	ErrNoOpenChallenge        = errorsmod.Register(ModuleName, 24, "no open challenge for this batch")
 	ErrBatchNotChallenged     = errorsmod.Register(ModuleName, 25, "batch is not in challenged state")
+	ErrDataUnavailable        = errorsmod.Register(ModuleName, 26, "batch data not available: no DA blob matches the data hash")
 )
