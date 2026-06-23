@@ -1,0 +1,65 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# QoreChain — node-only stack (exchanges & integrators)
+#
+# Runs ONLY the QoreChain full node: consensus, the EVM / CosmWasm / SVM
+# runtimes, and the RPC / REST / gRPC / EVM-JSON-RPC endpoints. It joins the live
+# network and follows the chain.
+#
+# It does NOT run — and does not require — any of the optional or licensed
+# components: no AI sidecar, no bridge relayers or external-network light
+# clients, no block indexer, no Postgres, no Prometheus/Grafana. (The bridge and
+# IBC modules are compiled into the single node binary but stay dormant: with no
+# relayer and no per-chain config they neither validate nor relay for any other
+# network — the node only follows QoreChain.)
+#
+# Everything here is free, self-contained, and pulls no private images: the node
+# image is built locally from the public Dockerfile.
+#
+#   GENESIS_URL=https://… SEEDS=<id@host:port,…> docker compose -f docker-compose.node.yml up -d --build
+#
+# See the README section "Run a QoreChain-Only Node (Exchanges & Integrators)".
+# ──────────────────────────────────────────────────────────────────────────────
+
+services:
+  qorechain-node:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: qorechain-node:local
+    container_name: qorechain-node
+    # Join the live network instead of bootstrapping a fresh local chain.
+    entrypoint: ["/scripts/join-network.sh"]
+    ports:
+      - "26657:26657"   # RPC
+      - "26656:26656"   # P2P
+      - "1317:1317"     # REST API
+      - "9090:9090"     # gRPC
+      - "8545:8545"     # EVM JSON-RPC (HTTP)
+      - "8546:8546"     # EVM JSON-RPC (WebSocket)
+      - "26660:26660"   # Prometheus metrics
+    volumes:
+      - node-data:/home/qorechaind/.qorechaind
+      # Optional: mount the network genesis instead of setting GENESIS_URL.
+      # - ./genesis.json:/genesis/genesis.json:ro
+    environment:
+      - CHAIN_ID=${CHAIN_ID:-qorechain-diana}
+      - MONIKER=${MONIKER:-qorechain-node}
+      # Provide the network genesis via URL (or mount it; see volumes above).
+      - GENESIS_URL=${GENESIS_URL:-}
+      # Network peers — "<node_id>@<host>:<port>,…".
+      - SEEDS=${SEEDS:-}
+      - PERSISTENT_PEERS=${PERSISTENT_PEERS:-}
+      - MIN_GAS_PRICE=${MIN_GAS_PRICE:-0.001uqor}
+      - ENABLE_SWAGGER=${ENABLE_SWAGGER:-false}
+      - LD_LIBRARY_PATH=/usr/local/lib
+    restart: unless-stopped
+    mem_limit: 4g
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:26657/status"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  node-data:

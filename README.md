@@ -227,6 +227,81 @@ curl -o ~/.qorechaind/config/genesis.json https://raw.githubusercontent.com/qore
 ./qorechaind start
 ```
 
+### Run a QoreChain-Only Node (Exchanges & Integrators)
+
+If you only need to **connect to QoreChain** — sync the chain, query
+balances/blocks, and submit transactions — you do **not** need any of the
+optional or licensed components. A plain full node is everything required.
+
+**Not needed (and not started by this setup):**
+
+- ❌ AI sidecar (licensed image — `x/ai` runs its on-chain heuristic engine by
+  default; `UseSidecar` is `false`)
+- ❌ Bridge relayers / external-network light clients (the bridge & IBC modules
+  are compiled into the binary but stay dormant — with no relayer and no
+  per-chain config the node neither validates nor relays for any other network)
+- ❌ Block indexer + Postgres, Prometheus/Grafana
+
+Just the node: consensus, the EVM / CosmWasm / SVM runtimes, and the
+RPC / REST / gRPC / EVM-JSON-RPC endpoints.
+
+#### Option A — Docker (node-only compose)
+
+The node image is built locally from the public `Dockerfile`; **no private
+images are pulled.** Provide the network genesis and peers, then start:
+
+```bash
+git clone https://github.com/qorechain/qorechain-core.git
+cd qorechain-core
+
+GENESIS_URL="https://<network-genesis-url>/genesis.json" \
+SEEDS="<node_id>@<host>:26656,<node_id>@<host>:26656" \
+docker compose -f docker-compose.node.yml up -d --build
+```
+
+`docker-compose.node.yml` runs a single `qorechain-node` service and joins the
+live network (it does not bootstrap a new chain). Configure it with env vars:
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `GENESIS_URL` | yes¹ | — | URL of the network's `genesis.json` |
+| `SEEDS` | yes² | — | Seed nodes, `id@host:port,…` |
+| `PERSISTENT_PEERS` | yes² | — | Persistent peers, `id@host:port,…` |
+| `CHAIN_ID` | no | `qorechain-diana` | Network chain ID |
+| `MONIKER` | no | `qorechain-node` | Node name |
+| `MIN_GAS_PRICE` | no | `0.001uqor` | Minimum gas price |
+
+¹ Or mount the genesis instead of using a URL — uncomment the `./genesis.json`
+volume in `docker-compose.node.yml`. ² At least one of `SEEDS` /
+`PERSISTENT_PEERS`.
+
+> Get the current `qorechain-diana` genesis URL and seed/peer list from the
+> QoreChain network page (or your QoreChain contact).
+
+Check it is syncing:
+
+```bash
+curl -s localhost:26657/status | jq '.result.sync_info'   # catching_up: false once synced
+```
+
+Exposed endpoints: RPC `:26657`, REST `:1317`, gRPC `:9090`,
+EVM JSON-RPC `:8545` (HTTP) / `:8546` (WS).
+
+#### Option B — From source (no Docker)
+
+```bash
+# Prerequisites: Go 1.26+, CGO enabled, build-essential
+git clone https://github.com/qorechain/qorechain-core.git
+cd qorechain-core
+CGO_ENABLED=1 go build -tags "netgo ledger" -o qorechaind ./cmd/qorechaind
+
+# Initialize, then join the live network
+./qorechaind init <moniker> --chain-id qorechain-diana
+curl -fsSL "https://<network-genesis-url>/genesis.json" -o ~/.qorechaind/config/genesis.json
+# add seeds / persistent_peers under [p2p] in ~/.qorechaind/config/config.toml
+./qorechaind start --minimum-gas-prices 0.001uqor
+```
+
 ## Architecture
 
 ```
