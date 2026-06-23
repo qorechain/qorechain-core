@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/hex"
 	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -28,7 +29,62 @@ func GetTxCmd() *cobra.Command {
 		cmdPauseRollup(),
 		cmdResumeRollup(),
 		cmdStopRollup(),
+		cmdExecuteWithdrawal(),
 	)
+	return cmd
+}
+
+func cmdExecuteWithdrawal() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "execute-withdrawal [rollup-id] [batch-index] [withdrawal-index] [recipient] [denom] [amount]",
+		Short: "Finalize an L2->L1 withdrawal against a finalized batch's withdrawals root",
+		Long: "Proves a withdrawal leaf is committed in the batch's withdrawals_root and pays the recipient " +
+			"from the rdk module escrow. Permissionless: anyone may submit a valid proof. Pass the Merkle " +
+			"sibling hashes (leaf->root) as a comma-separated list of hex strings via --proof.",
+		Args: cobra.ExactArgs(6),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			batchIdx, err := strconv.ParseUint(args[1], 10, 64)
+			if err != nil {
+				return err
+			}
+			wIdx, err := strconv.ParseUint(args[2], 10, 64)
+			if err != nil {
+				return err
+			}
+			amount, err := strconv.ParseInt(args[5], 10, 64)
+			if err != nil {
+				return err
+			}
+			proofCSV, _ := cmd.Flags().GetString("proof")
+			var proof [][]byte
+			if proofCSV != "" {
+				for _, h := range strings.Split(proofCSV, ",") {
+					sib, err := hex.DecodeString(strings.TrimSpace(h))
+					if err != nil {
+						return err
+					}
+					proof = append(proof, sib)
+				}
+			}
+			msg := &types.MsgExecuteWithdrawal{
+				Submitter:       clientCtx.GetFromAddress().String(),
+				RollupID:        args[0],
+				BatchIndex:      batchIdx,
+				WithdrawalIndex: wIdx,
+				Recipient:       args[3],
+				Denom:           args[4],
+				Amount:          amount,
+				Proof:           proof,
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	cmd.Flags().String("proof", "", "comma-separated hex Merkle sibling hashes (leaf->root)")
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
 
