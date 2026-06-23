@@ -36,6 +36,10 @@ var (
 
 	// AppliedParamsKey stores the most recently applied consensus parameters: single key
 	AppliedParamsKey = []byte{0x08}
+
+	// PrevBlockTimeKey stores the previous observed block time (unix ms): single
+	// key -> int64 BE. Used to derive the real inter-block time.
+	PrevBlockTimeKey = []byte{0x09}
 )
 
 // ObservationKey returns the key for an observation at a given height.
