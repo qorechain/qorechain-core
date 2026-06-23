@@ -57,12 +57,14 @@ jq '
   .app_state.staking.params.unbonding_time = "600s" |
   .app_state.staking.params.min_commission_rate = "0.050000000000000000" |
   .app_state.staking.params.max_validators = 150 |
-  .app_state.staking.params.min_self_delegation = "100000000000" |
   .app_state.mint.minter.inflation = "0.130000000000000000" |
   .app_state.gov.params.min_deposit[0].denom = "uqor" |
   .app_state.gov.params.min_deposit[0].amount = "10000000000" |
+  .app_state.gov.params.expedited_min_deposit[0].denom = "uqor" |
+  .app_state.gov.params.expedited_min_deposit[0].amount = "20000000000" |
   .app_state.gov.params.quorum = "0.100000000000000000" |
   .app_state.gov.params.voting_period = "600s" |
+  .app_state.gov.params.expedited_voting_period = "300s" |
   .app_state.bank.denom_metadata = [
     {
       "description": "The native staking token of QoreChain",
@@ -83,8 +85,10 @@ jq '
 
 # Step 8: Configure Consensus Engine Engine
 CONFIG="$HOME_DIR/config/config.toml"
-sed -i 's/timeout_commit = .*/timeout_commit = "5s"/' "$CONFIG" 2>/dev/null || \
-    sed -i '' 's/timeout_commit = .*/timeout_commit = "5s"/' "$CONFIG"
+# Anchor to start-of-line so this does NOT also rewrite `skip_timeout_commit`
+# (which ends in "timeout_commit") into a non-bool value and break config parsing.
+sed -i 's/^timeout_commit = .*/timeout_commit = "5s"/' "$CONFIG" 2>/dev/null || \
+    sed -i '' 's/^timeout_commit = .*/timeout_commit = "5s"/' "$CONFIG"
 
 # Enable Prometheus metrics
 sed -i 's/prometheus = false/prometheus = true/' "$CONFIG" 2>/dev/null || \

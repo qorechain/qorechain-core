@@ -17,6 +17,10 @@ COPY . .
 ENV CGO_ENABLED=1
 RUN go build -tags "netgo ledger" -ldflags "-w -s" -o /build/qorechaind ./cmd/qorechaind
 
+# wasmvm (CosmWasm runtime) ships a prebuilt shared library that the binary links
+# dynamically; stage it so the runtime image can load it at startup.
+RUN cp "$(dirname "$(find /go/pkg/mod -name 'libwasmvm.*.so' | head -1)")"/libwasmvm.*.so /build/
+
 # Stage 2: Minimal runtime
 FROM debian:bookworm-slim
 
@@ -24,6 +28,11 @@ RUN apt-get update && apt-get install -y ca-certificates curl jq && rm -rf /var/
 
 # Copy binary
 COPY --from=builder /build/qorechaind /usr/local/bin/
+
+# Copy the wasmvm shared library and refresh the linker cache so the binary can
+# resolve libwasmvm.<arch>.so at runtime.
+COPY --from=builder /build/libwasmvm.*.so /usr/lib/
+RUN ldconfig
 
 # Copy init scripts
 COPY scripts/ /scripts/
