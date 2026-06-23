@@ -196,6 +196,11 @@ type ChainConfig struct {
 	// is proven against the Ethereum light client's finalized execution state
 	// root: L1-committed L2 state root, then the L2 deposit, via MPT proofs.
 	L2AnchoredEnabled bool `json:"l2_anchored_enabled,omitempty"`
+
+	// BitcoinSPVEnabled routes this chain's deposits through the Bitcoin SPV
+	// verifier: a proof-of-work header chain anchored to a trusted checkpoint, the
+	// deposit tx's Merkle inclusion, minimum confirmations, and output-value bind.
+	BitcoinSPVEnabled bool `json:"bitcoin_spv_enabled,omitempty"`
 }
 
 // IsValidChainArchitecture returns true if a is a recognised value.
