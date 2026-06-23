@@ -1,0 +1,84 @@
+syntax = "proto3";
+package qorechain.bridge.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/bridge/types";
+
+// Query defines the gRPC query service for the bridge module.
+service Query {
+  // Config returns the global bridge config.
+  rpc Config(QueryConfigRequest) returns (QueryConfigResponse);
+  // ChainConfig returns a single chain config by ID.
+  rpc ChainConfig(QueryChainConfigRequest) returns (QueryChainConfigResponse);
+  // ChainConfigs lists all configured chains.
+  rpc ChainConfigs(QueryChainConfigsRequest) returns (QueryChainConfigsResponse);
+  // Validator returns a single bridge validator by address.
+  rpc Validator(QueryValidatorRequest) returns (QueryValidatorResponse);
+  // Validators lists all bridge validators.
+  rpc Validators(QueryValidatorsRequest) returns (QueryValidatorsResponse);
+  // Operation returns a single bridge operation by ID.
+  rpc Operation(QueryOperationRequest) returns (QueryOperationResponse);
+  // Operations lists all bridge operations.
+  rpc Operations(QueryOperationsRequest) returns (QueryOperationsResponse);
+}
+
+message BridgeConfigView {
+  int32 min_validators = 1;
+  int32 attestation_threshold = 2;
+  int64 challenge_period_secs = 3;
+  string large_transfer_threshold = 4;
+  bool enabled = 5;
+}
+
+message ChainConfigView {
+  string chain_id = 1;
+  string name = 2;
+  string chain_type = 3;
+  string bridge_contract = 4;
+  string status = 5;
+  int32 min_confirmations = 6;
+  string architecture = 7;
+  string ibc_channel_id = 8;
+  string ibc_port_id = 9;
+}
+
+message BridgeValidatorView {
+  string address = 1;
+  repeated string supported_chains = 2;
+  string reputation = 3;
+  bool active = 4;
+  int64 registered_at = 5;
+}
+
+message BridgeOperationView {
+  string id = 1;
+  string type = 2;
+  string source_chain = 3;
+  string dest_chain = 4;
+  string sender = 5;
+  string receiver = 6;
+  string asset = 7;
+  string amount = 8;
+  string source_tx_hash = 9;
+  string status = 10;
+}
+
+message QueryConfigRequest {}
+message QueryConfigResponse { BridgeConfigView config = 1; }
+
+message QueryChainConfigRequest { string chain_id = 1; }
+message QueryChainConfigResponse { ChainConfigView chain = 1; }
+
+message QueryChainConfigsRequest {}
+message QueryChainConfigsResponse { repeated ChainConfigView chains = 1; }
+
+message QueryValidatorRequest { string address = 1; }
+message QueryValidatorResponse { BridgeValidatorView validator = 1; }
+
+message QueryValidatorsRequest {}
+message QueryValidatorsResponse { repeated BridgeValidatorView validators = 1; }
+
+message QueryOperationRequest { string id = 1; }
+message QueryOperationResponse { BridgeOperationView operation = 1; }
+
+message QueryOperationsRequest {}
+message QueryOperationsResponse { repeated BridgeOperationView operations = 1; }
