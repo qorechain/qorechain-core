@@ -102,6 +102,10 @@ func (e *stubExecutorWrapper) ExecuteV2(_ []byte, _ []types.SVMAccount, _ []type
 	_ []byte, _ [32]byte, _ uint64, _ int64) (*types.ExecutionResult, error) {
 	return nil, types.ErrSVMDisabled
 }
+func (e *stubExecutorWrapper) ExecuteV2WithPrograms(_ []byte, _ []types.SVMAccount, _ []types.AccountMeta,
+	_ []byte, _ [32]byte, _ map[[32]byte][]byte, _ uint64, _ int64) (*types.ExecutionResult, error) {
+	return nil, types.ErrSVMDisabled
+}
 func (e *stubExecutorWrapper) ExecuteNative(_ [32]byte, _ []types.SVMAccount, _ []types.AccountMeta,
 	_ []byte, _ int64) (*types.ExecutionResult, error) {
 	return nil, types.ErrSVMDisabled
