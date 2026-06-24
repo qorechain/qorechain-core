@@ -1,0 +1,33 @@
+syntax = "proto3";
+package qorechain.ai.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/ai/types";
+
+// Query defines the gRPC query service for the ai module.
+service Query {
+  // Config returns the AI engine configuration.
+  rpc Config(QueryConfigRequest) returns (QueryConfigResponse);
+  // Stats returns the AI engine runtime statistics.
+  rpc Stats(QueryStatsRequest) returns (QueryStatsResponse);
+}
+
+message ConfigView {
+  string anomaly_threshold = 1;
+  string routing_strategy = 2;
+  string risk_threshold = 3;
+  int32 max_tx_per_minute = 4;
+}
+
+message StatsView {
+  uint64 txs_routed = 1;
+  uint64 anomalies_detected = 2;
+  uint64 contracts_scored = 3;
+  uint64 txs_flagged = 4;
+  uint64 txs_rejected = 5;
+}
+
+message QueryConfigRequest {}
+message QueryConfigResponse { ConfigView config = 1; }
+
+message QueryStatsRequest {}
+message QueryStatsResponse { StatsView stats = 1; }
