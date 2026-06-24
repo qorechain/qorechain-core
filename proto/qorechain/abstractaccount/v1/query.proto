@@ -1,0 +1,40 @@
+syntax = "proto3";
+package qorechain.abstractaccount.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/abstractaccount/types";
+
+// Query defines the gRPC query service for the abstractaccount module.
+service Query {
+  // Config returns the module config.
+  rpc Config(QueryConfigRequest) returns (QueryConfigResponse);
+  // Account returns a single abstract account by address.
+  rpc Account(QueryAccountRequest) returns (QueryAccountResponse);
+  // Accounts lists all abstract accounts.
+  rpc Accounts(QueryAccountsRequest) returns (QueryAccountsResponse);
+}
+
+message ConfigView {
+  bool enabled = 1;
+  int32 max_session_keys = 2;
+  int32 max_spending_rules = 3;
+  int64 default_session_ttl = 4;
+}
+
+message AccountView {
+  string address = 1;
+  string contract_address = 2;
+  string account_type = 3;
+  uint32 spending_rules_count = 4;
+  uint32 session_keys_count = 5;
+  int64 created_at = 6;
+  string owner = 7;
+}
+
+message QueryConfigRequest {}
+message QueryConfigResponse { ConfigView config = 1; }
+
+message QueryAccountRequest { string address = 1; }
+message QueryAccountResponse { AccountView account = 1; }
+
+message QueryAccountsRequest {}
+message QueryAccountsResponse { repeated AccountView accounts = 1; }
