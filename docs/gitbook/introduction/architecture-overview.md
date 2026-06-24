@@ -19,8 +19,8 @@ QoreChain is a modular blockchain node composed of three primary processes -- th
 │  │  ┌──────┐   ┌───────┐   ┌───────────┐                    │           │
 │  │  │x/burn│   │x/xqore│   │x/inflation│                    │           │
 │  │  │10 ch.│   │lock/  │   │epoch decay│                    │           │
-│  │  │40/30/│   │unlock │   │17.5→2%    │                    │           │
-│  │  │20/10 │   │PvP    │   │           │                    │           │
+│  │  │5-way │   │unlock │   │17.5→2%    │                    │           │
+│  │  │fees  │   │PvP    │   │           │                    │           │
 │  │  └──────┘   └───────┘   └───────────┘                    │           │
 │  └────────────────────────────────────────────────────────────┘           │
 │                                                                            │
@@ -131,7 +131,7 @@ QoreChain registers 18 custom modules grouped by function:
 - `x/crossvm` -- Cross-VM communication: EVM-CosmWasm precompile + SVM async events
 
 **Tokenomics**
-- `x/burn` -- 10 burn channels, EndBlocker fee distribution (40/30/20/10 split)
+- `x/burn` -- 10 burn channels, EndBlocker fee distribution (37/30/20/10/3 split)
 - `x/xqore` -- Governance-boosted staking: lock/unlock, graduated exit penalties, PvP rebase
 - `x/inflation` -- Epoch-based emission decay: 17.5% to 2%
 

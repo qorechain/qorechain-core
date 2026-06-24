@@ -52,7 +52,7 @@ Public changelog for QoreChain testnet releases.
 
 **Release focus:** Chain launch with full tokenomics, multi-VM execution, and AI-assisted operations.
 
-- **x/burn module** -- 10-channel fee burn mechanism with 4-way distribution: 40% validators, 30% burn, 20% treasury, 10% stakers
+- **x/burn module** -- 10-channel fee burn mechanism with 5-way distribution: 37% validators, 30% burn, 20% treasury, 10% stakers, 3% light nodes
 - **x/xqore module** -- Governance staking derivative with tiered early-unlock penalties and PvP rebase redistribution
 - **x/inflation module** -- Epoch-based minting with annual decay from 8% initial rate to a 2% floor, capped at maximum supply
 - **RL Consensus module** -- Reinforcement learning agent (PPO) for dynamic chain parameter tuning with circuit breaker safety controls

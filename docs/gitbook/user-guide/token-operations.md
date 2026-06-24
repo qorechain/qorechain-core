@@ -77,14 +77,15 @@ This indicates the account holds 15 QOR (15,000,000 uqor).
 
 ## Fee Structure
 
-Transaction fees on QoreChain are distributed across four destinations to align network incentives:
+Transaction fees on QoreChain are distributed across five destinations to align network incentives:
 
 | Destination | Share | Purpose |
 |-------------|-------|---------|
-| **Validators** | 40% | Rewards block producers and secures the network |
+| **Validators** | 37% | Rewards block producers and secures the network |
 | **Burned** | 30% | Permanently removed from supply, creating deflationary pressure |
 | **Treasury** | 20% | Funds protocol development and ecosystem grants |
 | **Stakers** | 10% | Distributed proportionally to all delegators |
+| **Light Nodes** | 3% | Rewards registered light-node operators (taken from the validator share) |
 
 ---
 

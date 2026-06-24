@@ -39,10 +39,11 @@ The x/burn EndBlocker splits collected fees every block:
 
 | Recipient | Share | Purpose |
 |-----------|-------|---------|
-| Validators | 40% | Block production rewards via staking module |
+| Validators | 37% | Block production rewards via staking module |
 | Burn | 30% | Permanently removed from supply |
 | Treasury | 20% | Protocol development and community pool |
 | Stakers | 10% | Additional delegation rewards |
+| Light Nodes | 3% | Light-node operator rewards (taken from the validator share) |
 
 ### Burn Statistics
 
@@ -56,10 +57,11 @@ Real-time tracking via the keeper:
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `burn_enabled` | true | Global burn enable/disable |
-| `validator_share` | 0.40 | Validator fee share |
+| `validator_share` | 0.37 | Validator fee share |
 | `burn_share` | 0.30 | Burn fee share |
 | `treasury_share` | 0.20 | Treasury fee share |
 | `staker_share` | 0.10 | Staker fee share |
+| `light_node_share` | 0.03 | Light-node operator fee share |
 
 ---
 

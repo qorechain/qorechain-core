@@ -76,10 +76,11 @@ Reputation formula: `R_i = alpha * S_i + beta * P_i + gamma * C_i + delta * T_i`
 | Parameter         | Type   | Default Value | Description                                         |
 | ----------------- | ------ | ------------- | --------------------------------------------------- |
 | `burn_enabled`    | bool   | `true`        | Enable fee burn mechanism                            |
-| `validator_share` | string | `0.40`        | Fraction of fees distributed to block validators     |
+| `validator_share` | string | `0.37`        | Fraction of fees distributed to block validators     |
 | `burn_share`      | string | `0.30`        | Fraction of fees permanently burned                  |
 | `treasury_share`  | string | `0.20`        | Fraction of fees sent to community treasury          |
 | `staker_share`    | string | `0.10`        | Fraction of fees distributed to delegators           |
+| `light_node_share`| string | `0.03`        | Fraction of fees distributed to light-node operators |
 
 Shares must sum to `1.00`.
 

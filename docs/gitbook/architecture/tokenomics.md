@@ -37,14 +37,15 @@ The `x/burn` module implements a 10-channel token burn system. Every burned toke
 
 ### Fee Distribution
 
-All transaction fees collected by the network are split across four destinations:
+All transaction fees collected by the network are split across five destinations:
 
 | Recipient | Share | Description |
 |---|---|---|
-| **Validators** | 40% | Distributed to the active validator set proportional to stake |
+| **Validators** | 37% | Distributed to the active validator set proportional to stake |
 | **Burned** | 30% | Permanently removed from supply via `gas_fee` burn channel |
 | **Treasury** | 20% | Allocated to the community treasury for governance-directed spending |
 | **Stakers** | 10% | Distributed to all QOR stakers proportional to delegation |
+| **Light Nodes** | 3% | Distributed to registered light-node operators (taken from the validator share) |
 
 The shares are enforced on-chain and must always sum to exactly 100%.
 

@@ -71,7 +71,7 @@ Implements reputation-weighted proposer selection that integrates with Consensus
 
 ### x/burn — Central Burn Accounting
 
-Ten burn channels feed a unified accounting module: transaction fees, slashing, governance, cross-VM gas, bridge fees, inflation surplus, xQORE penalties, reputation penalties, system cleanup, and rollup creation burns. The EndBlocker splits collected fees: 40% validators, 30% burned, 20% treasury, 10% stakers. Tracks total burned, per-source breakdown, and burn history.
+Ten burn channels feed a unified accounting module: transaction fees, slashing, governance, cross-VM gas, bridge fees, inflation surplus, xQORE penalties, reputation penalties, system cleanup, and rollup creation burns. The EndBlocker splits collected fees: 37% validators, 30% burned, 20% treasury, 10% stakers, 3% light nodes. Tracks total burned, per-source breakdown, and burn history.
 
 ### x/xqore — Governance-Boosted Staking
 

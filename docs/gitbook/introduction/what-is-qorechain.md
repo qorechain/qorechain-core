@@ -24,7 +24,7 @@ Cross-VM messaging enables all three runtimes to communicate: EVM contracts call
 
 ### 4. Deflationary Tokenomics
 
-Ten distinct burn channels (transaction fees, governance penalties, slashing, bridge fees, spam deterrence, epoch excess, manual burns, contract callbacks, cross-VM fees, and rollup creation burns) feed a central burn accounting module. Collected fees are split 40% to validators, 30% permanently burned, 20% to treasury, and 10% to stakers. The xQORE governance staking mechanism lets users lock QOR for doubled governance weight with PvP rebase redistribution -- early exit penalties are redistributed to remaining holders, rewarding conviction. Epoch-based inflation follows a multi-year decay schedule from 17.5% down to 2%, converging toward net-deflationary equilibrium as transaction volume grows.
+Ten distinct burn channels (transaction fees, governance penalties, slashing, bridge fees, spam deterrence, epoch excess, manual burns, contract callbacks, cross-VM fees, and rollup creation burns) feed a central burn accounting module. Collected fees are split 37% to validators, 30% permanently burned, 20% to treasury, 10% to stakers, and 3% to light nodes. The xQORE governance staking mechanism lets users lock QOR for doubled governance weight with PvP rebase redistribution -- early exit penalties are redistributed to remaining holders, rewarding conviction. Epoch-based inflation follows a multi-year decay schedule from 17.5% down to 2%, converging toward net-deflationary equilibrium as transaction volume grows.
 
 ### 5. 25 Cross-Chain Connections
 

@@ -77,10 +77,11 @@ curl -X POST http://localhost:8545 \
     "total_burned": "1250000000",
     "total_distributed": "4750000000",
     "channels": {
-      "validator_share": "0.40",
+      "validator_share": "0.37",
       "burn_share": "0.30",
       "treasury_share": "0.20",
-      "staker_share": "0.10"
+      "staker_share": "0.10",
+      "light_node_share": "0.03"
     },
     "last_block_burned": "342891"
   }
