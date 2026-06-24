@@ -3,7 +3,9 @@ package cmd
 import (
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
+	"strconv"
 
 	cmtcfg "github.com/cometbft/cometbft/config"
 	dbm "github.com/cosmos/cosmos-db"
@@ -56,6 +58,19 @@ func initAppConfig() (string, interface{}) {
 	srvCfg.MinGasPrices = "0uqor" // base denom: uqor (10^6 = 1 QOR)
 
 	evmCfg := cosmosevmserverconfig.DefaultEVMConfig()
+	// Align the JSON-RPC backend's EIP-155 chain ID with the value the EVM keeper
+	// resolves at runtime (app.resolveEVMChainID). The cosmos/evm default (262144)
+	// otherwise leaks into the RPC backend (rpc/backend EvmChainID) and the
+	// tx-conversion layer, so every eth_sendRawTransaction is rejected with
+	// "incorrect chain-id; expected 262144". Default to the testnet EVM chain ID;
+	// QORE_EVM_CHAIN_ID overrides it (e.g. 9801 for mainnet) — the same env var the
+	// keeper honors, keeping both layers in agreement on a single binary.
+	evmCfg.EVMChainID = app.EVMChainIDTestnet
+	if v := os.Getenv(app.EnvEVMChainID); v != "" {
+		if n, err := strconv.ParseUint(v, 10, 64); err == nil && n != 0 {
+			evmCfg.EVMChainID = n
+		}
+	}
 	jsonrpcCfg := cosmosevmserverconfig.DefaultJSONRPCConfig()
 	// Enable JSON-RPC by default for QoreChain testnet
 	jsonrpcCfg.Enable = true
