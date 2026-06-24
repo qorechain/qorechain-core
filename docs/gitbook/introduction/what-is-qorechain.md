@@ -26,14 +26,14 @@ Cross-VM messaging enables all three runtimes to communicate: EVM contracts call
 
 Ten distinct burn channels (transaction fees, governance penalties, slashing, bridge fees, spam deterrence, epoch excess, manual burns, contract callbacks, cross-VM fees, and rollup creation burns) feed a central burn accounting module. Collected fees are split 37% to validators, 30% permanently burned, 20% to treasury, 10% to stakers, and 3% to light nodes. The xQORE governance staking mechanism lets users lock QOR for doubled governance weight with PvP rebase redistribution -- early exit penalties are redistributed to remaining holders, rewarding conviction. Epoch-based inflation follows a multi-year decay schedule from 17.5% down to 2%, converging toward net-deflationary equilibrium as transaction volume grows.
 
-### 5. 25 Cross-Chain Connections
+### 5. 45 Cross-Chain Connections
 
-QoreChain connects to 25 blockchain ecosystems through two complementary protocols:
+QoreChain connects to external blockchain ecosystems through two complementary protocols (8 IBC + 37 QCB = 45 connections):
 
 - **8 IBC channels** -- Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, and the QoreChain loopback relay. Pre-configured relayer templates with client updates, misbehaviour detection, and automatic packet clearing.
-- **17 QCB bridge endpoints** -- Ethereum, BSC, Solana, Avalanche, Polygon, Arbitrum, TON, Sui, Optimism, Base, Aptos, Bitcoin, NEAR, Cardano, Polkadot, Tezos, and TRON. Each endpoint includes per-type address validation, configurable confirmation depth, circuit breaker volume caps, and PQC-signed validator attestations.
+- **37 QCB bridge endpoints** across 17 chain architectures -- the 16 originals (Ethereum, BSC, Solana, Avalanche, Polygon, Arbitrum, TON, Sui, Optimism, Base, Aptos, Bitcoin, NEAR, Cardano, Polkadot, Tezos) plus TRON and the 20 v3.0.0 additions (zkSync Era, Linea, Scroll, Starknet, Blast, Mantle, Hyperliquid, Berachain, Sonic, Sei, Monad, Plasma, XRPL, Stellar, Hedera, Algorand, Injective, Filecoin, Cronos, Kaia). Each endpoint includes per-type address validation, configurable confirmation depth, circuit breaker volume caps, and PQC-signed validator attestations.
 
-Twelve chain types are supported: evm, solana, ton, move, sui_move, cosmos_ibc, aptos_move, utxo, near, cardano, polkadot, and tezos -- covering every major blockchain architecture.
+Seventeen chain architectures are supported, spanning EVM, Solana, TON, Move (Sui & Aptos), UTXO (Bitcoin), Cairo VM (Starknet), XRP Ledger (UNL), Stellar (SCP), Hashgraph (Hedera), Cosmos IBC, and pure proof-of-stake families.
 
 ### 6. Rollup Development Kit (v1.3.0)
 
@@ -52,4 +52,4 @@ Smart accounts with three programmable types (multisig, social recovery, session
 
 ## Ecosystem
 
-QoreChain ships with **18 custom modules** covering security (pqc), AI (ai, reputation, rlconsensus), consensus (qca), virtual machines (vm, svm, crossvm), tokenomics (burn, xqore, inflation), bridges (bridge, babylon, multilayer), governance extensions (abstractaccount, fairblock, gasabstraction), and rollups (rdk). Together with 27 standard framework modules, the chain registers **45 genesis modules** in an open-core architecture -- the protocol layer is fully open source, with optional internal extensions for enterprise deployments.
+QoreChain ships with **21 custom modules** covering security (pqc), AI (ai, reputation, rlconsensus), consensus (qca), virtual machines (vm, svm, crossvm), tokenomics (burn, xqore, inflation), bridges (bridge, babylon, multilayer), governance extensions (abstractaccount, fairblock, gasabstraction), and rollups (rdk). Together with 27 standard framework modules, the chain registers **48 genesis modules** in an open-core architecture -- the protocol layer is fully open source, with optional internal extensions for enterprise deployments.

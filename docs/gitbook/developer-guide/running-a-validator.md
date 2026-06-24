@@ -6,17 +6,43 @@ This guide covers how to create a validator on the QoreChain network, understand
 
 ## Prerequisites
 
-- A fully synced `qorechaind` node (see [Connecting to Testnet](../getting-started/connecting-to-testnet.md))
-- A funded account with at least **1,000 QOR** (1,000,000,000 uqor) for the initial self-delegation
-- Familiarity with the [Staking and Delegation](../user-guide/staking-and-delegation.md) model
+- A fully synced node running the **full binary** (`-tags full`). Validating with
+  the community/stub build is unsafe — it is a different state machine and will
+  fork. See [Building from Source](building-from-source.md).
+- A funded account with at least **100,000 QOR** (100,000,000,000 uqor) for the
+  self-bond (the on-chain minimum self-bond for creating a validator).
+- An active **`validator_operator` license** granted to your account (below).
+- Familiarity with the [Staking and Delegation](../user-guide/staking-and-delegation.md) model.
 
 ---
 
-## Creating a Validator
+## Step 1 — Obtain a validator license
+
+Validator creation is gated on-chain by the `x/license` registry. A license has
+two parts: an **off-chain entitlement** (the dashboard purchase) and an
+**on-chain grant** signed by the license authority:
+
+```bash
+# performed by the license authority (dashboard backend or governance):
+qorechaind tx license grant <your-qor-addr> validator_operator --from <authority> ...
+
+# verify it is active before proceeding:
+qorechaind query license check <your-qor-addr> validator_operator
+# → active: true
+```
+
+Without an active `validator_operator` license, `create-validator` is rejected
+with `unauthorized: creating a validator requires an active "validator_operator"
+license`.
+
+## Step 2 — Create the validator
+
+The self-bond must be at least **100,000 QOR** (`MinValidatorSelfBond`), or the
+transaction is rejected before the license check.
 
 ```bash
 qorechaind tx staking create-validator \
-  --amount 1000000000uqor \
+  --amount 100000000000uqor \
   --pubkey $(qorechaind comet show-validator) \
   --moniker "my-validator" \
   --commission-rate 0.10 \

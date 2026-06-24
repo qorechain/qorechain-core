@@ -97,23 +97,56 @@ Both builds produce the same `qorechaind` binary name and expose identical CLI c
 CGO_ENABLED=1 go build -o qorechaind ./cmd/qorechaind/
 ```
 
-This compiles all public module interfaces with stub keepers for internal features. The resulting binary is fully functional for:
+This compiles all public module interfaces with stub keepers for internal features. The resulting binary is suitable for:
 
-- Running a validator node
 - Submitting and querying transactions
 - Interacting with EVM, CosmWasm, and SVM VMs
 - Building third-party integrations and tooling
 - Local development and testing
 
+> ⚠️ **Do not validate with the community build.** The stub keepers make it a
+> *different state machine* from the full build — the same transaction can yield
+> a different app-hash, so a community-build node will fork or halt the moment a
+> feature-active network processes a licensed-feature transaction. Validators,
+> and any node that must follow consensus on a feature-active network, MUST run
+> the **full** binary (below). The community build is for read/integration use
+> (exchanges, indexers, wallets).
+
 ---
 
-## Full Build (Internal)
+## Full Build
 
 ```bash
-CGO_ENABLED=1 go build -tags internal -o qorechaind ./cmd/qorechaind/
+# from the private extensions repo working tree:
+bash generate-overlay.sh                       # writes overlay.json
+cd qorechain-core
+CGO_ENABLED=1 go build -tags full \
+  -overlay=../<extensions>/overlay.json \
+  -o qorechaind ./cmd/qorechaind/
 ```
 
-The `-tags internal` flag activates the full keeper implementations. This build requires access to the `qorechain-internal` repository.
+The `-tags full` build, applied over the private extensions overlay, activates
+the real keeper implementations (PQC FFI, SVM executor, on-chain license
+enforcement). It links `libqorepqc` and `libqoresvm`; build `libqorepqc` from
+the PQC Rust crate (`cargo build --release`) and place it under
+`lib/<os_arch>/`. This build requires access to the private extensions
+repository. Every validator on a licensed network runs this binary.
+
+---
+
+## Configuring `app.toml` (EVM chain-id)
+
+A fresh `qorechaind init` writes the EVM (EIP-155) chain ID into `app.toml`
+`[evm] evm-chain-id`. It must match the network's chain ID — **9800** for the
+`qorechain-diana` testnet, **9801** for `qorechain-vladi` mainnet — or the
+JSON-RPC backend rejects every `eth_sendRawTransaction` with `incorrect
+chain-id; expected 262144` (the cosmos/evm default). v3.1.69+ defaults this
+correctly; on older nodes or hand-edited configs, set it explicitly:
+
+```toml
+[evm]
+evm-chain-id = 9800
+```
 
 ---
 

@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.1.4-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v3.1.4)
+[![Version](https://img.shields.io/badge/version-3.1.70-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v3.1.70)
 
 QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **native on-chain AMM** with constant-product and stable-swap pricing, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, **45 direct cross-chain connections** spanning IBC (with foundation for next-generation IBC v2), EVM, Move, UTXO, Cairo, UNL, SCP, Hashgraph, and account-model ecosystems, a **Rollup Development Kit (RDK)** enabling one-click deployment of application-specific rollups with four settlement paradigms, a **license-gated multi-chain validator bridge** for cross-chain operations across 37 chains, and a **light node network** with stake-weighted reward distribution. Built on Cosmos SDK v0.53 with 21 custom modules and 48 registered genesis modules.
 
@@ -534,8 +534,31 @@ ConsumeTxSize → GasAbstraction → DeductFee → SetPubKey → ValidateSigCoun
 SigGasConsume → SigVerify → IncrementSequence
 ```
 
+## SDK & Developer Tooling
+
+QoreChain is built on **Cosmos SDK v0.53** and exposes the standard Cosmos
+interfaces (Protobuf messages, gRPC, REST/LCD, CometBFT RPC) plus the EVM and
+SVM JSON-RPC servers, so existing ecosystem SDKs work out of the box:
+
+| Surface | SDK / tooling | Endpoint |
+|---------|---------------|----------|
+| Cosmos (bank, staking, gov, and the 21 custom modules) | **CosmJS** (`@cosmjs/stargate`), `cosmpy`, gRPC/Protobuf clients | gRPC `:9090`, REST `:1317`, RPC `:26657` |
+| EVM | **ethers.js / viem / web3.js**, Hardhat, Foundry, Remix, MetaMask | JSON-RPC `:8545` (chain-id **9800** testnet) / WS `:8546` |
+| SVM | **@solana/web3.js**, Anchor clients | Solana-compatible JSON-RPC `:8899` |
+| CosmWasm | `@cosmjs/cosmwasm-stargate`, `cosmwasm-std` (Rust) | gRPC/REST |
+
+For building **on** QoreChain (client apps) and building **into** it (custom
+modules, the community-vs-full build-overlay model, the Protobuf `Msg`/`Query`
+surface of all 14 proto-bound custom modules, and the validator/light-node
+license+build flow), see:
+
+- **[SDK Overview & Client Libraries](docs/SDK.md)** — start here
+- [Building from Source](docs/gitbook/developer-guide/building-from-source.md) — community vs full build
+- [Running a Validator](docs/gitbook/developer-guide/running-a-validator.md) — license + full-binary requirement
+
 ## Documentation
 
+- [SDK Overview & Client Libraries](docs/SDK.md)
 - [Architecture Overview](docs/ARCHITECTURE.md)
 - [Sidecar Operator Guide](docs/SIDECAR.md)
 - [RL Consensus Module](docs/RL_CONSENSUS.md)

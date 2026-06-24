@@ -27,12 +27,12 @@ QoreChain is a modular blockchain node composed of three primary processes -- th
 │  ┌──────────── IBC / Bridges (v1.2.0) ───────────────────────┐           │
 │  │  ┌──────────┐  ┌──────────┐  ┌───────────┐  ┌──────────┐ │           │
 │  │  │x/bridge  │  │x/babylon │  │x/abstract │  │x/gas     │ │           │
-│  │  │17 QCB +  │  │BTC re-   │  │ account   │  │abstract. │ │           │
+│  │  │37 QCB +  │  │BTC re-   │  │ account   │  │abstract. │ │           │
 │  │  │8 IBC     │  │staking   │  │session key│  │multi-tok │ │           │
 │  │  └────┬─────┘  └────┬─────┘  └───────────┘  └──────────┘ │           │
 │  │  QCB Bridge     Babylon IBC   ERC-4337-like   ibc/USDC    │           │
 │  │  PQC-signed     BTC finality  social recov.   ibc/ATOM    │           │
-│  │  12 chain types checkpoint    spending rules  fee convert  │           │
+│  │  17 chain arch. checkpoint    spending rules  fee convert  │           │
 │  │  ┌──────────┐                                              │           │
 │  │  │x/fair    │  5-Lane Prioritization: PQC|MEV|AI|Def|Free │           │
 │  │  │ block    │  tIBE encrypted mempool (stub, v1.2.0)      │           │
@@ -91,7 +91,7 @@ QoreChain runs as three cooperating processes, each with its own Go module and b
 
 | Component | Description | Location |
 |-----------|-------------|----------|
-| **qorechain-node** | The core blockchain node. Runs the Consensus Engine Engine, executes all 18 custom modules, manages all three VM runtimes, and exposes RPC, REST, gRPC, and JSON-RPC endpoints. | `qorechain-core/` |
+| **qorechain-node** | The core blockchain node. Runs the Consensus Engine Engine, executes all 21 custom modules, manages all three VM runtimes, and exposes RPC, REST, gRPC, and JSON-RPC endpoints. | `qorechain-core/` |
 | **ai-sidecar** | A gRPC service that provides advanced AI inference capabilities backed by the QCAI Backend. The sidecar handles inference requests that exceed the on-chain RL agent's scope, such as natural language analysis and complex pattern recognition. Communicates with the node over gRPC on port 50051. | `qorechain-core/sidecar/` |
 | **block-indexer** | A WebSocket listener that subscribes to new blocks and transactions from the node's RPC endpoint, parses events, and writes structured data to a Postgres database for fast querying by explorers and APIs. | `qorechain-core/indexer/` |
 
@@ -112,7 +112,7 @@ QoreChain runs as three cooperating processes, each with its own Go module and b
 
 ## Module Map
 
-QoreChain registers 18 custom modules grouped by function:
+QoreChain registers 21 custom modules grouped by function:
 
 **Security**
 - `x/pqc` -- Post-quantum cryptography: Dilithium-5, ML-KEM-1024, hybrid Ed25519 + ML-DSA-87, SHAKE-256, algorithm agility
@@ -136,7 +136,7 @@ QoreChain registers 18 custom modules grouped by function:
 - `x/inflation` -- Epoch-based emission decay: 17.5% to 2%
 
 **Bridges and Interoperability**
-- `x/bridge` -- 17 QCB endpoints across 12 chain types, PQC-signed attestations, circuit breakers
+- `x/bridge` -- 37 QCB endpoints across 17 chain architectures, PQC-signed attestations, circuit breakers
 - `x/babylon` -- BTC restaking via Babylon Protocol, epoch checkpoints
 - `x/multilayer` -- Sidechain/paychain/rollup layer management, state anchoring
 

@@ -20,13 +20,13 @@ Batches are submitted with an assumed-valid status and enter a configurable chal
 
 ### ZK (Zero-Knowledge) Settlement
 
-Batches include a validity proof (SNARK or STARK) that is verified on submission. If a non-empty proof is present, the batch is immediately finalized — no challenge window needed. This provides the fastest finality of any settlement mode.
+Batches include a validity proof (SNARK or STARK) that is verified on submission. If the proof verifies, the batch is immediately finalized — no challenge window needed. This provides the fastest finality of any settlement mode.
 
 - **Proof systems**: SNARK (Groth16, PLONK) or STARK (transparent, no trusted setup)
 - **Recursive aggregation**: Configurable recursion depth for proof composition
 - **Max proof size**: Configurable (default 1 MB)
 - **Finality**: Instant upon proof verification
-- **Note**: v1.3.0 uses stub verification (any non-empty proof accepted); full verifier integration is planned
+- **STARK verifier (v3.1.33+)**: A real, from-scratch transparent STARK verifier lives in `x/rdk/stark` (prime field, Fiat-Shamir transcript, Merkle commitments, FRI low-degree test, AIR + DEEP composition). It is wired into settlement behind an opt-in `QSTK` verification-key gate — rollups configured for STARK verification have their ZK batches cryptographically verified on-chain; others fall back to the optimistic challenge path. (Earlier releases up to v1.3.0 accepted any non-empty proof as a stub.)
 
 ### Based Settlement
 

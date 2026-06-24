@@ -1,6 +1,6 @@
 # Bridge Architecture
 
-The `x/bridge` module connects QoreChain to the broader blockchain ecosystem through **25 cross-chain connections**: 8 IBC (Inter-Blockchain Communication) channels and 17 QCB (QoreChain Bridge) endpoints. Every bridge operation is secured by post-quantum cryptography.
+The `x/bridge` module connects QoreChain to the broader blockchain ecosystem through **45 cross-chain connections**: 8 IBC (Inter-Blockchain Communication) channels and 37 QCB (QoreChain Bridge) endpoints. Every bridge operation is secured by post-quantum cryptography.
 
 ---
 
@@ -13,7 +13,7 @@ QoreChain supports two bridge protocols operating in parallel:
 | **IBC** | 8 channels | Standard IBC + PQC packet signatures | Cosmos SDK-compatible chains |
 | **QCB** | 17 endpoints | 7-of-10 Dilithium-5 multisig | Non-IBC chains (EVM, Solana, TON, etc.) |
 
-**Total**: 25 active bridge connections across 12 distinct chain types.
+**Total**: 45 active bridge connections across 17 distinct chain architectures.
 
 ---
 
@@ -48,7 +48,7 @@ The QCB protocol uses a hub-and-spoke architecture secured by post-quantum crypt
 
 ### Supported Chain Types
 
-The bridge supports 12 distinct chain architectures:
+The bridge supports 17 distinct chain architectures:
 
 | Chain Type | Chains | Address Format |
 |---|---|---|
@@ -108,9 +108,27 @@ External Chain          QoreChain Validators           QoreChain
 ```
 
 1. **Lock**: User locks assets in the bridge contract on the external chain.
-2. **Attest**: Bridge validators observe the lock transaction and submit Dilithium-5 signed attestations. A minimum of **7 out of 10** validator attestations are required.
-3. **Mint**: Once the attestation threshold is met, wrapped tokens are minted on QoreChain.
+2. **Verify**: The deposit is verified by one of the per-chain mechanisms below. The original PQC-attestation quorum (a minimum of **7 of 10** Dilithium-5 signed validator attestations) remains available as a fallback, but supported chains now use **native on-chain verification** that does not trust the bridge validator set.
+3. **Mint**: Once verification passes, wrapped tokens are minted on QoreChain.
 4. **Challenge period**: For transfers exceeding 100,000 QOR equivalent, a **24-hour challenge period** applies before execution. During this window, validators can flag suspicious activity.
+
+### Native deposit verification (replacing PQC-attestation trust)
+
+Rather than trusting the bridge validators' signatures, the `x/bridge` deposit
+path verifies the source chain's own consensus/state on-chain. Each chain family
+maps to a reusable verifier:
+
+| Mechanism | Chains | What is verified |
+|-----------|--------|------------------|
+| **EVM light-client** | Ethereum | BLS12-381 sync-committee signature over the beacon header (SSZ + `LightClientUpdate`), then a Merkle-Patricia (MPT) account + storage inclusion proof of the deposit |
+| **L2 state anchor** | Arbitrum, Optimism, Base, Polygon, zkSync Era, Linea, Scroll, Blast, Mantle | MPT inclusion against an L2 state root anchored on the verified Ethereum L1 |
+| **Wormhole VAA** | BSC, Avalanche, and other guardian-set chains | Guardian-set quorum signature over the VAA |
+| **BLS / ed25519 quorum** | Sui, Aptos (BLS); Solana, TON, Cardano, etc. (ed25519) | Source-chain validator quorum signature |
+| **Pedersen** | Starknet | Cairo Pedersen-hash state commitment |
+| **Bitcoin SPV** | Bitcoin | Proof-of-work header chain + Merkle inclusion of the funding tx |
+
+The PQC-attestation quorum is retained for chains without a native verifier and
+as a defence-in-depth fallback.
 
 ---
 

@@ -77,6 +77,25 @@ curl localhost:26657/status | jq '.result.sync_info.latest_block_height'
 
 ---
 
+## EVM JSON-RPC (MetaMask & ethers/web3 clients)
+
+To use Ethereum tooling against the node, add the network with the correct
+**EIP-155 chain ID**:
+
+| Field | Value |
+|-------|-------|
+| Network name | QoreChain Diana (testnet) |
+| RPC URL | `http://<host>:8545` (WS `:8546`) |
+| Chain ID | **9800** (mainnet `qorechain-vladi`: 9801) |
+| Currency symbol | QOR |
+
+The chain ID is served from `app.toml` `[evm] evm-chain-id`. If EVM transactions
+are rejected with `incorrect chain-id; expected 262144`, the node's
+`evm-chain-id` is still at the cosmos/evm default — set it to `9800` and restart
+(fixed by default in v3.1.69+).
+
+---
+
 ## Monitoring
 
 QoreChain exposes several endpoints for monitoring node health and performance.

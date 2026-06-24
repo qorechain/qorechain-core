@@ -1,6 +1,68 @@
 # Version History
 
-Public changelog for QoreChain testnet releases.
+Public changelog for QoreChain testnet releases. Current release: **v3.1.70**.
+Releases from v3.1.x onward are published as lockstep git tags on
+`qorechain-core` (and the private extensions repo); the v1.x/v2.x/v3.0.x
+entries below are grouped by feature milestone.
+
+---
+
+## v3.1.x -- Hardening, proof systems, and native light-clients
+
+**Release focus:** production hardening of the v3.x feature set, real proof
+verification, and a sweep of operational fixes found during multi-validator
+verification.
+
+- **Custom-module transaction + query pipeline** -- all 14 proto-bound custom
+  modules (pqc, ai, amm, bridge, crossvm, license, lightnode, multilayer, qca,
+  rdk, reputation, rlconsensus, svm, abstractaccount) now have real
+  proto-generated `Msg` and `Query` services with working CLI subcommands.
+  (Earlier builds printed "proto-bound query handlers are not yet generated".)
+- **STARK verifier** -- a from-scratch transparent STARK verifier in
+  `x/rdk/stark` (prime field, Fiat-Shamir transcript, Merkle commitments, FRI
+  low-degree test, AIR + DEEP composition), wired into RDK settlement behind an
+  opt-in `QSTK` verification-key gate.
+- **Native bridge light-clients** -- deposit verification that checks the source
+  chain's own consensus/state instead of trusting the bridge validator quorum:
+  Ethereum (BLS12-381 sync committee + MPT inclusion), L2 state-anchor
+  verification for the Ethereum rollups, Wormhole VAA, BLS/ed25519 quorums,
+  Starknet Pedersen, and Bitcoin SPV. PQC-attestation is retained as a fallback.
+- **rlconsensus out of shadow mode** -- the RL agent runs in `conservative` mode
+  with live observation/reward vectors and an armed circuit breaker.
+- **License authority persistence (v3.1.70)** -- the `x/license` grant authority
+  is now stored on-chain and survives node restarts; previously it lived only in
+  the keeper struct (set in `InitGenesis`) and reverted to the gov module account
+  after any restart, blocking all new grants.
+- **EVM chain-id config fix (v3.1.69)** -- a fresh node's `app.toml` now defaults
+  `[evm] evm-chain-id` to the resolved network chain ID (testnet `9800`) instead
+  of the cosmos/evm default `262144`; without this the JSON-RPC backend rejected
+  every `eth_sendRawTransaction` with "incorrect chain-id".
+- **Tokenomics fee split** -- fee distribution is the 5-way 37/30/20/10/3
+  (validators / burn / treasury / stakers / light nodes); the light-node 3% is
+  taken from the validator share.
+- **Docker + node-only deployment** -- a `docker-compose.node.yml` for exchanges
+  and integrators that need only to sync/query/submit (no AI, bridge, or other
+  licensed components), plus libwasmvm/runtime fixes for the full stack.
+
+## v3.0.0 -- Native AMM and cross-network expansion
+
+**Release focus:** on-chain trading and a major bridge surface expansion.
+
+- **x/amm module** -- native constant-product and stable-swap AMM with
+  governance-pausable pools, LP-accrual + protocol-fee split, slippage caps, and
+  a cross-VM hook so EVM/SVM contracts can route swaps into the AMM.
+- **Cross-network expansion** -- the bridge surface grows to **37 default chain
+  configurations across 17 chain architectures**, adding five architecture
+  families (Cairo VM L2, XRP Ledger UNL, Stellar Consensus Protocol, Hashgraph,
+  Pure Proof-of-Stake) and twenty new chains (zkSync Era, Linea, Scroll,
+  Starknet, Blast, Mantle, Hyperliquid, Berachain, Sonic, Sei, Monad, Plasma,
+  XRPL, Stellar, Hedera, Algorand, Injective, Filecoin, Cronos, Kaia). The
+  license surface scales to the bridge/validator per-chain feature IDs.
+- **IBC Eureka (v2) foundation** -- a `ChainArchitecture` enum disambiguates
+  classic IBC vs IBC v2, with public packet types and handler hooks for ICS-27
+  (Interchain Accounts), ICS-29 (Fee Middleware), and ICS-721 (NFT-IBC).
+- **Total: 45 cross-chain connections** (8 IBC + 37 QCB), **21 custom modules**,
+  **48 registered genesis modules**.
 
 ---
 

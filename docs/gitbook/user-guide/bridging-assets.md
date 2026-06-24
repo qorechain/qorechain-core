@@ -1,6 +1,6 @@
 # Bridging Assets
 
-This guide covers how to move assets between QoreChain and other blockchain networks. QoreChain supports **25 cross-chain connections**: 8 IBC channels for compatible chains and 17 QCB (QoreChain Bridge) endpoints for heterogeneous networks.
+This guide covers how to move assets between QoreChain and other blockchain networks. QoreChain supports **45 cross-chain connections**: 8 IBC channels for compatible chains and 37 QCB (QoreChain Bridge) endpoints for heterogeneous networks.
 
 ---
 

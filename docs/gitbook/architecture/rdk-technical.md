@@ -32,7 +32,7 @@ ZK rollups provide cryptographic validity proofs that guarantee state transition
 - **Finality**: Instant on proof verification -- no challenge window required
 - **Max proof size**: 1 MB (1,048,576 bytes)
 - **Recursion depth**: Configurable proof aggregation depth (default: 1)
-- **v1.3.0 note**: Uses stub verification that accepts any non-empty proof. Full SNARK/STARK verification is a planned upgrade.
+- **STARK verification (v3.1.33+)**: A from-scratch, transparent STARK verifier ships inside `x/rdk/stark` — a prime-field implementation with a Fiat-Shamir transcript, Merkle commitments, a FRI low-degree test, and an AIR + DEEP composition end-to-end verifier. It is wired into RDK settlement behind an opt-in `QSTK` verification-key gate, so ZK batches can be verified on-chain rather than accepted as stubs. Batches whose rollup is not configured for STARK verification continue to use the optimistic challenge path.
 
 **Batch lifecycle**:
 ```

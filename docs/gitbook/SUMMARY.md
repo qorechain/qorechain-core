@@ -36,6 +36,12 @@
 * [Account Abstraction](developer-guide/account-abstraction.md)
 * [Running a Validator](developer-guide/running-a-validator.md)
 
+## SDK
+
+* [SDK Overview](sdk/overview.md)
+* [Client Libraries](sdk/client-libraries.md)
+* [Module Development](sdk/module-development.md)
+
 ## Architecture
 
 * [Consensus Mechanism](architecture/consensus-mechanism.md)
