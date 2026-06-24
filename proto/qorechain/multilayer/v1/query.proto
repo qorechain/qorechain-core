@@ -1,0 +1,63 @@
+syntax = "proto3";
+package qorechain.multilayer.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/multilayer/types";
+
+// Query defines the gRPC query service for the multilayer module.
+service Query {
+  // Params returns the module parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  // Layer returns a single layer config by ID.
+  rpc Layer(QueryLayerRequest) returns (QueryLayerResponse);
+  // Layers lists all layers.
+  rpc Layers(QueryLayersRequest) returns (QueryLayersResponse);
+  // RoutingStats returns the cross-layer routing statistics.
+  rpc RoutingStats(QueryRoutingStatsRequest) returns (QueryRoutingStatsView);
+}
+
+message ParamsView {
+  uint64 max_sidechains = 1;
+  uint64 max_paychains = 2;
+  uint64 min_anchor_interval = 3;
+  uint64 max_anchor_interval = 4;
+  uint64 default_challenge_period = 5;
+  string min_sidechain_stake = 6;
+  string min_paychain_stake = 7;
+  bool routing_enabled = 8;
+  string routing_confidence_threshold = 9;
+  bool cross_layer_fee_bundling = 10;
+}
+
+message LayerView {
+  string layer_id = 1;
+  string layer_type = 2;
+  string status = 3;
+  string chain_id = 4;
+  string description = 5;
+  uint64 target_block_time_ms = 6;
+  uint64 max_transactions_per_block = 7;
+  uint32 min_validators = 8;
+  uint64 settlement_interval_blocks = 9;
+  uint64 challenge_period_seconds = 10;
+}
+
+message RoutingStatsView {
+  uint64 total_routed = 1;
+  uint64 routed_to_main = 2;
+  uint64 routed_to_sidechains = 3;
+  uint64 routed_to_paychains = 4;
+  string average_gas_savings_percent = 5;
+  string average_latency_improvement_percent = 6;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { ParamsView params = 1; }
+
+message QueryLayerRequest { string layer_id = 1; }
+message QueryLayerResponse { LayerView layer = 1; }
+
+message QueryLayersRequest {}
+message QueryLayersResponse { repeated LayerView layers = 1; }
+
+message QueryRoutingStatsRequest {}
+message QueryRoutingStatsView { RoutingStatsView stats = 1; }
