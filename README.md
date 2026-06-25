@@ -153,7 +153,7 @@ Deploy and execute BPF programs using Solana-compatible tooling. Four native bui
 
 ## Key Features
 
-- **PQC-Primary Security** — Dilithium-5 signatures + ML-KEM-1024 key exchange, hybrid Ed25519 + ML-DSA-87 via TX extensions, SHAKE-256 hash foundation, algorithm-agile with governance-controlled migration
+- **PQC-Primary Security** — Dilithium-5 signatures + ML-KEM-1024 key exchange, hybrid Ed25519 + ML-DSA-87 via TX extensions, SHAKE-256 as the default hash for QoreChain-controlled commitments, algorithm-agile with governance-controlled migration
 - **Hybrid Signature Architecture** — Three enforcement modes (disabled/optional/required), auto-registration onboarding, three-way ante verification
 - **Native AMM** — Constant-product + stable-swap pricing curves, cross-VM swap routing, deterministic integer math
 - **IBC v2 Foundation** — `ChainArchitecture` enum, ICS-27/29/721 handler-hook interfaces, configurable client type per chain
@@ -391,7 +391,7 @@ curl -fsSL "https://<network-genesis-url>/genesis.json" -o ~/.qorechaind/config/
 
 | Module | Description |
 |--------|-------------|
-| **x/pqc** | Post-quantum cryptography: Dilithium-5, ML-KEM-1024, hybrid Ed25519 + ML-DSA-87 signatures, SHAKE-256 hashing, algorithm-agile governance |
+| **x/pqc** | Post-quantum cryptography: Dilithium-5, ML-KEM-1024, hybrid Ed25519 + ML-DSA-87 signatures, SHAKE-256 default hashing (`qorehash`), algorithm-agile governance |
 | **x/ai** | AI engine: transaction routing, anomaly detection, fraud detection, fee optimization, TEE attestation interfaces, federated learning coordination |
 | **x/rlconsensus** | RL-based dynamic consensus tuning: fixed-point MLP, PPO inference, shadow/conservative/autonomous modes, circuit breaker, rollup advisory |
 | **x/reputation** | Validator reputation scoring: multi-factor formula with temporal decay |

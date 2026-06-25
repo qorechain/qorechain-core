@@ -181,21 +181,32 @@ New algorithms are implemented as Rust traits in the `libqorepqc` library. Addin
 
 ---
 
-## SHAKE-256 Foundation
+## SHAKE-256 — Default Hash
 
-QoreChain uses **SHAKE-256** (SHA-3 extendable-output function) as its quantum-resistant hash primitive. The `x/pqc` module provides pure-Go SHAKE-256 utilities:
+**SHAKE-256** (SHA-3 / Keccak extendable-output function, FIPS 202) is the
+**default application-level hash** for every QoreChain-controlled commitment and
+identifier — the third of the chain's three documented PQC algorithms (alongside
+Dilithium-5 signatures and ML-KEM-1024 key encapsulation), all implemented *and*
+default. The canonical implementation is the `qorehash` package (pure Go, no
+FFI, no build tags, identical in community and full builds):
 
 | Function | Description | Output |
 |----------|-------------|--------|
-| `SHAKE256Hash(data, outputLen)` | Variable-length SHAKE-256 digest | Arbitrary length |
-| `SHAKE256Hash32(data)` | Standard 256-bit SHAKE-256 digest | 32 bytes |
-| `SHAKE256ConcatHash(left, right)` | Hash of concatenated inputs | 32 bytes |
-| `SHAKE256DomainHash(domain, data)` | Domain-separated hash | 32 bytes |
+| `qorehash.Sum256(data)` | 256-bit SHAKE-256 digest (drop-in for `sha256.Sum256`) | 32 bytes |
+| `qorehash.New()` | Streaming `hash.Hash` (drop-in for `sha256.New()`) | 32 bytes |
+| `qorehash.SumN(data, n)` | Variable-length XOF digest | Arbitrary length |
+| `qorehash.ConcatHash(left, right)` | Length-prefixed Merkle node hash | 32 bytes |
+| `qorehash.DomainHash(domain, data)` | Domain-separated hash | 32 bytes |
 
-These utilities serve as the foundation for:
-- Merkle tree node hashing (preparatory for future quantum-safe state tree replacement)
-- Hash commitments in cross-layer attestations
-- Domain separation for different hash contexts (e.g., `"leaf:"` vs `"node:"`)
+Used by default for: multilayer state-anchor transition roots; rdk withdrawal
+Merkle roots, DA content-addressing and optimistic batch roots; the in-tree STARK
+transcript and Merkle commitments; cross-VM message IDs; SVM address/program
+derivation; QCA proposer selection; abstract-account addressing.
+
+**Hybrid only at network egress** — external-chain verification keeps each foreign
+chain's native format (Bitcoin `sha256d`, Ethereum MPT `keccak256`, SSZ `sha256`,
+BLS/Pedersen), and framework hashing (Cosmos SDK / CometBFT / IAVL, EVM ABI
+selectors, Solana SVM syscalls) is unchanged for compatibility.
 
 ---
 

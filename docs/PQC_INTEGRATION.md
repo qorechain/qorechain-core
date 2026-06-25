@@ -82,16 +82,41 @@ curl -X POST http://localhost:8545 -H "Content-Type: application/json" \
 | `pqc_hybrid_auto_register` | PQC key auto-registered from TX extension |
 | `pqc_hybrid_classical_only` | Transaction processed with classical signature only |
 
-## SHAKE-256 Hash Foundation (v1.1.0)
+## SHAKE-256 — Default QoreChain Hash
 
-QoreChain includes a SHAKE-256 (SHA-3 family extendable-output function) hash utility layer as preparation for future post-quantum Merkle tree replacement:
+SHAKE-256 (the SHA-3 / Keccak family extendable-output function, FIPS 202) is the
+**default application-level hash** for every QoreChain-controlled commitment and
+identifier. Together with Dilithium-5 (signatures) and ML-KEM-1024 (key
+encapsulation) it completes the chain's post-quantum baseline: the three
+documented PQC algorithms are all implemented *and* default.
 
-- `SHAKE256Hash(data, outputLen)` — Variable-length XOF output
-- `SHAKE256Hash32(data)` — Fixed 32-byte output
-- `SHAKE256ConcatHash(left, right)` — Merkle internal node hash
-- `SHAKE256DomainHash(domain, data)` — Domain-separated hashing
+The canonical implementation is the `qorehash` package (pure Go,
+`golang.org/x/crypto/sha3`, no FFI, no build tags — byte-for-byte reproducible in
+both community and full builds):
 
-Pure Go implementation using `golang.org/x/crypto/sha3`, no FFI dependency.
+- `qorehash.Sum256(data)` / `qorehash.Sum(data)` — 32-byte digest (drop-in for `sha256.Sum256`)
+- `qorehash.New()` — streaming `hash.Hash` with 32-byte output (drop-in for `sha256.New()`)
+- `qorehash.SumN(data, n)` — variable-length XOF output
+- `qorehash.ConcatHash(left, right)` — second-preimage-resistant Merkle node hash (length-prefixed)
+- `qorehash.DomainHash(domain, data)` — domain-separated hash
+
+The `x/pqc` module additionally exposes the original `SHAKE256*` helpers, which
+produce identical output.
+
+**Where SHAKE-256 is the default (QoreChain-controlled, producer = verifier):**
+multilayer state-anchor `canonicalTransitionRoot`; rdk withdrawal Merkle roots,
+DA content-addressing and optimistic `batchTransitionRoot`; the in-tree STARK
+prover/verifier transcript and Merkle commitments; cross-VM message IDs; SVM
+address/program/account derivation; QCA reputation-weighted proposer selection;
+abstract-account address derivation.
+
+**Where native hashes are deliberately retained (hybrid only at network egress):**
+external-chain verification keeps each foreign chain's own format — Bitcoin
+`sha256d`, Ethereum MPT `keccak256`, Ethereum Beacon SSZ `sha256`, BLS/Pedersen
+(bridge light-clients). Framework hashing owned by Cosmos SDK / CometBFT / IAVL,
+EVM ABI selectors (keccak256), the SVM tx-signature that mirrors CometBFT's tx
+hash, and Solana SVM syscalls (`sol_sha256`/`sol_keccak256`) are unchanged so
+existing bytecode and tooling keep working.
 
 ## Building with PQC
 

@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"math"
 
-	"crypto/sha256"
-
 	sdkmath "cosmossdk.io/math"
 
+	"github.com/qorechain/qorechain-core/qorehash"
 	"github.com/qorechain/qorechain-core/x/qca/types"
 )
 
@@ -62,7 +61,7 @@ func (h *HeuristicSelector) SelectProposer(
 	}
 
 	// Deterministic random using block hash + height
-	seed := sha256.New()
+	seed := qorehash.New()
 	seed.Write(blockHash)
 	heightBytes := make([]byte, 8)
 	binary.LittleEndian.PutUint64(heightBytes, uint64(height))

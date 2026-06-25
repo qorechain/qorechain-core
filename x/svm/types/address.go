@@ -1,9 +1,10 @@
 package types
 
 import (
-	"crypto/sha256"
 	"fmt"
 	"math/big"
+
+	"github.com/qorechain/qorechain-core/qorehash"
 )
 
 // base58Alphabet is the Bitcoin Base58 alphabet used by SVM-compatible chains.
@@ -45,18 +46,18 @@ func mustBase58Decode(s string) [32]byte {
 
 // SVMToCosmosAddress derives a 20-byte native address from a 32-byte SVM address.
 func SVMToCosmosAddress(svmAddr [32]byte) []byte {
-	hash := sha256.Sum256(svmAddr[:])
+	hash := qorehash.Sum256(svmAddr[:])
 	return hash[:20]
 }
 
 // EVMToSVMAddress derives a deterministic 32-byte SVM address from a 20-byte EVM address.
-// Uses SHA-256(evmAddr || "qorechain-svm") for domain separation. NOTE: this is a one-way
+// Uses SHAKE-256(evmAddr || "qorechain-svm") for domain separation. NOTE: this is a one-way
 // derivation; SVMToEVMAddress is NOT its inverse.
 func EVMToSVMAddress(evmAddr [20]byte) [32]byte {
 	data := make([]byte, 0, 20+len("qorechain-svm"))
 	data = append(data, evmAddr[:]...)
 	data = append(data, []byte("qorechain-svm")...)
-	return sha256.Sum256(data)
+	return qorehash.Sum256(data)
 }
 
 // SVMToEVMAddress extracts an EVM-compatible 20-byte address from a 32-byte SVM address
