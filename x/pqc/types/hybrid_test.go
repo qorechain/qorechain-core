@@ -211,8 +211,13 @@ func TestHybridSigTypeURL(t *testing.T) {
 
 func TestDefaultParams_HybridSignatureMode(t *testing.T) {
 	params := DefaultParams()
-	if params.HybridSignatureMode != HybridOptional {
-		t.Errorf("default HybridSignatureMode should be HybridOptional (1), got %d", params.HybridSignatureMode)
+	// PQC is required by default (v3.1.71): every cosmos tx must carry the
+	// Dilithium-5 hybrid signature; classical fallback is disabled.
+	if params.HybridSignatureMode != HybridRequired {
+		t.Errorf("default HybridSignatureMode should be HybridRequired (2), got %d", params.HybridSignatureMode)
+	}
+	if params.AllowClassicalFallback {
+		t.Errorf("default AllowClassicalFallback should be false (PQC-required)")
 	}
 }
 
