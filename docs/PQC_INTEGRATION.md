@@ -113,8 +113,8 @@ abstract-account address derivation.
 **Where native hashes are deliberately retained (hybrid only at network egress):**
 external-chain verification keeps each foreign chain's own format — Bitcoin
 `sha256d`, Ethereum MPT `keccak256`, Ethereum Beacon SSZ `sha256`, BLS/Pedersen
-(bridge light-clients). Framework hashing owned by Cosmos SDK / CometBFT / IAVL,
-EVM ABI selectors (keccak256), the SVM tx-signature that mirrors CometBFT's tx
+(bridge light-clients). Framework hashing owned by Cosmos SDK / QoreChain Consensus Engine / IAVL,
+EVM ABI selectors (keccak256), the SVM tx-signature that mirrors the QoreChain Consensus Engine's tx
 hash, and Solana SVM syscalls (`sol_sha256`/`sol_keccak256`) are unchanged so
 existing bytecode and tooling keep working.
 

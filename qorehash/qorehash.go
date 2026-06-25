@@ -17,7 +17,7 @@
 //     match the foreign chain's own format: Bitcoin sha256d, Ethereum MPT
 //     keccak256, Ethereum SSZ sha256, BLS/Pedersen, …). Those stay native — the
 //     "hybrid only at network egress" rule.
-//   - Framework / consensus hashing owned by Cosmos SDK / CometBFT / IAVL, EVM
+//   - Framework / consensus hashing owned by Cosmos SDK / QoreChain Consensus Engine / IAVL, EVM
 //     ABI selectors (keccak256), and Solana SVM syscalls (sha256/keccak) that
 //     external bytecode and tooling depend on.
 //

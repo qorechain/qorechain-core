@@ -537,7 +537,7 @@ SigGasConsume → SigVerify → IncrementSequence
 ## SDK & Developer Tooling
 
 QoreChain is built on **Cosmos SDK v0.53** and exposes the standard Cosmos
-interfaces (Protobuf messages, gRPC, REST/LCD, CometBFT RPC) plus the EVM and
+interfaces (Protobuf messages, gRPC, REST/LCD, QoreChain Consensus Engine RPC) plus the EVM and
 SVM JSON-RPC servers, so existing ecosystem SDKs work out of the box:
 
 | Surface | SDK / tooling | Endpoint |

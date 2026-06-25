@@ -205,7 +205,7 @@ derivation; QCA proposer selection; abstract-account addressing.
 
 **Hybrid only at network egress** — external-chain verification keeps each foreign
 chain's native format (Bitcoin `sha256d`, Ethereum MPT `keccak256`, SSZ `sha256`,
-BLS/Pedersen), and framework hashing (Cosmos SDK / CometBFT / IAVL, EVM ABI
+BLS/Pedersen), and framework hashing (Cosmos SDK / QoreChain Consensus Engine / IAVL, EVM ABI
 selectors, Solana SVM syscalls) is unchanged for compatibility.
 
 ---

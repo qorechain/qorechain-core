@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Multi-node smoke tests covering §4.28–§4.30 of CLAUDE_CODE_PROMPT_v3.0.0.md.
+# Multi-node smoke tests for the devnet (2-node validator set).
 #
-#   §4.28 — Spin up 2-node devnet using docker-compose; both validators
-#           produce blocks; finality observed in <2 sec
-#   §4.29 — Slashing test: halt one validator, confirm liveness slashing fires
-#   §4.30 — Bridge sidecar test: boot the Ethereum sidecar against an Anvil
-#           instance; observe a deposit attestation flowing back to the chain
+#   Test 1 — Spin up 2-node devnet using docker-compose; both validators
+#            produce blocks; finality observed in <2 sec
+#   Test 2 — Slashing test: halt one validator, confirm liveness slashing fires
+#   Test 3 — Bridge sidecar test: boot the Ethereum sidecar against an Anvil
+#            instance; observe a deposit attestation flowing back to the chain
 #
 # Usage:
 #   docker compose -f docker-compose.devnet.yml up -d
 #   ./scripts/devnet/smoke.sh
 #
-# Exit codes: 0 = all pass, 1 = §4.28 fail, 2 = §4.29 fail, 3 = §4.30 fail.
+# Exit codes: 0 = all pass, 1 = test 1 fail, 2 = test 2 fail, 3 = test 3 fail.
 
 set -euo pipefail
 
@@ -56,11 +56,11 @@ wait_for_height() {
 }
 
 # ─────────────────────────────────────────────────────────────
-# §4.28 — Block production + finality
+# Test 1 — Block production + finality
 # ─────────────────────────────────────────────────────────────
 
 test_block_production() {
-  log "§4.28 — checking 2-node block production"
+  log "Test 1 — checking 2-node block production"
   if ! wait_for_height 5 60; then
     return 1
   fi
@@ -80,11 +80,11 @@ test_block_production() {
 }
 
 # ─────────────────────────────────────────────────────────────
-# §4.29 — Liveness slashing
+# Test 2 — Liveness slashing
 # ─────────────────────────────────────────────────────────────
 
 test_slashing() {
-  log "§4.29 — halting node-2 to trigger liveness fault"
+  log "Test 2 — halting node-2 to trigger liveness fault"
   $COMPOSE stop qorechain-devnet-node-2 >/dev/null 2>&1
   ok "node-2 stopped"
   log "waiting 60s for missed-block window"
@@ -110,13 +110,13 @@ test_slashing() {
 }
 
 # ─────────────────────────────────────────────────────────────
-# §4.30 — Bridge sidecar attestation flow (Anvil)
+# Test 3 — Bridge sidecar attestation flow (Anvil)
 # ─────────────────────────────────────────────────────────────
 
 test_bridge_attestation() {
-  log "§4.30 — bridge sidecar against Anvil"
+  log "Test 3 — bridge sidecar against Anvil"
   if ! command -v anvil >/dev/null 2>&1; then
-    log "anvil not installed; skipping §4.30 (install with foundryup)"
+    log "anvil not installed; skipping test 3 (install with foundryup)"
     return 0
   fi
   log "starting Anvil on :8545"

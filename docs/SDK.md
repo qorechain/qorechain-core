@@ -16,7 +16,7 @@ install — existing ecosystem tooling connects directly.
 | Layer | Technology |
 |-------|-----------|
 | Application framework | Cosmos SDK v0.53.6 (depinject/appconfig) |
-| Consensus engine | CometBFT (BFT) |
+| Consensus engine | QoreChain Consensus Engine (BFT) |
 | Native messages | Protobuf (`gogoproto`), served over gRPC + REST |
 | EVM | cosmos/evm — Ethereum JSON-RPC, EIP-1559 |
 | SVM | `qoresvm` BPF executor — Solana-compatible JSON-RPC |
@@ -35,7 +35,7 @@ bank-sending to its bech32 form.
 
 | Interface | Default port | Used by |
 |-----------|--------------|---------|
-| CometBFT RPC | `26657` | CosmJS, block explorers, `qorechaind` |
+| Consensus RPC | `26657` | CosmJS, block explorers, `qorechaind` |
 | gRPC | `9090` | CosmJS gRPC, backend services |
 | REST / LCD | `1317` | wallets, browser dashboards |
 | EVM JSON-RPC | `8545` (WS `8546`) | ethers/viem/web3.js, MetaMask |
