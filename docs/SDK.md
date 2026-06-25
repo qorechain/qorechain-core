@@ -66,6 +66,28 @@ register Protobuf types; generate typed clients from the `.proto` files in
 [`proto/`](../proto) with `buf generate`, or use `@cosmjs/stargate` generic
 message construction with the type URLs (e.g. `/qorechain.amm.v1.MsgCreatePool`).
 
+> ⚠️ **PQC is required by default.** The chain default is
+> `hybrid_signature_mode = required` with classical fallback disabled, so every
+> **cosmos** transaction must carry a Dilithium-5 hybrid-signature extension
+> (`/qorechain.pqc.v1.PQCHybridSignature`) in addition to its secp256k1
+> signature. Exempt: PQC key registration/migration txs (bootstrap) and genesis
+> gentxs. **EVM txs are unaffected** (separate `eth_secp256k1` ante path). A
+> plain CosmJS/relayer tx without the extension is rejected. Until your wallet/
+> SDK produces the extension, use the CLI: register once, then sign with the
+> hybrid signer:
+>
+> ```bash
+> qorechaind tx pqc gen-key mypqc                 # client-side Dilithium-5 key
+> qorechaind tx pqc register-key <printed-pubkey-hex> hybrid --from mykey
+> qorechaind tx bank send mykey <to> 1000uqor --generate-only > tx.json
+> qorechaind tx pqc cosign tx.json --from mykey --pqc-key mypqc --chain-id qorechain-diana
+> ```
+>
+> The cosign command computes the documented sign-bytes, Dilithium-signs via the
+> PQC FFI, attaches the extension, secp256k1 co-signs, and broadcasts. The
+> classical signature is what external networks verify at bridge **egress** —
+> hybrid is the on-chain norm, single-classical only leaves the network.
+
 ### 3.2 EVM — ethers / viem / web3.js
 
 ```ts

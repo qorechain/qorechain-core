@@ -216,4 +216,4 @@ This ensures that cross-chain security is not degraded by the use of classical c
 | `min_security_level` | int32 | `5` | Minimum NIST security level for accepted algorithms |
 | `default_migration_blocks` | int64 | `1,000,000` | Default dual-signature migration period in blocks |
 | `default_signature_algo` | AlgorithmID | `1` (Dilithium-5) | Default signature algorithm for new key registrations |
-| `hybrid_signature_mode` | HybridSignatureMode | `1` (Optional) | Chain-wide hybrid signature enforcement level |
+| `hybrid_signature_mode` | HybridSignatureMode | `2` (Required) | Chain-wide hybrid signature enforcement level |

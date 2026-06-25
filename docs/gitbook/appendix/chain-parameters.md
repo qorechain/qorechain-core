@@ -8,7 +8,7 @@ Consolidated reference of all configurable module parameters in the QoreChain ge
 
 | Parameter                  | Type    | Default Value | Description                                           |
 | -------------------------- | ------- | ------------- | ----------------------------------------------------- |
-| `hybrid_signature_mode`    | uint    | `1`           | Enforcement mode: 0=off, 1=permissive, 2=mandatory   |
+| `hybrid_signature_mode`    | uint    | `2`           | Enforcement mode: 0=off, 1=permissive, 2=mandatory   |
 | `algorithm_registry`       | array   | ML-DSA-87, ML-KEM-1024 | Registered PQC algorithms with size constraints |
 | `auto_register_enabled`    | bool    | `true`        | Auto-register PQC keys on first hybrid tx             |
 | `migration_deadline_height`| uint64  | `0`           | Block height after which classical-only keys are rejected (0=disabled) |
