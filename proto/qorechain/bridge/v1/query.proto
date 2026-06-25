@@ -3,22 +3,38 @@ package qorechain.bridge.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/bridge/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the gRPC query service for the bridge module.
 service Query {
   // Config returns the global bridge config.
-  rpc Config(QueryConfigRequest) returns (QueryConfigResponse);
+  rpc Config(QueryConfigRequest) returns (QueryConfigResponse) {
+    option (google.api.http).get = "/qorechain/bridge/v1/config";
+  }
   // ChainConfig returns a single chain config by ID.
-  rpc ChainConfig(QueryChainConfigRequest) returns (QueryChainConfigResponse);
+  rpc ChainConfig(QueryChainConfigRequest) returns (QueryChainConfigResponse) {
+    option (google.api.http).get = "/qorechain/bridge/v1/chains/{chain_id}";
+  }
   // ChainConfigs lists all configured chains.
-  rpc ChainConfigs(QueryChainConfigsRequest) returns (QueryChainConfigsResponse);
+  rpc ChainConfigs(QueryChainConfigsRequest) returns (QueryChainConfigsResponse) {
+    option (google.api.http).get = "/qorechain/bridge/v1/chains";
+  }
   // Validator returns a single bridge validator by address.
-  rpc Validator(QueryValidatorRequest) returns (QueryValidatorResponse);
+  rpc Validator(QueryValidatorRequest) returns (QueryValidatorResponse) {
+    option (google.api.http).get = "/qorechain/bridge/v1/validators/{address}";
+  }
   // Validators lists all bridge validators.
-  rpc Validators(QueryValidatorsRequest) returns (QueryValidatorsResponse);
+  rpc Validators(QueryValidatorsRequest) returns (QueryValidatorsResponse) {
+    option (google.api.http).get = "/qorechain/bridge/v1/validators";
+  }
   // Operation returns a single bridge operation by ID.
-  rpc Operation(QueryOperationRequest) returns (QueryOperationResponse);
+  rpc Operation(QueryOperationRequest) returns (QueryOperationResponse) {
+    option (google.api.http).get = "/qorechain/bridge/v1/operations/{id}";
+  }
   // Operations lists all bridge operations.
-  rpc Operations(QueryOperationsRequest) returns (QueryOperationsResponse);
+  rpc Operations(QueryOperationsRequest) returns (QueryOperationsResponse) {
+    option (google.api.http).get = "/qorechain/bridge/v1/operations";
+  }
 }
 
 message BridgeConfigView {

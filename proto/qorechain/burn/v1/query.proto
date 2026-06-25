@@ -1,0 +1,70 @@
+syntax = "proto3";
+package qorechain.burn.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/burn/types";
+
+import "google/api/annotations.proto";
+
+// Query defines the gRPC query service for the burn module.
+service Query {
+  // Params returns the burn module parameters (rates, fees, shares).
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/burn/v1/params";
+  }
+  // Stats returns aggregate burn statistics.
+  rpc Stats(QueryStatsRequest) returns (QueryStatsResponse) {
+    option (google.api.http).get = "/qorechain/burn/v1/stats";
+  }
+  // Records returns the most recent burn records (newest first).
+  rpc Records(QueryRecordsRequest) returns (QueryRecordsResponse) {
+    option (google.api.http).get = "/qorechain/burn/v1/records";
+  }
+  // Milestone returns the cumulative-TX milestone burn state.
+  rpc Milestone(QueryMilestoneRequest) returns (QueryMilestoneResponse) {
+    option (google.api.http).get = "/qorechain/burn/v1/milestone";
+  }
+}
+
+// ParamsView mirrors burn module params; decimals/ints are string-encoded.
+message ParamsView {
+  string gas_burn_rate = 1;
+  string contract_create_fee = 2;
+  string ai_service_burn_rate = 3;
+  string bridge_burn_rate = 4;
+  string failed_tx_burn_rate = 5;
+  string validator_share = 6;
+  string treasury_share = 7;
+  string staker_share = 8;
+  string light_node_share = 9;
+  bool enabled = 10;
+}
+
+message BurnStatsView {
+  string total_burned = 1;
+  map<string, string> burns_by_source = 2;
+  int64 last_burn_height = 3;
+}
+
+message BurnRecordView {
+  string source = 1;
+  string amount = 2;
+  int64 height = 3;
+  string tx_hash = 4;
+}
+
+message MilestoneStateView {
+  uint64 cumulative_tx_count = 1;
+  int64 last_triggered_index = 2;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse { ParamsView params = 1; }
+
+message QueryStatsRequest {}
+message QueryStatsResponse { BurnStatsView stats = 1; }
+
+message QueryRecordsRequest { uint64 limit = 1; }
+message QueryRecordsResponse { repeated BurnRecordView records = 1; }
+
+message QueryMilestoneRequest {}
+message QueryMilestoneResponse { MilestoneStateView state = 1; }
