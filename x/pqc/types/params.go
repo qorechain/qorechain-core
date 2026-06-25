@@ -22,10 +22,15 @@ type Params struct {
 func DefaultParams() Params {
 	return Params{
 		PQCPrimary:             true,
-		AllowClassicalFallback: true, // Allow classical ECDSA fallback
-		MinSecurityLevel:       5,    // NIST Level 5 (Dilithium-5)
+		AllowClassicalFallback: false, // PQC-first: no classical-only cosmos txs
+		MinSecurityLevel:       5,     // NIST Level 5 (Dilithium-5)
 		DefaultMigrationBlocks: DefaultMigrationBlocks,
 		DefaultSignatureAlgo:   AlgorithmDilithium5,
-		HybridSignatureMode:    HybridOptional, // PQC verified if present, classical fallback allowed
+		// PQC-required by default: every cosmos account must carry a Dilithium-5
+		// hybrid signature (in addition to the unavoidable secp256k1 sig). PQC key
+		// registration/migration txs are exempt (bootstrap). EVM txs use a separate
+		// ante path. Hybrid is the on-chain norm; the classical sig is what external
+		// networks verify at bridge egress.
+		HybridSignatureMode: HybridRequired,
 	}
 }
