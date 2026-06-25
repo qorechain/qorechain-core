@@ -113,7 +113,7 @@ func cmdCreateRollup() *cobra.Command {
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
-	cmd.Flags().String("vm", "evm", "rollup VM type (evm|cosmwasm|svm|custom)")
+	cmd.Flags().String("vm", "", "rollup VM type (evm|cosmwasm|svm|custom); empty = use the profile's default VM")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
