@@ -1,0 +1,21 @@
+syntax = "proto3";
+package qorechain.pqc.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/pqc/types";
+
+import "gogoproto/gogo.proto";
+
+// PQCHybridSignature is a transaction extension option carried in
+// TxBody.extension_options. It pairs a post-quantum (Dilithium-5) signature with
+// the account's classical secp256k1 signature so every transaction can be
+// quantum-safe while remaining compatible with the standard Cosmos SDK auth
+// path. It is registered as a cosmos.tx.v1beta1.TxExtensionOptionI.
+message PQCHybridSignature {
+  // algorithm_id identifies the PQC signature algorithm (e.g. Dilithium-5 = 1).
+  uint32 algorithm_id = 1 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "AlgorithmID"];
+  // pqc_signature is the raw PQC signature (Dilithium-5: 4627 bytes).
+  bytes pqc_signature = 2 [(gogoproto.customname) = "PQCSignature"];
+  // pqc_public_key optionally carries the signer's PQC public key
+  // (Dilithium-5: 2592 bytes).
+  bytes pqc_public_key = 3 [(gogoproto.customname) = "PQCPublicKey"];
+}

@@ -35,6 +35,7 @@ import (
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	licensemod "github.com/qorechain/qorechain-core/x/license"
+	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
@@ -121,6 +122,10 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 					return evmHandler(ctx, tx, sim)
 				case "/cosmos.evm.ante.v1.ExtensionOptionDynamicFeeTx":
 					// Cosmos SDK tx with dynamic fee — route to Cosmos SDK path
+					return cosmosHandler(ctx, tx, sim)
+				case pqctypes.HybridSigTypeURL:
+					// Cosmos SDK tx carrying a PQC hybrid signature — route to the
+					// Cosmos SDK path (the hybrid verify decorator runs there).
 					return cosmosHandler(ctx, tx, sim)
 				default:
 					return ctx, errorsmod.Wrapf(

@@ -73,24 +73,11 @@ func HybridSignatureModeFromString(name string) (HybridSignatureMode, error) {
 // HybridSigTypeURL is the type URL for PQCHybridSignature when used as a TX extension.
 const HybridSigTypeURL = "/qorechain.pqc.v1.PQCHybridSignature"
 
-// PQCHybridSignature carries a post-quantum cryptographic signature as a TX extension.
-// Wallets that support PQC attach this alongside the classical Ed25519/secp256k1 signature.
-// The ante handler extracts and verifies this extension during transaction processing.
-type PQCHybridSignature struct {
-	// AlgorithmID identifies the PQC signature algorithm used.
-	// Must be a signature algorithm (e.g., AlgorithmDilithium5).
-	AlgorithmID AlgorithmID `json:"algorithm_id"`
-
-	// PQCSignature is the raw PQC signature bytes.
-	// For Dilithium-5: 4627 bytes.
-	PQCSignature []byte `json:"pqc_signature"`
-
-	// PQCPublicKey is the PQC public key of the signer.
-	// Optional — if provided and the account has no registered PQC key,
-	// the ante handler will auto-register this key.
-	// For Dilithium-5: 2592 bytes.
-	PQCPublicKey []byte `json:"pqc_public_key,omitempty"`
-}
+// PQCHybridSignature is now a generated protobuf message (see hybrid.pb.go),
+// registered as a cosmos.tx.v1beta1.TxExtensionOptionI so it can be carried in
+// TxBody.extension_options and resolved by the tx decoder. The helper methods
+// below (Validate, HasPublicKey) augment the generated type; Reset/String/
+// Marshal/Unmarshal are generated.
 
 // Validate performs basic validation on the hybrid signature.
 func (sig PQCHybridSignature) Validate() error {
@@ -124,14 +111,4 @@ func (sig PQCHybridSignature) Validate() error {
 // for auto-registration.
 func (sig PQCHybridSignature) HasPublicKey() bool {
 	return len(sig.PQCPublicKey) > 0
-}
-
-// String returns a summary of the hybrid signature.
-func (sig PQCHybridSignature) String() string {
-	pubkeyInfo := "none"
-	if sig.HasPublicKey() {
-		pubkeyInfo = fmt.Sprintf("%d bytes", len(sig.PQCPublicKey))
-	}
-	return fmt.Sprintf("PQCHybridSignature{algo=%s, sig=%d bytes, pubkey=%s}",
-		sig.AlgorithmID, len(sig.PQCSignature), pubkeyInfo)
 }

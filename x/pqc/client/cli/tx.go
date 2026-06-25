@@ -28,6 +28,9 @@ func GetTxCmd() *cobra.Command {
 		GetCmdRegisterPQCKeyV2(),
 		GetCmdMigratePQCKey(),
 	)
+	// Client-side hybrid signer (gen-key, cosign) — real in the full build,
+	// placeholders in the community build.
+	cmd.AddCommand(pqcSignerCommands()...)
 
 	return cmd
 }

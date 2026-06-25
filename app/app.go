@@ -867,7 +867,13 @@ func (app *QoreChainApp) setAnteHandler(
 				SignModeHandler:        txConfig.SignModeHandler(),
 				FeegrantKeeper:         app.FeeGrantKeeper,
 				SigGasConsumer:         sigVerificationGasConsumerWithPQC,
-				ExtensionOptionChecker: antetypes.HasDynamicFeeExtensionOption,
+				// Allow BOTH the EVM dynamic-fee extension and the PQC hybrid
+				// signature extension (/qorechain.pqc.v1.PQCHybridSignature).
+				// Without this the ExtensionOptionsDecorator would reject every
+				// PQC-signed tx before it reaches the hybrid verify decorator.
+				ExtensionOptionChecker: func(o *codectypes.Any) bool {
+					return antetypes.HasDynamicFeeExtensionOption(o) || o.GetTypeUrl() == pqctypes.HybridSigTypeURL
+				},
 				TxFeeChecker:           evmante.NewDynamicFeeChecker(&fmDefaults),
 			},
 			CircuitKeeper:         &app.CircuitKeeper,

@@ -4,6 +4,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 )
 
 // RegisterInterfaces registers the module's interface types.
@@ -17,11 +18,16 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgDisableAlgorithm{},
 	)
 
-	// Note: PQCHybridSignature is registered in amino below and identified by
-	// HybridSigTypeURL ("/qorechain.pqc.v1.PQCHybridSignature") when carried
-	// as a TX extension. The ante handler extracts it using the type URL and
-	// JSON decoding. Full protobuf registration will be added with proto
-	// code generation in a future version.
+	// PQCHybridSignature is a TX extension option carried in
+	// TxBody.extension_options under HybridSigTypeURL
+	// ("/qorechain.pqc.v1.PQCHybridSignature"). It MUST be registered as a
+	// TxExtensionOptionI implementation, otherwise the SDK tx decoder rejects
+	// every PQC-signed tx with "unable to resolve type URL". The Any payload is
+	// the proto-marshaled signature (see hybrid_proto.go); the ante handler
+	// proto-decodes it.
+	registry.RegisterImplementations((*txtypes.TxExtensionOptionI)(nil),
+		&PQCHybridSignature{},
+	)
 }
 
 // RegisterLegacyAminoCodec registers the module's types on the amino codec.
