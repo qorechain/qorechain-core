@@ -51,7 +51,38 @@ type QoreChainConfig struct {
 	EVM     cosmosevmserverconfig.EVMConfig     `mapstructure:"evm"`
 	JSONRPC cosmosevmserverconfig.JSONRPCConfig `mapstructure:"json-rpc"`
 	TLS     cosmosevmserverconfig.TLSConfig     `mapstructure:"tls"`
+	SVMRPC  SVMRPCConfig                        `mapstructure:"svm-rpc"`
 }
+
+// SVMRPCConfig configures the Solana-compatible JSON-RPC server (consumed by
+// @solana/web3.js and other Solana ecosystem tooling). The server lives in
+// x/svm/rpc and is only present in the full build; in the community build the
+// start hook is a no-op regardless of this setting.
+type SVMRPCConfig struct {
+	// Enable starts the SVM JSON-RPC server alongside `qorechaind start`.
+	Enable bool `mapstructure:"enable"`
+	// Address is the host:port the SVM JSON-RPC server binds to (e.g. "127.0.0.1:8899").
+	Address string `mapstructure:"address"`
+}
+
+// DefaultSVMRPCTemplate is appended to the app.toml template so operators can
+// toggle the Solana-compatible JSON-RPC endpoint.
+const DefaultSVMRPCTemplate = `
+###############################################################################
+###                       SVM (Solana) JSON-RPC                            ###
+###############################################################################
+
+[svm-rpc]
+
+# Enable defines whether the Solana-compatible JSON-RPC server starts with the
+# node. It serves the getHealth/getVersion/getAccountInfo/getBalance/
+# sendTransaction/getSignaturesForAddress/getTransaction methods used by
+# @solana/web3.js. Only effective in the full build.
+enable = {{ .SVMRPC.Enable }}
+
+# Address defines the host:port the SVM JSON-RPC server binds to.
+address = "{{ .SVMRPC.Address }}"
+`
 
 func initAppConfig() (string, interface{}) {
 	srvCfg := serverconfig.DefaultConfig()
@@ -82,10 +113,16 @@ func initAppConfig() (string, interface{}) {
 		EVM:     *evmCfg,
 		JSONRPC: *jsonrpcCfg,
 		TLS:     *tlsCfg,
+		// Solana-compatible JSON-RPC enabled by default so @solana/web3.js works
+		// out of the box (full build only). Disable or move the port on multi-node
+		// single-host setups to avoid 8899 conflicts.
+		SVMRPC: SVMRPCConfig{Enable: true, Address: "127.0.0.1:8899"},
 	}
 
-	// Combine the standard SDK template with the EVM config template
-	customAppTemplate := serverconfig.DefaultConfigTemplate + cosmosevmserverconfig.DefaultEVMConfigTemplate
+	// Combine the standard SDK template with the EVM + SVM-RPC config templates
+	customAppTemplate := serverconfig.DefaultConfigTemplate +
+		cosmosevmserverconfig.DefaultEVMConfigTemplate +
+		DefaultSVMRPCTemplate
 
 	return customAppTemplate, qoreConfig
 }
@@ -220,11 +257,34 @@ func newApp(
 	appOpts servertypes.AppOptions,
 ) cosmosevmserver.Application {
 	baseappOptions := server.DefaultBaseappOptions(appOpts)
-	return app.NewQoreChainApp(
+	qoreApp := app.NewQoreChainApp(
 		logger, db, traceStore, true,
 		appOpts,
 		baseappOptions...,
 	)
+	// Start the Solana-compatible JSON-RPC only when actually running a node
+	// (`start`), not for pruning/snapshot which also build the app. No-op in the
+	// community build (the SVM RPC server lives in the full-build overlay).
+	if isStartCommand() {
+		startSVMRPCIfEnabled(logger, qoreApp, appOpts)
+	}
+	return qoreApp
+}
+
+// isStartCommand reports whether the process was invoked as `qorechaind start`,
+// so node-lifetime servers are not launched by app-building subcommands like
+// pruning or snapshot.
+func isStartCommand() bool {
+	for _, a := range os.Args[1:] {
+		if a == "start" {
+			return true
+		}
+		// stop at the first non-flag token (the subcommand)
+		if len(a) > 0 && a[0] != '-' {
+			return false
+		}
+	}
+	return false
 }
 
 func appExport(
