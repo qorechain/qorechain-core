@@ -64,6 +64,17 @@ require_addr MARKETING "${MARKETING_ADDR:-}"
 require_addr PROGRAMS "${PROGRAMS_ADDR:-}"
 require_addr RESERVES "${RESERVES_ADDR:-}"
 
+# License authority + bridge admin (foundation-controlled). Default both to the
+# TREASURY multisig so licensing + bridge administration are enabled at genesis
+# with NO hand-edit and NO governance proposal. Override with LICENSE_AUTHORITY /
+# BRIDGE_ADMIN. Validated as real qor1... addresses like the allocation buckets.
+LICENSE_AUTHORITY="${LICENSE_AUTHORITY:-$TREASURY_ADDR}"
+BRIDGE_ADMIN="${BRIDGE_ADMIN:-$TREASURY_ADDR}"
+require_addr LICENSE_AUTHORITY "$LICENSE_AUTHORITY"
+require_addr BRIDGE_ADMIN "$BRIDGE_ADMIN"
+echo "  License authority: $LICENSE_AUTHORITY"
+echo "  Bridge admin:      $BRIDGE_ADMIN"
+
 # Step 1: init the node.
 qorechaind init "$MONIKER" --chain-id "$CHAIN_ID" --home "$HOME_DIR" 2>&1 | grep -v "already exists" || true
 
@@ -138,6 +149,32 @@ jq '
   ] |
   .consensus.params.block.max_bytes = "4194304" |
   .consensus.params.block.max_gas = "100000000"
+' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
+
+# Step 4b: bake license authority, bridge admin, and a seed qcb_bridge grant so
+# licensing + bridge administration work immediately at genesis with no
+# hand-edit and no governance proposal. Idempotent: the grant is rebuilt by
+# grantee/feature_id key each run rather than appended.
+NOW_TS=$(date +%s)
+jq \
+  --arg lic_auth "$LICENSE_AUTHORITY" \
+  --arg br_admin "$BRIDGE_ADMIN" \
+  --argjson now "$NOW_TS" '
+  .app_state.license.authority = $lic_auth |
+  .app_state.bridge.config.bridge_admin = $br_admin |
+  .app_state.license.licenses = (
+    ((.app_state.license.licenses // [])
+      | map(select(.grantee != $br_admin or .feature_id != "qcb_bridge")))
+    + [{
+        "grantee":    $br_admin,
+        "feature_id": "qcb_bridge",
+        "expires_at": 0,
+        "granted_at": $now,
+        "granted_by": $lic_auth,
+        "suspended":  false,
+        "metadata":   "genesis-seeded bridge admin umbrella grant"
+      }]
+  )
 ' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
 
 # Step 5: production node config — faster commit, prometheus on.

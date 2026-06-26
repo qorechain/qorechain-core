@@ -28,6 +28,15 @@ qorechaind keys add faucet --keyring-backend "$KEYRING" --home "$HOME_DIR" 2>&1 
 FAUCET_ADDR=$(qorechaind keys show faucet -a --keyring-backend "$KEYRING" --home "$HOME_DIR")
 echo "Faucet address:    $FAUCET_ADDR"
 
+# Step 3b: License authority + bridge admin.
+# Both default to the validator (genesis account 0) so a fresh deploy has
+# licensing + bridge administration enabled with NO hand-edit and NO governance.
+# Override by exporting LICENSE_AUTHORITY / BRIDGE_ADMIN (bech32 qor1... addrs).
+LICENSE_AUTHORITY="${LICENSE_AUTHORITY:-$VALIDATOR_ADDR}"
+BRIDGE_ADMIN="${BRIDGE_ADMIN:-$VALIDATOR_ADDR}"
+echo "License authority: $LICENSE_AUTHORITY"
+echo "Bridge admin:      $BRIDGE_ADMIN"
+
 # Step 4: Fund accounts in genesis
 # Validator: 100M QOR = 100_000_000_000_000 uqor
 qorechaind genesis add-genesis-account "$VALIDATOR_ADDR" "100000000000000${DENOM}" --keyring-backend "$KEYRING" --home "$HOME_DIR"
@@ -81,6 +90,36 @@ jq '
   ] |
   .consensus.params.block.max_bytes = "4194304" |
   .consensus.params.block.max_gas = "100000000"
+' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
+
+# Step 7b: Bake license authority, bridge admin, and a seed qcb_bridge grant so
+# licensing + bridge administration work immediately post-deploy with no
+# hand-edit and no governance proposal. Idempotent: the grant is rebuilt by
+# grantee/feature_id key each run rather than appended.
+NOW_TS=$(date +%s)
+jq \
+  --arg lic_auth "$LICENSE_AUTHORITY" \
+  --arg br_admin "$BRIDGE_ADMIN" \
+  --argjson now "$NOW_TS" '
+  # 1) license module: store-backed grant authority.
+  .app_state.license.authority = $lic_auth |
+  # 2) bridge module: admin authorized to activate chains without governance.
+  .app_state.bridge.config.bridge_admin = $br_admin |
+  # 3) seed an umbrella qcb_bridge grant to the bridge admin (idempotent:
+  #    drop any existing qcb_bridge grant for this grantee, then add one).
+  .app_state.license.licenses = (
+    ((.app_state.license.licenses // [])
+      | map(select(.grantee != $br_admin or .feature_id != "qcb_bridge")))
+    + [{
+        "grantee":    $br_admin,
+        "feature_id": "qcb_bridge",
+        "expires_at": 0,
+        "granted_at": $now,
+        "granted_by": $lic_auth,
+        "suspended":  false,
+        "metadata":   "genesis-seeded bridge admin umbrella grant"
+      }]
+  )
 ' "$GENESIS" > "$GENESIS.tmp" && mv "$GENESIS.tmp" "$GENESIS"
 
 # Step 8: Configure Consensus Engine Engine
