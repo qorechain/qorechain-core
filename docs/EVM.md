@@ -96,15 +96,22 @@ api = "eth,web3,net,txpool,qor"
 
 ```javascript
 // MetaMask: Add custom network
-// Network Name: QoreChain Diana Testnet
-// RPC URL: http://localhost:8545
-// Chain ID: (from genesis)
-// Currency Symbol: QOR
+// Network Name:      QoreChain Diana Testnet
+// RPC URL:           http://localhost:8545   (prod: https://evm.<domain>)
+// Chain ID:          9800   (0x2648)         (mainnet: 9801 / 0x2649)
+// Currency Symbol:   QOR
+// Currency Decimals: 18    <- EVM native currency is the 18-decimal `aqor` view
+//                            of QOR; do NOT use 6 (the bank `uqor` denom) or
+//                            MetaMask shows balances 1e12x off.
 
 // Ethers.js
 const provider = new ethers.JsonRpcProvider("http://localhost:8545");
 const balance = await provider.getBalance("0x...");
 ```
+
+> `@qorechain/wallet-adapter` exports `qoreEvmChainParams({rpcUrl, explorerUrl})`
+> and `addQoreEvmToWallet(provider, …)` which emit the correct EIP-3085 params
+> (18 decimals baked in) so apps don't hand-roll this.
 
 ## Gas and Denomination
 
