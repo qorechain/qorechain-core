@@ -37,7 +37,8 @@ tooling interoperates directly:
 | Python | `qorechain-pqc` | `pip install qorechain-pqc` (then `import qorpqc`) |
 | Rust | `qorechain-pqc` | `cargo add qorechain-pqc` |
 | Go | `…/qorechain-pqc/go` | `go get github.com/qorechain/qorechain-pqc/go@v0.1.0` |
-| C / Java | source bindings | see the [qorechain-pqc](https://github.com/qorechain/qorechain-pqc) repo |
+| Java | `io.github.qorechain:qorechain-pqc` | Maven Central — add the dependency (`<version>0.1.0</version>`) |
+| C | source bindings | see the [qorechain-pqc](https://github.com/qorechain/qorechain-pqc) repo |
 
 **Universal wallet adapter.** `@qorechain/wallet-adapter` lets any Cosmos wallet
 (Keplr, Leap, Cosmostation) add QoreChain and sign its PQC-required transactions
