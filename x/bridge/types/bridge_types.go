@@ -106,6 +106,11 @@ type BridgeConfig struct {
 	ChallengePeriodSecs    int64  `json:"challenge_period_secs"`    // 24 hours for large transfers
 	LargeTransferThreshold string `json:"large_transfer_threshold"` // Amount above which challenge period applies
 	Enabled                bool   `json:"enabled"`
+	// BridgeAdmin is the bech32 address authorized (alongside qcb_bridge license
+	// holders) to call UpdateChainConfig / SetVerifierBootstrap — i.e. to activate
+	// a chain's bridge post-deploy WITHOUT governance. Set in genesis. Empty =>
+	// only qcb_bridge license holders can administer chains.
+	BridgeAdmin string `json:"bridge_admin,omitempty"`
 }
 
 // DefaultBridgeConfig returns default bridge configuration.

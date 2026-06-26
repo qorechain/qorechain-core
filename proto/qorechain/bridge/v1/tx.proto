@@ -26,6 +26,66 @@ service Msg {
   // UpdateEthLightClient advances the on-chain Ethereum light client with a
   // verified Altair LightClientUpdate (carried as an opaque encoded bundle).
   rpc UpdateEthLightClient(MsgUpdateEthLightClient) returns (MsgUpdateEthLightClientResponse);
+
+  // UpdateChainConfig registers/updates a chain's bridge config — real contract
+  // address, confirmations, architecture, status, and which trustless verifier
+  // is active. Authorized by the bridge_admin key OR a qcb_bridge license; lets
+  // operators activate a chain's bridge POST-DEPLOY without governance or an
+  // upgrade.
+  rpc UpdateChainConfig(MsgUpdateChainConfig) returns (MsgUpdateChainConfigResponse);
+
+  // SetVerifierBootstrap installs the per-architecture trust root a chain's
+  // trustless verifier needs (Wormhole guardian set / ed25519 or BLS validator
+  // quorum / Bitcoin checkpoint / Starknet state root). Same authorization as
+  // UpdateChainConfig. (Ethereum uses UpdateEthLightClient.)
+  rpc SetVerifierBootstrap(MsgSetVerifierBootstrap) returns (MsgSetVerifierBootstrapResponse);
+}
+
+// MsgUpdateChainConfig sets/replaces a chain's bridge configuration. Empty
+// string / zero fields fall back to the existing config (merge semantics in the
+// handler), so a caller can flip just `status`+one verifier flag to activate.
+message MsgUpdateChainConfig {
+  option (cosmos.msg.v1.signer) = "admin";
+
+  string admin = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string chain_id = 2;
+  string bridge_contract = 3;          // contract/program address on the external chain
+  uint32 confirmations_required = 4;
+  string architecture = 5;             // ChainArchitecture string (empty keeps existing)
+  string status = 6;                   // "active" | "paused" | "pending" (empty keeps existing)
+  // Exactly one verifier flag should be set when activating trustless mode.
+  string verifier = 7;                 // "light_client"|"wormhole"|"ed25519"|"bls"|"starknet"|"bitcoin_spv"|"" (none)
+  string lock_event_sig = 8;           // hex topic0 of the lock event (EVM/light-client chains)
+}
+message MsgUpdateChainConfigResponse {}
+
+// MsgSetVerifierBootstrap installs a verifier trust root. Exactly one of the
+// sub-messages must be populated; the handler routes by which is non-nil.
+message MsgSetVerifierBootstrap {
+  option (cosmos.msg.v1.signer) = "admin";
+
+  string admin = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string chain_id = 2;
+
+  WormholeGuardianSet wormhole = 3;
+  ValidatorQuorum ed25519 = 4;
+  ValidatorQuorum bls = 5;
+  BitcoinCheckpoint bitcoin = 6;
+  bytes starknet_state_root = 7;
+}
+message MsgSetVerifierBootstrapResponse {}
+
+message WormholeGuardianSet {
+  repeated bytes addresses = 1;        // 20-byte guardian eth addresses
+  uint32 quorum = 2;
+}
+message ValidatorQuorum {
+  repeated bytes pubkeys = 1;          // ed25519 (32B) or BLS (48B) pubkeys
+  uint32 threshold = 2;
+}
+message BitcoinCheckpoint {
+  bytes block_hash = 1;
+  uint32 min_confs = 2;
 }
 
 message MsgBridgeDeposit {
