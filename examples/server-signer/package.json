@@ -1,0 +1,20 @@
+{
+  "name": "qorechain-server-signer-example",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Headless QoreChain hot-wallet signer: builds a bank MsgSend, layers the ML-DSA-87 hybrid signature the chain requires, and broadcasts over RPC. No browser, no Keplr.",
+  "type": "module",
+  "main": "sign-and-broadcast.mjs",
+  "scripts": {
+    "start": "node sign-and-broadcast.mjs",
+    "check": "node --check sign-and-broadcast.mjs"
+  },
+  "dependencies": {
+    "@qorechain/wallet-adapter": "^0.1.0",
+    "@qorechain/pqc": "^0.1.0",
+    "@cosmjs/proto-signing": "^0.32.0",
+    "@cosmjs/stargate": "^0.32.0",
+    "cosmjs-types": "^0.9.0"
+  },
+  "license": "Apache-2.0"
+}
