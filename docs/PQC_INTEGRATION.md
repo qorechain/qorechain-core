@@ -19,7 +19,32 @@ The PQC implementation uses a Rust FFI bridge:
 Go (x/pqc) -> CGO -> C FFI -> Rust (libqorepqc)
 ```
 
-The Rust library (`libqorepqc`) wraps the `pqcrypto` crate family and exposes C-compatible functions.
+The Rust library (`libqorepqc`) wraps the audited FIPS-standard crates
+(`fips204` for ML-DSA-87, `fips203` for ML-KEM-1024) and exposes C-compatible
+functions. SHAKE-256 (FIPS-202) is provided by `golang.org/x/crypto/sha3`. These
+are the same standard implementations used by the public `qorechain-pqc` library,
+so on-chain signatures are **byte-compatible** with any standard ML-DSA-87
+verifier (Cloudflare CIRCL, @noble/post-quantum, Bouncy Castle, liboqs).
+
+## Interoperability & client libraries
+
+Because the chain uses the final NIST standards (not a custom variant), standard
+tooling interoperates directly:
+
+| Where | Package | Install |
+|-------|---------|---------|
+| JavaScript/TypeScript | `@qorechain/pqc` | `npm i @qorechain/pqc` |
+| Python | `qorechain-pqc` | `pip install qorechain-pqc` (then `import qorpqc`) |
+| Rust | `qorechain-pqc` | `cargo add qorechain-pqc` |
+| Go | `…/qorechain-pqc/go` | `go get github.com/qorechain/qorechain-pqc/go@v0.1.0` |
+| C / Java | source bindings | see the [qorechain-pqc](https://github.com/qorechain/qorechain-pqc) repo |
+
+**Universal wallet adapter.** `@qorechain/wallet-adapter` lets any Cosmos wallet
+(Keplr, Leap, Cosmostation) add QoreChain and sign its PQC-required transactions
+with no wallet-side changes: the wallet produces an ordinary `SIGN_MODE_DIRECT`
+signature over the final body, into which the adapter has already layered the
+standard ML-DSA-87 hybrid extension. MetaMask works natively via the EVM path
+(structurally PQC-exempt).
 
 ## Key Registration
 

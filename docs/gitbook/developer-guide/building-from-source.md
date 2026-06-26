@@ -206,4 +206,4 @@ The Docker image handles all native library compilation and path configuration a
 | `cannot find -lqorepqc` | Build the Rust libraries first and set `LD_LIBRARY_PATH` / `DYLD_LIBRARY_PATH` |
 | `undefined: sonic.*` | Ensure `go.sum` is up to date: `go mod tidy` |
 | `signal: killed` during build | Increase available memory (common in Docker with low limits) |
-| PQC tests fail with size mismatch | Verify you are using `pqcrypto v0.5.0+` (ML-DSA-87: pubkey=2592, privkey=4896, sig=4627 bytes) |
+| PQC tests fail with size mismatch | Verify the FIPS crates resolve (`fips204` / `fips203`); ML-DSA-87 sizes: pubkey=2592, privkey=4896, sig=4627 bytes |

@@ -43,10 +43,14 @@ C FFI Layer (bridge.h)
 Rust (libqorepqc)
     |
     v
-pqcrypto crate family
-    - pqcrypto-dilithium v0.5.0
-    - pqcrypto-kyber v0.8.1
+FIPS-standard crates
+    - fips204 (ML-DSA-87, FIPS-204)
+    - fips203 (ML-KEM-1024, FIPS-203)
 ```
+
+These are the same audited implementations published in the public
+[`qorechain-pqc`](https://github.com/qorechain/qorechain-pqc) library, so on-chain
+signatures are byte-compatible with any standard ML-DSA-87 verifier.
 
 The Rust library (`libqorepqc`) is compiled as a shared library (`.dylib` on macOS, `.so` on Linux) with platform-specific CGO linker flags:
 
