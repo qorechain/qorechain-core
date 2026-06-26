@@ -29,8 +29,138 @@ func GetTxCmd() *cobra.Command {
 		cmdBridgeWithdraw(),
 		cmdRegisterBridgeValidator(),
 		cmdBridgeAttestation(),
+		cmdUpdateChainConfig(),
+		cmdSetVerifierBootstrap(),
 	)
 	return cmd
+}
+
+// cmdUpdateChainConfig activates/updates a chain's bridge config (bridge_admin or
+// qcb_bridge license required). Flip --status active + --verifier <name> to bring
+// a pending chain online post-deploy, no governance.
+func cmdUpdateChainConfig() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update-chain-config [chain-id]",
+		Short: "Set a chain's bridge config + active verifier (bridge_admin/qcb_bridge only)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			contract, _ := cmd.Flags().GetString("contract")
+			confs, _ := cmd.Flags().GetUint32("confirmations")
+			arch, _ := cmd.Flags().GetString("architecture")
+			status, _ := cmd.Flags().GetString("status")
+			verifier, _ := cmd.Flags().GetString("verifier")
+			lockSig, _ := cmd.Flags().GetString("lock-event-sig")
+			msg := &types.MsgUpdateChainConfig{
+				Admin:                 clientCtx.GetFromAddress().String(),
+				ChainId:               args[0],
+				BridgeContract:        contract,
+				ConfirmationsRequired: confs,
+				Architecture:          arch,
+				Status:                status,
+				Verifier:              verifier,
+				LockEventSig:          lockSig,
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	cmd.Flags().String("contract", "", "bridge/lock contract address on the external chain")
+	cmd.Flags().Uint32("confirmations", 0, "confirmations required on the source chain")
+	cmd.Flags().String("architecture", "", "chain architecture (empty keeps existing)")
+	cmd.Flags().String("status", "", "active|paused|pending (empty keeps existing)")
+	cmd.Flags().String("verifier", "", "light_client|wormhole|ed25519|bls|starknet|l2_anchored|bitcoin_spv (empty=attestation)")
+	cmd.Flags().String("lock-event-sig", "", "hex topic0 of the lock event (EVM/light-client chains)")
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+// cmdSetVerifierBootstrap installs a verifier trust root. KIND is one of
+// wormhole|ed25519|bls|bitcoin|starknet. Byte inputs are hex (comma-separated for lists).
+func cmdSetVerifierBootstrap() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-verifier-bootstrap [kind] [chain-id]",
+		Short: "Install a verifier trust root for a chain (bridge_admin/qcb_bridge only)",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			kind, chainID := args[0], args[1]
+			msg := &types.MsgSetVerifierBootstrap{Admin: clientCtx.GetFromAddress().String(), ChainId: chainID}
+			n, _ := cmd.Flags().GetUint32("threshold")
+			switch kind {
+			case "wormhole":
+				addrs, err := hexList(cmd, "guardians")
+				if err != nil {
+					return err
+				}
+				q, _ := cmd.Flags().GetUint32("quorum")
+				msg.Wormhole = &types.WormholeGuardianSet{Addresses: addrs, Quorum: q}
+			case "ed25519":
+				pks, err := hexList(cmd, "pubkeys")
+				if err != nil {
+					return err
+				}
+				msg.Ed25519 = &types.ValidatorQuorum{Pubkeys: pks, Threshold: n}
+			case "bls":
+				pks, err := hexList(cmd, "pubkeys")
+				if err != nil {
+					return err
+				}
+				msg.Bls = &types.ValidatorQuorum{Pubkeys: pks, Threshold: n}
+			case "bitcoin":
+				bh, err := hexFlag(cmd, "block-hash")
+				if err != nil {
+					return err
+				}
+				mc, _ := cmd.Flags().GetUint32("min-confs")
+				msg.Bitcoin = &types.BitcoinCheckpoint{BlockHash: bh, MinConfs: mc}
+			case "starknet":
+				root, err := hexFlag(cmd, "state-root")
+				if err != nil {
+					return err
+				}
+				msg.StarknetStateRoot = root
+			default:
+				return types.ErrChainNotSupported.Wrapf("unknown verifier kind %q (want wormhole|ed25519|bls|bitcoin|starknet)", kind)
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	cmd.Flags().String("guardians", "", "wormhole: comma-separated hex guardian addresses")
+	cmd.Flags().Uint32("quorum", 0, "wormhole: guardian quorum")
+	cmd.Flags().String("pubkeys", "", "ed25519/bls: comma-separated hex pubkeys")
+	cmd.Flags().Uint32("threshold", 0, "ed25519/bls: signature threshold")
+	cmd.Flags().String("block-hash", "", "bitcoin: hex checkpoint block hash")
+	cmd.Flags().Uint32("min-confs", 0, "bitcoin: minimum confirmations")
+	cmd.Flags().String("state-root", "", "starknet: hex state root")
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+func hexFlag(cmd *cobra.Command, name string) ([]byte, error) {
+	s, _ := cmd.Flags().GetString(name)
+	return hex.DecodeString(strings.TrimPrefix(s, "0x"))
+}
+
+func hexList(cmd *cobra.Command, name string) ([][]byte, error) {
+	s, _ := cmd.Flags().GetString(name)
+	if s == "" {
+		return nil, nil
+	}
+	var out [][]byte
+	for _, part := range strings.Split(s, ",") {
+		b, err := hex.DecodeString(strings.TrimPrefix(strings.TrimSpace(part), "0x"))
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, b)
+	}
+	return out, nil
 }
 
 func cmdBridgeDeposit() *cobra.Command {
