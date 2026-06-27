@@ -199,24 +199,17 @@ The multilayer module initializes with the following default parameters:
 ### Transaction Commands
 
 ```bash
-# Register a new sidechain
-qorechaind tx multilayer register-sidechain \
-  --name "defi-sidechain" \
-  --description "DeFi-optimized sidechain" \
+# Register a new sidechain  (args are positional: [layer-id] [description])
+qorechaind tx multilayer register-sidechain defi-sidechain "DeFi-optimized sidechain" \
   --from <key>
 
-# Register a new paychain
-qorechaind tx multilayer register-paychain \
-  --name "payments-paychain" \
-  --description "High-frequency payment channel" \
+# Register a new paychain (high-frequency microtransactions)
+qorechaind tx multilayer register-paychain payments-paychain "High-frequency payment channel" \
   --from <key>
 
-# Anchor subsidiary chain state to Main Chain
-qorechaind tx multilayer anchor-state \
-  --layer-id <layer-id> \
-  --height <block-height> \
-  --state-root <hex-hash> \
-  --pqc-signature <hex-sig> \
+# Anchor a subsidiary-chain state root to Main Chain — paychain/sidechain settlement
+# args: [layer-id] [layer-height] [state-root-hex] [pqc-agg-sig-hex]
+qorechaind tx multilayer anchor-state <layer-id> <layer-height> <state-root-hex> <pqc-agg-sig-hex> \
   --from <key>
 
 # Route a transaction through QCAI engine

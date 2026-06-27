@@ -156,8 +156,8 @@ Rate schedule: inflation decays annually from `initial_rate` by `rate_decay` unt
 | `anchor_interval_sidechain` | uint64  | `100`         | Mandatory anchor interval for sidechains (blocks)   |
 | `anchor_interval_paychain`  | uint64  | `50`          | Mandatory anchor interval for paychains (blocks)    |
 | `challenge_period`          | string  | `7d`          | Duration for fraud challenges on anchors            |
-| `min_sidechain_stake`       | string  | `100000000000uqor` | Minimum stake to register a sidechain         |
-| `min_paychain_stake`        | string  | `10000000000uqor`  | Minimum stake to register a paychain          |
+| `min_sidechain_stake`       | string  | `1000000000uqor` | Minimum stake to register a sidechain (1,000 QOR) |
+| `min_paychain_stake`        | string  | `100000000uqor`  | Minimum stake to register a paychain (100 QOR)    |
 | `routing_threshold`         | string  | `0.80`        | Load threshold to trigger automatic routing         |
 
 ---

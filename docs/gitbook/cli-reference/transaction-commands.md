@@ -307,18 +307,18 @@ qorechaind tx multilayer register-sidechain <layer_id> <name> [flags]
 
 ### register-paychain
 
-Register a new payment channel layer.
+Register a new paychain layer for high-frequency microtransactions.
 
 ```bash
-qorechaind tx multilayer register-paychain <layer_id> <name> [flags]
+qorechaind tx multilayer register-paychain <layer-id> <description> [flags]
 ```
 
 ### anchor-state
 
-Submit a state anchor for a registered layer.
+Submit a state anchor (settlement) for a registered layer.
 
 ```bash
-qorechaind tx multilayer anchor-state <layer_id> <state_root_hex> <height> [flags]
+qorechaind tx multilayer anchor-state <layer-id> <layer-height> <state-root-hex> <pqc-agg-sig-hex> [flags]
 ```
 
 ### route-tx
