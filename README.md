@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.1.70-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v3.1.70)
+[![Version](https://img.shields.io/badge/version-3.1.80-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v3.1.80)
 
 QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **native on-chain AMM** with constant-product and stable-swap pricing, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, **45 direct cross-chain connections** spanning IBC (with foundation for next-generation IBC v2), EVM, Move, UTXO, Cairo, UNL, SCP, Hashgraph, and account-model ecosystems, a **Rollup Development Kit (RDK)** enabling one-click deployment of application-specific rollups with four settlement paradigms, a **license-gated multi-chain validator bridge** for cross-chain operations across 37 chains, and a **light node network** with stake-weighted reward distribution. Built on Cosmos SDK v0.53 with 21 custom modules and 48 registered genesis modules.
 
@@ -400,13 +400,13 @@ curl -fsSL "https://<network-genesis-url>/genesis.json" -o ~/.qorechaind/config/
 | **x/xqore** | Governance-boosted staking: lock QOR → mint xQORE (1:1), graduated exit penalties, PvP rebase redistribution |
 | **x/inflation** | Epoch-based emission decay: Y1 17.5% → Y2 11% → Y3-4 7% → Y5+ 2%, configurable epoch length |
 | **x/amm** | Native AMM: constant-product + stable-swap pricing curves, 8 messages (create / add / remove / swap-exact-in / swap-exact-out / pause / resume / set-params), cross-VM swap hook, deterministic integer math |
-| **x/bridge** | Cross-chain bridge (QCB): 37 default chain configurations across 17 chain architectures, PQC-signed validator attestations, circuit breaker volume caps, IBC v2 foundation (`ChainArchitecture` enum + ICS-27/29/721 handler hooks) |
+| **x/bridge** | Cross-chain bridge (QCB): 37 default chain configurations across 17 chain architectures, PQC-signed validator attestations, circuit breaker volume caps, IBC v2 foundation (`ChainArchitecture` enum + ICS-27/29/721 handler hooks). Post-deploy per-chain activation via `MsgUpdateChainConfig` + `MsgSetVerifierBootstrap` (a `bridge_admin` key or `qcb_bridge` license — no governance, no upgrade). |
 | **x/babylon** | BTC restaking adapter: Babylon Protocol IBC integration, epoch checkpoints to Bitcoin, staking position lifecycle |
 | **x/abstractaccount** | Smart account abstraction: multisig/social_recovery/session_based accounts, spending rules, session keys with expiry |
 | **x/fairblock** | MEV protection: threshold IBE encrypted mempool framework, FairBlockDecorator ante handler |
 | **x/gasabstraction** | Multi-token gas payment: accept IBC-transferred tokens (USDC, ATOM) for fees, GasAbstractionDecorator |
 | **x/rdk** | Rollup Development Kit: 4 settlement paradigms, 3 DA backends, 4 preset profiles, settlement engine with auto-finalization |
-| **x/multilayer** | Multi-layer architecture: Sidechains + Paychains + Rollups with cross-layer fee bundling and state anchoring |
+| **x/multilayer** | Multi-layer architecture: Sidechains + Paychains (high-frequency microtransactions) + Rollups with cross-layer fee bundling and state anchoring; query service exposed over REST (`/qorechain/multilayer/v1/...` incl. layers, anchors, routing-stats) |
 | **x/crossvm** | Cross-VM communication: EVM ↔ CosmWasm (precompile) + SVM (async events), AMM swap routing |
 | **x/svm** | SVM runtime: BPF program deployment/execution, native programs (System, SPL Token, ATA, Memo), 20 Solana-compatible JSON-RPC methods |
 | **x/lightnode** | Light node network: registration, heartbeat liveness, stake-weighted reward distribution, auto-deactivation |

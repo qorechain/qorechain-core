@@ -103,6 +103,44 @@ IBC chains <-> IBC Module (native, no bridge needed)     |
 3. Bridge validators attest to the withdrawal
 4. When threshold is met, assets are unlocked on external chain
 
+## Post-Deploy Chain Activation (no governance, no upgrade)
+
+All chain configs ship in genesis as `pending` with placeholder contracts. A
+chain's bridge is activated **after deploy** by an authorized **`bridge_admin`**
+key (set in genesis under `bridge.config.bridge_admin`) **or** any holder of the
+`qcb_bridge` umbrella license — via two authorized messages, no governance
+proposal and no chain upgrade:
+
+```bash
+# 1. Set the real contract, confirmations, and the active trustless verifier.
+#    verifier ∈ light_client | wormhole | ed25519 | bls | starknet | l2_anchored | bitcoin_spv | "" (PQC-attestation)
+qorechaind tx bridge update-chain-config <chain-id> \
+  --status active --verifier wormhole \
+  --contract <external-contract-addr> --confirmations 32 \
+  --from <bridge-admin-key>
+
+# 2. Install the verifier's trust root (per architecture).
+#    kind ∈ wormhole | ed25519 | bls | bitcoin | starknet  (Ethereum uses update-eth-light-client)
+qorechaind tx bridge set-verifier-bootstrap wormhole <chain-id> \
+  --guardians <hex,hex,...> --quorum <n> \
+  --from <bridge-admin-key>
+```
+
+Until a chain is activated it falls back to the PQC-attestation (validator-quorum)
+path. Activation is one signed tx per chain; the trustless verifiers
+(Wormhole VAA / ed25519 / BLS / Starknet Pedersen / Bitcoin SPV / Ethereum
+light-client / L2-anchored) are wired in the deploying binary.
+
+### Validators on external networks (license-gated)
+
+A QoreChain validator that holds a `validator_<chain>` (or `qcb_bridge`) license
+may also run that network's client as a co-located, orchestrated sidecar — the
+orchestrator refuses to start a sidecar without the matching on-chain license.
+The operator supplies the external stake/keys/endpoints; QoreChain ships the
+framework + the enforced license gate. (Only the subset of networks with a
+permissionless validator role can be validated by stake; the rest run as
+full nodes for the bridge.)
+
 ## API Endpoints
 
 ```

@@ -258,15 +258,19 @@ qorechaind query multilayer params
 
 ## REST/gRPC API Endpoints
 
+Exposed over REST via grpc-gateway (v3.1.80) — reachable on the REST/LCD port
+(`:1317`) for explorers, the docs site, and light clients:
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/qorechain/multilayer/v1/layer/{layer_id}` | Get layer details |
 | GET | `/qorechain/multilayer/v1/layers` | List all layers |
-| GET | `/qorechain/multilayer/v1/anchor/{layer_id}` | Get latest anchor |
-| GET | `/qorechain/multilayer/v1/anchors/{layer_id}` | List all anchors |
-| GET | `/qorechain/multilayer/v1/routing_stats` | Routing statistics |
-| GET | `/qorechain/multilayer/v1/simulate_route` | Simulate routing |
+| GET | `/qorechain/multilayer/v1/layers/{layer_id}` | Get layer details |
+| GET | `/qorechain/multilayer/v1/anchor/{layer_id}` | Get latest anchor for a layer |
+| GET | `/qorechain/multilayer/v1/anchors/{layer_id}` | List anchor history for a layer |
+| GET | `/qorechain/multilayer/v1/routing-stats` | Cross-layer routing statistics |
 | GET | `/qorechain/multilayer/v1/params` | Module parameters |
+
+> `simulate-route` is available via the CLI / gRPC only (no REST route).
 
 ## Module Parameters
 
