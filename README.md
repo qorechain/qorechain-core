@@ -553,8 +553,8 @@ surface of all 14 proto-bound custom modules, and the validator/light-node
 license+build flow), see:
 
 - **[SDK Overview & Client Libraries](docs/SDK.md)** — start here
-- [Building from Source](docs/gitbook/developer-guide/building-from-source.md) — community vs full build
-- [Running a Validator](docs/gitbook/developer-guide/running-a-validator.md) — license + full-binary requirement
+- [Building from Source](https://docs.qorechain.io/developer-guide/building-from-source) — community vs full build
+- [Running a Validator](https://docs.qorechain.io/developer-guide/running-a-validator) — license + full-binary requirement
 
 ## Documentation
 
