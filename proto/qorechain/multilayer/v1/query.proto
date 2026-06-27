@@ -3,16 +3,34 @@ package qorechain.multilayer.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/multilayer/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the gRPC query service for the multilayer module.
 service Query {
   // Params returns the module parameters.
-  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/params";
+  }
   // Layer returns a single layer config by ID.
-  rpc Layer(QueryLayerRequest) returns (QueryLayerResponse);
+  rpc Layer(QueryLayerRequest) returns (QueryLayerResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/layers/{layer_id}";
+  }
   // Layers lists all layers.
-  rpc Layers(QueryLayersRequest) returns (QueryLayersResponse);
+  rpc Layers(QueryLayersRequest) returns (QueryLayersResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/layers";
+  }
+  // Anchor returns the latest state anchor for a layer.
+  rpc Anchor(QueryAnchorRequest) returns (QueryAnchorResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/anchor/{layer_id}";
+  }
+  // Anchors returns all state anchors for a layer (newest first).
+  rpc Anchors(QueryAnchorsRequest) returns (QueryAnchorsResponse) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/anchors/{layer_id}";
+  }
   // RoutingStats returns the cross-layer routing statistics.
-  rpc RoutingStats(QueryRoutingStatsRequest) returns (QueryRoutingStatsView);
+  rpc RoutingStats(QueryRoutingStatsRequest) returns (QueryRoutingStatsView) {
+    option (google.api.http).get = "/qorechain/multilayer/v1/routing-stats";
+  }
 }
 
 message ParamsView {
@@ -58,6 +76,29 @@ message QueryLayerResponse { LayerView layer = 1; }
 
 message QueryLayersRequest {}
 message QueryLayersResponse { repeated LayerView layers = 1; }
+
+// StateAnchorView is the queryable view of a subsidiary-layer state anchor
+// committed to the Main Chain. The PQC (Dilithium-5) signature covers the
+// canonical message: layer_id || layer_height(8-byte big-endian) ||
+// state_root || validator_set_hash, signed by the layer creator's registered
+// post-quantum key. This lets clients verify settlement anchors offline.
+message StateAnchorView {
+  string layer_id = 1;
+  uint64 layer_height = 2;
+  bytes state_root = 3;
+  bytes validator_set_hash = 4;
+  uint64 main_chain_height = 5;
+  int64 anchored_at = 6; // unix seconds
+  bytes pqc_aggregate_signature = 7;
+  uint64 transaction_count = 8;
+  bytes compressed_state_proof = 9;
+}
+
+message QueryAnchorRequest { string layer_id = 1; }
+message QueryAnchorResponse { StateAnchorView anchor = 1; }
+
+message QueryAnchorsRequest { string layer_id = 1; }
+message QueryAnchorsResponse { repeated StateAnchorView anchors = 1; }
 
 message QueryRoutingStatsRequest {}
 message QueryRoutingStatsView { RoutingStatsView stats = 1; }

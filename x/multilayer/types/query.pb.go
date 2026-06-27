@@ -8,6 +8,7 @@ import (
 	fmt "fmt"
 	grpc1 "github.com/cosmos/gogoproto/grpc"
 	proto "github.com/cosmos/gogoproto/proto"
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -591,6 +592,295 @@ func (m *QueryLayersResponse) GetLayers() []*LayerView {
 	return nil
 }
 
+// StateAnchorView is the queryable view of a subsidiary-layer state anchor
+// committed to the Main Chain. The PQC (Dilithium-5) signature covers the
+// canonical message: layer_id || layer_height(8-byte big-endian) ||
+// state_root || validator_set_hash, signed by the layer creator's registered
+// post-quantum key. This lets clients verify settlement anchors offline.
+type StateAnchorView struct {
+	LayerId               string `protobuf:"bytes,1,opt,name=layer_id,json=layerId,proto3" json:"layer_id,omitempty"`
+	LayerHeight           uint64 `protobuf:"varint,2,opt,name=layer_height,json=layerHeight,proto3" json:"layer_height,omitempty"`
+	StateRoot             []byte `protobuf:"bytes,3,opt,name=state_root,json=stateRoot,proto3" json:"state_root,omitempty"`
+	ValidatorSetHash      []byte `protobuf:"bytes,4,opt,name=validator_set_hash,json=validatorSetHash,proto3" json:"validator_set_hash,omitempty"`
+	MainChainHeight       uint64 `protobuf:"varint,5,opt,name=main_chain_height,json=mainChainHeight,proto3" json:"main_chain_height,omitempty"`
+	AnchoredAt            int64  `protobuf:"varint,6,opt,name=anchored_at,json=anchoredAt,proto3" json:"anchored_at,omitempty"`
+	PqcAggregateSignature []byte `protobuf:"bytes,7,opt,name=pqc_aggregate_signature,json=pqcAggregateSignature,proto3" json:"pqc_aggregate_signature,omitempty"`
+	TransactionCount      uint64 `protobuf:"varint,8,opt,name=transaction_count,json=transactionCount,proto3" json:"transaction_count,omitempty"`
+	CompressedStateProof  []byte `protobuf:"bytes,9,opt,name=compressed_state_proof,json=compressedStateProof,proto3" json:"compressed_state_proof,omitempty"`
+}
+
+func (m *StateAnchorView) Reset()         { *m = StateAnchorView{} }
+func (m *StateAnchorView) String() string { return proto.CompactTextString(m) }
+func (*StateAnchorView) ProtoMessage()    {}
+func (*StateAnchorView) Descriptor() ([]byte, []int) {
+	return fileDescriptor_885e6da36a6d1d49, []int{9}
+}
+func (m *StateAnchorView) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *StateAnchorView) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_StateAnchorView.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *StateAnchorView) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_StateAnchorView.Merge(m, src)
+}
+func (m *StateAnchorView) XXX_Size() int {
+	return m.Size()
+}
+func (m *StateAnchorView) XXX_DiscardUnknown() {
+	xxx_messageInfo_StateAnchorView.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_StateAnchorView proto.InternalMessageInfo
+
+func (m *StateAnchorView) GetLayerId() string {
+	if m != nil {
+		return m.LayerId
+	}
+	return ""
+}
+
+func (m *StateAnchorView) GetLayerHeight() uint64 {
+	if m != nil {
+		return m.LayerHeight
+	}
+	return 0
+}
+
+func (m *StateAnchorView) GetStateRoot() []byte {
+	if m != nil {
+		return m.StateRoot
+	}
+	return nil
+}
+
+func (m *StateAnchorView) GetValidatorSetHash() []byte {
+	if m != nil {
+		return m.ValidatorSetHash
+	}
+	return nil
+}
+
+func (m *StateAnchorView) GetMainChainHeight() uint64 {
+	if m != nil {
+		return m.MainChainHeight
+	}
+	return 0
+}
+
+func (m *StateAnchorView) GetAnchoredAt() int64 {
+	if m != nil {
+		return m.AnchoredAt
+	}
+	return 0
+}
+
+func (m *StateAnchorView) GetPqcAggregateSignature() []byte {
+	if m != nil {
+		return m.PqcAggregateSignature
+	}
+	return nil
+}
+
+func (m *StateAnchorView) GetTransactionCount() uint64 {
+	if m != nil {
+		return m.TransactionCount
+	}
+	return 0
+}
+
+func (m *StateAnchorView) GetCompressedStateProof() []byte {
+	if m != nil {
+		return m.CompressedStateProof
+	}
+	return nil
+}
+
+type QueryAnchorRequest struct {
+	LayerId string `protobuf:"bytes,1,opt,name=layer_id,json=layerId,proto3" json:"layer_id,omitempty"`
+}
+
+func (m *QueryAnchorRequest) Reset()         { *m = QueryAnchorRequest{} }
+func (m *QueryAnchorRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryAnchorRequest) ProtoMessage()    {}
+func (*QueryAnchorRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_885e6da36a6d1d49, []int{10}
+}
+func (m *QueryAnchorRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAnchorRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAnchorRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAnchorRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAnchorRequest.Merge(m, src)
+}
+func (m *QueryAnchorRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAnchorRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAnchorRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAnchorRequest proto.InternalMessageInfo
+
+func (m *QueryAnchorRequest) GetLayerId() string {
+	if m != nil {
+		return m.LayerId
+	}
+	return ""
+}
+
+type QueryAnchorResponse struct {
+	Anchor *StateAnchorView `protobuf:"bytes,1,opt,name=anchor,proto3" json:"anchor,omitempty"`
+}
+
+func (m *QueryAnchorResponse) Reset()         { *m = QueryAnchorResponse{} }
+func (m *QueryAnchorResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryAnchorResponse) ProtoMessage()    {}
+func (*QueryAnchorResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_885e6da36a6d1d49, []int{11}
+}
+func (m *QueryAnchorResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAnchorResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAnchorResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAnchorResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAnchorResponse.Merge(m, src)
+}
+func (m *QueryAnchorResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAnchorResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAnchorResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAnchorResponse proto.InternalMessageInfo
+
+func (m *QueryAnchorResponse) GetAnchor() *StateAnchorView {
+	if m != nil {
+		return m.Anchor
+	}
+	return nil
+}
+
+type QueryAnchorsRequest struct {
+	LayerId string `protobuf:"bytes,1,opt,name=layer_id,json=layerId,proto3" json:"layer_id,omitempty"`
+}
+
+func (m *QueryAnchorsRequest) Reset()         { *m = QueryAnchorsRequest{} }
+func (m *QueryAnchorsRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryAnchorsRequest) ProtoMessage()    {}
+func (*QueryAnchorsRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_885e6da36a6d1d49, []int{12}
+}
+func (m *QueryAnchorsRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAnchorsRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAnchorsRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAnchorsRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAnchorsRequest.Merge(m, src)
+}
+func (m *QueryAnchorsRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAnchorsRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAnchorsRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAnchorsRequest proto.InternalMessageInfo
+
+func (m *QueryAnchorsRequest) GetLayerId() string {
+	if m != nil {
+		return m.LayerId
+	}
+	return ""
+}
+
+type QueryAnchorsResponse struct {
+	Anchors []*StateAnchorView `protobuf:"bytes,1,rep,name=anchors,proto3" json:"anchors,omitempty"`
+}
+
+func (m *QueryAnchorsResponse) Reset()         { *m = QueryAnchorsResponse{} }
+func (m *QueryAnchorsResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryAnchorsResponse) ProtoMessage()    {}
+func (*QueryAnchorsResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_885e6da36a6d1d49, []int{13}
+}
+func (m *QueryAnchorsResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAnchorsResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAnchorsResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAnchorsResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAnchorsResponse.Merge(m, src)
+}
+func (m *QueryAnchorsResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAnchorsResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAnchorsResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAnchorsResponse proto.InternalMessageInfo
+
+func (m *QueryAnchorsResponse) GetAnchors() []*StateAnchorView {
+	if m != nil {
+		return m.Anchors
+	}
+	return nil
+}
+
 type QueryRoutingStatsRequest struct {
 }
 
@@ -598,7 +888,7 @@ func (m *QueryRoutingStatsRequest) Reset()         { *m = QueryRoutingStatsReque
 func (m *QueryRoutingStatsRequest) String() string { return proto.CompactTextString(m) }
 func (*QueryRoutingStatsRequest) ProtoMessage()    {}
 func (*QueryRoutingStatsRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_885e6da36a6d1d49, []int{9}
+	return fileDescriptor_885e6da36a6d1d49, []int{14}
 }
 func (m *QueryRoutingStatsRequest) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -635,7 +925,7 @@ func (m *QueryRoutingStatsView) Reset()         { *m = QueryRoutingStatsView{} }
 func (m *QueryRoutingStatsView) String() string { return proto.CompactTextString(m) }
 func (*QueryRoutingStatsView) ProtoMessage()    {}
 func (*QueryRoutingStatsView) Descriptor() ([]byte, []int) {
-	return fileDescriptor_885e6da36a6d1d49, []int{10}
+	return fileDescriptor_885e6da36a6d1d49, []int{15}
 }
 func (m *QueryRoutingStatsView) XXX_Unmarshal(b []byte) error {
 	return m.Unmarshal(b)
@@ -681,6 +971,11 @@ func init() {
 	proto.RegisterType((*QueryLayerResponse)(nil), "qorechain.multilayer.v1.QueryLayerResponse")
 	proto.RegisterType((*QueryLayersRequest)(nil), "qorechain.multilayer.v1.QueryLayersRequest")
 	proto.RegisterType((*QueryLayersResponse)(nil), "qorechain.multilayer.v1.QueryLayersResponse")
+	proto.RegisterType((*StateAnchorView)(nil), "qorechain.multilayer.v1.StateAnchorView")
+	proto.RegisterType((*QueryAnchorRequest)(nil), "qorechain.multilayer.v1.QueryAnchorRequest")
+	proto.RegisterType((*QueryAnchorResponse)(nil), "qorechain.multilayer.v1.QueryAnchorResponse")
+	proto.RegisterType((*QueryAnchorsRequest)(nil), "qorechain.multilayer.v1.QueryAnchorsRequest")
+	proto.RegisterType((*QueryAnchorsResponse)(nil), "qorechain.multilayer.v1.QueryAnchorsResponse")
 	proto.RegisterType((*QueryRoutingStatsRequest)(nil), "qorechain.multilayer.v1.QueryRoutingStatsRequest")
 	proto.RegisterType((*QueryRoutingStatsView)(nil), "qorechain.multilayer.v1.QueryRoutingStatsView")
 }
@@ -690,69 +985,93 @@ func init() {
 }
 
 var fileDescriptor_885e6da36a6d1d49 = []byte{
-	// 984 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x56, 0xdd, 0x6e, 0x1b, 0x45,
-	0x14, 0x8e, 0x1b, 0xdb, 0x89, 0x4f, 0x7e, 0x68, 0x26, 0x69, 0xba, 0x18, 0xb0, 0x8c, 0x03, 0x22,
-	0xd0, 0xb2, 0x26, 0x45, 0x82, 0x8a, 0x82, 0x80, 0x54, 0x80, 0x22, 0x35, 0xc8, 0x5d, 0x5b, 0x15,
-	0xe2, 0x66, 0x18, 0xef, 0x4e, 0xec, 0x51, 0x77, 0x67, 0x9c, 0x9d, 0xb1, 0xb1, 0xdf, 0x82, 0xa7,
-	0x80, 0x57, 0x41, 0xe2, 0xa6, 0x97, 0x5c, 0xa2, 0xe4, 0x15, 0x78, 0x00, 0xb4, 0x67, 0x66, 0xd7,
-	0x6e, 0x42, 0x22, 0xdf, 0xc5, 0xe7, 0xfb, 0xbe, 0x73, 0xe6, 0xcc, 0x77, 0xce, 0x64, 0xe1, 0xe0,
-	0x5c, 0xa5, 0x3c, 0x1c, 0x32, 0x21, 0xdb, 0xc9, 0x38, 0x36, 0x22, 0x66, 0x33, 0x9e, 0xb6, 0x27,
-	0x47, 0xed, 0xf3, 0x31, 0x4f, 0x67, 0xfe, 0x28, 0x55, 0x46, 0x91, 0xfb, 0x05, 0xc9, 0x9f, 0x93,
-	0xfc, 0xc9, 0x51, 0xeb, 0xdf, 0x55, 0x80, 0x0e, 0x4b, 0x59, 0xa2, 0x5f, 0x08, 0xfe, 0x2b, 0x79,
-	0x1f, 0xb6, 0x13, 0x36, 0xa5, 0x5a, 0x44, 0x96, 0xad, 0xbd, 0x52, 0xb3, 0x74, 0x58, 0x0e, 0xb6,
-	0x12, 0x36, 0xed, 0x16, 0x41, 0x72, 0x00, 0x59, 0x80, 0x8e, 0xd8, 0xcc, 0xb1, 0xee, 0x20, 0x6b,
-	0x33, 0x61, 0xd3, 0x4e, 0x1e, 0x23, 0x3e, 0xec, 0x26, 0x42, 0x52, 0x26, 0xc3, 0xa1, 0x4a, 0xa9,
-	0x90, 0x86, 0xa7, 0x13, 0x16, 0x7b, 0xab, 0x48, 0xdd, 0x49, 0x84, 0xfc, 0x16, 0x91, 0x13, 0x07,
-	0x20, 0x9f, 0x4d, 0xaf, 0xf1, 0xcb, 0x8e, 0xcf, 0xa6, 0x57, 0xf8, 0x8f, 0xc1, 0x8b, 0xf8, 0x19,
-	0x1b, 0xc7, 0x86, 0x86, 0x43, 0x16, 0xc7, 0x5c, 0x0e, 0x38, 0x1d, 0xf1, 0x54, 0xa8, 0xc8, 0xab,
-	0xa0, 0x68, 0xdf, 0xe1, 0x4f, 0x73, 0xb8, 0x83, 0x68, 0x7e, 0xb2, 0xa2, 0x4b, 0xaa, 0x0d, 0x7b,
-	0xc9, 0xbd, 0x6a, 0xb3, 0x74, 0x58, 0xc3, 0x93, 0x15, 0xad, 0x76, 0x33, 0x80, 0x3c, 0x04, 0x92,
-	0xf1, 0xf3, 0x76, 0x1d, 0x7d, 0x0d, 0xe9, 0x77, 0x13, 0x21, 0xf3, 0x9e, 0x2d, 0xfb, 0x03, 0x78,
-	0x23, 0x55, 0x63, 0x23, 0xe4, 0x80, 0x72, 0xc9, 0xfa, 0x31, 0x8f, 0xbc, 0xf5, 0x66, 0xe9, 0x70,
-	0x3d, 0xd8, 0x76, 0xe1, 0xef, 0x6c, 0x94, 0x7c, 0x03, 0x6f, 0xe7, 0xc4, 0x50, 0xc9, 0x33, 0x11,
-	0x71, 0x19, 0x72, 0x6a, 0x86, 0x29, 0xd7, 0x43, 0x15, 0x47, 0x5e, 0x0d, 0x0b, 0xd4, 0x1d, 0xe7,
-	0x69, 0x41, 0xe9, 0xe5, 0x0c, 0xf2, 0x39, 0x78, 0x61, 0xaa, 0xb4, 0xa6, 0xe8, 0x27, 0x3d, 0xe3,
-	0x9c, 0xf6, 0xc7, 0x32, 0x8a, 0x85, 0x1c, 0x78, 0x80, 0x35, 0xef, 0x21, 0xfe, 0x2c, 0x83, 0xbf,
-	0xe7, 0xfc, 0xd8, 0x81, 0xad, 0x3f, 0x56, 0xa1, 0x86, 0x41, 0x74, 0xfd, 0x4d, 0x58, 0xb7, 0x09,
-	0x44, 0x84, 0x7e, 0xd7, 0x82, 0x35, 0xfc, 0x7d, 0x12, 0x91, 0x77, 0x00, 0x2c, 0x64, 0x66, 0x23,
-	0x8e, 0x36, 0xd7, 0x82, 0x1a, 0x46, 0x7a, 0xb3, 0x11, 0x27, 0xfb, 0x50, 0xd5, 0x86, 0x99, 0xb1,
-	0x46, 0x5b, 0x6b, 0x81, 0xfb, 0x95, 0x65, 0xb4, 0x57, 0x25, 0x22, 0x34, 0xb0, 0x16, 0xac, 0xe1,
-	0xef, 0x93, 0x88, 0x34, 0x61, 0x23, 0xe2, 0x3a, 0x4c, 0xc5, 0xc8, 0x08, 0x25, 0xd1, 0xa9, 0x5a,
-	0xb0, 0x18, 0x22, 0x6d, 0xd8, 0x33, 0x2c, 0x1d, 0x70, 0x43, 0xfb, 0xb1, 0x0a, 0x5f, 0x52, 0x23,
-	0x12, 0x4e, 0x13, 0x8d, 0xfe, 0x94, 0x83, 0x1d, 0x8b, 0x1d, 0x67, 0x50, 0x4f, 0x24, 0xfc, 0x54,
-	0x93, 0x27, 0x50, 0xcf, 0x26, 0xc7, 0xa4, 0x4c, 0x6a, 0x16, 0x66, 0x39, 0x74, 0x36, 0x08, 0x56,
-	0x8e, 0x3e, 0x95, 0x83, 0xfb, 0x09, 0x9b, 0xf6, 0x16, 0x08, 0x1d, 0x9e, 0x62, 0x0a, 0x1c, 0x79,
-	0x21, 0xe9, 0x84, 0xc5, 0x22, 0x62, 0x46, 0xa5, 0x1a, 0xdd, 0xda, 0x0a, 0xb6, 0x12, 0x21, 0x5f,
-	0x14, 0x41, 0xf2, 0x25, 0xd4, 0x35, 0x37, 0x26, 0xe6, 0x09, 0x97, 0xa6, 0x98, 0x4e, 0x5b, 0x42,
-	0xa3, 0x55, 0xe5, 0xc0, 0x9b, 0x33, 0xf2, 0x29, 0xc5, 0x1a, 0x3a, 0x9b, 0xd5, 0xab, 0x33, 0x4a,
-	0x35, 0x0f, 0x95, 0x8c, 0x34, 0x1a, 0x55, 0x0e, 0xf6, 0xc3, 0xd7, 0x87, 0xb4, 0x6b, 0xd1, 0xd6,
-	0x5f, 0x77, 0xe0, 0x6e, 0x60, 0x27, 0xa0, 0x6b, 0x98, 0xb1, 0x6b, 0xfa, 0x2e, 0x6c, 0x1a, 0x65,
-	0x58, 0x4c, 0xb3, 0xd9, 0xe0, 0x91, 0x5b, 0xd2, 0x0d, 0x8c, 0x05, 0x18, 0x22, 0xef, 0xc1, 0xb6,
-	0x05, 0xa9, 0x51, 0x34, 0x61, 0x42, 0xe6, 0x3b, 0x6a, 0xa3, 0x3d, 0x75, 0xca, 0x84, 0x24, 0x9f,
-	0xc0, 0xde, 0x9c, 0xb5, 0xb0, 0xf5, 0x76, 0x49, 0x49, 0xce, 0x5d, 0x58, 0x7d, 0x1f, 0x76, 0xe7,
-	0x8a, 0xf9, 0x03, 0xe0, 0xb6, 0x34, 0x17, 0xcc, 0x5f, 0x81, 0xaf, 0xe0, 0x2d, 0x36, 0xe1, 0x29,
-	0x1b, 0x70, 0x3a, 0x60, 0x9a, 0x6a, 0x36, 0x11, 0x72, 0x80, 0xf6, 0x84, 0x5c, 0x1a, 0x67, 0xbf,
-	0xe7, 0x28, 0x3f, 0x30, 0xdd, 0xb5, 0x84, 0x8e, 0xc5, 0xc9, 0x29, 0x1c, 0xe4, 0xf2, 0x98, 0x19,
-	0x2e, 0xc3, 0x19, 0x15, 0xc9, 0x28, 0x55, 0x13, 0xeb, 0x43, 0x9e, 0xc6, 0xae, 0x6e, 0xd3, 0x51,
-	0x9f, 0x59, 0xe6, 0xc9, 0x9c, 0xe8, 0xd2, 0xb5, 0xf6, 0x80, 0x3c, 0xcf, 0x9e, 0x45, 0xfb, 0xe4,
-	0x05, 0xfc, 0x7c, 0xcc, 0xb5, 0x69, 0x05, 0xb0, 0xfb, 0x5a, 0x54, 0x8f, 0x94, 0xd4, 0x9c, 0x3c,
-	0x81, 0xea, 0x08, 0x23, 0x78, 0xbf, 0x1b, 0x8f, 0x0e, 0xfc, 0x1b, 0x5e, 0x51, 0x7f, 0xfe, 0x82,
-	0x06, 0x4e, 0xd2, 0xf2, 0x61, 0x07, 0x73, 0xe2, 0x96, 0xb9, 0x42, 0xb7, 0x2c, 0x5a, 0xeb, 0x47,
-	0x77, 0x32, 0xc7, 0x77, 0x47, 0x78, 0x0c, 0x15, 0x24, 0xb8, 0x13, 0xb4, 0x6e, 0x3c, 0x41, 0xb1,
-	0xcc, 0x81, 0x15, 0x14, 0x9d, 0x22, 0x50, 0x74, 0xfa, 0xdc, 0x75, 0x9a, 0x47, 0x5d, 0x99, 0x2f,
-	0xa0, 0x8a, 0xaa, 0xac, 0xd3, 0xd5, 0x25, 0xeb, 0x38, 0x45, 0xab, 0x0e, 0x1e, 0xa6, 0x5c, 0x1c,
-	0xd2, 0xbc, 0xdc, 0x4f, 0x70, 0xef, 0x1a, 0x86, 0x03, 0xfc, 0x35, 0x54, 0xb2, 0x97, 0x22, 0xbf,
-	0xd9, 0x0f, 0x6f, 0xac, 0x77, 0x55, 0x19, 0x58, 0xdd, 0xa3, 0xdf, 0x57, 0xa1, 0x82, 0xa9, 0x49,
-	0x08, 0x55, 0x7b, 0xfd, 0xe4, 0xc1, 0x8d, 0x59, 0xae, 0x7b, 0x5e, 0x7f, 0xb8, 0x1c, 0xd9, 0x5d,
-	0xd0, 0x2f, 0x50, 0xc1, 0xce, 0xc9, 0x47, 0xb7, 0xcb, 0x16, 0xdd, 0xae, 0x3f, 0x58, 0x8a, 0xeb,
-	0x2a, 0x84, 0x50, 0xb5, 0xa6, 0x90, 0x65, 0x64, 0xcb, 0xb6, 0x71, 0xc5, 0xe7, 0x73, 0xd8, 0x5c,
-	0xbc, 0x50, 0x72, 0x74, 0xbb, 0xfa, 0x7f, 0x2c, 0xad, 0xfb, 0xcb, 0x4b, 0x32, 0xbf, 0x8e, 0x3b,
-	0x7f, 0x5e, 0x34, 0x4a, 0xaf, 0x2e, 0x1a, 0xa5, 0x7f, 0x2e, 0x1a, 0xa5, 0xdf, 0x2e, 0x1b, 0x2b,
-	0xaf, 0x2e, 0x1b, 0x2b, 0x7f, 0x5f, 0x36, 0x56, 0x7e, 0xfe, 0x6c, 0x20, 0xcc, 0x70, 0xdc, 0xf7,
-	0x43, 0x95, 0xb4, 0xe7, 0xdf, 0x30, 0xc5, 0x5f, 0x1f, 0x87, 0x2a, 0xe5, 0xed, 0xe9, 0xe2, 0x47,
-	0x4d, 0xf6, 0x3f, 0x48, 0xf7, 0xab, 0xf8, 0x49, 0xf3, 0xe9, 0x7f, 0x01, 0x00, 0x00, 0xff, 0xff,
-	0xa7, 0xee, 0xb3, 0xac, 0xf9, 0x08, 0x00, 0x00,
+	// 1362 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x57, 0x5d, 0x6f, 0x1b, 0x45,
+	0x17, 0xae, 0x1b, 0xc7, 0xa9, 0x27, 0x6e, 0x9b, 0x4c, 0xd3, 0xd4, 0xaf, 0xdf, 0xbe, 0x69, 0xba,
+	0x79, 0xa1, 0xa1, 0x69, 0xec, 0x7e, 0xa0, 0x52, 0x51, 0x10, 0x6d, 0x22, 0xa0, 0x91, 0x5a, 0xe4,
+	0x8e, 0xa3, 0x82, 0x7a, 0x33, 0x9a, 0xec, 0x4e, 0xd6, 0xa3, 0xee, 0xce, 0x6c, 0x76, 0xc6, 0xc6,
+	0x11, 0xe2, 0x06, 0x71, 0xc9, 0x05, 0x12, 0x48, 0x20, 0x71, 0xc5, 0x15, 0x7f, 0x05, 0x89, 0x9b,
+	0x4a, 0xdc, 0x70, 0x89, 0x5a, 0x7e, 0x02, 0x3f, 0x00, 0xed, 0x99, 0xd9, 0xb5, 0x9d, 0xe2, 0xc6,
+	0x77, 0xf1, 0x79, 0x9e, 0xf3, 0x31, 0xe7, 0x3c, 0xe7, 0xd8, 0x41, 0x6b, 0x07, 0x2a, 0xe5, 0x7e,
+	0x97, 0x09, 0xd9, 0x8a, 0x7b, 0x91, 0x11, 0x11, 0x3b, 0xe4, 0x69, 0xab, 0x7f, 0xa3, 0x75, 0xd0,
+	0xe3, 0xe9, 0x61, 0x33, 0x49, 0x95, 0x51, 0xf8, 0x42, 0x41, 0x6a, 0x0e, 0x49, 0xcd, 0xfe, 0x8d,
+	0xc6, 0xc5, 0x50, 0xa9, 0x30, 0xe2, 0x2d, 0x96, 0x88, 0x16, 0x93, 0x52, 0x19, 0x66, 0x84, 0x92,
+	0xda, 0xba, 0x79, 0x7f, 0xcf, 0x20, 0xd4, 0x66, 0x29, 0x8b, 0xf5, 0x13, 0xc1, 0x3f, 0xc7, 0x6f,
+	0xa0, 0x33, 0x31, 0x1b, 0x50, 0x2d, 0x02, 0x1b, 0x4b, 0xd7, 0x4b, 0xab, 0xa5, 0xf5, 0x32, 0x39,
+	0x1d, 0xb3, 0x41, 0xa7, 0x30, 0xe2, 0x35, 0x94, 0x19, 0x68, 0xc2, 0x0e, 0x1d, 0xeb, 0x24, 0xb0,
+	0x6a, 0x31, 0x1b, 0xb4, 0x73, 0x1b, 0x6e, 0xa2, 0x73, 0xb1, 0x90, 0x94, 0x49, 0xbf, 0xab, 0x52,
+	0x2a, 0xa4, 0xe1, 0x69, 0x9f, 0x45, 0xf5, 0x19, 0xa0, 0x2e, 0xc6, 0x42, 0xde, 0x07, 0x64, 0xc7,
+	0x01, 0xc0, 0x67, 0x83, 0x57, 0xf8, 0x65, 0xc7, 0x67, 0x83, 0x23, 0xfc, 0x3b, 0xa8, 0x1e, 0xf0,
+	0x7d, 0xd6, 0x8b, 0x0c, 0xf5, 0xbb, 0x2c, 0x8a, 0xb8, 0x0c, 0x39, 0x4d, 0x78, 0x2a, 0x54, 0x50,
+	0x9f, 0x05, 0xa7, 0x65, 0x87, 0x6f, 0xe7, 0x70, 0x1b, 0xd0, 0xbc, 0xb2, 0xe2, 0x95, 0x54, 0x1b,
+	0xf6, 0x8c, 0xd7, 0x2b, 0xab, 0xa5, 0xf5, 0x2a, 0x54, 0x56, 0x3c, 0xb5, 0x93, 0x01, 0xf8, 0x1a,
+	0xc2, 0x19, 0x3f, 0x7f, 0xae, 0xa3, 0xcf, 0x01, 0x7d, 0x21, 0x16, 0x32, 0x7f, 0xb3, 0x65, 0x5f,
+	0x41, 0x67, 0x53, 0xd5, 0x33, 0x42, 0x86, 0x94, 0x4b, 0xb6, 0x17, 0xf1, 0xa0, 0x7e, 0x6a, 0xb5,
+	0xb4, 0x7e, 0x8a, 0x9c, 0x71, 0xe6, 0x0f, 0xad, 0x15, 0xdf, 0x43, 0x17, 0x73, 0xa2, 0xaf, 0xe4,
+	0xbe, 0x08, 0xb8, 0xf4, 0x39, 0x35, 0xdd, 0x94, 0xeb, 0xae, 0x8a, 0x82, 0x7a, 0x15, 0x12, 0x34,
+	0x1c, 0x67, 0xbb, 0xa0, 0xec, 0xe6, 0x0c, 0xfc, 0x0e, 0xaa, 0xfb, 0xa9, 0xd2, 0x9a, 0xc2, 0xb4,
+	0xe9, 0x3e, 0xe7, 0x74, 0xaf, 0x27, 0x83, 0x48, 0xc8, 0xb0, 0x8e, 0x20, 0xe7, 0x79, 0xc0, 0x1f,
+	0x66, 0xf0, 0x47, 0x9c, 0x6f, 0x39, 0xd0, 0xfb, 0x65, 0x06, 0x55, 0xc1, 0x08, 0x53, 0xff, 0x0f,
+	0x3a, 0x65, 0x03, 0x88, 0x00, 0xe6, 0x5d, 0x25, 0x73, 0xf0, 0x79, 0x27, 0xc0, 0xff, 0x43, 0xc8,
+	0x42, 0xe6, 0x30, 0xe1, 0x30, 0xe6, 0x2a, 0xa9, 0x82, 0x65, 0xf7, 0x30, 0xe1, 0x78, 0x19, 0x55,
+	0xb4, 0x61, 0xa6, 0xa7, 0x61, 0xac, 0x55, 0xe2, 0x3e, 0x65, 0x11, 0x6d, 0xab, 0x44, 0x00, 0x03,
+	0xac, 0x92, 0x39, 0xf8, 0xbc, 0x13, 0xe0, 0x55, 0x34, 0x1f, 0x70, 0xed, 0xa7, 0x22, 0xc9, 0x74,
+	0x08, 0x93, 0xaa, 0x92, 0x51, 0x13, 0x6e, 0xa1, 0x25, 0xc3, 0xd2, 0x90, 0x1b, 0xba, 0x17, 0x29,
+	0xff, 0x19, 0x35, 0x22, 0xe6, 0x34, 0xd6, 0x30, 0x9f, 0x32, 0x59, 0xb4, 0xd8, 0x56, 0x06, 0xed,
+	0x8a, 0x98, 0x3f, 0xd2, 0xf8, 0x2e, 0x6a, 0x64, 0xca, 0x31, 0x29, 0x93, 0x9a, 0xf9, 0x20, 0xef,
+	0x4c, 0x08, 0xd6, 0x1d, 0xe6, 0x54, 0x26, 0x17, 0x62, 0x36, 0xd8, 0x1d, 0x21, 0xb4, 0x79, 0x0a,
+	0x21, 0x40, 0xf2, 0x42, 0xd2, 0x3e, 0x8b, 0x44, 0xc0, 0x8c, 0x4a, 0x35, 0x4c, 0xeb, 0x34, 0x39,
+	0x1d, 0x0b, 0xf9, 0xa4, 0x30, 0xe2, 0xf7, 0x50, 0x43, 0x73, 0x63, 0x22, 0x1e, 0x73, 0x69, 0x0a,
+	0x75, 0xda, 0x14, 0x1a, 0x46, 0x55, 0x26, 0xf5, 0x21, 0x23, 0x57, 0x29, 0xe4, 0xd0, 0x99, 0x56,
+	0x8f, 0x6a, 0x94, 0x6a, 0xee, 0x2b, 0x19, 0x68, 0x18, 0x54, 0x99, 0x2c, 0xfb, 0xe3, 0x22, 0xed,
+	0x58, 0xd4, 0xfb, 0xed, 0x24, 0x5a, 0x20, 0x56, 0x01, 0x1d, 0xc3, 0x8c, 0x5d, 0xd3, 0xcb, 0xa8,
+	0x66, 0x94, 0x61, 0x11, 0xcd, 0xb4, 0xc1, 0x03, 0xb7, 0xa4, 0xf3, 0x60, 0x23, 0x60, 0xc2, 0xff,
+	0x47, 0x67, 0x2c, 0x48, 0x8d, 0xa2, 0x31, 0x13, 0x32, 0xdf, 0x51, 0x6b, 0xdd, 0x55, 0x8f, 0x98,
+	0x90, 0xf8, 0x3a, 0x5a, 0x1a, 0xb2, 0x46, 0xb6, 0xde, 0x2e, 0x29, 0xce, 0xb9, 0x23, 0xab, 0xdf,
+	0x44, 0xe7, 0x86, 0x1e, 0xc3, 0x03, 0xe0, 0xb6, 0x34, 0x77, 0x18, 0x5e, 0x81, 0xf7, 0xd1, 0x7f,
+	0x59, 0x9f, 0xa7, 0x2c, 0xe4, 0x34, 0x64, 0x9a, 0x6a, 0xd6, 0x17, 0x32, 0x84, 0xf1, 0xf8, 0x5c,
+	0x1a, 0x37, 0xfe, 0xba, 0xa3, 0x7c, 0xcc, 0x74, 0xc7, 0x12, 0xda, 0x16, 0xc7, 0x8f, 0xd0, 0x5a,
+	0xee, 0x1e, 0x31, 0xc3, 0xa5, 0x7f, 0x48, 0x45, 0x9c, 0xa4, 0xaa, 0x6f, 0xe7, 0x90, 0x87, 0xb1,
+	0xab, 0xbb, 0xea, 0xa8, 0x0f, 0x2d, 0x73, 0x67, 0x48, 0x74, 0xe1, 0xbc, 0x25, 0x84, 0x1f, 0x67,
+	0x47, 0xd3, 0x9e, 0x3c, 0xc2, 0x0f, 0x7a, 0x5c, 0x1b, 0x8f, 0xa0, 0x73, 0x63, 0x56, 0x9d, 0x28,
+	0xa9, 0x39, 0xbe, 0x8b, 0x2a, 0x09, 0x58, 0xa0, 0xbf, 0xf3, 0x37, 0xd7, 0x9a, 0x13, 0x6e, 0x6c,
+	0x73, 0x78, 0x41, 0x89, 0x73, 0xf1, 0x9a, 0x68, 0x11, 0x62, 0xc2, 0x96, 0xb9, 0x44, 0xaf, 0x59,
+	0x34, 0xef, 0x13, 0x57, 0x99, 0xe3, 0xbb, 0x12, 0xee, 0xa0, 0x59, 0x20, 0xb8, 0x0a, 0xbc, 0x89,
+	0x15, 0x14, 0xcb, 0x4c, 0xac, 0x43, 0xf1, 0x52, 0x00, 0x8a, 0x97, 0x3e, 0x76, 0x2f, 0xcd, 0xad,
+	0x2e, 0xcd, 0xbb, 0xa8, 0x02, 0x5e, 0xd9, 0x4b, 0x67, 0xa6, 0xcc, 0xe3, 0x3c, 0xbc, 0xaf, 0x67,
+	0xd0, 0xd9, 0x4c, 0x99, 0xdc, 0x9e, 0xe7, 0xe3, 0x0e, 0xca, 0x65, 0x54, 0xb3, 0x50, 0x97, 0x8b,
+	0xb0, 0x6b, 0x9c, 0x2a, 0xe7, 0xc1, 0xf6, 0x00, 0x4c, 0xd9, 0xcd, 0xc9, 0xce, 0x08, 0xa7, 0xa9,
+	0x52, 0x06, 0xa4, 0x58, 0x23, 0x55, 0xb0, 0x10, 0xa5, 0x4c, 0x76, 0x8d, 0x8b, 0x65, 0xa5, 0x9a,
+	0x1b, 0xda, 0x65, 0xba, 0x0b, 0x02, 0xac, 0x91, 0x85, 0x02, 0xe9, 0x70, 0xf3, 0x80, 0xe9, 0x2e,
+	0xbe, 0x8a, 0x16, 0x33, 0xf5, 0x53, 0x7b, 0x8e, 0x5c, 0x52, 0xfb, 0xf5, 0x70, 0x36, 0x03, 0xb6,
+	0x33, 0xbb, 0x4b, 0x7c, 0x09, 0xcd, 0xdb, 0x6f, 0x1f, 0x1e, 0x50, 0x66, 0x45, 0x35, 0x43, 0x50,
+	0x6e, 0xba, 0x6f, 0xf0, 0x6d, 0x74, 0x21, 0x39, 0xf0, 0x29, 0x0b, 0xc3, 0x94, 0x87, 0x59, 0x85,
+	0x5a, 0x84, 0x92, 0x99, 0x5e, 0x6a, 0xbf, 0x0d, 0x6a, 0xe4, 0x7c, 0x72, 0xe0, 0xdf, 0xcf, 0xd1,
+	0x4e, 0x0e, 0xe2, 0x0d, 0xb4, 0x38, 0x72, 0x9c, 0xa8, 0xaf, 0x7a, 0xd2, 0xc0, 0x99, 0x29, 0x93,
+	0x85, 0x11, 0x60, 0x3b, 0xb3, 0xe3, 0xb7, 0xd1, 0xb2, 0xaf, 0xe2, 0x24, 0xe5, 0x5a, 0xf3, 0x80,
+	0xda, 0x4e, 0x24, 0xa9, 0x52, 0xfb, 0x70, 0x65, 0x6a, 0x64, 0x69, 0x88, 0x42, 0xdf, 0xdb, 0x19,
+	0xe6, 0xb5, 0xdc, 0xbc, 0xed, 0x14, 0xa6, 0x10, 0xdc, 0xa7, 0x4e, 0x0a, 0xb9, 0x83, 0x93, 0xc2,
+	0x3d, 0x54, 0xb1, 0x0f, 0x76, 0x92, 0x5b, 0x9f, 0x28, 0x85, 0x23, 0x43, 0x27, 0xce, 0xcf, 0xbb,
+	0x3e, 0x16, 0x58, 0x4f, 0x51, 0xca, 0x53, 0xb4, 0x34, 0xee, 0xe1, 0x6a, 0xd9, 0x42, 0x73, 0x36,
+	0x66, 0xae, 0xcb, 0xe9, 0x8b, 0xc9, 0x1d, 0xbd, 0x06, 0xaa, 0x43, 0xec, 0xd1, 0x1b, 0x9a, 0x6f,
+	0xc3, 0x67, 0xe8, 0xfc, 0x2b, 0x18, 0xe8, 0xf7, 0x03, 0x34, 0x9b, 0xf5, 0x3d, 0x5f, 0xfc, 0xb7,
+	0x26, 0xa6, 0x3d, 0xea, 0x49, 0xac, 0xdf, 0xcd, 0x1f, 0xe7, 0xd0, 0x2c, 0x84, 0xc6, 0xdf, 0x94,
+	0x50, 0xc5, 0x9e, 0x07, 0xbc, 0x31, 0x31, 0xcc, 0xab, 0x37, 0xa9, 0x71, 0x6d, 0x3a, 0xb2, 0xed,
+	0x94, 0x77, 0xe5, 0xab, 0xdf, 0xff, 0xfa, 0xee, 0xe4, 0x65, 0x7c, 0xa9, 0x35, 0xe9, 0xb7, 0xa2,
+	0x3d, 0x4b, 0xf8, 0xfb, 0x12, 0x9a, 0x85, 0x1d, 0xc6, 0x57, 0x5f, 0x9f, 0x60, 0xf4, 0x6e, 0x35,
+	0x36, 0xa6, 0xe2, 0xba, 0x5a, 0x6e, 0x42, 0x2d, 0xd7, 0xf0, 0xd5, 0x89, 0xb5, 0xd8, 0xcb, 0xd1,
+	0xfa, 0x22, 0xd7, 0xc3, 0x97, 0xd0, 0x25, 0x7b, 0x93, 0xf0, 0x34, 0xb9, 0xa6, 0xed, 0xd2, 0xf8,
+	0x99, 0x9b, 0xa2, 0x4b, 0xb6, 0x32, 0xfc, 0x43, 0x09, 0x55, 0xac, 0x98, 0x8e, 0x2b, 0x67, 0x6c,
+	0xdd, 0x8e, 0x2b, 0x67, 0x7c, 0xd5, 0xa6, 0x68, 0x94, 0x15, 0xf1, 0x68, 0xa3, 0x7e, 0x2a, 0xa1,
+	0x39, 0xb7, 0x26, 0x78, 0xaa, 0x6c, 0x45, 0xab, 0x36, 0xa7, 0x64, 0xbb, 0xe2, 0x6e, 0x41, 0x71,
+	0x9b, 0x78, 0xe3, 0x98, 0xe2, 0xc6, 0xc6, 0xf8, 0x73, 0x09, 0xd5, 0x46, 0x57, 0x02, 0xdf, 0x78,
+	0x7d, 0xd2, 0x7f, 0x59, 0xca, 0x46, 0x73, 0x7a, 0x97, 0x6c, 0xe3, 0xbc, 0x26, 0x14, 0xba, 0x8e,
+	0xdf, 0x9c, 0x58, 0xa8, 0xfb, 0x01, 0xbd, 0x09, 0xab, 0xb9, 0xd5, 0xfe, 0xf5, 0xc5, 0x4a, 0xe9,
+	0xf9, 0x8b, 0x95, 0xd2, 0x9f, 0x2f, 0x56, 0x4a, 0xdf, 0xbe, 0x5c, 0x39, 0xf1, 0xfc, 0xe5, 0xca,
+	0x89, 0x3f, 0x5e, 0xae, 0x9c, 0x78, 0x7a, 0x3b, 0x14, 0xa6, 0xdb, 0xdb, 0x6b, 0xfa, 0x2a, 0x1e,
+	0x89, 0x55, 0xfc, 0xb5, 0xe9, 0xab, 0x94, 0xb7, 0x06, 0xa3, 0xc1, 0xb3, 0x1f, 0xc5, 0x7a, 0xaf,
+	0x02, 0xff, 0x4a, 0xdd, 0xfa, 0x27, 0x00, 0x00, 0xff, 0xff, 0xf1, 0x8d, 0xef, 0x07, 0xa8, 0x0d,
+	0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -773,6 +1092,10 @@ type QueryClient interface {
 	Layer(ctx context.Context, in *QueryLayerRequest, opts ...grpc.CallOption) (*QueryLayerResponse, error)
 	// Layers lists all layers.
 	Layers(ctx context.Context, in *QueryLayersRequest, opts ...grpc.CallOption) (*QueryLayersResponse, error)
+	// Anchor returns the latest state anchor for a layer.
+	Anchor(ctx context.Context, in *QueryAnchorRequest, opts ...grpc.CallOption) (*QueryAnchorResponse, error)
+	// Anchors returns all state anchors for a layer (newest first).
+	Anchors(ctx context.Context, in *QueryAnchorsRequest, opts ...grpc.CallOption) (*QueryAnchorsResponse, error)
 	// RoutingStats returns the cross-layer routing statistics.
 	RoutingStats(ctx context.Context, in *QueryRoutingStatsRequest, opts ...grpc.CallOption) (*QueryRoutingStatsView, error)
 }
@@ -812,6 +1135,24 @@ func (c *queryClient) Layers(ctx context.Context, in *QueryLayersRequest, opts .
 	return out, nil
 }
 
+func (c *queryClient) Anchor(ctx context.Context, in *QueryAnchorRequest, opts ...grpc.CallOption) (*QueryAnchorResponse, error) {
+	out := new(QueryAnchorResponse)
+	err := c.cc.Invoke(ctx, "/qorechain.multilayer.v1.Query/Anchor", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) Anchors(ctx context.Context, in *QueryAnchorsRequest, opts ...grpc.CallOption) (*QueryAnchorsResponse, error) {
+	out := new(QueryAnchorsResponse)
+	err := c.cc.Invoke(ctx, "/qorechain.multilayer.v1.Query/Anchors", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *queryClient) RoutingStats(ctx context.Context, in *QueryRoutingStatsRequest, opts ...grpc.CallOption) (*QueryRoutingStatsView, error) {
 	out := new(QueryRoutingStatsView)
 	err := c.cc.Invoke(ctx, "/qorechain.multilayer.v1.Query/RoutingStats", in, out, opts...)
@@ -829,6 +1170,10 @@ type QueryServer interface {
 	Layer(context.Context, *QueryLayerRequest) (*QueryLayerResponse, error)
 	// Layers lists all layers.
 	Layers(context.Context, *QueryLayersRequest) (*QueryLayersResponse, error)
+	// Anchor returns the latest state anchor for a layer.
+	Anchor(context.Context, *QueryAnchorRequest) (*QueryAnchorResponse, error)
+	// Anchors returns all state anchors for a layer (newest first).
+	Anchors(context.Context, *QueryAnchorsRequest) (*QueryAnchorsResponse, error)
 	// RoutingStats returns the cross-layer routing statistics.
 	RoutingStats(context.Context, *QueryRoutingStatsRequest) (*QueryRoutingStatsView, error)
 }
@@ -845,6 +1190,12 @@ func (*UnimplementedQueryServer) Layer(ctx context.Context, req *QueryLayerReque
 }
 func (*UnimplementedQueryServer) Layers(ctx context.Context, req *QueryLayersRequest) (*QueryLayersResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Layers not implemented")
+}
+func (*UnimplementedQueryServer) Anchor(ctx context.Context, req *QueryAnchorRequest) (*QueryAnchorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Anchor not implemented")
+}
+func (*UnimplementedQueryServer) Anchors(ctx context.Context, req *QueryAnchorsRequest) (*QueryAnchorsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Anchors not implemented")
 }
 func (*UnimplementedQueryServer) RoutingStats(ctx context.Context, req *QueryRoutingStatsRequest) (*QueryRoutingStatsView, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RoutingStats not implemented")
@@ -908,6 +1259,42 @@ func _Query_Layers_Handler(srv interface{}, ctx context.Context, dec func(interf
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_Anchor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryAnchorRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).Anchor(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qorechain.multilayer.v1.Query/Anchor",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).Anchor(ctx, req.(*QueryAnchorRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_Anchors_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryAnchorsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).Anchors(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qorechain.multilayer.v1.Query/Anchors",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).Anchors(ctx, req.(*QueryAnchorsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Query_RoutingStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(QueryRoutingStatsRequest)
 	if err := dec(in); err != nil {
@@ -942,6 +1329,14 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Layers",
 			Handler:    _Query_Layers_Handler,
+		},
+		{
+			MethodName: "Anchor",
+			Handler:    _Query_Anchor_Handler,
+		},
+		{
+			MethodName: "Anchors",
+			Handler:    _Query_Anchors_Handler,
 		},
 		{
 			MethodName: "RoutingStats",
@@ -1364,6 +1759,216 @@ func (m *QueryLayersResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *StateAnchorView) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *StateAnchorView) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *StateAnchorView) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.CompressedStateProof) > 0 {
+		i -= len(m.CompressedStateProof)
+		copy(dAtA[i:], m.CompressedStateProof)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.CompressedStateProof)))
+		i--
+		dAtA[i] = 0x4a
+	}
+	if m.TransactionCount != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.TransactionCount))
+		i--
+		dAtA[i] = 0x40
+	}
+	if len(m.PqcAggregateSignature) > 0 {
+		i -= len(m.PqcAggregateSignature)
+		copy(dAtA[i:], m.PqcAggregateSignature)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.PqcAggregateSignature)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if m.AnchoredAt != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.AnchoredAt))
+		i--
+		dAtA[i] = 0x30
+	}
+	if m.MainChainHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.MainChainHeight))
+		i--
+		dAtA[i] = 0x28
+	}
+	if len(m.ValidatorSetHash) > 0 {
+		i -= len(m.ValidatorSetHash)
+		copy(dAtA[i:], m.ValidatorSetHash)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ValidatorSetHash)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.StateRoot) > 0 {
+		i -= len(m.StateRoot)
+		copy(dAtA[i:], m.StateRoot)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.StateRoot)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.LayerHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.LayerHeight))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.LayerId) > 0 {
+		i -= len(m.LayerId)
+		copy(dAtA[i:], m.LayerId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.LayerId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAnchorRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAnchorRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAnchorRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.LayerId) > 0 {
+		i -= len(m.LayerId)
+		copy(dAtA[i:], m.LayerId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.LayerId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAnchorResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAnchorResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAnchorResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Anchor != nil {
+		{
+			size, err := m.Anchor.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAnchorsRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAnchorsRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAnchorsRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.LayerId) > 0 {
+		i -= len(m.LayerId)
+		copy(dAtA[i:], m.LayerId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.LayerId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAnchorsResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAnchorsResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAnchorsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Anchors) > 0 {
+		for iNdEx := len(m.Anchors) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Anchors[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0xa
+		}
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *QueryRoutingStatsRequest) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
 	dAtA = make([]byte, size)
@@ -1613,6 +2218,101 @@ func (m *QueryLayersResponse) Size() (n int) {
 	_ = l
 	if len(m.Layers) > 0 {
 		for _, e := range m.Layers {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *StateAnchorView) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.LayerId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.LayerHeight != 0 {
+		n += 1 + sovQuery(uint64(m.LayerHeight))
+	}
+	l = len(m.StateRoot)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.ValidatorSetHash)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.MainChainHeight != 0 {
+		n += 1 + sovQuery(uint64(m.MainChainHeight))
+	}
+	if m.AnchoredAt != 0 {
+		n += 1 + sovQuery(uint64(m.AnchoredAt))
+	}
+	l = len(m.PqcAggregateSignature)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.TransactionCount != 0 {
+		n += 1 + sovQuery(uint64(m.TransactionCount))
+	}
+	l = len(m.CompressedStateProof)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryAnchorRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.LayerId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryAnchorResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Anchor != nil {
+		l = m.Anchor.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryAnchorsRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.LayerId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryAnchorsResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Anchors) > 0 {
+		for _, e := range m.Anchors {
 			l = e.Size()
 			n += 1 + l + sovQuery(uint64(l))
 		}
@@ -2838,6 +3538,634 @@ func (m *QueryLayersResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.Layers = append(m.Layers, &LayerView{})
 			if err := m.Layers[len(m.Layers)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *StateAnchorView) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: StateAnchorView: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: StateAnchorView: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LayerId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LayerId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LayerHeight", wireType)
+			}
+			m.LayerHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LayerHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field StateRoot", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.StateRoot = append(m.StateRoot[:0], dAtA[iNdEx:postIndex]...)
+			if m.StateRoot == nil {
+				m.StateRoot = []byte{}
+			}
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorSetHash", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorSetHash = append(m.ValidatorSetHash[:0], dAtA[iNdEx:postIndex]...)
+			if m.ValidatorSetHash == nil {
+				m.ValidatorSetHash = []byte{}
+			}
+			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MainChainHeight", wireType)
+			}
+			m.MainChainHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MainChainHeight |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AnchoredAt", wireType)
+			}
+			m.AnchoredAt = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AnchoredAt |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PqcAggregateSignature", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.PqcAggregateSignature = append(m.PqcAggregateSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.PqcAggregateSignature == nil {
+				m.PqcAggregateSignature = []byte{}
+			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TransactionCount", wireType)
+			}
+			m.TransactionCount = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.TransactionCount |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CompressedStateProof", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.CompressedStateProof = append(m.CompressedStateProof[:0], dAtA[iNdEx:postIndex]...)
+			if m.CompressedStateProof == nil {
+				m.CompressedStateProof = []byte{}
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAnchorRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAnchorRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAnchorRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LayerId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LayerId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAnchorResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAnchorResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAnchorResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Anchor", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Anchor == nil {
+				m.Anchor = &StateAnchorView{}
+			}
+			if err := m.Anchor.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAnchorsRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAnchorsRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAnchorsRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LayerId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LayerId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAnchorsResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAnchorsResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAnchorsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Anchors", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Anchors = append(m.Anchors, &StateAnchorView{})
+			if err := m.Anchors[len(m.Anchors)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
