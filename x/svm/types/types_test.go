@@ -543,14 +543,28 @@ func TestMsgExecuteProgramValidateBasic(t *testing.T) {
 			t.Fatalf("unexpected error: %v", err)
 		}
 	})
-	t.Run("zero program ID", func(t *testing.T) {
+	t.Run("zero program ID (System Program) is valid", func(t *testing.T) {
+		// The all-zero program ID is the System Program address (standard
+		// convention), used for native transfers / account creation, so it
+		// must be accepted by ValidateBasic.
 		msg := &MsgExecuteProgram{
 			Sender:    addr,
 			ProgramID: [32]byte{},
 			Data:      []byte{0x01},
 		}
+		if err := msg.ValidateBasic(); err != nil {
+			t.Fatalf("System Program zero ID should be valid: %v", err)
+		}
+	})
+	t.Run("auth requires scheme, pubkey and signature", func(t *testing.T) {
+		msg := &MsgExecuteProgram{
+			Sender:    addr,
+			ProgramID: [32]byte{1},
+			Data:      []byte{0x01},
+			Auth:      &SVMAuth{Scheme: "ed25519"}, // missing pubkey + signature
+		}
 		if err := msg.ValidateBasic(); err == nil {
-			t.Fatal("expected error for zero program ID")
+			t.Fatal("expected error for incomplete auth")
 		}
 	})
 }
