@@ -12,7 +12,7 @@ key_store_type = 'Test'
 store_prefix = 'ibc'
 default_gas = 300000
 max_gas = 3000000
-gas_price = { price = 0.025, denom = 'uqor' }
+gas_price = { price = 0.15, denom = 'uqor' }
 gas_multiplier = 1.2
 max_msg_num = 30
 max_tx_size = 180000
