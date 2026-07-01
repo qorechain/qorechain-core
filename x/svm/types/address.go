@@ -44,10 +44,30 @@ func mustBase58Decode(s string) [32]byte {
 	return addr
 }
 
-// SVMToCosmosAddress derives a 20-byte native address from a 32-byte SVM address.
+// SVMToCosmosAddress returns the 20-byte native account for a 32-byte SVM
+// address by truncating to the first 20 bytes.
+//
+// UNIFIED IDENTITY: this makes the SVM address the SAME account as the
+// Cosmos/EVM address for a given secp256k1 key — SVMToEVMAddress truncates
+// identically, and CosmosToSVMAddress is the inverse (right-pads with zeros).
+// A wallet therefore holds ONE x/bank balance visible across all three VMs.
+// (Previously this hashed the address, fragmenting SVM identity from
+// Cosmos/EVM; changing it is consensus-affecting and requires a fresh genesis.)
 func SVMToCosmosAddress(svmAddr [32]byte) []byte {
-	hash := qorehash.Sum256(svmAddr[:])
-	return hash[:20]
+	out := make([]byte, 20)
+	copy(out, svmAddr[:20])
+	return out
+}
+
+// CosmosToSVMAddress derives the canonical 32-byte SVM address for a 20-byte
+// native account by right-padding with zeros. It is the inverse of
+// SVMToCosmosAddress, so a wallet's SVM address maps back to the same account
+// and shares its single x/bank balance. Programs and PDAs use their own
+// 32-byte addresses and are not wallet accounts.
+func CosmosToSVMAddress(cosmosAddr []byte) [32]byte {
+	var out [32]byte
+	copy(out[:20], cosmosAddr)
+	return out
 }
 
 // EVMToSVMAddress derives a deterministic 32-byte SVM address from a 20-byte EVM address.

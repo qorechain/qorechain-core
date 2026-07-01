@@ -560,6 +560,10 @@ func NewQoreChainApp(
 	// in full builds, which calls ffi.NewFFIExecutor + keeper.SetExecutor).
 	// In stub/community builds the executor remains nil and SVM ops return ErrSVMDisabled.
 
+	// Back wallet-account SVM balances with native QOR so an account holds ONE
+	// balance across Cosmos/EVM/SVM (unified identity + balance). No-op in stub.
+	app.SVMKeeper.SetBankKeeper(app.BankKeeper)
+
 	// Wire SVM into CrossVM routing so cross-VM messages can target SVM programs.
 	crossvmmod.SetSVMCallHandler(func(ctx sdk.Context, targetContract string, payload []byte, _ string) ([]byte, error) {
 		programAddr, err := svmtypes.Base58Decode(targetContract)
@@ -632,6 +636,11 @@ func NewQoreChainApp(
 		abstractaccountStoreKey,
 		logger,
 	)
+
+	// Let the SVM surface resolve foreign-scheme wallet keys (e.g. Phantom
+	// ed25519) to the canonical account they authenticate, so any wallet drives
+	// the user's single unified account. No-op in stub builds.
+	app.SVMKeeper.SetAuthenticatorResolver(app.AbstractAccountKeeper)
 
 	// --- Initialize FairBlock module (via factory, v1.2.0 — threshold IBE) ---
 	fairblockStoreKey := storetypes.NewKVStoreKey(fairblocktypes.StoreKey)

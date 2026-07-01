@@ -3,14 +3,22 @@ package qorechain.license.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/license/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the gRPC query service for the license module.
 service Query {
   // Check returns a single license grant for (grantee, feature_id).
-  rpc Check(QueryCheckRequest) returns (QueryCheckResponse);
+  rpc Check(QueryCheckRequest) returns (QueryCheckResponse) {
+    option (google.api.http).get = "/qorechain/license/v1/check/{grantee}/{feature_id}";
+  }
   // Holders lists every grantee holding a given feature license.
-  rpc Holders(QueryHoldersRequest) returns (QueryHoldersResponse);
+  rpc Holders(QueryHoldersRequest) returns (QueryHoldersResponse) {
+    option (google.api.http).get = "/qorechain/license/v1/holders/{feature_id}";
+  }
   // List returns every license held by a grantee.
-  rpc List(QueryListRequest) returns (QueryListResponse);
+  rpc List(QueryListRequest) returns (QueryListResponse) {
+    option (google.api.http).get = "/qorechain/license/v1/list/{grantee}";
+  }
 }
 
 // LicenseView is the query-facing view of a license grant.

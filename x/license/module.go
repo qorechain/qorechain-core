@@ -47,7 +47,11 @@ func (AppModuleBasic) RegisterInterfaces(reg codectypes.InterfaceRegistry) {
 		&types.MsgResumeLicense{},
 	)
 }
-func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
+func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
+	if err := types.RegisterQueryHandlerClient(context.Background(), mux, types.NewQueryClient(clientCtx)); err != nil {
+		panic(err)
+	}
+}
 
 func (AppModuleBasic) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
 	gs := types.DefaultGenesisState()

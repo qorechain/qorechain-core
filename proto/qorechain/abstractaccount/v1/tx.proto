@@ -22,6 +22,8 @@ service Msg {
 
   rpc CreateAbstractAccount(MsgCreateAbstractAccount) returns (MsgCreateAbstractAccountResponse);
   rpc UpdateSpendingRules(MsgUpdateSpendingRules) returns (MsgUpdateSpendingRulesResponse);
+  rpc RegisterAuthenticator(MsgRegisterAuthenticator) returns (MsgRegisterAuthenticatorResponse);
+  rpc RevokeAuthenticator(MsgRevokeAuthenticator) returns (MsgRevokeAuthenticatorResponse);
 }
 
 message MsgCreateAbstractAccount {
@@ -40,3 +42,29 @@ message MsgUpdateSpendingRules {
   repeated SpendingRule rules = 3 [(gogoproto.nullable) = false];
 }
 message MsgUpdateSpendingRulesResponse {}
+
+// MsgRegisterAuthenticator links a foreign-scheme wallet key (e.g. a Phantom
+// ed25519 key) to an account so it may act for that account under least-privilege,
+// time-bounded, revocable terms. Only the account owner (root key) may call it.
+message MsgRegisterAuthenticator {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string account_address = 2;
+  string scheme = 3;               // "ed25519" | "secp256k1"
+  bytes pubkey = 4;                // raw public key bytes
+  repeated string permissions = 5; // e.g. "svm", "send"
+  int64 expiry_unix = 6;           // unix seconds; must be within MaxSessionTTL
+  string label = 7;
+}
+message MsgRegisterAuthenticatorResponse {}
+
+// MsgRevokeAuthenticator instantly disables a previously linked wallet key.
+// Only the account owner (root key) may call it.
+message MsgRevokeAuthenticator {
+  option (cosmos.msg.v1.signer) = "owner";
+  string owner = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string account_address = 2;
+  string scheme = 3;
+  bytes pubkey = 4;
+}
+message MsgRevokeAuthenticatorResponse {}

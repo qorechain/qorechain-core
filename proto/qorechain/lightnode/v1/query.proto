@@ -3,18 +3,30 @@ package qorechain.lightnode.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/lightnode/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the lightnode module's gRPC query service.
 service Query {
   // LightNode returns a single light node by operator address.
-  rpc LightNode(QueryLightNodeRequest) returns (QueryLightNodeResponse);
+  rpc LightNode(QueryLightNodeRequest) returns (QueryLightNodeResponse) {
+    option (google.api.http).get = "/qorechain/lightnode/v1/node/{address}";
+  }
   // LightNodes lists all registered light nodes.
-  rpc LightNodes(QueryLightNodesRequest) returns (QueryLightNodesResponse);
+  rpc LightNodes(QueryLightNodesRequest) returns (QueryLightNodesResponse) {
+    option (google.api.http).get = "/qorechain/lightnode/v1/nodes";
+  }
   // Params returns the lightnode module parameters.
-  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/lightnode/v1/params";
+  }
   // Rewards returns an operator's accumulated (claimable) rewards.
-  rpc Rewards(QueryRewardsRequest) returns (QueryRewardsResponse);
+  rpc Rewards(QueryRewardsRequest) returns (QueryRewardsResponse) {
+    option (google.api.http).get = "/qorechain/lightnode/v1/rewards/{address}";
+  }
   // Stats returns module-level light node statistics.
-  rpc Stats(QueryStatsRequest) returns (QueryStatsResponse);
+  rpc Stats(QueryStatsRequest) returns (QueryStatsResponse) {
+    option (google.api.http).get = "/qorechain/lightnode/v1/stats";
+  }
 }
 
 // LightNodeView is a flat representation of a registered light node.

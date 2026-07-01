@@ -3,10 +3,14 @@ package qorechain.pqc.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/pqc/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the gRPC query service for the PQC module.
 service Query {
   // Account returns the registered PQC key information for an address.
-  rpc Account(QueryAccountRequest) returns (QueryAccountResponse);
+  rpc Account(QueryAccountRequest) returns (QueryAccountResponse) {
+    option (google.api.http).get = "/qorechain/pqc/v1/account/{address}";
+  }
 }
 
 message QueryAccountRequest {

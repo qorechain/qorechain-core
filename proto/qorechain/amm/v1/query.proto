@@ -3,22 +3,38 @@ package qorechain.amm.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/amm/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the gRPC query service for the AMM module.
 service Query {
   // Params returns the module parameters.
-  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/amm/v1/params";
+  }
   // Pool returns a single pool by ID.
-  rpc Pool(QueryPoolRequest) returns (QueryPoolResponse);
+  rpc Pool(QueryPoolRequest) returns (QueryPoolResponse) {
+    option (google.api.http).get = "/qorechain/amm/v1/pools/{pool_id}";
+  }
   // Pools lists all pools.
-  rpc Pools(QueryPoolsRequest) returns (QueryPoolsResponse);
+  rpc Pools(QueryPoolsRequest) returns (QueryPoolsResponse) {
+    option (google.api.http).get = "/qorechain/amm/v1/pools";
+  }
   // PoolByDenoms finds a pool by its (denom_a, denom_b) tuple.
-  rpc PoolByDenoms(QueryPoolByDenomsRequest) returns (QueryPoolByDenomsResponse);
+  rpc PoolByDenoms(QueryPoolByDenomsRequest) returns (QueryPoolByDenomsResponse) {
+    option (google.api.http).get = "/qorechain/amm/v1/pool_by_denoms";
+  }
   // LPBalance returns an account's LP balance for a pool.
-  rpc LPBalance(QueryLPBalanceRequest) returns (QueryLPBalanceResponse);
+  rpc LPBalance(QueryLPBalanceRequest) returns (QueryLPBalanceResponse) {
+    option (google.api.http).get = "/qorechain/amm/v1/pools/{pool_id}/lp/{address}";
+  }
   // QuoteExactIn quotes the output for a fixed-input swap.
-  rpc QuoteExactIn(QueryQuoteExactInRequest) returns (QueryQuoteExactInResponse);
+  rpc QuoteExactIn(QueryQuoteExactInRequest) returns (QueryQuoteExactInResponse) {
+    option (google.api.http).get = "/qorechain/amm/v1/quote/exact_in";
+  }
   // QuoteExactOut quotes the input required for a fixed-output swap.
-  rpc QuoteExactOut(QueryQuoteExactOutRequest) returns (QueryQuoteExactOutResponse);
+  rpc QuoteExactOut(QueryQuoteExactOutRequest) returns (QueryQuoteExactOutResponse) {
+    option (google.api.http).get = "/qorechain/amm/v1/quote/exact_out";
+  }
 }
 
 // ParamsView is the query-facing view of the module parameters. Integer amounts

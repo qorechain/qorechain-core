@@ -1,0 +1,7 @@
+{
+  "chainId": "0x2649",
+  "chainName": "QoreChain",
+  "nativeCurrency": { "name": "QORE", "symbol": "QOR", "decimals": 18 },
+  "rpcUrls": ["https://evm.qore.network"],
+  "blockExplorerUrls": ["https://explorer.qore.network"]
+}

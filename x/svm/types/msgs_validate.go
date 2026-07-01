@@ -22,8 +22,13 @@ func (m *MsgExecuteProgram) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
 		return errorsmod.Wrapf(ErrInvalidAddress, "invalid sender: %s", err)
 	}
-	if m.ProgramID == (Bytes32{}) {
-		return errorsmod.Wrap(ErrInvalidInstruction, "program ID cannot be zero")
+	// NOTE: a zero program ID is VALID — it is the System Program's address
+	// (32 zero bytes, standard Solana convention), used for native transfers /
+	// account creation. So we do not reject it here.
+	if m.Auth != nil {
+		if m.Auth.Scheme == "" || len(m.Auth.Pubkey) == 0 || len(m.Auth.Signature) == 0 {
+			return errorsmod.Wrap(ErrInvalidInstruction, "auth requires scheme, pubkey and signature")
+		}
 	}
 	return nil
 }

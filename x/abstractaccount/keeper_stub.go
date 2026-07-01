@@ -32,7 +32,11 @@ func (k *StubKeeper) GetAccount(_ sdk.Context, _ string) (types.AbstractAccount,
 }
 func (k *StubKeeper) SetAccount(_ sdk.Context, _ types.AbstractAccount) error { return nil }
 func (k *StubKeeper) GetAllAccounts(_ sdk.Context) []types.AbstractAccount    { return nil }
-func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState)         {}
+func (k *StubKeeper) ResolveAuthenticatorAddr(_ sdk.Context, _ string, _ []byte) ([]byte, []string, bool) {
+	return nil, nil, false
+}
+func (k *StubKeeper) VerifyForeignSignature(_ string, _, _, _ []byte) bool { return false }
+func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState)      {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()
 }

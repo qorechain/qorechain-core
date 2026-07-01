@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"time"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -49,6 +50,51 @@ func (msg MsgUpdateSpendingRules) ValidateBasic() error {
 }
 
 func (msg MsgUpdateSpendingRules) GetSigners() []sdk.AccAddress {
+	addr, err := sdk.AccAddressFromBech32(msg.Owner)
+	if err != nil {
+		return nil
+	}
+	return []sdk.AccAddress{addr}
+}
+
+func (msg MsgRegisterAuthenticator) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Owner); err != nil {
+		return fmt.Errorf("invalid owner address: %w", err)
+	}
+	if msg.AccountAddress == "" {
+		return fmt.Errorf("account address cannot be empty")
+	}
+	// Reuse the full authenticator policy check (scheme, key length, TTL, perms).
+	return ValidateAuthenticator(Authenticator{
+		Scheme:      msg.Scheme,
+		PubKey:      msg.Pubkey,
+		Permissions: msg.Permissions,
+		Expiry:      time.Unix(msg.ExpiryUnix, 0).UTC(),
+	})
+}
+
+func (msg MsgRegisterAuthenticator) GetSigners() []sdk.AccAddress {
+	addr, err := sdk.AccAddressFromBech32(msg.Owner)
+	if err != nil {
+		return nil
+	}
+	return []sdk.AccAddress{addr}
+}
+
+func (msg MsgRevokeAuthenticator) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Owner); err != nil {
+		return fmt.Errorf("invalid owner address: %w", err)
+	}
+	if msg.AccountAddress == "" {
+		return fmt.Errorf("account address cannot be empty")
+	}
+	if len(msg.Pubkey) == 0 || msg.Scheme == "" {
+		return fmt.Errorf("scheme and pubkey are required")
+	}
+	return nil
+}
+
+func (msg MsgRevokeAuthenticator) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.Owner)
 	if err != nil {
 		return nil

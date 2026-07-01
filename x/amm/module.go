@@ -55,7 +55,11 @@ func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConf
 	return gs.Validate()
 }
 
-func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
+func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
+	if err := ammtypes.RegisterQueryHandlerClient(context.Background(), mux, ammtypes.NewQueryClient(clientCtx)); err != nil {
+		panic(err)
+	}
+}
 
 func (AppModuleBasic) GetTxCmd() *cobra.Command    { return ammcli.GetTxCmd() }
 func (AppModuleBasic) GetQueryCmd() *cobra.Command { return ammcli.GetQueryCmd() }

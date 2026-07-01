@@ -113,6 +113,10 @@ var (
 		{Account: "rdk", Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		// v3.0.0 modules
 		{Account: "amm", Permissions: []string{authtypes.Minter, authtypes.Burner}},
+		// SVM custodies PDA/program lamports as native QOR; NO mint/burn — the
+		// module account only holds coins debited from wallet accounts, so the
+		// total supply invariant is preserved (lamports are never minted).
+		{Account: "svm"},
 	}
 
 	// blockAccAddrs defines blocked module account addresses.

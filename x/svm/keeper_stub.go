@@ -42,6 +42,22 @@ func (k *StubKeeper) ExecuteProgram(_ sdk.Context, _ [32]byte, _ []byte,
 	return nil, types.ErrSVMDisabled
 }
 
+func (k *StubKeeper) SetBankKeeper(_ types.BankKeeper) {}
+
+func (k *StubKeeper) GetNativeLamports(_ sdk.Context, _ [32]byte) uint64 {
+	return 0
+}
+
+func (k *StubKeeper) FaucetCreditNative(_ sdk.Context, _ [32]byte, _ uint64) error {
+	return types.ErrSVMDisabled
+}
+
+func (k *StubKeeper) SetAuthenticatorResolver(_ types.AuthenticatorResolver) {}
+
+func (k *StubKeeper) ResolveAuthenticatedSigner(_ sdk.Context, _ string, _, _, _ []byte) ([32]byte, bool) {
+	return [32]byte{}, false
+}
+
 func (k *StubKeeper) SVMToCosmosAddr(svmAddr [32]byte) sdk.AccAddress {
 	return types.SVMToCosmosAddress(svmAddr)
 }

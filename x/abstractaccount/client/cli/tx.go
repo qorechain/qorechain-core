@@ -1,7 +1,11 @@
 package cli
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -24,8 +28,77 @@ func GetTxCmd() *cobra.Command {
 	cmd.AddCommand(
 		CmdCreateAbstractAccount(),
 		CmdUpdateSpendingRules(),
+		CmdRegisterAuthenticator(),
+		CmdRevokeAuthenticator(),
 	)
 
+	return cmd
+}
+
+// CmdRegisterAuthenticator links a foreign-scheme wallet key to an account.
+func CmdRegisterAuthenticator() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "register-authenticator [account-address] [scheme] [pubkey-base64] [permissions-csv] [expiry-unix] [label]",
+		Short: "Link a foreign-scheme wallet key (e.g. Phantom ed25519) to an account (owner-signed)",
+		Args:  cobra.RangeArgs(5, 6),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			pk, err := base64.StdEncoding.DecodeString(args[2])
+			if err != nil {
+				return fmt.Errorf("pubkey must be base64: %w", err)
+			}
+			exp, err := strconv.ParseInt(args[4], 10, 64)
+			if err != nil {
+				return fmt.Errorf("expiry-unix must be an integer: %w", err)
+			}
+			label := ""
+			if len(args) == 6 {
+				label = args[5]
+			}
+			msg := &types.MsgRegisterAuthenticator{
+				Owner:          clientCtx.GetFromAddress().String(),
+				AccountAddress: args[0],
+				Scheme:         args[1],
+				Pubkey:         pk,
+				Permissions:    strings.Split(args[3], ","),
+				ExpiryUnix:     exp,
+				Label:          label,
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+// CmdRevokeAuthenticator revokes a previously linked wallet key.
+func CmdRevokeAuthenticator() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "revoke-authenticator [account-address] [scheme] [pubkey-base64]",
+		Short: "Revoke a previously linked wallet key (owner-signed)",
+		Args:  cobra.ExactArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			pk, err := base64.StdEncoding.DecodeString(args[2])
+			if err != nil {
+				return fmt.Errorf("pubkey must be base64: %w", err)
+			}
+			msg := &types.MsgRevokeAuthenticator{
+				Owner:          clientCtx.GetFromAddress().String(),
+				AccountAddress: args[0],
+				Scheme:         args[1],
+				Pubkey:         pk,
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
 

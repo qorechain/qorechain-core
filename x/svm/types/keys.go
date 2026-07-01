@@ -55,7 +55,19 @@ var (
 
 	// TxSeqCounterKey stores the next transaction sequence: single key -> uint64
 	TxSeqCounterKey = []byte{0x0B}
+
+	// DustKeyPrefix stores sub-uqor lamport dust per SVM address so no value is
+	// lost when converting between the uqor (x/bank) and lamport (SVM) ledgers:
+	// 0x0C | 32-byte-addr -> uint64 (big-endian, 0..LamportsPerUqor-1)
+	DustKeyPrefix = []byte{0x0C}
 )
+
+// DustKey returns the store key for an SVM address's sub-uqor lamport dust.
+func DustKey(addr [32]byte) []byte {
+	key := make([]byte, 1, 1+32)
+	key[0] = DustKeyPrefix[0]
+	return append(key, addr[:]...)
+}
 
 // TxRecordKey returns the store key for an SVM transaction record by signature.
 func TxRecordKey(signature []byte) []byte {

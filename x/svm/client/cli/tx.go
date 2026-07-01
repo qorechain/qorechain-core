@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -136,6 +137,28 @@ A bare address (or empty modifiers) denotes a read-only, non-signer account.`,
 				Data:      data,
 			}
 
+			// Optional relayed foreign-scheme (e.g. Phantom) authorization: when
+			// --auth-scheme is set, `--from` is just the fee payer and the action
+			// is authorized on-chain by the foreign key over its canonical account.
+			if scheme, _ := cmd.Flags().GetString(flagAuthScheme); scheme != "" {
+				pkB64, _ := cmd.Flags().GetString(flagAuthPubkey)
+				sigB64, _ := cmd.Flags().GetString(flagAuthSig)
+				bhHex, _ := cmd.Flags().GetString(flagAuthBlockhash)
+				pk, err := base64.StdEncoding.DecodeString(pkB64)
+				if err != nil {
+					return fmt.Errorf("--auth-pubkey must be base64: %w", err)
+				}
+				sig, err := base64.StdEncoding.DecodeString(sigB64)
+				if err != nil {
+					return fmt.Errorf("--auth-sig must be base64: %w", err)
+				}
+				bh, err := hex.DecodeString(bhHex)
+				if err != nil {
+					return fmt.Errorf("--auth-blockhash must be hex: %w", err)
+				}
+				msg.Auth = &types.SVMAuth{Scheme: scheme, Pubkey: pk, Signature: sig, RecentBlockhash: bh}
+			}
+
 			if err := msg.ValidateBasic(); err != nil {
 				return err
 			}
@@ -145,9 +168,20 @@ A bare address (or empty modifiers) denotes a read-only, non-signer account.`,
 	}
 
 	cmd.Flags().StringArray(flagAccounts, nil, "input account as <base58-address>:<modifiers> (modifiers: s=signer, w=writable); repeatable")
+	cmd.Flags().String(flagAuthScheme, "", "relayed auth scheme (e.g. ed25519) — the foreign key authorizes the action; --from is only the fee payer")
+	cmd.Flags().String(flagAuthPubkey, "", "relayed auth public key (base64)")
+	cmd.Flags().String(flagAuthSig, "", "relayed auth signature over the action digest (base64)")
+	cmd.Flags().String(flagAuthBlockhash, "", "relayed auth recent blockhash (hex, from getLatestBlockhash)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
+
+const (
+	flagAuthScheme    = "auth-scheme"
+	flagAuthPubkey    = "auth-pubkey"
+	flagAuthSig       = "auth-sig"
+	flagAuthBlockhash = "auth-blockhash"
+)
 
 // flagAccounts is the repeatable flag for SVM instruction input accounts.
 const flagAccounts = "accounts"

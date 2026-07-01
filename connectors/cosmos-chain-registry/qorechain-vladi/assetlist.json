@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cosmos/chain-registry/master/assetlist.schema.json",
+  "chain_name": "qorechain",
+  "assets": [
+    {
+      "description": "QORE — the native staking, gas, and governance token of QoreChain.",
+      "denom_units": [
+        { "denom": "uqor", "exponent": 0 },
+        { "denom": "qor", "exponent": 6 },
+        { "denom": "aqor", "exponent": 18, "aliases": ["attoqor"] }
+      ],
+      "type_asset": "sdk.coin",
+      "base": "uqor",
+      "name": "QORE",
+      "display": "qor",
+      "symbol": "QOR",
+      "logo_URIs": { "svg": "https://qore.network/logo.svg" },
+      "traces": []
+    }
+  ]
+}

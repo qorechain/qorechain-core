@@ -1,0 +1,12 @@
+# grpc-gateway-only generation template. Produces *.pb.gw.go for every service
+# that carries google.api.http annotations, into ./gen-gw/<proto path> with
+# package = go_package leaf. Copy the desired files into x/<mod>/types/.
+# (Kept separate from buf.gen.yaml so it never touches the gocosmos *.pb.go.)
+version: v2
+plugins:
+  - local: protoc-gen-grpc-gateway
+    out: gen-gw
+    opt:
+      - paths=source_relative
+      - logtostderr=true
+      - generate_unbound_methods=true

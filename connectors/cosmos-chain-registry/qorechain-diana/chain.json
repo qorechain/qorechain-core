@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/cosmos/chain-registry/master/chain.schema.json",
+  "chain_name": "qorechaintestnet",
+  "chain_type": "cosmos",
+  "chain_id": "qorechain-diana",
+  "pretty_name": "QoreChain Testnet",
+  "website": "https://qorechain.xyz",
+  "network_type": "testnet",
+  "status": "live",
+  "bech32_prefix": "qor",
+  "daemon_name": "qorechaind",
+  "node_home": "$HOME/.qorechaind",
+  "key_algos": ["secp256k1"],
+  "slip44": 118,
+  "fees": {
+    "fee_tokens": [
+      {
+        "denom": "uqor",
+        "fixed_min_gas_price": 0.1,
+        "low_gas_price": 0.1,
+        "average_gas_price": 0.15,
+        "high_gas_price": 0.25
+      }
+    ]
+  },
+  "staking": {
+    "staking_tokens": [{ "denom": "uqor" }]
+  },
+  "codebase": {
+    "git_repo": "https://github.com/qorechain/qorechain-core",
+    "recommended_version": "v3.1.80"
+  },
+  "apis": {
+    "rpc": [{ "address": "https://rpc.qorechain.xyz", "provider": "QoreChain" }],
+    "rest": [{ "address": "https://rest.qorechain.xyz", "provider": "QoreChain" }],
+    "grpc": [{ "address": "grpc.qorechain.xyz:443", "provider": "QoreChain" }],
+    "evm-http-jsonrpc": [{ "address": "https://evm.qorechain.xyz", "provider": "QoreChain" }]
+  },
+  "explorers": [
+    { "kind": "QoreChain Explorer", "url": "https://explorer.qorechain.xyz", "tx_page": "https://explorer.qorechain.xyz/tx/${txHash}" }
+  ],
+  "extra_information": {
+    "evm_chain_id": 9800,
+    "pqc": "Every Cosmos tx additionally carries a FIPS-204 ML-DSA-87 hybrid signature (tx-body extension /qorechain.pqc.v1.PQCHybridSignature). Use @qorechain/wallet-adapter to sign from any Cosmos wallet; the EVM lane is classical-only."
+  }
+}
