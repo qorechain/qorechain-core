@@ -20,4 +20,12 @@ type AuthenticatorResolver interface {
 	// caller is responsible for domain separation (msg must bind chain-id +
 	// account + nonce to prevent cross-chain / cross-account replay).
 	VerifyForeignSignature(scheme string, pubkey, msg, sig []byte) bool
+
+	// AuthorizeAction (v3.1.84) is the single authorization gate: it verifies the
+	// signature, resolves the ACTIVE authenticator, checks it is scoped for
+	// requiredPerm via the canonical permission taxonomy (fail-closed), enforces
+	// its SpendingRule against the base-unit outflow (uqor; caller converts lane
+	// value), records the spend, and returns the 20-byte canonical account. err
+	// is a typed chain error on any denial. outflow may be nil (permission-only).
+	AuthorizeAction(ctx sdk.Context, scheme string, pubkey, msg, sig []byte, requiredPerm string, outflow sdk.Coins) (account []byte, err error)
 }

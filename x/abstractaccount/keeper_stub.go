@@ -36,7 +36,10 @@ func (k *StubKeeper) ResolveAuthenticatorAddr(_ sdk.Context, _ string, _ []byte)
 	return nil, nil, false
 }
 func (k *StubKeeper) VerifyForeignSignature(_ string, _, _, _ []byte) bool { return false }
-func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState)      {}
+func (k *StubKeeper) AuthorizeAction(_ sdk.Context, _ string, _, _, _ []byte, _ string, _ sdk.Coins) ([]byte, error) {
+	return nil, types.ErrModuleDisabled
+}
+func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()
 }

@@ -27,6 +27,12 @@ type AbstractAccountKeeper interface {
 	ResolveAuthenticatorAddr(ctx sdk.Context, scheme string, pubkey []byte) (account []byte, permissions []string, ok bool)
 	VerifyForeignSignature(scheme string, pubkey, msg, sig []byte) bool
 
+	// AuthorizeAction (v3.1.84) is the single authorization gate for an
+	// authenticator-authorized action: verify sig → resolve active authenticator
+	// → check requiredPerm (canonical taxonomy, fail-closed) → enforce SpendingRule
+	// against the base-unit outflow (uqor) → return the canonical account.
+	AuthorizeAction(ctx sdk.Context, scheme string, pubkey, msg, sig []byte, requiredPerm string, outflow sdk.Coins) (account []byte, err error)
+
 	// Genesis
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState
