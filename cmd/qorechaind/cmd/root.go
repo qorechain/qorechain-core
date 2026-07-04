@@ -29,6 +29,7 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 
 	// QoreChain EVM
+	evmhd "github.com/cosmos/evm/crypto/hd"
 	evmerc20 "github.com/cosmos/evm/x/erc20"
 	evmfeemarket "github.com/cosmos/evm/x/feemarket"
 	evmprecisebank "github.com/cosmos/evm/x/precisebank"
@@ -215,6 +216,12 @@ func ProvideClientContext(
 		WithInput(os.Stdin).
 		WithAccountRetriever(types.AccountRetriever{}).
 		WithHomeDir(app.DefaultNodeHome).
+		// Register the eth_secp256k1 keyring algorithm so `keys add --key-type
+		// eth_secp256k1` produces an EVM-native key whose 20-byte address is the
+		// keccak derivation — i.e. its qor1 (bech32) and 0x (hex) forms are the
+		// same account, spendable on both the Cosmos and EVM lanes. Client-side
+		// only; no chain/consensus/genesis impact.
+		WithKeyringOptions(evmhd.EthSecp256k1Option()).
 		WithViper("")
 
 	var cfgErr error
