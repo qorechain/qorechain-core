@@ -29,6 +29,7 @@ import (
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
 
 	// QoreChain EVM
+	evmcryptocodec "github.com/cosmos/evm/crypto/codec"
 	evmhd "github.com/cosmos/evm/crypto/hd"
 	evmerc20 "github.com/cosmos/evm/x/erc20"
 	evmfeemarket "github.com/cosmos/evm/x/feemarket"
@@ -153,6 +154,11 @@ func NewRootCmd() *cobra.Command {
 	// rejects the re-registration of concretes already supplied by depinject,
 	// and the proto-JSON path used by the CLI relies only on the registry.)
 	moduleBasicManager.RegisterInterfaces(clientCtx.InterfaceRegistry)
+
+	// Register the cosmos/evm eth_secp256k1 key types on the client codec too, so
+	// the CLI can encode/decode Cosmos-lane txs signed by an eth-native account
+	// (`--key-type eth_secp256k1`) — mirrors the app-side registration in app.go.
+	evmcryptocodec.RegisterInterfaces(clientCtx.InterfaceRegistry)
 
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",

@@ -64,6 +64,7 @@ import (
 	// QoreChain EVM
 	evmante "github.com/cosmos/evm/ante/evm"
 	antetypes "github.com/cosmos/evm/ante/types"
+	evmcryptocodec "github.com/cosmos/evm/crypto/codec"
 	evmmempool "github.com/cosmos/evm/mempool"
 	srvflags "github.com/cosmos/evm/server/flags"
 	evmerc20 "github.com/cosmos/evm/x/erc20"
@@ -317,6 +318,17 @@ func NewQoreChainApp(
 	); err != nil {
 		panic(err)
 	}
+
+	// Register the cosmos/evm eth_secp256k1 key types on the app's
+	// InterfaceRegistry. depinject only registers interfaces for wired modules,
+	// and the EVM key types are crypto primitives (not a module), so without this
+	// the node's tx decoder cannot resolve a Cosmos-lane tx whose signer pubkey is
+	// `/cosmos.evm.crypto.v1.ethsecp256k1.PubKey` ("unable to resolve type URL …
+	// tx parse error"). This is what lets a single eth-native account (address =
+	// keccak(pubkey)[12:]) sign on BOTH the Cosmos and EVM lanes — the basis for
+	// QoreChain's unified qor1/0x/svm identity. Safe/consensus-neutral: it only
+	// teaches the codec a type; no state-machine or genesis change.
+	evmcryptocodec.RegisterInterfaces(app.interfaceRegistry)
 
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
