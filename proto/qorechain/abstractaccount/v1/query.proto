@@ -11,6 +11,10 @@ service Query {
   rpc Account(QueryAccountRequest) returns (QueryAccountResponse);
   // Accounts lists all abstract accounts.
   rpc Accounts(QueryAccountsRequest) returns (QueryAccountsResponse);
+  // PermissionSchema returns the canonical authenticator permission taxonomy so
+  // clients (QoreX/dashboard/relayer) validate scopes without hardcoding strings
+  // and detect drift via schema_version (v3.1.85).
+  rpc PermissionSchema(QueryPermissionSchemaRequest) returns (QueryPermissionSchemaResponse);
 }
 
 message ConfigView {
@@ -38,3 +42,16 @@ message QueryAccountResponse { AccountView account = 1; }
 
 message QueryAccountsRequest {}
 message QueryAccountsResponse { repeated AccountView accounts = 1; }
+
+message QueryPermissionSchemaRequest {}
+message QueryPermissionSchemaResponse {
+  // schema_version bumps whenever the taxonomy or the mapping changes; clients
+  // compare it to their embedded copy to detect drift.
+  string schema_version = 1;
+  // permissions is every valid permission string (e.g. send, evm, svm, all).
+  repeated string permissions = 2;
+  // msg_permissions maps a message typeURL to the permission it requires.
+  map<string, string> msg_permissions = 3;
+  // key_management_msgs are typeURLs that are NEVER delegable to a linked key.
+  repeated string key_management_msgs = 4;
+}

@@ -9,8 +9,8 @@ import (
 func TestAbstractAccountConfigDefault(t *testing.T) {
 	cfg := DefaultAbstractAccountConfig()
 
-	if cfg.Enabled {
-		t.Error("expected Enabled to be false by default")
+	if !cfg.Enabled {
+		t.Error("expected Enabled to be true by default (v3.1.85 feature-probe)")
 	}
 	if cfg.MaxSessionKeys <= 0 {
 		t.Error("expected MaxSessionKeys to be positive")

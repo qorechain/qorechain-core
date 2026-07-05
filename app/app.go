@@ -662,6 +662,9 @@ func NewQoreChainApp(
 	// canonical account on the Native lane (v3.1.85). No-op in stub builds.
 	app.AbstractAccountKeeper.SetBankKeeper(app.BankKeeper)
 
+	// Register the v3.1.85 coordinated governance upgrade handler (mainnet).
+	app.registerUpgradeHandlers()
+
 	// --- Initialize FairBlock module (via factory, v1.2.0 — threshold IBE) ---
 	fairblockStoreKey := storetypes.NewKVStoreKey(fairblocktypes.StoreKey)
 	app.MountStores(fairblockStoreKey)

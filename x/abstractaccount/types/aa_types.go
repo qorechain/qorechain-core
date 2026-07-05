@@ -36,7 +36,7 @@ type AbstractAccountConfig struct {
 // DefaultAbstractAccountConfig returns default configuration.
 func DefaultAbstractAccountConfig() AbstractAccountConfig {
 	return AbstractAccountConfig{
-		Enabled:           false,
+		Enabled:           true, // v3.1.85: authenticator execution active by default (QoreX §8.13 feature-probe)
 		MaxSessionKeys:    10,
 		MaxSpendingRules:  5,
 		DefaultSessionTTL: 86400, // 24 hours

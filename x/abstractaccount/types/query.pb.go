@@ -435,6 +435,115 @@ func (m *QueryAccountsResponse) GetAccounts() []*AccountView {
 	return nil
 }
 
+type QueryPermissionSchemaRequest struct {
+}
+
+func (m *QueryPermissionSchemaRequest) Reset()         { *m = QueryPermissionSchemaRequest{} }
+func (m *QueryPermissionSchemaRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryPermissionSchemaRequest) ProtoMessage()    {}
+func (*QueryPermissionSchemaRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_01650bc9b1b12fad, []int{8}
+}
+func (m *QueryPermissionSchemaRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryPermissionSchemaRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryPermissionSchemaRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryPermissionSchemaRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryPermissionSchemaRequest.Merge(m, src)
+}
+func (m *QueryPermissionSchemaRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryPermissionSchemaRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryPermissionSchemaRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryPermissionSchemaRequest proto.InternalMessageInfo
+
+type QueryPermissionSchemaResponse struct {
+	// schema_version bumps whenever the taxonomy or the mapping changes; clients
+	// compare it to their embedded copy to detect drift.
+	SchemaVersion string `protobuf:"bytes,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
+	// permissions is every valid permission string (e.g. send, evm, svm, all).
+	Permissions []string `protobuf:"bytes,2,rep,name=permissions,proto3" json:"permissions,omitempty"`
+	// msg_permissions maps a message typeURL to the permission it requires.
+	MsgPermissions map[string]string `protobuf:"bytes,3,rep,name=msg_permissions,json=msgPermissions,proto3" json:"msg_permissions,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	// key_management_msgs are typeURLs that are NEVER delegable to a linked key.
+	KeyManagementMsgs []string `protobuf:"bytes,4,rep,name=key_management_msgs,json=keyManagementMsgs,proto3" json:"key_management_msgs,omitempty"`
+}
+
+func (m *QueryPermissionSchemaResponse) Reset()         { *m = QueryPermissionSchemaResponse{} }
+func (m *QueryPermissionSchemaResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryPermissionSchemaResponse) ProtoMessage()    {}
+func (*QueryPermissionSchemaResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_01650bc9b1b12fad, []int{9}
+}
+func (m *QueryPermissionSchemaResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryPermissionSchemaResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryPermissionSchemaResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryPermissionSchemaResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryPermissionSchemaResponse.Merge(m, src)
+}
+func (m *QueryPermissionSchemaResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryPermissionSchemaResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryPermissionSchemaResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryPermissionSchemaResponse proto.InternalMessageInfo
+
+func (m *QueryPermissionSchemaResponse) GetSchemaVersion() string {
+	if m != nil {
+		return m.SchemaVersion
+	}
+	return ""
+}
+
+func (m *QueryPermissionSchemaResponse) GetPermissions() []string {
+	if m != nil {
+		return m.Permissions
+	}
+	return nil
+}
+
+func (m *QueryPermissionSchemaResponse) GetMsgPermissions() map[string]string {
+	if m != nil {
+		return m.MsgPermissions
+	}
+	return nil
+}
+
+func (m *QueryPermissionSchemaResponse) GetKeyManagementMsgs() []string {
+	if m != nil {
+		return m.KeyManagementMsgs
+	}
+	return nil
+}
+
 func init() {
 	proto.RegisterType((*ConfigView)(nil), "qorechain.abstractaccount.v1.ConfigView")
 	proto.RegisterType((*AccountView)(nil), "qorechain.abstractaccount.v1.AccountView")
@@ -444,6 +553,9 @@ func init() {
 	proto.RegisterType((*QueryAccountResponse)(nil), "qorechain.abstractaccount.v1.QueryAccountResponse")
 	proto.RegisterType((*QueryAccountsRequest)(nil), "qorechain.abstractaccount.v1.QueryAccountsRequest")
 	proto.RegisterType((*QueryAccountsResponse)(nil), "qorechain.abstractaccount.v1.QueryAccountsResponse")
+	proto.RegisterType((*QueryPermissionSchemaRequest)(nil), "qorechain.abstractaccount.v1.QueryPermissionSchemaRequest")
+	proto.RegisterType((*QueryPermissionSchemaResponse)(nil), "qorechain.abstractaccount.v1.QueryPermissionSchemaResponse")
+	proto.RegisterMapType((map[string]string)(nil), "qorechain.abstractaccount.v1.QueryPermissionSchemaResponse.MsgPermissionsEntry")
 }
 
 func init() {
@@ -451,42 +563,53 @@ func init() {
 }
 
 var fileDescriptor_01650bc9b1b12fad = []byte{
-	// 556 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x54, 0x4d, 0x6f, 0xd3, 0x40,
-	0x10, 0xad, 0x53, 0x92, 0x34, 0x13, 0x3e, 0xc2, 0x36, 0x20, 0x2b, 0x02, 0x2b, 0xf8, 0xe4, 0x4a,
-	0x60, 0x37, 0xe9, 0x91, 0x0b, 0x21, 0xe2, 0xc4, 0x09, 0xb7, 0x80, 0x04, 0x12, 0xd6, 0xc6, 0x9e,
-	0xa6, 0x16, 0x89, 0xd7, 0xf1, 0xae, 0xdb, 0xe4, 0x2f, 0x70, 0xe2, 0x97, 0xf0, 0x3b, 0x38, 0xf6,
-	0xc8, 0x05, 0x09, 0x25, 0x7f, 0x04, 0x79, 0xbd, 0xce, 0x47, 0x2b, 0x22, 0x72, 0xcb, 0xbe, 0x7d,
-	0x6f, 0xe6, 0xcd, 0x1b, 0x67, 0xc1, 0x9a, 0xb0, 0x04, 0xfd, 0x0b, 0x1a, 0x46, 0x0e, 0x1d, 0x70,
-	0x91, 0x50, 0x5f, 0x50, 0xdf, 0x67, 0x69, 0x24, 0x9c, 0xcb, 0x8e, 0x33, 0x49, 0x31, 0x99, 0xd9,
-	0x71, 0xc2, 0x04, 0x23, 0x4f, 0x96, 0x4c, 0xfb, 0x06, 0xd3, 0xbe, 0xec, 0x98, 0x3f, 0x34, 0x80,
-	0x3e, 0x8b, 0xce, 0xc3, 0xe1, 0x87, 0x10, 0xaf, 0x88, 0x0e, 0x55, 0x8c, 0xe8, 0x60, 0x84, 0x81,
-	0xae, 0xb5, 0x35, 0xeb, 0xc0, 0x2d, 0x8e, 0xc4, 0x82, 0xc6, 0x98, 0x4e, 0x3d, 0x8e, 0x9c, 0x87,
-	0x2c, 0xf2, 0xbe, 0xe2, 0x8c, 0xeb, 0xa5, 0xb6, 0x66, 0x95, 0xdd, 0xfb, 0x63, 0x3a, 0x3d, 0xcd,
-	0xe1, 0xb7, 0x38, 0xe3, 0xe4, 0x39, 0x10, 0xc9, 0x8c, 0x31, 0x0a, 0xc2, 0x68, 0xe8, 0x25, 0xe9,
-	0x08, 0xb9, 0xbe, 0x2f, 0xb9, 0x59, 0x8d, 0x53, 0x75, 0xe1, 0x66, 0x38, 0xb1, 0xe1, 0x30, 0xc0,
-	0x73, 0x9a, 0x8e, 0xc4, 0xb2, 0xb6, 0x10, 0x23, 0xfd, 0x4e, 0x5b, 0xb3, 0xf6, 0xdd, 0x87, 0xea,
-	0x4a, 0x95, 0x3f, 0x13, 0x23, 0xf3, 0x5b, 0x09, 0xea, 0xbd, 0xdc, 0x7f, 0xe1, 0x98, 0x06, 0x41,
-	0x82, 0x9c, 0x4b, 0xc7, 0x35, 0xb7, 0x38, 0x92, 0x23, 0x68, 0xf8, 0x2c, 0x92, 0x03, 0x7b, 0x05,
-	0xa5, 0x24, 0x29, 0x0f, 0x0a, 0xbc, 0xa7, 0xa8, 0xcf, 0xe0, 0xae, 0xca, 0xc4, 0x13, 0xb3, 0x18,
-	0xa5, 0xd9, 0x9a, 0x5b, 0x57, 0xd8, 0xd9, 0x2c, 0x46, 0x72, 0x0c, 0xcd, 0xcd, 0x89, 0x3c, 0x79,
-	0x27, 0x8d, 0xde, 0x73, 0x09, 0x5f, 0x1f, 0xaa, 0x9f, 0xdd, 0x64, 0x39, 0xac, 0xa7, 0xa5, 0xf8,
-	0x65, 0xc9, 0x6f, 0xf0, 0x55, 0x60, 0x39, 0xfb, 0x29, 0x80, 0x9f, 0x20, 0x15, 0x18, 0x78, 0x54,
-	0xe8, 0x15, 0x39, 0x7e, 0x4d, 0x21, 0x3d, 0x41, 0x9a, 0x50, 0x66, 0x57, 0x11, 0x26, 0x7a, 0x55,
-	0x5a, 0xcb, 0x0f, 0x66, 0x13, 0xc8, 0xbb, 0x6c, 0xd5, 0xf9, 0x06, 0x5d, 0x9c, 0xa4, 0xc8, 0x85,
-	0xf9, 0x11, 0x0e, 0x37, 0x50, 0x1e, 0xb3, 0x88, 0x23, 0x79, 0x05, 0x15, 0x5f, 0x22, 0x32, 0xa8,
-	0x7a, 0xd7, 0xb2, 0xb7, 0x7d, 0x19, 0xf6, 0xea, 0xab, 0x70, 0x95, 0xce, 0x74, 0x54, 0x61, 0x95,
-	0xbf, 0xea, 0xf7, 0xef, 0x15, 0x98, 0x9f, 0xa1, 0xb9, 0x29, 0x50, 0x56, 0xfa, 0x50, 0x55, 0x9d,
-	0x94, 0x97, 0xa3, 0xed, 0x5e, 0xd6, 0x16, 0xee, 0x16, 0x4a, 0xf3, 0xf1, 0x66, 0x71, 0x5e, 0x8c,
-	0xff, 0x05, 0x1e, 0xdd, 0xc0, 0x55, 0xd7, 0x37, 0x70, 0xa0, 0xb4, 0x99, 0xd1, 0xfd, 0xdd, 0xda,
-	0x2e, 0xa5, 0xdd, 0xdf, 0x25, 0x28, 0xcb, 0x06, 0x64, 0x0c, 0x95, 0x3c, 0x25, 0x72, 0xbc, 0xbd,
-	0xd0, 0xed, 0x25, 0xb5, 0x3a, 0x3b, 0x28, 0x94, 0xff, 0x18, 0xaa, 0xca, 0x11, 0xf9, 0x1f, 0xf5,
-	0xe6, 0x96, 0x5a, 0xdd, 0x5d, 0x24, 0xaa, 0x23, 0x87, 0x83, 0x22, 0x45, 0xb2, 0x83, 0xbe, 0x58,
-	0x45, 0xeb, 0x64, 0x27, 0x4d, 0xde, 0xf4, 0xf5, 0xfb, 0x9f, 0x73, 0x43, 0xbb, 0x9e, 0x1b, 0xda,
-	0x9f, 0xb9, 0xa1, 0x7d, 0x5f, 0x18, 0x7b, 0xd7, 0x0b, 0x63, 0xef, 0xd7, 0xc2, 0xd8, 0xfb, 0xf4,
-	0x72, 0x18, 0x8a, 0x8b, 0x74, 0x60, 0xfb, 0x6c, 0xec, 0xac, 0xde, 0xbf, 0xe5, 0xaf, 0x17, 0x3e,
-	0x4b, 0xd0, 0x99, 0xde, 0x7a, 0x10, 0xb3, 0xbf, 0x34, 0x1f, 0x54, 0xe4, 0x73, 0x78, 0xf2, 0x37,
-	0x00, 0x00, 0xff, 0xff, 0xe9, 0x07, 0x84, 0x09, 0x3a, 0x05, 0x00, 0x00,
+	// 726 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x55, 0xcf, 0x6e, 0xd3, 0x4e,
+	0x10, 0xae, 0x93, 0x26, 0x69, 0x27, 0xbf, 0xb6, 0xe9, 0x36, 0x3f, 0x64, 0x45, 0x6d, 0x14, 0x2c,
+	0x21, 0xa5, 0x12, 0x38, 0xfd, 0x73, 0x41, 0xed, 0x85, 0x50, 0xf5, 0x84, 0x2a, 0xc0, 0x2d, 0x45,
+	0x02, 0x09, 0x6b, 0xe3, 0x4c, 0xdd, 0x28, 0xb1, 0x9d, 0x7a, 0xd7, 0x69, 0xfc, 0x0a, 0x70, 0xe1,
+	0x49, 0x78, 0x0e, 0x8e, 0xbd, 0x20, 0x71, 0x44, 0xed, 0x91, 0x97, 0x40, 0x5e, 0xaf, 0x93, 0xb8,
+	0xd0, 0xa8, 0x81, 0x9b, 0xf7, 0x9b, 0x6f, 0x66, 0xbe, 0xf9, 0xb3, 0x5e, 0xa8, 0x5f, 0x78, 0x3e,
+	0x5a, 0xe7, 0xb4, 0xe3, 0x36, 0x68, 0x8b, 0x71, 0x9f, 0x5a, 0x9c, 0x5a, 0x96, 0x17, 0xb8, 0xbc,
+	0x31, 0xd8, 0x6e, 0x5c, 0x04, 0xe8, 0x87, 0x7a, 0xdf, 0xf7, 0xb8, 0x47, 0xd6, 0x47, 0x4c, 0xfd,
+	0x16, 0x53, 0x1f, 0x6c, 0x6b, 0x5f, 0x14, 0x80, 0x03, 0xcf, 0x3d, 0xeb, 0xd8, 0xa7, 0x1d, 0xbc,
+	0x24, 0x2a, 0x14, 0xd0, 0xa5, 0xad, 0x1e, 0xb6, 0x55, 0xa5, 0xa6, 0xd4, 0x17, 0x8c, 0xe4, 0x48,
+	0xea, 0x50, 0x72, 0xe8, 0xd0, 0x64, 0xc8, 0x58, 0xc7, 0x73, 0xcd, 0x2e, 0x86, 0x4c, 0xcd, 0xd4,
+	0x94, 0x7a, 0xce, 0x58, 0x76, 0xe8, 0xf0, 0x38, 0x86, 0x5f, 0x60, 0xc8, 0xc8, 0x63, 0x20, 0x82,
+	0xd9, 0x47, 0xb7, 0xdd, 0x71, 0x6d, 0xd3, 0x0f, 0x7a, 0xc8, 0xd4, 0xac, 0xe0, 0x46, 0x31, 0x8e,
+	0xa5, 0xc1, 0x88, 0x70, 0xa2, 0xc3, 0x5a, 0x1b, 0xcf, 0x68, 0xd0, 0xe3, 0xa3, 0xd8, 0x9c, 0xf7,
+	0xd4, 0xf9, 0x9a, 0x52, 0xcf, 0x1a, 0xab, 0xd2, 0x24, 0xc3, 0x9f, 0xf0, 0x9e, 0xf6, 0x31, 0x03,
+	0xc5, 0x66, 0xac, 0x3f, 0x51, 0x4c, 0xdb, 0x6d, 0x1f, 0x19, 0x13, 0x8a, 0x17, 0x8d, 0xe4, 0x48,
+	0x36, 0xa1, 0x64, 0x79, 0xae, 0x28, 0xd8, 0x4c, 0x28, 0x19, 0x41, 0x59, 0x49, 0xf0, 0xa6, 0xa4,
+	0x3e, 0x84, 0xff, 0x64, 0x4f, 0x4c, 0x1e, 0xf6, 0x51, 0x88, 0x5d, 0x34, 0x8a, 0x12, 0x3b, 0x09,
+	0xfb, 0x48, 0xb6, 0xa0, 0x9c, 0xae, 0xc8, 0x14, 0x36, 0x21, 0x74, 0xc9, 0x20, 0x6c, 0xb2, 0xa8,
+	0x83, 0xc8, 0x12, 0xf5, 0x61, 0xb2, 0x5b, 0x92, 0x9f, 0x13, 0xfc, 0x12, 0x1b, 0x37, 0x2c, 0x66,
+	0x6f, 0x00, 0x58, 0x3e, 0x52, 0x8e, 0x6d, 0x93, 0x72, 0x35, 0x2f, 0xca, 0x5f, 0x94, 0x48, 0x93,
+	0x93, 0x32, 0xe4, 0xbc, 0x4b, 0x17, 0x7d, 0xb5, 0x20, 0xa4, 0xc5, 0x07, 0xad, 0x0c, 0xe4, 0x75,
+	0x34, 0xea, 0x78, 0x82, 0x06, 0x5e, 0x04, 0xc8, 0xb8, 0xf6, 0x16, 0xd6, 0x52, 0x28, 0xeb, 0x7b,
+	0x2e, 0x43, 0xf2, 0x0c, 0xf2, 0x96, 0x40, 0x44, 0xa3, 0x8a, 0x3b, 0x75, 0x7d, 0xda, 0x66, 0xe8,
+	0xe3, 0xad, 0x30, 0xa4, 0x9f, 0xd6, 0x90, 0x81, 0x65, 0xff, 0x65, 0xbe, 0xbb, 0x47, 0xa0, 0xbd,
+	0x87, 0x72, 0xda, 0x41, 0x4a, 0x39, 0x80, 0x82, 0xcc, 0x24, 0xb5, 0x6c, 0x4e, 0xd7, 0x32, 0x31,
+	0x70, 0x23, 0xf1, 0xd4, 0x1e, 0xa4, 0x83, 0xb3, 0xa4, 0xfc, 0x0f, 0xf0, 0xff, 0x2d, 0x5c, 0x66,
+	0x3d, 0x84, 0x05, 0xe9, 0x1b, 0x09, 0xcd, 0xce, 0x96, 0x76, 0xe4, 0xaa, 0x55, 0x61, 0x5d, 0xc4,
+	0x7f, 0x85, 0xbe, 0xd3, 0x11, 0x53, 0x3c, 0xb6, 0xce, 0xd1, 0xa1, 0x49, 0xfe, 0x6f, 0x19, 0xd8,
+	0xb8, 0x83, 0x20, 0x85, 0x3c, 0x82, 0x65, 0x26, 0x10, 0x73, 0x80, 0x7e, 0x64, 0x97, 0x7d, 0x5b,
+	0x8a, 0xd1, 0xd3, 0x18, 0x24, 0x35, 0x28, 0xf6, 0x47, 0x21, 0xa2, 0xdd, 0xcd, 0x46, 0x4b, 0x39,
+	0x01, 0x91, 0x21, 0xac, 0x38, 0xcc, 0x36, 0x27, 0x59, 0x59, 0x51, 0xd8, 0xcb, 0xe9, 0x85, 0x4d,
+	0x95, 0xa7, 0x1f, 0x31, 0x7b, 0x6c, 0x63, 0x87, 0x2e, 0xf7, 0x43, 0x63, 0xd9, 0x49, 0x81, 0xd1,
+	0xb5, 0xed, 0x62, 0x68, 0x3a, 0xd4, 0xa5, 0x36, 0x3a, 0xe8, 0x72, 0xd3, 0x61, 0x36, 0x53, 0xe7,
+	0x85, 0xc6, 0xd5, 0x2e, 0x86, 0x47, 0x23, 0xcb, 0x11, 0xb3, 0x59, 0xa5, 0x09, 0x6b, 0x7f, 0x08,
+	0x4b, 0x4a, 0x90, 0xed, 0x62, 0x28, 0xcb, 0x8f, 0x3e, 0xa3, 0x45, 0x1f, 0xd0, 0x5e, 0x80, 0xf2,
+	0xaa, 0xc6, 0x87, 0xbd, 0xcc, 0x53, 0x65, 0xe7, 0x67, 0x16, 0x72, 0x42, 0x38, 0x71, 0x20, 0x1f,
+	0x6f, 0x27, 0xd9, 0xba, 0x47, 0x9d, 0xa9, 0xcb, 0x51, 0xd9, 0x9e, 0xc1, 0x43, 0x8e, 0xab, 0x0f,
+	0x05, 0xb9, 0x09, 0xe4, 0x3e, 0xde, 0xe9, 0xdb, 0x51, 0xd9, 0x99, 0xc5, 0x45, 0x66, 0x64, 0xb0,
+	0x90, 0x6c, 0x2f, 0x99, 0xc1, 0x3f, 0xb9, 0x02, 0x95, 0xdd, 0x99, 0x7c, 0x64, 0xd2, 0x4f, 0x0a,
+	0x94, 0x6e, 0xef, 0x04, 0xd9, 0xfb, 0xab, 0x45, 0x8a, 0x55, 0xec, 0xff, 0xc3, 0x12, 0x3e, 0x7f,
+	0xf3, 0xf5, 0xba, 0xaa, 0x5c, 0x5d, 0x57, 0x95, 0x1f, 0xd7, 0x55, 0xe5, 0xf3, 0x4d, 0x75, 0xee,
+	0xea, 0xa6, 0x3a, 0xf7, 0xfd, 0xa6, 0x3a, 0xf7, 0x6e, 0xdf, 0xee, 0xf0, 0xf3, 0xa0, 0xa5, 0x5b,
+	0x9e, 0xd3, 0x18, 0xbf, 0x82, 0xa3, 0xaf, 0x27, 0x96, 0xe7, 0x63, 0x63, 0xf8, 0xdb, 0xb3, 0x18,
+	0xfd, 0xd8, 0x59, 0x2b, 0x2f, 0x1e, 0xc5, 0xdd, 0x5f, 0x01, 0x00, 0x00, 0xff, 0xff, 0xed, 0x8b,
+	0x92, 0x4b, 0x40, 0x07, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -507,6 +630,10 @@ type QueryClient interface {
 	Account(ctx context.Context, in *QueryAccountRequest, opts ...grpc.CallOption) (*QueryAccountResponse, error)
 	// Accounts lists all abstract accounts.
 	Accounts(ctx context.Context, in *QueryAccountsRequest, opts ...grpc.CallOption) (*QueryAccountsResponse, error)
+	// PermissionSchema returns the canonical authenticator permission taxonomy so
+	// clients (QoreX/dashboard/relayer) validate scopes without hardcoding strings
+	// and detect drift via schema_version (v3.1.85).
+	PermissionSchema(ctx context.Context, in *QueryPermissionSchemaRequest, opts ...grpc.CallOption) (*QueryPermissionSchemaResponse, error)
 }
 
 type queryClient struct {
@@ -544,6 +671,15 @@ func (c *queryClient) Accounts(ctx context.Context, in *QueryAccountsRequest, op
 	return out, nil
 }
 
+func (c *queryClient) PermissionSchema(ctx context.Context, in *QueryPermissionSchemaRequest, opts ...grpc.CallOption) (*QueryPermissionSchemaResponse, error) {
+	out := new(QueryPermissionSchemaResponse)
+	err := c.cc.Invoke(ctx, "/qorechain.abstractaccount.v1.Query/PermissionSchema", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Config returns the module config.
@@ -552,6 +688,10 @@ type QueryServer interface {
 	Account(context.Context, *QueryAccountRequest) (*QueryAccountResponse, error)
 	// Accounts lists all abstract accounts.
 	Accounts(context.Context, *QueryAccountsRequest) (*QueryAccountsResponse, error)
+	// PermissionSchema returns the canonical authenticator permission taxonomy so
+	// clients (QoreX/dashboard/relayer) validate scopes without hardcoding strings
+	// and detect drift via schema_version (v3.1.85).
+	PermissionSchema(context.Context, *QueryPermissionSchemaRequest) (*QueryPermissionSchemaResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -566,6 +706,9 @@ func (*UnimplementedQueryServer) Account(ctx context.Context, req *QueryAccountR
 }
 func (*UnimplementedQueryServer) Accounts(ctx context.Context, req *QueryAccountsRequest) (*QueryAccountsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Accounts not implemented")
+}
+func (*UnimplementedQueryServer) PermissionSchema(ctx context.Context, req *QueryPermissionSchemaRequest) (*QueryPermissionSchemaResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PermissionSchema not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -626,6 +769,24 @@ func _Query_Accounts_Handler(srv interface{}, ctx context.Context, dec func(inte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_PermissionSchema_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryPermissionSchemaRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).PermissionSchema(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qorechain.abstractaccount.v1.Query/PermissionSchema",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).PermissionSchema(ctx, req.(*QueryPermissionSchemaRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "qorechain.abstractaccount.v1.Query",
@@ -642,6 +803,10 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Accounts",
 			Handler:    _Query_Accounts_Handler,
+		},
+		{
+			MethodName: "PermissionSchema",
+			Handler:    _Query_PermissionSchema_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -945,6 +1110,96 @@ func (m *QueryAccountsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryPermissionSchemaRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryPermissionSchemaRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryPermissionSchemaRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryPermissionSchemaResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryPermissionSchemaResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryPermissionSchemaResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.KeyManagementMsgs) > 0 {
+		for iNdEx := len(m.KeyManagementMsgs) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.KeyManagementMsgs[iNdEx])
+			copy(dAtA[i:], m.KeyManagementMsgs[iNdEx])
+			i = encodeVarintQuery(dAtA, i, uint64(len(m.KeyManagementMsgs[iNdEx])))
+			i--
+			dAtA[i] = 0x22
+		}
+	}
+	if len(m.MsgPermissions) > 0 {
+		for k := range m.MsgPermissions {
+			v := m.MsgPermissions[k]
+			baseI := i
+			i -= len(v)
+			copy(dAtA[i:], v)
+			i = encodeVarintQuery(dAtA, i, uint64(len(v)))
+			i--
+			dAtA[i] = 0x12
+			i -= len(k)
+			copy(dAtA[i:], k)
+			i = encodeVarintQuery(dAtA, i, uint64(len(k)))
+			i--
+			dAtA[i] = 0xa
+			i = encodeVarintQuery(dAtA, i, uint64(baseI-i))
+			i--
+			dAtA[i] = 0x1a
+		}
+	}
+	if len(m.Permissions) > 0 {
+		for iNdEx := len(m.Permissions) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Permissions[iNdEx])
+			copy(dAtA[i:], m.Permissions[iNdEx])
+			i = encodeVarintQuery(dAtA, i, uint64(len(m.Permissions[iNdEx])))
+			i--
+			dAtA[i] = 0x12
+		}
+	}
+	if len(m.SchemaVersion) > 0 {
+		i -= len(m.SchemaVersion)
+		copy(dAtA[i:], m.SchemaVersion)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.SchemaVersion)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -1077,6 +1332,48 @@ func (m *QueryAccountsResponse) Size() (n int) {
 	if len(m.Accounts) > 0 {
 		for _, e := range m.Accounts {
 			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *QueryPermissionSchemaRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryPermissionSchemaResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.SchemaVersion)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if len(m.Permissions) > 0 {
+		for _, s := range m.Permissions {
+			l = len(s)
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	if len(m.MsgPermissions) > 0 {
+		for k, v := range m.MsgPermissions {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + len(k) + sovQuery(uint64(len(k))) + 1 + len(v) + sovQuery(uint64(len(v)))
+			n += mapEntrySize + 1 + sovQuery(uint64(mapEntrySize))
+		}
+	}
+	if len(m.KeyManagementMsgs) > 0 {
+		for _, s := range m.KeyManagementMsgs {
+			l = len(s)
 			n += 1 + l + sovQuery(uint64(l))
 		}
 	}
@@ -1867,6 +2164,329 @@ func (m *QueryAccountsResponse) Unmarshal(dAtA []byte) error {
 			if err := m.Accounts[len(m.Accounts)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryPermissionSchemaRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryPermissionSchemaRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryPermissionSchemaRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryPermissionSchemaResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryPermissionSchemaResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryPermissionSchemaResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SchemaVersion", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.SchemaVersion = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Permissions", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Permissions = append(m.Permissions, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MsgPermissions", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.MsgPermissions == nil {
+				m.MsgPermissions = make(map[string]string)
+			}
+			var mapkey string
+			var mapvalue string
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowQuery
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					var stringLenmapkey uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowQuery
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapkey := int(stringLenmapkey)
+					if intStringLenmapkey < 0 {
+						return ErrInvalidLengthQuery
+					}
+					postStringIndexmapkey := iNdEx + intStringLenmapkey
+					if postStringIndexmapkey < 0 {
+						return ErrInvalidLengthQuery
+					}
+					if postStringIndexmapkey > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapkey = string(dAtA[iNdEx:postStringIndexmapkey])
+					iNdEx = postStringIndexmapkey
+				} else if fieldNum == 2 {
+					var stringLenmapvalue uint64
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowQuery
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						stringLenmapvalue |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					intStringLenmapvalue := int(stringLenmapvalue)
+					if intStringLenmapvalue < 0 {
+						return ErrInvalidLengthQuery
+					}
+					postStringIndexmapvalue := iNdEx + intStringLenmapvalue
+					if postStringIndexmapvalue < 0 {
+						return ErrInvalidLengthQuery
+					}
+					if postStringIndexmapvalue > l {
+						return io.ErrUnexpectedEOF
+					}
+					mapvalue = string(dAtA[iNdEx:postStringIndexmapvalue])
+					iNdEx = postStringIndexmapvalue
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipQuery(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if (skippy < 0) || (iNdEx+skippy) < 0 {
+						return ErrInvalidLengthQuery
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.MsgPermissions[mapkey] = mapvalue
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field KeyManagementMsgs", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.KeyManagementMsgs = append(m.KeyManagementMsgs, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
