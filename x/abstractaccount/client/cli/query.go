@@ -21,6 +21,10 @@ func GetQueryCmd() *cobra.Command {
 		CmdQueryConfig(),
 		CmdQueryAccount(),
 		CmdQueryAccounts(),
+		CmdQueryPermissionSchema(),
+		CmdAuthKeygen(),
+		CmdAuthSignCosmos(),
+		CmdAuthSignEVM(),
 	)
 	return cmd
 }

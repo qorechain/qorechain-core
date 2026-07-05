@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/tx"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/abstractaccount/types"
 )
@@ -30,8 +32,107 @@ func GetTxCmd() *cobra.Command {
 		CmdUpdateSpendingRules(),
 		CmdRegisterAuthenticator(),
 		CmdRevokeAuthenticator(),
+		CmdExecuteCosmos(),
+		CmdExecuteEVM(),
 	)
 
+	return cmd
+}
+
+// CmdExecuteCosmos submits a Native-lane bank transfer authorized by a linked
+// authenticator (v3.1.85). The relayer (--from) signs + pays fees; the
+// authenticator signature over CosmosAuthSignBytes is supplied as base64.
+func CmdExecuteCosmos() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "execute-cosmos [account] [to] [amount] [scheme] [pubkey-base64] [signature-base64] [nonce]",
+		Short: "Relayer-submit an authenticator-authorized native QOR transfer from [account]",
+		Args:  cobra.ExactArgs(7),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			amount, err := sdk.ParseCoinsNormalized(args[2])
+			if err != nil {
+				return fmt.Errorf("amount: %w", err)
+			}
+			pk, err := base64.StdEncoding.DecodeString(args[4])
+			if err != nil {
+				return fmt.Errorf("pubkey must be base64: %w", err)
+			}
+			sig, err := base64.StdEncoding.DecodeString(args[5])
+			if err != nil {
+				return fmt.Errorf("signature must be base64: %w", err)
+			}
+			nonce, err := strconv.ParseUint(args[6], 10, 64)
+			if err != nil {
+				return fmt.Errorf("nonce must be an integer: %w", err)
+			}
+			msg := &types.MsgExecuteCosmos{
+				Relayer:   clientCtx.GetFromAddress().String(),
+				Account:   args[0],
+				To:        args[1],
+				Amount:    amount,
+				Scheme:    args[3],
+				Pubkey:    pk,
+				Signature: sig,
+				Nonce:     nonce,
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+// CmdExecuteEVM submits an authenticator-authorized EVM call/transfer (v3.1.85).
+// value is decimal wei; data + signature + pubkey are base64/hex as noted.
+func CmdExecuteEVM() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "execute-evm [account] [to-0xhex] [value-wei] [data-hex] [gas-limit] [scheme] [pubkey-base64] [signature-base64] [nonce]",
+		Short: "Relayer-submit an authenticator-authorized EVM call from [account]",
+		Args:  cobra.ExactArgs(9),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			data, err := hex.DecodeString(strings.TrimPrefix(args[3], "0x"))
+			if err != nil {
+				return fmt.Errorf("data must be hex: %w", err)
+			}
+			gas, err := strconv.ParseUint(args[4], 10, 64)
+			if err != nil {
+				return fmt.Errorf("gas-limit must be an integer: %w", err)
+			}
+			pk, err := base64.StdEncoding.DecodeString(args[6])
+			if err != nil {
+				return fmt.Errorf("pubkey must be base64: %w", err)
+			}
+			sig, err := base64.StdEncoding.DecodeString(args[7])
+			if err != nil {
+				return fmt.Errorf("signature must be base64: %w", err)
+			}
+			nonce, err := strconv.ParseUint(args[8], 10, 64)
+			if err != nil {
+				return fmt.Errorf("nonce must be an integer: %w", err)
+			}
+			msg := &types.MsgExecuteEVM{
+				Relayer:   clientCtx.GetFromAddress().String(),
+				Account:   args[0],
+				To:        args[1],
+				Value:     args[2],
+				Data:      data,
+				GasLimit:  gas,
+				Scheme:    args[5],
+				Pubkey:    pk,
+				Signature: sig,
+				Nonce:     nonce,
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
 
