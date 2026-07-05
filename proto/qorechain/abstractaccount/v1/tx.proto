@@ -24,6 +24,7 @@ service Msg {
   rpc UpdateSpendingRules(MsgUpdateSpendingRules) returns (MsgUpdateSpendingRulesResponse);
   rpc RegisterAuthenticator(MsgRegisterAuthenticator) returns (MsgRegisterAuthenticatorResponse);
   rpc RevokeAuthenticator(MsgRevokeAuthenticator) returns (MsgRevokeAuthenticatorResponse);
+  rpc ExecuteEVM(MsgExecuteEVM) returns (MsgExecuteEVMResponse);
 }
 
 message MsgCreateAbstractAccount {
@@ -68,3 +69,31 @@ message MsgRevokeAuthenticator {
   bytes pubkey = 4;
 }
 message MsgRevokeAuthenticatorResponse {}
+
+// MsgExecuteEVM executes an EVM call/transfer authorized by a linked
+// authenticator (v3.1.85). The relayer submits + pays fees; the authenticator
+// (scheme,pubkey) signs the domain-separated sign-bytes binding chain-id, the
+// canonical account, the pubkey, to/value/data and the account's expected EVM
+// nonce (replay protection — the nonce must equal the account's current EVM
+// nonce, and executing the call increments it, so a signature cannot be replayed).
+// The chain resolves the authenticator, checks the "evm" permission + SpendingRule
+// against `value`, then executes the call FROM the canonical account's EVM address.
+message MsgExecuteEVM {
+  option (cosmos.msg.v1.signer) = "relayer";
+  string relayer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string account = 2;   // bech32 canonical account (the authenticator's owner)
+  string scheme = 3;    // "ed25519" | "secp256k1"
+  bytes pubkey = 4;     // authenticator public key
+  bytes signature = 5;  // authenticator signature over the EVM auth sign-bytes
+  string to = 6;        // 0x-hex recipient/contract; empty = contract create
+  string value = 7;     // native QOR amount in wei (aqor), decimal string
+  bytes data = 8;       // EVM calldata
+  uint64 gas_limit = 9;
+  uint64 nonce = 10;    // MUST equal the account's current EVM nonce
+}
+message MsgExecuteEVMResponse {
+  bool success = 1;
+  bytes ret = 2;
+  uint64 gas_used = 3;
+  string vm_error = 4;
+}

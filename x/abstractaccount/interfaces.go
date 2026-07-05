@@ -4,6 +4,8 @@ import (
 	"cosmossdk.io/log"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
+
 	"github.com/qorechain/qorechain-core/x/abstractaccount/types"
 )
 
@@ -32,6 +34,11 @@ type AbstractAccountKeeper interface {
 	// → check requiredPerm (canonical taxonomy, fail-closed) → enforce SpendingRule
 	// against the base-unit outflow (uqor) → return the canonical account.
 	AuthorizeAction(ctx sdk.Context, scheme string, pubkey, msg, sig []byte, requiredPerm string, outflow sdk.Coins) (account []byte, err error)
+
+	// SetEVMKeeper wires the EVM keeper so MsgExecuteEVM can execute an
+	// authenticator-authorized EVM call from the canonical account (v3.1.85).
+	// No-op in stub builds.
+	SetEVMKeeper(evmKeeper *evmkeeper.Keeper)
 
 	// Genesis
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)

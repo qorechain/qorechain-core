@@ -654,6 +654,10 @@ func NewQoreChainApp(
 	// the user's single unified account. No-op in stub builds.
 	app.SVMKeeper.SetAuthenticatorResolver(app.AbstractAccountKeeper)
 
+	// Wire the EVM keeper so MsgExecuteEVM can execute an authenticator-authorized
+	// EVM call from the canonical account (v3.1.85). No-op in stub builds.
+	app.AbstractAccountKeeper.SetEVMKeeper(app.EVMKeeper)
+
 	// --- Initialize FairBlock module (via factory, v1.2.0 — threshold IBE) ---
 	fairblockStoreKey := storetypes.NewKVStoreKey(fairblocktypes.StoreKey)
 	app.MountStores(fairblockStoreKey)
