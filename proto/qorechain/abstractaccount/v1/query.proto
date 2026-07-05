@@ -1,20 +1,30 @@
 syntax = "proto3";
 package qorechain.abstractaccount.v1;
 
+import "google/api/annotations.proto";
+
 option go_package = "github.com/qorechain/qorechain-core/x/abstractaccount/types";
 
 // Query defines the gRPC query service for the abstractaccount module.
 service Query {
   // Config returns the module config.
-  rpc Config(QueryConfigRequest) returns (QueryConfigResponse);
+  rpc Config(QueryConfigRequest) returns (QueryConfigResponse) {
+    option (google.api.http).get = "/qorechain/abstractaccount/v1/config";
+  }
   // Account returns a single abstract account by address.
-  rpc Account(QueryAccountRequest) returns (QueryAccountResponse);
+  rpc Account(QueryAccountRequest) returns (QueryAccountResponse) {
+    option (google.api.http).get = "/qorechain/abstractaccount/v1/accounts/{address}";
+  }
   // Accounts lists all abstract accounts.
-  rpc Accounts(QueryAccountsRequest) returns (QueryAccountsResponse);
+  rpc Accounts(QueryAccountsRequest) returns (QueryAccountsResponse) {
+    option (google.api.http).get = "/qorechain/abstractaccount/v1/accounts";
+  }
   // PermissionSchema returns the canonical authenticator permission taxonomy so
   // clients (QoreX/dashboard/relayer) validate scopes without hardcoding strings
   // and detect drift via schema_version (v3.1.85).
-  rpc PermissionSchema(QueryPermissionSchemaRequest) returns (QueryPermissionSchemaResponse);
+  rpc PermissionSchema(QueryPermissionSchemaRequest) returns (QueryPermissionSchemaResponse) {
+    option (google.api.http).get = "/qorechain/abstractaccount/v1/permission_schema";
+  }
 }
 
 message ConfigView {
