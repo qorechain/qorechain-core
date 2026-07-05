@@ -50,6 +50,13 @@ type SVMKeeper interface {
 	// single unified account. ok=false if unresolved/invalid/unauthorized.
 	ResolveAuthenticatedSigner(ctx sdk.Context, scheme string, pubkey, msg, sig []byte) ([32]byte, bool)
 
+	// ChargeAuthenticatorSpend charges a realized lamport outflow against a
+	// foreign-scheme authenticator's SpendingRule (v3.1.85 SVM value lane): the
+	// caller measures the canonical account's native-balance delta after execution
+	// and passes the spent lamports; a non-nil return means the limit was breached
+	// and the tx must revert. No-op if no resolver is wired or nothing was spent.
+	ChargeAuthenticatorSpend(ctx sdk.Context, scheme string, pubkey []byte, lamportsSpent uint64) error
+
 	// SVMToCosmosAddr converts a 32-byte SVM address to a native address.
 	SVMToCosmosAddr(svmAddr [32]byte) sdk.AccAddress
 

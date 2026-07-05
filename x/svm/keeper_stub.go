@@ -58,6 +58,10 @@ func (k *StubKeeper) ResolveAuthenticatedSigner(_ sdk.Context, _ string, _, _, _
 	return [32]byte{}, false
 }
 
+func (k *StubKeeper) ChargeAuthenticatorSpend(_ sdk.Context, _ string, _ []byte, _ uint64) error {
+	return nil
+}
+
 func (k *StubKeeper) SVMToCosmosAddr(svmAddr [32]byte) sdk.AccAddress {
 	return types.SVMToCosmosAddress(svmAddr)
 }

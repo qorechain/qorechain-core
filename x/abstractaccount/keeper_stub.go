@@ -41,6 +41,9 @@ func (k *StubKeeper) VerifyForeignSignature(_ string, _, _, _ []byte) bool { ret
 func (k *StubKeeper) AuthorizeAction(_ sdk.Context, _ string, _, _, _ []byte, _ string, _ sdk.Coins) ([]byte, error) {
 	return nil, types.ErrModuleDisabled
 }
+func (k *StubKeeper) EnforceAuthenticatorSpend(_ sdk.Context, _ string, _ []byte, _ sdk.Coins) error {
+	return types.ErrModuleDisabled
+}
 func (k *StubKeeper) SetEVMKeeper(_ *evmkeeper.Keeper)      {}
 func (k *StubKeeper) SetBankKeeper(_ types.BankKeeper)      {}
 func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}

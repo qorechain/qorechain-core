@@ -35,6 +35,12 @@ type AbstractAccountKeeper interface {
 	// against the base-unit outflow (uqor) → return the canonical account.
 	AuthorizeAction(ctx sdk.Context, scheme string, pubkey, msg, sig []byte, requiredPerm string, outflow sdk.Coins) (account []byte, err error)
 
+	// EnforceAuthenticatorSpend (v3.1.85) charges a post-execution outflow against
+	// an authenticator's SpendingRule + records it — for lanes whose value is only
+	// known after execution (the SVM lane measures the realized native-balance
+	// delta). Returns ErrSpendingLimitExceeded on a breach so the caller can revert.
+	EnforceAuthenticatorSpend(ctx sdk.Context, scheme string, pubkey []byte, outflow sdk.Coins) error
+
 	// SetEVMKeeper wires the EVM keeper so MsgExecuteEVM can execute an
 	// authenticator-authorized EVM call from the canonical account (v3.1.85).
 	// No-op in stub builds.

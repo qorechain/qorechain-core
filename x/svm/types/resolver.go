@@ -28,4 +28,14 @@ type AuthenticatorResolver interface {
 	// value), records the spend, and returns the 20-byte canonical account. err
 	// is a typed chain error on any denial. outflow may be nil (permission-only).
 	AuthorizeAction(ctx sdk.Context, scheme string, pubkey, msg, sig []byte, requiredPerm string, outflow sdk.Coins) (account []byte, err error)
+
+	// EnforceAuthenticatorSpend (v3.1.85) charges a post-execution outflow against
+	// the authenticator's SpendingRule and records it. It exists because an SVM
+	// program's value movement is not statically known before execution: the SVM
+	// lane authorizes permission scope up-front via AuthorizeAction(outflow=nil),
+	// then measures the account's realized native-balance delta and calls this to
+	// enforce the amount-limit. Returns a typed ErrSpendingLimitExceeded when the
+	// outflow would breach the rule (the caller returns the error so the whole tx —
+	// including the balance move — reverts). A nil/zero outflow is a no-op.
+	EnforceAuthenticatorSpend(ctx sdk.Context, scheme string, pubkey []byte, outflow sdk.Coins) error
 }
