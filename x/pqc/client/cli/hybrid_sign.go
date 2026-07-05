@@ -423,9 +423,11 @@ the rotation tx is cosigned (hybrid) with the old key so it passes the PQC ante.
 				if err := os.WriteFile(pqcKeyPath(clientCtx.HomeDir, outName), []byte(hex.EncodeToString(newSk)), 0o600); err != nil {
 					return err
 				}
-				fmt.Printf("stored new Dilithium-5 private key: %s\n", pqcKeyPath(clientCtx.HomeDir, outName))
+				fmt.Fprintf(cmd.ErrOrStderr(), "stored new Dilithium-5 private key: %s\n", pqcKeyPath(clientCtx.HomeDir, outName))
 			}
-			fmt.Printf("old_public_key: %s\nnew_public_key: %s\n", hex.EncodeToString(oldPub), hex.EncodeToString(newPub))
+			// Informational lines go to STDERR so stdout carries ONLY the broadcast
+			// response — keeps `-o json` parseable for scripts / QoreX.
+			fmt.Fprintf(cmd.ErrOrStderr(), "old_public_key: %s\nnew_public_key: %s\n", hex.EncodeToString(oldPub), hex.EncodeToString(newPub))
 
 			// 5. Build MsgRotatePQCKey and cosign+broadcast with the OLD key.
 			msg := &types.MsgRotatePQCKey{
