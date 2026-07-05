@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.86] - 2026-07-05
+
+### Added
+- **Browser-wallet (EIP-191) authenticators.** A secp256k1 authenticator can be linked by its Ethereum address and verified with `personal_sign` (EIP-191) + `ecrecover`, so a wallet that exposes only an address and `personal_sign` (such as MetaMask) can be a scoped, spend-limited, revocable linked key on any lane.
+
+### Changed
+- **Validators can always recover from a jail.** Post-quantum signatures are required on transactions, but `MsgUnjail` is now exempt from that requirement when the operator account has not yet registered a key — so a validator can never be locked out of unjailing itself. (Operators should still register a post-quantum key at setup; a helper script is provided.)
+
+### Notes
+- v3.1.86 carries everything from 3.1.85 (linked-wallet authenticator execution on all three lanes, on-chain permissions and spending limits, `PermissionSchema`, same-algorithm post-quantum key rotation) plus the two items above. Additive change, no re-genesis; coordinated through governance on production networks.
+
+---
+
 ## [3.1.85] - 2026-07-05
 
 ### Added
