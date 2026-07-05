@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -17,7 +19,8 @@ import (
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	signing "github.com/cosmos/cosmos-sdk/types/tx/signing"
 
-	"github.com/qorechain/qorechain-core/x/pqc/ffi"
+	qpqc "github.com/qorechain/qorechain-pqc/go"
+
 	"github.com/qorechain/qorechain-core/x/pqc/types"
 )
 
@@ -25,7 +28,59 @@ import (
 // (gen-key, cosign). These require the FFI library and so are only present in
 // the full (validator) build; the community build provides stubs.
 func pqcSignerCommands() []*cobra.Command {
-	return []*cobra.Command{getCmdGenPQCKey(), getCmdCosign()}
+	return []*cobra.Command{getCmdGenPQCKey(), getCmdCosign(), getCmdRecoverPQCKey()}
+}
+
+// getCmdRecoverPQCKey deterministically reconstructs an account's ML-DSA-87 key
+// from its BIP-39 mnemonic using the ecosystem-standard derivation, so a key can
+// be recovered (or reproduced on a new host) without a random keygen. The
+// mnemonic is read from stdin so it never lands in shell history or process args.
+func getCmdRecoverPQCKey() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "recover-key [name] [address]",
+		Short: "Recover a Dilithium-5 key deterministically from a mnemonic (read from stdin)",
+		Long: `Reconstruct the canonical ML-DSA-87 keypair for [address] from its BIP-39
+mnemonic, using the ecosystem-standard derivation
+shake256("qorechain:pqc:v1|" + address + "|" + mnemonic) as the FIPS-204 seed —
+byte-identical to the SDK / wallet-adapter, so the recovered key matches the one
+registered on-chain. The mnemonic is read from STDIN. Stores the private key under
+<home>/pqc/<name>.dilithium (0600) for use with ` + "`tx pqc cosign`" + `:
+
+  echo "<24 words>" | qorechaind tx pqc recover-key mykey <qor1address>`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			name, address := args[0], args[1]
+			data, err := io.ReadAll(cmd.InOrStdin())
+			if err != nil {
+				return err
+			}
+			mnemonic := strings.TrimSpace(string(data))
+			if mnemonic == "" {
+				return fmt.Errorf("no mnemonic on stdin (pipe the BIP-39 phrase in)")
+			}
+			seed := qpqc.Shake256([]byte("qorechain:pqc:v1|"+address+"|"+mnemonic), 32)
+			pk, sk, err := qpqc.MLDSA87.KeygenFromSeed(seed)
+			if err != nil {
+				return fmt.Errorf("keygen from seed: %w", err)
+			}
+			dir := pqcKeyDir(clientCtx.HomeDir)
+			if err := os.MkdirAll(dir, 0o700); err != nil {
+				return err
+			}
+			if err := os.WriteFile(pqcKeyPath(clientCtx.HomeDir, name), []byte(hex.EncodeToString(sk)), 0o600); err != nil {
+				return err
+			}
+			fmt.Printf("recovered Dilithium-5 private key: %s\n", pqcKeyPath(clientCtx.HomeDir, name))
+			fmt.Printf("public_key_hex: %s\n", hex.EncodeToString(pk))
+			return nil
+		},
+	}
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
 }
 
 func pqcKeyDir(home string) string  { return filepath.Join(home, "pqc") }
@@ -54,7 +109,7 @@ then sign transactions with `+"`tx pqc cosign`"+`.`,
 				return err
 			}
 			name := args[0]
-			pk, sk, err := ffi.NewFFIClient().DilithiumKeygen()
+			pk, sk, err := qpqc.MLDSA87.Keygen()
 			if err != nil {
 				return fmt.Errorf("dilithium keygen: %w", err)
 			}
@@ -173,7 +228,7 @@ The --pqc-key name refers to a key created with `+"`tx pqc gen-key`"+`.`,
 			if err != nil {
 				return err
 			}
-			pqcSig, err := ffi.NewFFIClient().Sign(types.AlgorithmDilithium5, sk, pqcSignBytes)
+			pqcSig, err := qpqc.MLDSA87.Sign(sk, pqcSignBytes)
 			if err != nil {
 				return fmt.Errorf("dilithium sign: %w", err)
 			}

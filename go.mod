@@ -32,6 +32,7 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.5 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
+	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/consensys/gnark v0.15.0 // indirect
 	github.com/consensys/gnark-crypto v0.20.1 // indirect
 	github.com/crate-crypto/go-eth-kzg v1.3.0 // indirect
@@ -295,6 +296,13 @@ replace (
 	// Security: pin gin to patched version (GHSA-h395-qcrw-5vmq)
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 
+	// Client-side PQC signer: the standards ML-DSA-87 library (KAT-vectored,
+	// byte-identical to the SDK/wallet-adapter). Used by the CLI hybrid signer so
+	// keys can be deterministically recovered from a mnemonic (tx pqc recover-key).
+	github.com/qorechain/qorechain-pqc/go => ../qorechain-pqc/go
+
 	// wasmd: pin goleveldb to resolve store query failures
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
+
+require github.com/qorechain/qorechain-pqc/go v0.1.1

@@ -2,7 +2,7 @@
 
 [![Build](https://github.com/qorechain/qorechain-core/actions/workflows/build.yml/badge.svg)](https://github.com/qorechain/qorechain-core/actions)
 [![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-3.1.83-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v3.1.83)
+[![Version](https://img.shields.io/badge/version-3.1.85-green.svg)](https://github.com/qorechain/qorechain-core/releases/tag/v3.1.85)
 
 QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at genesis**, **AI-native consensus optimization**, a **triple-VM runtime** executing EVM, CosmWasm, and SVM (Solana Virtual Machine) programs on a single chain, a **native on-chain AMM** with constant-product and stable-swap pricing, a **complete tokenomics engine** with burn mechanics, governance-boosted staking, and controlled inflation, **45 direct cross-chain connections** spanning IBC (with foundation for next-generation IBC v2), EVM, Move, UTXO, Cairo, UNL, SCP, Hashgraph, and account-model ecosystems, a **Rollup Development Kit (RDK)** enabling one-click deployment of application-specific rollups with four settlement paradigms, a **license-gated multi-chain validator bridge** for cross-chain operations across 37 chains, a **light node network** with stake-weighted reward distribution, and a **unified account identity** where one key holds a single balance and signs across the EVM, Cosmos, and SVM interfaces (`0x…` / `qor1…` / base58). Built on Cosmos SDK v0.53 with 21 custom modules and 48 registered genesis modules.
 
@@ -11,6 +11,16 @@ QoreChain is the first Layer 1 blockchain with **post-quantum cryptography at ge
 ### Unified Account Identity — One Key, Three Interfaces (v3.1.83)
 
 A single account key is a first-class citizen on all three of QoreChain's execution interfaces at once. An account created EVM-native — its 20-byte address is the keccak-256 derivation of its secp256k1 public key — is rendered three ways: `qor1…` (Cosmos bech32), `0x…` (EVM), and a base58 SVM address. All three resolve to the **same 20 bytes and the same balance**, so a deposit to any form lands in one account. The same key also **signs** on every interface: EVM transactions as usual, and Cosmos-lane transactions via the `eth_secp256k1` scheme — including the mandatory post-quantum hybrid signature (ML-DSA-87 / FIPS-204) the ante chain requires. This is delivered as a consensus-neutral upgrade (no re-genesis) that registers the EVM key type on the application's interface registry so eth-native accounts can sign standard Cosmos transactions; classic coinType-118 accounts are unaffected. The `@qorechain/wallet-adapter` package generates the three-address identity and produces both the classical and hybrid `eth_secp256k1` signatures.
+
+### Linked-Wallet Authenticators — Scoped, Spend-Limited Delegation (v3.1.85)
+
+An account owner can link an external wallet key (for example an ed25519 or secp256k1 key from another wallet) to their account under **least-privilege, spend-limited, revocable, time-bounded** terms, and that key can then spend from the account without ever holding the account's own signing key. The `x/abstractaccount` module enforces this at execution on all three lanes:
+
+- **Canonical permission taxonomy** — every action maps to a permission string (`send`, `delegate`, `vote`, `evm`, `svm`, `amm`, `ibc`, …). Authorization is **fail-closed**: an unmapped message and any permission the linked key was not granted are rejected, and account-management actions (registering or revoking keys) can never be delegated. Clients read the taxonomy from the on-chain `PermissionSchema` query, so scopes are never hardcoded.
+- **On-chain spending limits** — a per-transaction cap and a rolling daily cap (per linked key, per denomination) are enforced and accumulated in state; an over-limit action is rejected before any funds move.
+- **Two execution lanes** — `MsgExecuteEVM` performs an authenticator-authorized EVM call or transfer from the account's EVM address; `MsgExecuteCosmos` performs a native transfer from the account on the Cosmos lane. A relayer submits and pays the fee, so the account's own key need not be online; each is bound to the chain-id, account, key, action and a nonce so a signature cannot be replayed across chains, accounts, keys or transactions.
+
+This closes on-chain session-key enforcement end-to-end. It is delivered as an additive change (new message types, no re-genesis) coordinated through governance on production networks.
 
 ### Native AMM Module (v3.0.0)
 

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.85] - 2026-07-05
+
+### Added
+- **Linked-wallet authenticator execution (`x/abstractaccount`).** An account owner can link an external wallet key under scoped, spend-limited, revocable, time-bounded terms, and that key can spend from the account without holding the account's own signing key.
+  - `MsgExecuteEVM` — authenticator-authorized EVM call/transfer from the account's EVM address.
+  - `MsgExecuteCosmos` — authenticator-authorized native transfer from the account on the Cosmos lane.
+  - A relayer submits and pays the fee; each message is bound to the chain-id, account, key, action and a nonce, so a signature cannot be replayed across chains, accounts, keys or transactions.
+- **On-chain permission enforcement** — every action maps to a canonical permission string; authorization is fail-closed (unmapped or ungranted actions are rejected, account-management actions are never delegable).
+- **On-chain spending limits** — per-transaction and rolling daily caps per linked key and denomination, enforced and accumulated in state.
+- **`PermissionSchema` query** — returns the canonical taxonomy (permissions, message→permission map, schema version) so clients validate scopes without hardcoding them.
+- CLI: `tx abstractaccount execute-cosmos` / `execute-evm` and authenticator signing helpers.
+
+### Notes
+- Additive change (new message types, no re-genesis); coordinated through governance on production networks. Existing accounts and standard transactions are unaffected.
+
+---
+
 ## [3.0.0] - 2026-05-07
 
 The first major release after v1.4.0. v3.0.0 brings a native on-chain automated market maker, expanded cross-network validator support across additional chain architectures, and the foundation for the next-generation IBC stack.
