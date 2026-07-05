@@ -296,11 +296,6 @@ replace (
 	// Security: pin gin to patched version (GHSA-h395-qcrw-5vmq)
 	github.com/gin-gonic/gin => github.com/gin-gonic/gin v1.9.1
 
-	// Client-side PQC signer: the standards ML-DSA-87 library (KAT-vectored,
-	// byte-identical to the SDK/wallet-adapter). Used by the CLI hybrid signer so
-	// keys can be deterministically recovered from a mnemonic (tx pqc recover-key).
-	github.com/qorechain/qorechain-pqc/go => ../qorechain-pqc/go
-
 	// wasmd: pin goleveldb to resolve store query failures
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
