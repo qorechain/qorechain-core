@@ -40,6 +40,11 @@ type AbstractAccountKeeper interface {
 	// No-op in stub builds.
 	SetEVMKeeper(evmKeeper *evmkeeper.Keeper)
 
+	// SetBankKeeper wires the x/bank keeper so MsgExecuteCosmos can move native
+	// QOR from the canonical account on the Native lane (v3.1.85). No-op in stub
+	// builds.
+	SetBankKeeper(bankKeeper types.BankKeeper)
+
 	// Genesis
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState

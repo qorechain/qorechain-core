@@ -20,6 +20,15 @@ var (
 	// cumulative base-unit amount spent that UTC day. The day comes from
 	// ctx.BlockTime() so it is deterministic across validators.
 	SpendAccumPrefix = []byte("aa/spend/")
+
+	// AuthNoncePrefix keys the per-authenticator monotonic sequence used for
+	// Native-lane (MsgExecuteCosmos) replay protection (v3.1.85). Value =
+	// big-endian uint64 of the next expected sequence for (account, authenticator
+	// pubkey). Unlike the EVM lane — which reuses the account's auto-incrementing
+	// EVM nonce — a bank send increments nothing, so the module tracks the
+	// sequence itself: the signed nonce must equal the stored value, which is
+	// bumped by one on each successful execution.
+	AuthNoncePrefix = []byte("aa/authnonce/")
 )
 
 // AuthIndexKey builds the reverse-index key for a (scheme, pubkey) authenticator.
@@ -46,4 +55,12 @@ func SpendAccumKey(account string, pubkey []byte, denom string, dayUnix int64) [
 		dayUnix >>= 8
 	}
 	return append(key, d[:]...)
+}
+
+// AuthNonceKey builds the per-authenticator sequence key for (account, pubkey).
+func AuthNonceKey(account string, pubkey []byte) []byte {
+	key := append([]byte{}, AuthNoncePrefix...)
+	key = append(key, []byte(account)...)
+	key = append(key, '/')
+	return append(key, pubkey...)
 }

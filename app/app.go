@@ -658,6 +658,10 @@ func NewQoreChainApp(
 	// EVM call from the canonical account (v3.1.85). No-op in stub builds.
 	app.AbstractAccountKeeper.SetEVMKeeper(app.EVMKeeper)
 
+	// Wire the x/bank keeper so MsgExecuteCosmos can move native QOR from the
+	// canonical account on the Native lane (v3.1.85). No-op in stub builds.
+	app.AbstractAccountKeeper.SetBankKeeper(app.BankKeeper)
+
 	// --- Initialize FairBlock module (via factory, v1.2.0 — threshold IBE) ---
 	fairblockStoreKey := storetypes.NewKVStoreKey(fairblocktypes.StoreKey)
 	app.MountStores(fairblockStoreKey)

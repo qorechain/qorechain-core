@@ -6,6 +6,7 @@ option go_package = "github.com/qorechain/qorechain-core/x/abstractaccount/types
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
 import "gogoproto/gogo.proto";
+import "cosmos/base/v1beta1/coin.proto";
 
 // SpendingRule defines spending limits for an abstract account.
 message SpendingRule {
@@ -25,6 +26,7 @@ service Msg {
   rpc RegisterAuthenticator(MsgRegisterAuthenticator) returns (MsgRegisterAuthenticatorResponse);
   rpc RevokeAuthenticator(MsgRevokeAuthenticator) returns (MsgRevokeAuthenticatorResponse);
   rpc ExecuteEVM(MsgExecuteEVM) returns (MsgExecuteEVMResponse);
+  rpc ExecuteCosmos(MsgExecuteCosmos) returns (MsgExecuteCosmosResponse);
 }
 
 message MsgCreateAbstractAccount {
@@ -96,4 +98,34 @@ message MsgExecuteEVMResponse {
   bytes ret = 2;
   uint64 gas_used = 3;
   string vm_error = 4;
+}
+
+// MsgExecuteCosmos executes a Native-lane (Cosmos) bank transfer authorized by a
+// linked authenticator (v3.1.85). It is the Native counterpart of MsgExecuteEVM:
+// the relayer submits + pays fees and signs the outer tx (so the account's own
+// PQC-required signature is not needed — the relayer's hybrid-PQC signature
+// satisfies the ante on the envelope), while the authenticator (scheme,pubkey)
+// signs the domain-separated sign-bytes binding chain-id, the canonical account,
+// the pubkey, the recipient, the amount and a per-authenticator sequence (replay:
+// nonce must equal the account+key's current sequence, incremented on success).
+// The chain resolves the authenticator, checks the "send" permission + SpendingRule
+// against `amount`, then moves the coins FROM the canonical account via x/bank.
+// This lets an external key (Phantom ed25519 / EVM secp256k1) spend native QOR from
+// a PQC-required account under least-privilege, spend-limited, revocable terms.
+message MsgExecuteCosmos {
+  option (cosmos.msg.v1.signer) = "relayer";
+  string relayer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string account = 2;   // bech32 canonical account (the authenticator's owner)
+  string scheme = 3;    // "ed25519" | "secp256k1"
+  bytes pubkey = 4;     // authenticator public key
+  bytes signature = 5;  // authenticator signature over the Cosmos auth sign-bytes
+  string to = 6 [(cosmos_proto.scalar) = "cosmos.AddressString"]; // bech32 recipient
+  repeated cosmos.base.v1beta1.Coin amount = 7 [
+    (gogoproto.nullable) = false,
+    (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"
+  ];
+  uint64 nonce = 8;     // MUST equal the account+key's current authenticator sequence
+}
+message MsgExecuteCosmosResponse {
+  bool success = 1;
 }
