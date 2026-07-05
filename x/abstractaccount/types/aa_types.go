@@ -92,9 +92,15 @@ func ValidateAuthenticator(a Authenticator) error {
 			return fmt.Errorf("ed25519 pubkey must be 32 bytes, got %d", len(a.PubKey))
 		}
 	case SchemeSecp256k1:
-		// compressed (33) or uncompressed (65) SEC1 encodings
-		if len(a.PubKey) != 33 && len(a.PubKey) != 65 {
-			return fmt.Errorf("secp256k1 pubkey must be 33 or 65 bytes, got %d", len(a.PubKey))
+		// Three accepted forms:
+		//   33 / 65 — compressed / uncompressed SEC1 public key, verified with the
+		//             cosmos secp256k1 scheme (sha256-based).
+		//   20      — an Ethereum address (keccak of the pubkey), verified with the
+		//             EIP-191 personal_sign scheme (keccak + ecrecover). This is the
+		//             form a browser wallet like MetaMask can produce, since it only
+		//             exposes the address + personal_sign, not the raw pubkey.
+		if len(a.PubKey) != 33 && len(a.PubKey) != 65 && len(a.PubKey) != 20 {
+			return fmt.Errorf("secp256k1 pubkey must be 33, 65, or 20 (eth address) bytes, got %d", len(a.PubKey))
 		}
 	default:
 		return fmt.Errorf("unsupported authenticator scheme %q", a.Scheme)
