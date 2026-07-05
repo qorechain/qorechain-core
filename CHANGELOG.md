@@ -17,7 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **On-chain permission enforcement** — every action maps to a canonical permission string; authorization is fail-closed (unmapped or ungranted actions are rejected, account-management actions are never delegable).
 - **On-chain spending limits** — per-transaction and rolling daily caps per linked key and denomination, enforced and accumulated in state.
 - **`PermissionSchema` query** — returns the canonical taxonomy (permissions, message→permission map, schema version) so clients validate scopes without hardcoding them.
+- **Deterministic post-quantum key recovery** — `tx pqc recover-key` reconstructs an account's ML-DSA-87 key from its BIP-39 mnemonic using the ecosystem-standard derivation, so a key can be recovered or reproduced on a new host without a random keygen. Client-side signing uses the standards `qorechain-pqc` library (FIPS-204, KAT-vectored).
 - CLI: `tx abstractaccount execute-cosmos` / `execute-evm` and authenticator signing helpers.
+
+### Changed
+- A linked authenticator that has **expired** now returns a distinct error (`session key expired`) instead of a generic permission denial, so wallets can prompt to re-link.
+- The binary is now stamped with its release version (reported by `qorechaind version` and in node info).
 
 ### Notes
 - Additive change (new message types, no re-genesis); coordinated through governance on production networks. Existing accounts and standard transactions are unaffected.

@@ -62,7 +62,20 @@ registered on-chain. The mnemonic is read from STDIN. Stores the private key und
 			if mnemonic == "" {
 				return fmt.Errorf("no mnemonic on stdin (pipe the BIP-39 phrase in)")
 			}
-			seed := qpqc.Shake256([]byte("qorechain:pqc:v1|"+address+"|"+mnemonic), 32)
+			// Two derivations exist in the ecosystem — pick the one the key was
+			// registered with. "adapter" (SDK/@qorechain/wallet-adapter, address-
+			// bound) vs "bridge" (@qorechain/chain-bridge, faucet-api / dashboard
+			// backends — mnemonic only).
+			derivation, _ := cmd.Flags().GetString("derivation")
+			var seed []byte
+			switch derivation {
+			case "bridge", "mnemonic-only":
+				seed = qpqc.Shake256([]byte(mnemonic), 32)
+			case "adapter", "":
+				seed = qpqc.Shake256([]byte("qorechain:pqc:v1|"+address+"|"+mnemonic), 32)
+			default:
+				return fmt.Errorf("unknown --derivation %q (use adapter|bridge)", derivation)
+			}
 			pk, sk, err := qpqc.MLDSA87.KeygenFromSeed(seed)
 			if err != nil {
 				return fmt.Errorf("keygen from seed: %w", err)
@@ -79,6 +92,7 @@ registered on-chain. The mnemonic is read from STDIN. Stores the private key und
 			return nil
 		},
 	}
+	cmd.Flags().String("derivation", "adapter", "seed derivation: adapter (shake256(\"qorechain:pqc:v1|addr|mnemonic\"), SDK/wallet-adapter) | bridge (shake256(mnemonic), chain-bridge/faucet-api)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
