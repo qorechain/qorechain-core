@@ -61,6 +61,57 @@ func TestQPQCKeygenFromSeedDeterministic(t *testing.T) {
 	}
 }
 
+// TestRotationDualSigVerifiesUnderFFI mirrors rotatePQCKeyImpl's crypto path: it
+// derives an OLD (legacy "bridge" derivation) and NEW (canonical "adapter")
+// ML-DSA-87 key from the same mnemonic, has BOTH sign the exact
+// RotationSignBytes the handler re-derives, and asserts both signatures verify
+// under the chain FFI. This is the cross-impl boundary `tx pqc rotate-key` relies
+// on, and proves a legacy→canonical rotation the handler will accept.
+func TestRotationDualSigVerifiesUnderFFI(t *testing.T) {
+	const (
+		chainID  = "qorechain-diana"
+		address  = "qor1wv0fvt5qzx7gllk9ckzv3u6ypceaqq8evuny0h"
+		mnemonic = "test test test test test test test test test test test junk"
+	)
+	// OLD = bridge (mnemonic-only); NEW = adapter (address-bound).
+	oldSeed := qpqc.Shake256([]byte(mnemonic), 32)
+	newSeed := qpqc.Shake256([]byte("qorechain:pqc:v1|"+address+"|"+mnemonic), 32)
+	oldPub, oldSec, err := qpqc.MLDSA87.KeygenFromSeed(oldSeed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newPub, newSec, err := qpqc.MLDSA87.KeygenFromSeed(newSeed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(oldPub) == string(newPub) {
+		t.Fatal("bridge and adapter derivations collided — rotation would be a no-op")
+	}
+
+	signBytes := types.RotationSignBytes(chainID, uint32(types.AlgorithmDilithium5), address, oldPub, newPub)
+	oldSig, err := qpqc.MLDSA87.Sign(oldSec, signBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newSig, err := qpqc.MLDSA87.Sign(newSec, signBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fc := ffi.NewFFIClient()
+	if ok, err := fc.Verify(types.AlgorithmDilithium5, oldPub, signBytes, oldSig); err != nil || !ok {
+		t.Fatalf("OLD-key rotation signature failed FFI verify (ok=%v err=%v)", ok, err)
+	}
+	if ok, err := fc.Verify(types.AlgorithmDilithium5, newPub, signBytes, newSig); err != nil || !ok {
+		t.Fatalf("NEW-key rotation signature failed FFI verify (ok=%v err=%v)", ok, err)
+	}
+	// Cross-check: the OLD signature must NOT verify against the NEW key (the
+	// handler's dual-sig check would otherwise be forgeable).
+	if ok, _ := fc.Verify(types.AlgorithmDilithium5, newPub, signBytes, oldSig); ok {
+		t.Fatal("OLD signature verified under NEW key — dual-sig binding is broken")
+	}
+}
+
 func mustSec(t *testing.T, seed []byte) []byte {
 	_, sec, err := qpqc.MLDSA87.KeygenFromSeed(seed)
 	if err != nil {

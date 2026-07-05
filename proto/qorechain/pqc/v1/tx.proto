@@ -20,6 +20,12 @@ service Msg {
   // MigratePQCKey migrates an account's PQC key from one algorithm to another.
   rpc MigratePQCKey(MsgMigratePQCKey) returns (MsgMigratePQCKeyResponse);
 
+  // RotatePQCKey replaces an account's PQC key with a NEW key of the SAME
+  // algorithm — for rotating a compromised key or moving a legacy-derived key to
+  // the canonical derivation. Dual-signed (old proves ownership, new proves
+  // control); needs no active algorithm migration.
+  rpc RotatePQCKey(MsgRotatePQCKey) returns (MsgRotatePQCKeyResponse);
+
   // DeprecateAlgorithm starts the migration period for an algorithm (governance).
   rpc DeprecateAlgorithm(MsgDeprecateAlgorithm) returns (MsgDeprecateAlgorithmResponse);
 
@@ -63,6 +69,22 @@ message MsgMigratePQCKey {
   bytes new_signature = 6;
 }
 message MsgMigratePQCKeyResponse {}
+
+// MsgRotatePQCKey replaces an account's PQC key with a new key of the SAME
+// algorithm. Both signatures are over the domain-separated bytes
+// "qorechain-pqc-rotate-v1|chainid|algo|account|oldkey|newkey" (no block height —
+// the signer cannot predict it; replay is prevented because after the rotation
+// the old key no longer matches the registered key).
+message MsgRotatePQCKey {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  bytes old_public_key = 2;
+  bytes new_public_key = 3;
+  bytes old_signature = 4;
+  bytes new_signature = 5;
+}
+message MsgRotatePQCKeyResponse {}
 
 // MsgDeprecateAlgorithm proposes deprecating an algorithm (starts migration period).
 message MsgDeprecateAlgorithm {

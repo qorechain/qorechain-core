@@ -101,6 +101,7 @@ var keyManagementMsgs = map[string]struct{}{
 	"/qorechain.pqc.v1.MsgRegisterPQCKeyV2":                  {},
 	"/qorechain.pqc.v1.MsgRegisterPQCKey":                    {},
 	"/qorechain.pqc.v1.MsgMigratePQCKey":                     {},
+	"/qorechain.pqc.v1.MsgRotatePQCKey":                      {},
 }
 
 // RequiredPermission returns the permission a message type URL requires and

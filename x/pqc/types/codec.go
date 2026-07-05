@@ -13,6 +13,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgRegisterPQCKey{},
 		&MsgRegisterPQCKeyV2{},
 		&MsgMigratePQCKey{},
+		&MsgRotatePQCKey{},
 		&MsgAddAlgorithm{},
 		&MsgDeprecateAlgorithm{},
 		&MsgDisableAlgorithm{},
@@ -35,6 +36,7 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgRegisterPQCKey{}, "pqc/MsgRegisterPQCKey", nil)
 	cdc.RegisterConcrete(&MsgRegisterPQCKeyV2{}, "pqc/MsgRegisterPQCKeyV2", nil)
 	cdc.RegisterConcrete(&MsgMigratePQCKey{}, "pqc/MsgMigratePQCKey", nil)
+	cdc.RegisterConcrete(&MsgRotatePQCKey{}, "pqc/MsgRotatePQCKey", nil)
 	cdc.RegisterConcrete(&MsgAddAlgorithm{}, "pqc/MsgAddAlgorithm", nil)
 	cdc.RegisterConcrete(&MsgDeprecateAlgorithm{}, "pqc/MsgDeprecateAlgorithm", nil)
 	cdc.RegisterConcrete(&MsgDisableAlgorithm{}, "pqc/MsgDisableAlgorithm", nil)

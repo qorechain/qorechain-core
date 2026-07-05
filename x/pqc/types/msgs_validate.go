@@ -62,6 +62,25 @@ func (msg *MsgMigratePQCKey) ValidateBasic() error {
 	return nil
 }
 
+func (msg *MsgRotatePQCKey) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Sender); err != nil {
+		return err
+	}
+	if len(msg.OldPublicKey) == 0 {
+		return ErrInvalidKeyLength.Wrap("old_public_key is required")
+	}
+	if len(msg.NewPublicKey) == 0 {
+		return ErrInvalidKeyLength.Wrap("new_public_key is required")
+	}
+	if len(msg.OldSignature) == 0 {
+		return ErrDualSigRequired.Wrap("old_signature is required for rotation")
+	}
+	if len(msg.NewSignature) == 0 {
+		return ErrDualSigRequired.Wrap("new_signature is required for rotation")
+	}
+	return nil
+}
+
 func (msg *MsgDeprecateAlgorithm) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
 		return err
