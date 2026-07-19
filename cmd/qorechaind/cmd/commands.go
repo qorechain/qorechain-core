@@ -183,7 +183,13 @@ func initRootCmd(
 		queryCommand(basicManager),
 		txCommand(basicManager),
 		keys.Commands(),
+		qoreBuildInfoCmd(),
 	)
+
+	// Security: the standard `version` command added by cosmosevmserver.AddCommands
+	// is neutered (prints nothing, hidden from help) so the build cannot be
+	// fingerprinted from the CLI. The real version is only via `aratavers`.
+	hideVersionCommand(rootCmd)
 }
 
 func genesisCommand(txConfig client.TxConfig, basicManager module.BasicManager, cmds ...*cobra.Command) *cobra.Command {

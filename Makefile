@@ -18,10 +18,14 @@ GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
 LIB_DIR := ./lib/$(GOOS)_$(GOARCH)
 
+# NOTE: version.Version / version.Commit are deliberately NOT stamped — that
+# keeps `qorechaind version` and node_info application_version empty so the build
+# is not fingerprintable. The real version goes into a PRIVATE var surfaced only
+# by the hidden `aratavers` command.
 LDFLAGS := -X github.com/cosmos/cosmos-sdk/version.Name=qorechain \
 	-X github.com/cosmos/cosmos-sdk/version.AppName=$(BINARY_NAME) \
-	-X github.com/cosmos/cosmos-sdk/version.Version=$(VERSION) \
-	-X github.com/cosmos/cosmos-sdk/version.Commit=$(COMMIT)
+	-X github.com/qorechain/qorechain-core/cmd/qorechaind/cmd.QoreBuildID=$(VERSION) \
+	-X github.com/qorechain/qorechain-core/cmd/qorechaind/cmd.QoreCommit=$(COMMIT)
 
 BUILD_FLAGS := -ldflags '$(LDFLAGS)'
 
