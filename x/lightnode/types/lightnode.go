@@ -36,7 +36,24 @@ type LightNodeInfo struct {
 	ExpectedHeartbeats       uint64     `json:"expected_heartbeats"`
 	DelegatedStake           string     `json:"delegated_stake"`
 	AccumulatedRewards       string     `json:"accumulated_rewards"`
-	InitialHeartbeatInterval int64      `json:"initial_heartbeat_interval"`
+
+	// InitialHeartbeatInterval records the heartbeat cadence in force when the
+	// node registered. It is INFORMATIONAL ONLY: provenance for the operator,
+	// surfaced in the query view. It is deliberately NOT used in the uptime
+	// maths, because freezing a node's expectation at its registration cadence
+	// forever would permanently mis-rate it after any governance change to
+	// heartbeat_interval. See ExpectedAccruedThrough for the real mechanism.
+	InitialHeartbeatInterval int64 `json:"initial_heartbeat_interval"`
+
+	// ExpectedAccruedThrough is the block height up to which ExpectedHeartbeats
+	// has already been accounted for. Expectation is accrued forward from this
+	// mark using the interval in force at the time, and never recomputed from
+	// the node's whole history, so a governance change to heartbeat_interval
+	// only ever affects blocks after the change. Zero means "not yet set"
+	// (a record written before this field existed, or a genesis file that omits
+	// it); RecordHeartbeat then reconstructs the mark from RegisteredAt and the
+	// intervals already charged.
+	ExpectedAccruedThrough int64 `json:"expected_accrued_through"`
 }
 
 // LightNodeStats tracks aggregate statistics for the lightnode module.
