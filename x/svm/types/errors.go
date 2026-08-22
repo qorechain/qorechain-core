@@ -23,4 +23,8 @@ var (
 	ErrAirdropExceeded       = errorsmod.Register(ModuleName, 19, "airdrop rate limit exceeded")
 	ErrBlockhashExpired      = errorsmod.Register(ModuleName, 20, "blockhash expired")
 	ErrNativeProgramError    = errorsmod.Register(ModuleName, 21, "native program execution error")
+	// ErrUnauthorized guards value movement out of an account that did not
+	// authorise it. Declaring an account WRITABLE is not authorisation; only a
+	// verified signature is. See the settlement pass in the executor.
+	ErrUnauthorized          = errorsmod.Register(ModuleName, 22, "unauthorized account modification")
 )
