@@ -61,6 +61,20 @@ if [ -z "${SEEDS:-}" ] && [ -z "${PERSISTENT_PEERS:-}" ]; then
     echo "         Set SEEDS and/or PERSISTENT_PEERS so the node can discover the network."
 fi
 
+# 4. Double-sign guard file. `qorechaind start` refuses to boot without
+#    data/priv_validator_state.json, but `init` only writes it on a fresh home.
+#    An operator who restores a published snapshot arrives with config/ already
+#    populated, so step 1 is skipped and the file may be absent — the node then
+#    crashloops before it ever dials a peer. Create it only when missing: on a
+#    validator this file is the double-sign guard, and overwriting a real one
+#    with height 0 would let the node sign a block it has already signed.
+STATE_FILE="$HOME_DIR/data/priv_validator_state.json"
+if [ ! -f "$STATE_FILE" ]; then
+    echo "Creating missing $STATE_FILE (fresh signing state)"
+    mkdir -p "$HOME_DIR/data"
+    echo '{"height":"0","round":0,"step":0}' > "$STATE_FILE"
+fi
+
 # The REST API listen address has no start flag, so bind it to all interfaces in
 # app.toml (default is localhost-only, unreachable from outside the container).
 sed -i 's|address = "tcp://localhost:1317"|address = "tcp://0.0.0.0:1317"|' "$CONFIG_DIR/app.toml" 2>/dev/null || true
