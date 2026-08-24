@@ -6,6 +6,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/amm/types"
+	"github.com/qorechain/qorechain-core/x/govauth"
 )
 
 // msgServer implements the proto-generated AMM MsgServer by delegating to the
@@ -63,6 +64,12 @@ func (s msgServer) SwapExactOut(goCtx context.Context, msg *types.MsgSwapExactOu
 }
 
 func (s msgServer) PausePool(goCtx context.Context, msg *types.MsgPausePool) (*types.MsgPausePoolResponse, error) {
+	// Governance-only: the `authority` field is this message's declared signer,
+	// so it proves nothing by itself. See x/govauth.
+	if err := govauth.Assert(msg.Authority); err != nil {
+		return nil, err
+	}
+
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	if err := s.keeper.PausePool(ctx, *msg); err != nil {
 		return nil, err
@@ -71,6 +78,12 @@ func (s msgServer) PausePool(goCtx context.Context, msg *types.MsgPausePool) (*t
 }
 
 func (s msgServer) ResumePool(goCtx context.Context, msg *types.MsgResumePool) (*types.MsgResumePoolResponse, error) {
+	// Governance-only: the `authority` field is this message's declared signer,
+	// so it proves nothing by itself. See x/govauth.
+	if err := govauth.Assert(msg.Authority); err != nil {
+		return nil, err
+	}
+
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	if err := s.keeper.ResumePool(ctx, *msg); err != nil {
 		return nil, err
