@@ -12,6 +12,15 @@
 # Validators share the network and reach BFT consensus once both are
 # producing blocks. The slashing test (§4.29) halts node 2 for >1 minute
 # and confirms the chain catches its liveness fault.
+# Ports are published on 127.0.0.1 deliberately. RPC (26657), REST (1317),
+# gRPC (9090) and the EVM endpoints (8545/8546) have no authentication: on
+# 0.0.0.0 they are an open door to anyone who can reach the host, and the EVM
+# debug/trace namespaces make that worse. P2P (26656) stays on all interfaces
+# because the node cannot accept peers otherwise.
+#
+# To serve any of these publicly, put a reverse proxy in front that terminates
+# TLS and rate-limits, and change the binding there - not here.
+
 services:
   # ──────────────────────────────────────────────────────────────────
   # qorechain-devnet-node-1 (primary validator)
@@ -26,12 +35,12 @@ services:
     # bootstrap entrypoint.
     entrypoint: ["/scripts/init-node.sh"]
     ports:
-      - "26657:26657"   # consensus RPC
+      - "127.0.0.1:26657:26657"   # consensus RPC
       - "26656:26656"   # consensus P2P
-      - "1317:1317"     # REST
-      - "9090:9090"     # gRPC
-      - "8545:8545"     # EVM JSON-RPC
-      - "8546:8546"     # EVM WS
+      - "127.0.0.1:1317:1317"     # REST
+      - "127.0.0.1:9090:9090"     # gRPC
+      - "127.0.0.1:8545:8545"     # EVM JSON-RPC
+      - "127.0.0.1:8546:8546"     # EVM WS
     volumes:
       - devnet-node1-data:/home/qorechaind/.qorechaind
       - ./scripts/devnet/init-node1.sh:/scripts/init-node.sh:ro
@@ -67,12 +76,12 @@ services:
       qorechain-devnet-node-1:
         condition: service_healthy
     ports:
-      - "26757:26657"
+      - "127.0.0.1:26757:26657"
       - "26756:26656"
-      - "1417:1317"
-      - "9091:9090"
-      - "8645:8545"
-      - "8646:8546"
+      - "127.0.0.1:1417:1317"
+      - "127.0.0.1:9091:9090"
+      - "127.0.0.1:8645:8545"
+      - "127.0.0.1:8646:8546"
     volumes:
       - devnet-node2-data:/home/qorechaind/.qorechaind
       - ./scripts/devnet/init-node2.sh:/scripts/init-node.sh:ro

@@ -1,3 +1,12 @@
+# Ports are published on 127.0.0.1 deliberately. RPC (26657), REST (1317),
+# gRPC (9090) and the EVM endpoints (8545/8546) have no authentication: on
+# 0.0.0.0 they are an open door to anyone who can reach the host, and the EVM
+# debug/trace namespaces make that worse. P2P (26656) stays on all interfaces
+# because the node cannot accept peers otherwise.
+#
+# To serve any of these publicly, put a reverse proxy in front that terminates
+# TLS and rate-limits, and change the binding there - not here.
+
 services:
   # ─────────────────────────────────────────────
   # QoreChain Node (validator)
@@ -8,13 +17,13 @@ services:
       dockerfile: Dockerfile
     container_name: qorechain-validator-1
     ports:
-      - "26657:26657"   # Consensus Engine Engine RPC
+      - "127.0.0.1:26657:26657"   # Consensus Engine Engine RPC
       - "26656:26656"   # Consensus Engine Engine P2P
-      - "1317:1317"     # Cosmos SDK REST API
-      - "9090:9090"     # Cosmos SDK gRPC
-      - "26660:26660"   # Prometheus metrics
-      - "8545:8545"     # EVM JSON-RPC (HTTP)
-      - "8546:8546"     # EVM JSON-RPC (WebSocket)
+      - "127.0.0.1:1317:1317"     # Cosmos SDK REST API
+      - "127.0.0.1:9090:9090"     # Cosmos SDK gRPC
+      - "127.0.0.1:26660:26660"   # Prometheus metrics
+      - "127.0.0.1:8545:8545"     # EVM JSON-RPC (HTTP)
+      - "127.0.0.1:8546:8546"     # EVM JSON-RPC (WebSocket)
     volumes:
       - node-data:/home/qorechaind/.qorechaind
     environment:
@@ -42,7 +51,7 @@ services:
     image: ghcr.io/qorechain/ai-sidecar:latest
     container_name: qorechain-ai-sidecar
     ports:
-      - "50051:50051"   # gRPC
+      - "127.0.0.1:50051:50051"   # gRPC
     env_file:
       - .env.sidecar
     environment:

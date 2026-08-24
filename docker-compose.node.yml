@@ -20,6 +20,15 @@
 # See the README section "Run a QoreChain-Only Node (Exchanges & Integrators)".
 # ──────────────────────────────────────────────────────────────────────────────
 
+# Ports are published on 127.0.0.1 deliberately. RPC (26657), REST (1317),
+# gRPC (9090) and the EVM endpoints (8545/8546) have no authentication: on
+# 0.0.0.0 they are an open door to anyone who can reach the host, and the EVM
+# debug/trace namespaces make that worse. P2P (26656) stays on all interfaces
+# because the node cannot accept peers otherwise.
+#
+# To serve any of these publicly, put a reverse proxy in front that terminates
+# TLS and rate-limits, and change the binding there - not here.
+
 services:
   qorechain-node:
     build:
@@ -30,13 +39,13 @@ services:
     # Join the live network instead of bootstrapping a fresh local chain.
     entrypoint: ["/scripts/join-network.sh"]
     ports:
-      - "26657:26657"   # RPC
+      - "127.0.0.1:26657:26657"   # RPC
       - "26656:26656"   # P2P
-      - "1317:1317"     # REST API
-      - "9090:9090"     # gRPC
-      - "8545:8545"     # EVM JSON-RPC (HTTP)
-      - "8546:8546"     # EVM JSON-RPC (WebSocket)
-      - "26660:26660"   # Prometheus metrics
+      - "127.0.0.1:1317:1317"     # REST API
+      - "127.0.0.1:9090:9090"     # gRPC
+      - "127.0.0.1:8545:8545"     # EVM JSON-RPC (HTTP)
+      - "127.0.0.1:8546:8546"     # EVM JSON-RPC (WebSocket)
+      - "127.0.0.1:26660:26660"   # Prometheus metrics
     volumes:
       - node-data:/home/qorechaind/.qorechaind
       # Optional: mount the network genesis instead of setting GENESIS_URL.
