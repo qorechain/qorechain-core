@@ -610,3 +610,4 @@ license+build flow), see:
 Apache 2.0 — see [LICENSE](LICENSE)
 
 Core blockchain protocol is open source. PQC cryptographic libraries and BPF execution engine are distributed as pre-compiled binaries under separate licensing terms.
+This repository is actively being developed and may include updates related to post-quantum cryptography, AI-native blockchain architecture, and multi-VM interoperability.
