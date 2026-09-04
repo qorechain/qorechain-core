@@ -33,8 +33,6 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
-	github.com/consensys/gnark v0.15.0 // indirect
-	github.com/consensys/gnark-crypto v0.20.1 // indirect
 	github.com/crate-crypto/go-eth-kzg v1.3.0 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
@@ -125,11 +123,11 @@ require (
 	github.com/cockroachdb/tokenbucket v0.0.0-20230807174530-cc333fc44b06 // indirect
 	github.com/cometbft/cometbft-db v0.14.1 // indirect
 	github.com/cosmos/btcutil v1.0.5 // indirect
-	github.com/cosmos/cosmos-proto v1.0.0-beta.5 // indirect
+	github.com/cosmos/cosmos-proto v1.0.0-beta.5
 	github.com/cosmos/evm v0.6.0
 	github.com/cosmos/go-bip39 v1.0.0 // indirect
 	github.com/cosmos/gogogateway v1.2.0 // indirect
-	github.com/cosmos/gogoproto v1.7.2 // indirect
+	github.com/cosmos/gogoproto v1.7.2
 	github.com/cosmos/iavl v1.2.4 // indirect
 	github.com/cosmos/ibc-go/v10 v10.5.0
 	github.com/cosmos/ics23/go v0.11.0 // indirect
@@ -161,7 +159,7 @@ require (
 	github.com/gogo/googleapis v1.4.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
-	github.com/golang/protobuf v1.5.4 // indirect
+	github.com/golang/protobuf v1.5.4
 	github.com/golang/snappy v0.0.5-0.20231225225746-43d5d4cd4e0e // indirect
 	github.com/google/btree v1.1.3 // indirect
 	github.com/google/flatbuffers v24.3.25+incompatible // indirect
@@ -269,9 +267,9 @@ require (
 	golang.org/x/time v0.12.0 // indirect
 	google.golang.org/api v0.247.0 // indirect
 	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20251202230838-ff82c1b0f217
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
-	google.golang.org/grpc v1.79.3 // indirect
+	google.golang.org/grpc v1.79.3
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 	nhooyr.io/websocket v1.8.17 // indirect
@@ -287,9 +285,21 @@ replace (
 
 	// QoreChain EVM: pin pebble for geth fork compatibility
 	github.com/cockroachdb/pebble => github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593
+	// CONFIDENTIAL until 2026-09-01 15:00 UTC (11:00 New York). The embargo was
+	// EXTENDED from 2026-08-25 by Cosmos Labs, deliberately, to give other chains
+	// time to patch - so publishing this line early shortens a window someone
+	// else is relying on. Points cosmos/evm at the private
+	// security repo Cosmos Labs shared with us. The tag carries both the August
+	// private-disclosure patch and the v0.6.2 fixes: an underflow guard in
+	// stateObject.SubBalance, and ParseAmount summing the extended denom, which
+	// matters here because this chain runs extended_denom "aqor".
+	//
+	// Do NOT push this line to the public repo before the embargo lifts.
+	github.com/cosmos/evm => github.com/cosmos/evm-ghsa-aug-2026 v0.6.3-august-2026-hotfix
 
 	// wasmd: replace deprecated JWT library
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
+
 	// QoreChain EVM: use upstream fork of go-ethereum with SDK compatibility patches
 	github.com/ethereum/go-ethereum => github.com/cosmos/go-ethereum v1.16.2-cosmos-1
 
@@ -300,4 +310,8 @@ replace (
 	github.com/syndtr/goleveldb => github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 )
 
-require github.com/qorechain/qorechain-pqc/go v0.1.1
+require (
+	github.com/consensys/gnark v0.15.0
+	github.com/consensys/gnark-crypto v0.20.1
+	github.com/qorechain/qorechain-pqc/go v0.1.1
+)

@@ -34,11 +34,11 @@ import (
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
-	licensemod "github.com/qorechain/qorechain-core/x/license"
-	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
+	licensemod "github.com/qorechain/qorechain-core/x/license"
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
+	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 )
 
@@ -192,6 +192,11 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 			sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}),
 		),
 		ante.NewSetUpContextDecorator(),
+		// Mempool-only guard: refuse CosmWasm upload/instantiate into this
+		// node's mempool. CheckTx only, so block validity is unchanged and
+		// this can be rolled out per-node. Remove once governance has set
+		// code_upload_access to Nobody.
+		NewWasmMempoolGuardDecorator(),
 		// CosmWasm decorators — limit simulation gas and track tx position
 		wasmkeeper.NewLimitSimulationGasDecorator(options.WasmConfig.SimulationGasLimit),
 		wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService),
