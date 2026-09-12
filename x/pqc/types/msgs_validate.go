@@ -29,6 +29,24 @@ func (msg *MsgRegisterPQCKeyV2) ValidateBasic() error {
 	if msg.AlgorithmID == AlgorithmUnspecified {
 		return ErrInvalidAlgorithm.Wrap("algorithm_id is required")
 	}
+	// An authentication key must be able to sign. ML-KEM is a key-encapsulation
+	// mechanism with no signing operation, so registering it leaves the account
+	// unable to produce the hybrid signature the chain requires, and unable to
+	// rotate out of that state because rotation needs a valid signature under the
+	// key on file.
+	//
+	// This rejects what is STATICALLY known to be a KEM rather than demanding
+	// IsSignature(). The difference matters: IsSignature() is a fixed switch over
+	// the built-ins, so requiring it here would also reject a signature algorithm
+	// added later by governance, which ValidateBasic cannot know about because it
+	// has no access to the on-chain algorithm registry. The keeper performs the
+	// positive check against that registry; this is the cheap, early, always-safe
+	// half.
+	if msg.AlgorithmID.IsKEM() {
+		return ErrInvalidAlgorithm.Wrapf(
+			"algorithm %s is a key-encapsulation mechanism and cannot be used as an "+
+				"authentication key", msg.AlgorithmID)
+	}
 	if len(msg.PublicKey) == 0 && msg.KeyType != KeyTypeClassicalOnly {
 		return ErrInvalidKeyLength.Wrap("public_key required for hybrid or pqc_only key type")
 	}
