@@ -28,9 +28,9 @@ func GetTxCmd() *cobra.Command {
 
 func cmdCrossVMCall() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "call [source-vm] [target-vm] [target-contract]",
-		Short: "Submit a cross-VM message (vm: evm|cosmwasm|svm). Payload via --payload (hex).",
-		Args:  cobra.ExactArgs(3),
+		Use:   "call [target-vm] [target-contract]",
+		Short: "Call a contract on another VM (vm: evm|cosmwasm|svm). Payload via --payload (hex).",
+		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
@@ -49,19 +49,25 @@ func cmdCrossVMCall() *cobra.Command {
 					return err
 				}
 			}
+			async, _ := cmd.Flags().GetBool("async")
+			// No source-vm argument: the chain derives the origin lane from the
+			// execution context, so asking the caller to name it would only invite a
+			// value the node discards.
 			msg := &types.MsgCrossVMCall{
 				Sender:         clientCtx.GetFromAddress().String(),
-				SourceVM:       types.VMType(args[0]),
-				TargetVM:       types.VMType(args[1]),
-				TargetContract: args[2],
+				TargetVM:       types.VMType(args[0]),
+				TargetContract: args[1],
 				Payload:        payload,
 				Funds:          funds,
+				Async:          async,
 			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 	cmd.Flags().String("payload", "", "hex-encoded call payload")
-	cmd.Flags().String("funds", "", "coins to attach, e.g. 100uqor")
+	cmd.Flags().String("funds", "", "coins to attach, e.g. 100uqor (CosmWasm targets only)")
+	cmd.Flags().Bool("async", false, "queue the call instead of executing it now; "+
+		"the queue is dispatched by governance, so the result is not returned")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
