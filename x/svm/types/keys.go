@@ -60,7 +60,51 @@ var (
 	// lost when converting between the uqor (x/bank) and lamport (SVM) ledgers:
 	// 0x0C | 32-byte-addr -> uint64 (big-endian, 0..LamportsPerUqor-1)
 	DustKeyPrefix = []byte{0x0C}
+
+	// ConsumedAuthPrefix records authenticator digests that have already been
+	// executed, so the same signed authorisation cannot run twice:
+	// 0x0D | 32-byte-digest -> slot(8 bytes, big-endian)
+	//
+	// WHY THIS EXISTS. A recent blockhash bounds how LONG an authorisation stays
+	// valid; it does not bound how MANY times it can be used inside that window.
+	// Solana closes that with a status cache of recent signatures, and without the
+	// equivalent the freshness window is a replay window. See also
+	// ConsumedAuthBySlotPrefix, which exists only so the set can be pruned.
+	ConsumedAuthPrefix = []byte{0x0D}
+
+	// ConsumedAuthBySlotPrefix indexes consumed digests by the slot they were
+	// consumed at, so entries can be dropped once their blockhash leaves the
+	// window: 0x0E | slot(8 bytes, big-endian) | 32-byte-digest -> {1}
+	ConsumedAuthBySlotPrefix = []byte{0x0E}
 )
+
+// ConsumedAuthKey returns the store key recording that an authenticator digest
+// has been used.
+func ConsumedAuthKey(digest []byte) []byte {
+	key := make([]byte, 0, 1+len(digest))
+	key = append(key, ConsumedAuthPrefix...)
+	return append(key, digest...)
+}
+
+// ConsumedAuthBySlotKey returns the pruning-index key for a consumed digest.
+func ConsumedAuthBySlotKey(slot uint64, digest []byte) []byte {
+	key := make([]byte, 0, 1+8+len(digest))
+	key = append(key, ConsumedAuthBySlotPrefix...)
+	var b [8]byte
+	binary.BigEndian.PutUint64(b[:], slot)
+	key = append(key, b[:]...)
+	return append(key, digest...)
+}
+
+// ConsumedAuthSlotPrefixKey returns the prefix covering every consumed digest
+// recorded at a given slot.
+func ConsumedAuthSlotPrefixKey(slot uint64) []byte {
+	key := make([]byte, 0, 1+8)
+	key = append(key, ConsumedAuthBySlotPrefix...)
+	var b [8]byte
+	binary.BigEndian.PutUint64(b[:], slot)
+	return append(key, b[:]...)
+}
 
 // DustKey returns the store key for an SVM address's sub-uqor lamport dust.
 func DustKey(addr [32]byte) []byte {
