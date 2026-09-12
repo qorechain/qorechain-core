@@ -399,9 +399,9 @@ func NewQoreChainApp(
 		app.StakingKeeper,
 		app.FeeMarketKeeper,
 		&app.ConsensusParamsKeeper,
-		&app.Erc20Keeper,          // forward reference — assigned below
+		&app.Erc20Keeper,           // forward reference — assigned below
 		resolveEVMChainID(appOpts), // per-network EVM chain ID (diana=9800, vladi=9801)
-		"",                        // tracer (empty = default)
+		"",                         // tracer (empty = default)
 	)
 
 	// Step 4: Erc20Keeper (depends on EVMKeeper; forward-ref to TransferKeeper)
@@ -577,19 +577,23 @@ func NewQoreChainApp(
 	app.SVMKeeper.SetBankKeeper(app.BankKeeper)
 
 	// Wire SVM into CrossVM routing so cross-VM messages can target SVM programs.
-	crossvmmod.SetSVMCallHandler(func(ctx sdk.Context, targetContract string, payload []byte, _ string) ([]byte, error) {
+	//
+	// The sender is passed through rather than dropped. It used to be discarded, and
+	// the call was made with no accounts and no signers, which left a program nothing
+	// to act on and nobody to act for. x/crossvm derives the caller from the calling
+	// lane's execution context, so what arrives here is the chain's conclusion about
+	// who is calling; the keeper decodes the account list from the payload and permits
+	// a signer flag only on the caller's own address.
+	crossvmmod.SetSVMCallHandler(func(ctx sdk.Context, targetContract string, payload []byte, sender string) ([]byte, error) {
 		programAddr, err := svmtypes.Base58Decode(targetContract)
 		if err != nil {
 			return nil, fmt.Errorf("invalid SVM program address: %w", err)
 		}
-		result, err := app.SVMKeeper.ExecuteProgram(ctx, programAddr, payload, nil, nil)
+		caller, err := sdk.AccAddressFromBech32(sender)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("invalid cross-VM caller address: %w", err)
 		}
-		if !result.Success {
-			return nil, fmt.Errorf("SVM execution failed: %s", result.Error)
-		}
-		return result.ReturnData, nil
+		return app.SVMKeeper.ExecuteCrossVMCall(ctx, programAddr, payload, caller)
 	})
 
 	// --- Initialize RL Consensus module (via factory) ---
@@ -894,11 +898,11 @@ func (app *QoreChainApp) setAnteHandler(
 	anteHandler, err := NewAnteHandler(
 		HandlerOptions{
 			HandlerOptions: ante.HandlerOptions{
-				AccountKeeper:          app.AccountKeeper,
-				BankKeeper:             app.BankKeeper,
-				SignModeHandler:        txConfig.SignModeHandler(),
-				FeegrantKeeper:         app.FeeGrantKeeper,
-				SigGasConsumer:         sigVerificationGasConsumerWithPQC,
+				AccountKeeper:   app.AccountKeeper,
+				BankKeeper:      app.BankKeeper,
+				SignModeHandler: txConfig.SignModeHandler(),
+				FeegrantKeeper:  app.FeeGrantKeeper,
+				SigGasConsumer:  sigVerificationGasConsumerWithPQC,
 				// Allow BOTH the EVM dynamic-fee extension and the PQC hybrid
 				// signature extension (/qorechain.pqc.v1.PQCHybridSignature).
 				// Without this the ExtensionOptionsDecorator would reject every
@@ -906,7 +910,7 @@ func (app *QoreChainApp) setAnteHandler(
 				ExtensionOptionChecker: func(o *codectypes.Any) bool {
 					return antetypes.HasDynamicFeeExtensionOption(o) || o.GetTypeUrl() == pqctypes.HybridSigTypeURL
 				},
-				TxFeeChecker:           evmante.NewDynamicFeeChecker(&fmDefaults),
+				TxFeeChecker: evmante.NewDynamicFeeChecker(&fmDefaults),
 			},
 			CircuitKeeper:         &app.CircuitKeeper,
 			PQCKeeper:             app.PQCKeeper,

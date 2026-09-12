@@ -42,6 +42,11 @@ func (k *StubKeeper) ExecuteProgram(_ sdk.Context, _ [32]byte, _ []byte,
 	return nil, types.ErrSVMDisabled
 }
 
+func (k *StubKeeper) ExecuteCrossVMCall(_ sdk.Context, _ [32]byte, _ []byte,
+	_ sdk.AccAddress) ([]byte, error) {
+	return nil, types.ErrSVMDisabled
+}
+
 func (k *StubKeeper) SetBankKeeper(_ types.BankKeeper) {}
 
 func (k *StubKeeper) GetNativeLamports(_ sdk.Context, _ [32]byte) uint64 {

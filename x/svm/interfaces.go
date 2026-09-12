@@ -27,6 +27,13 @@ type SVMKeeper interface {
 	ExecuteProgram(ctx sdk.Context, programID [32]byte, instruction []byte,
 		accounts []types.AccountMeta, signers [][32]byte) (*types.ExecutionResult, error)
 
+	// ExecuteCrossVMCall runs a program on behalf of a caller on another VM. The
+	// payload carries the account list as well as the instruction data (see
+	// types.DecodeCrossVMInstruction), and only the caller's own address may be
+	// marked as a signer.
+	ExecuteCrossVMCall(ctx sdk.Context, programID [32]byte, payload []byte,
+		caller sdk.AccAddress) ([]byte, error)
+
 	// SetBankKeeper wires the x/bank keeper so wallet-account balances are
 	// backed by native QOR (one balance, unified across Cosmos/EVM/SVM).
 	// Called once during app init, after the keeper is constructed.
