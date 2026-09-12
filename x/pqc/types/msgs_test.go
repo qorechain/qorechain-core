@@ -107,14 +107,20 @@ func TestMsgRegisterPQCKeyV2_ValidateBasic(t *testing.T) {
 			false,
 		},
 		{
-			"valid mlkem1024",
+			// This case used to assert that a correctly sized ML-KEM key is a VALID
+			// authentication key, which is how the defect survived: the test table
+			// encoded it as intended behaviour. ML-KEM is a key-encapsulation
+			// mechanism with no signing operation, so an account registering it can
+			// never produce the hybrid signature the chain requires and cannot
+			// rotate out, because rotation verifies against the key on file.
+			"mlkem1024 rejected: a KEM cannot be an authentication key",
 			MsgRegisterPQCKeyV2{
 				Sender:      testAddr,
 				PublicKey:   make([]byte, 1568),
 				AlgorithmID: AlgorithmMLKEM1024,
 				KeyType:     KeyTypePQCOnly,
 			},
-			false,
+			true,
 		},
 		{
 			"unspecified algorithm",
