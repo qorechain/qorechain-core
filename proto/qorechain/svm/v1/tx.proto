@@ -13,6 +13,7 @@ service Msg {
   rpc CreateAccount(MsgCreateAccount) returns (MsgCreateAccountResponse);
   rpc ExecuteProgram(MsgExecuteProgram) returns (MsgExecuteProgramResponse);
   rpc RegisterSVMPQCKey(MsgRegisterSVMPQCKey) returns (MsgRegisterSVMPQCKeyResponse);
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
 }
 
 message MsgDeployProgram {
@@ -71,3 +72,39 @@ message MsgRegisterSVMPQCKey {
   bytes pqc_pub_key = 3 [(gogoproto.customname) = "PQCPubKey"];
 }
 message MsgRegisterSVMPQCKeyResponse {}
+
+// SVMParams mirrors the module's runtime parameters so governance can replace
+// them wholesale. The store keeps them as JSON, so the handler converts.
+message SVMParams {
+  uint64 max_program_size = 1;
+  uint64 max_account_data_size = 2;
+  uint64 compute_budget_max = 3;
+  uint64 lamports_per_byte = 4;
+  string rent_exemption_multi = 5 [
+    (gogoproto.customtype) = "cosmossdk.io/math.LegacyDec",
+    (gogoproto.nullable) = false
+  ];
+  bool enabled = 6;
+  int64 svm_slot_offset = 7;
+  uint32 default_sig_scheme = 8;
+  uint32 max_cpi = 9;
+}
+
+// MsgUpdateParams replaces the SVM runtime parameters wholesale.
+//
+// WHY THIS EXISTS. Until now x/svm had no governance message at all, so there was
+// no transaction that could turn the lane off. When the August 2026 incident
+// required closing it, the only available guarantee was a compile-time constant
+// (SVMLaneHardDisabled), which means every later change of mind costs a binary
+// release and a coordinated upgrade. With this message, disabling the lane is a
+// governance proposal like any other.
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  // authority must be the governance module account.
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+  SVMParams params = 2 [(gogoproto.nullable) = false];
+}
+
+message MsgUpdateParamsResponse {}
