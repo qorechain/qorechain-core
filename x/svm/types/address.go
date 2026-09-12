@@ -70,6 +70,29 @@ func CosmosToSVMAddress(cosmosAddr []byte) [32]byte {
 	return out
 }
 
+// IsCanonicalWalletAddress reports whether a 32-byte SVM address is the image of
+// a 20-byte native address under CosmosToSVMAddress, i.e. whether bytes 20..32
+// are all zero.
+//
+// WHY THIS MATTERS: SVMToCosmosAddress maps an SVM address to a native account by
+// TRUNCATING to the first 20 bytes. For a canonical address that is lossless and
+// the two are the same account. For any other 32-byte address - a real Solana
+// pubkey, for instance, which carries full entropy in all 32 bytes - the
+// truncation is lossy: 2^96 distinct SVM addresses collapse onto one native
+// account. Treating such an address as a native-backed wallet would mean two
+// unrelated holders sharing a single x/bank balance, and value credited to an
+// address whose holder cannot spend it while whoever controls that 20-byte native
+// account can. Only canonical addresses may be backed by x/bank; everything else
+// is a program, a PDA or a store-only account.
+func IsCanonicalWalletAddress(svmAddr [32]byte) bool {
+	for _, b := range svmAddr[20:] {
+		if b != 0 {
+			return false
+		}
+	}
+	return true
+}
+
 // EVMToSVMAddress derives a deterministic 32-byte SVM address from a 20-byte EVM address.
 // Uses SHAKE-256(evmAddr || "qorechain-svm") for domain separation. NOTE: this is a one-way
 // derivation; SVMToEVMAddress is NOT its inverse.
