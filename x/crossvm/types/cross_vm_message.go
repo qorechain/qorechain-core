@@ -14,7 +14,30 @@ const (
 	VMTypeEVM      VMType = "evm"
 	VMTypeCosmWasm VMType = "cosmwasm"
 	VMTypeSVM      VMType = "svm"
+
+	// VMTypeNative is the origin of a call that did not come from a contract on
+	// any VM: an account initiating one directly through a Cosmos transaction.
+	// It is a SOURCE ONLY and is rejected as a target, because there is no
+	// "native VM" to route a call into.
+	//
+	// It exists so the source lane can be stated truthfully. Before it, an
+	// account submitting MsgCrossVMCall had to declare itself as one of the three
+	// VMs, and nothing checked the claim, so the field recorded whatever the
+	// sender preferred. A target that reads it to decide what to trust was
+	// reading the caller's own assertion about itself.
+	VMTypeNative VMType = "native"
 )
+
+// IsValidSourceVM reports whether v can be the origin of a cross-VM call.
+func IsValidSourceVM(v VMType) bool {
+	return v == VMTypeEVM || v == VMTypeCosmWasm || v == VMTypeSVM || v == VMTypeNative
+}
+
+// IsValidTargetVM reports whether a call can be routed into v. Narrower than the
+// source set: a call has to land in a runtime that can execute it.
+func IsValidTargetVM(v VMType) bool {
+	return v == VMTypeEVM || v == VMTypeCosmWasm || v == VMTypeSVM
+}
 
 // MessageStatus tracks the lifecycle of a cross-VM message.
 type MessageStatus string
@@ -47,14 +70,21 @@ func (m CrossVMMessage) Validate() error {
 	if m.ID == "" {
 		return fmt.Errorf("message ID cannot be empty")
 	}
-	if m.SourceVM != VMTypeEVM && m.SourceVM != VMTypeCosmWasm && m.SourceVM != VMTypeSVM {
+	if !IsValidSourceVM(m.SourceVM) {
 		return fmt.Errorf("invalid source VM: %s", m.SourceVM)
 	}
-	if m.TargetVM != VMTypeEVM && m.TargetVM != VMTypeCosmWasm && m.TargetVM != VMTypeSVM {
+	if !IsValidTargetVM(m.TargetVM) {
 		return fmt.Errorf("invalid target VM: %s", m.TargetVM)
 	}
 	if m.SourceVM == m.TargetVM {
 		return fmt.Errorf("source and target VM must be different")
+	}
+	// The sender is the identity the target VM executes the call as, so it has to
+	// be a real account address in the canonical encoding. This was unchecked: a
+	// message could be stored with an empty or malformed sender and only fail
+	// later, inside the target lane, when the address was finally parsed.
+	if _, err := sdk.AccAddressFromBech32(m.Sender); err != nil {
+		return fmt.Errorf("invalid sender %q: %w", m.Sender, err)
 	}
 	if m.TargetContract == "" {
 		return fmt.Errorf("target contract cannot be empty")
