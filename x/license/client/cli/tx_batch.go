@@ -191,18 +191,22 @@ The granting key never leaves the machine you run this on.`,
 
 			printBatch(cmd, clientCtx, batch, todo, skipped)
 			if len(todo) == 0 {
-				cmd.Println("\nNothing to grant. No transaction built.")
+				fmt.Fprintln(cmd.ErrOrStderr(), "\nNothing to grant. No transaction built.")
 				return nil
 			}
 
+			// With --generate-only nothing is signed or broadcast here: the output is
+			// an unsigned document that still has to be cosigned, which is where the
+			// real authorisation happens. Prompting would only block the pipeline.
+			generateOnly, _ := cmd.Flags().GetBool(flags.FlagGenerateOnly)
 			confirmed, _ := cmd.Flags().GetBool("yes")
-			if !confirmed {
+			if !confirmed && !generateOnly {
 				ok, err := confirm(cmd, len(todo))
 				if err != nil {
 					return err
 				}
 				if !ok {
-					cmd.Println("Aborted. Nothing was signed.")
+					fmt.Fprintln(cmd.ErrOrStderr(), "Aborted. Nothing was signed.")
 					return nil
 				}
 			}
@@ -249,10 +253,16 @@ func loadBatch(cmd *cobra.Command, src string) ([]byte, error) {
 // printBatch shows exactly what will be signed. This is the authorisation step, so it
 // prints every grant rather than a count.
 func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, todo, skipped []batchGrant) {
-	cmd.Printf("\nChain:     %s\n", batch.ChainID)
-	cmd.Printf("Authority: %s\n", clientCtx.GetFromAddress().String())
+	// Deliberately stderr. The mainnet flow is
+	//   grant-batch ... --generate-only > tx.json
+	//   tx pqc cosign tx.json ...
+	// because the chain requires a hybrid post-quantum signature, and a review table
+	// written to stdout would corrupt the document being redirected.
+	out := cmd.ErrOrStderr()
+	fmt.Fprintf(out, "\nChain:     %s\n", batch.ChainID)
+	fmt.Fprintf(out, "Authority: %s\n", clientCtx.GetFromAddress().String())
 	if batch.GeneratedAt != "" {
-		cmd.Printf("Batch:     generated %s\n", batch.GeneratedAt)
+		fmt.Fprintf(out, "Batch:     generated %s\n", batch.GeneratedAt)
 	}
 
 	byFeature := map[string]int{}
@@ -265,7 +275,7 @@ func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, t
 	}
 	sort.Strings(features)
 
-	cmd.Printf("\nTo grant (%d):\n", len(todo))
+	fmt.Fprintf(out, "\nTo grant (%d):\n", len(todo))
 	for _, g := range todo {
 		expiry := "perpetual"
 		if g.ExpiresAt > 0 {
@@ -275,16 +285,16 @@ func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, t
 		if g.Reference != "" {
 			ref = "  [" + g.Reference + "]"
 		}
-		cmd.Printf("  %-45s %-22s %s%s\n", g.Grantee, g.FeatureID, expiry, ref)
+		fmt.Fprintf(out, "  %-45s %-22s %s%s\n", g.Grantee, g.FeatureID, expiry, ref)
 	}
 	for _, f := range features {
-		cmd.Printf("    %s: %d\n", f, byFeature[f])
+		fmt.Fprintf(out, "    %s: %d\n", f, byFeature[f])
 	}
 
 	if len(skipped) > 0 {
-		cmd.Printf("\nAlready granted, skipped (%d):\n", len(skipped))
+		fmt.Fprintf(out, "\nAlready granted, skipped (%d):\n", len(skipped))
 		for _, g := range skipped {
-			cmd.Printf("  %-45s %s\n", g.Grantee, g.FeatureID)
+			fmt.Fprintf(out, "  %-45s %s\n", g.Grantee, g.FeatureID)
 		}
 	}
 }
@@ -292,7 +302,8 @@ func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, t
 // confirm requires the operator to type the number of grants, not just "y". Typing
 // the count means reading the list, which is the point of showing it.
 func confirm(cmd *cobra.Command, n int) (bool, error) {
-	cmd.Printf("\nSigning as the chain authority. Type %d to confirm, anything else to abort: ", n)
+	fmt.Fprintf(cmd.ErrOrStderr(),
+		"\nSigning as the chain authority. Type %d to confirm, anything else to abort: ", n)
 	var answer string
 	if _, err := fmt.Fscanln(cmd.InOrStdin(), &answer); err != nil {
 		return false, nil
