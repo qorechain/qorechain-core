@@ -31,6 +31,16 @@ service Msg {
 
   // DisableAlgorithm emergency-disables an algorithm (governance).
   rpc DisableAlgorithm(MsgDisableAlgorithm) returns (MsgDisableAlgorithmResponse);
+
+  // OpenEVMWindow authorises the sender's EVM lane for a bounded period.
+  // It is a Cosmos-lane message, so it inherits the chain's post-quantum
+  // signature requirement: opening a window is impossible without the ML-DSA
+  // key, which is what makes the classical key alone insufficient to move funds
+  // on the EVM lane.
+  rpc OpenEVMWindow(MsgOpenEVMWindow) returns (MsgOpenEVMWindowResponse);
+
+  // CloseEVMWindow revokes the sender's window immediately.
+  rpc CloseEVMWindow(MsgCloseEVMWindow) returns (MsgCloseEVMWindowResponse);
 }
 
 // MsgRegisterPQCKey registers a PQC keypair for an account.
@@ -106,3 +116,35 @@ message MsgDisableAlgorithm {
   string reason = 3;
 }
 message MsgDisableAlgorithmResponse {}
+
+// MsgOpenEVMWindow authorises EVM-lane transactions from the sender for a
+// bounded number of transactions, a bounded total outflow, and a bounded number
+// of blocks. Opening replaces any existing window rather than adding to it.
+message MsgOpenEVMWindow {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // blocks is how long the window stays open, counted from the block that
+  // opens it. Bounded by the module's maximum.
+  uint64 blocks = 2;
+  // max_txs is how many EVM transactions the window admits. Zero is rejected:
+  // a window that admits nothing is a mistake, not a policy.
+  uint64 max_txs = 3;
+  // max_value is the total the window admits, in uqor, counting transferred
+  // value AND the maximum fee each transaction could pay. Both drain the
+  // account, so both are bounded.
+  string max_value = 4 [
+    (cosmos_proto.scalar) = "cosmos.Int",
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable) = false
+  ];
+}
+message MsgOpenEVMWindowResponse {
+  uint64 expiry_height = 1;
+}
+
+message MsgCloseEVMWindow {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+message MsgCloseEVMWindowResponse {}

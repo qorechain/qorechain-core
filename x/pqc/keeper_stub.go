@@ -4,6 +4,7 @@ package pqc
 
 import (
 	"cosmossdk.io/log"
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/pqc/types"
@@ -130,4 +131,21 @@ func (k *StubKeeper) DeleteMigration(_ sdk.Context, _ types.AlgorithmID)      {}
 func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()
+}
+
+// EVM-lane authorisation window: the public build has no EVM lane enforcement, so
+// these are inert. ConsumeEVMWindow refuses rather than admits, because a stub that
+// silently allowed the lane would be the very gap the window exists to close.
+func (k *StubKeeper) GetEVMWindow(_ sdk.Context, _ sdk.AccAddress) (types.EVMAuthWindow, bool) {
+	return types.EVMAuthWindow{}, false
+}
+
+func (k *StubKeeper) SetEVMWindow(_ sdk.Context, _ sdk.AccAddress, _ types.EVMAuthWindow) error {
+	return types.ErrInvalidEVMWindow
+}
+
+func (k *StubKeeper) DeleteEVMWindow(_ sdk.Context, _ sdk.AccAddress) {}
+
+func (k *StubKeeper) ConsumeEVMWindow(_ sdk.Context, _ sdk.AccAddress, _ sdkmath.Int) error {
+	return types.ErrNoEVMWindow
 }

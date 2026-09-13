@@ -147,9 +147,31 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 }
 
 // newMonoEVMAnteHandler returns an AnteHandler for Ethereum transactions.
-// Uses the EVMMonoDecorator which handles all EVM-specific pre-checks in one pass.
+//
+// This lane used to contain exactly ONE decorator, the cosmos/evm mono decorator, so
+// every QoreChain gate was skipped on it. Two of those absences were not acceptable:
+//
+//   - THE CIRCUIT BREAKER. It is the chain's emergency brake, the thing that closed
+//     the vesting door in minutes without a release. It did not cover the EVM lane at
+//     all, so an exploit arriving there could not have been stopped without shipping
+//     a binary. An emergency tool with a blind spot on one of three lanes is not an
+//     emergency tool.
+//
+//   - THE POST-QUANTUM REQUIREMENT. The chain states that every account must hold an
+//     ML-DSA-87 key before transacting. On this lane that was not enforced, and the
+//     consequence was measured, not theoretical: an account that never registered a
+//     key moved 1,940 QOR on mainnet. Since a post-quantum signature cannot travel
+//     with an Ethereum transaction, the authorisation travels ahead of it as a
+//     bounded window opened on the Cosmos lane. See x/pqc/ante_evm_window.go.
+//
+// ORDER. The window decorator runs AFTER the mono decorator, because the mono
+// decorator is what verifies the Ethereum signature and establishes the sender.
+// Checking a window against an unverified sender would let anyone consume someone
+// else's authorisation. The circuit breaker runs FIRST, because a message type that
+// has been switched off should cost nothing to reject.
 func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
+		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
 		evmante.NewEVMMonoDecorator(
 			options.EVMAccountKeeper,
 			options.FeeMarketKeeper,
@@ -158,6 +180,7 @@ func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, f
 			evmParams,
 			fmParams,
 		),
+		pqcmod.NewEVMWindowDecorator(options.PQCKeeper),
 	)
 }
 

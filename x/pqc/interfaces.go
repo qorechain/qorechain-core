@@ -2,6 +2,7 @@ package pqc
 
 import (
 	"cosmossdk.io/log"
+	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/pqc/types"
@@ -56,6 +57,13 @@ type PQCKeeper interface {
 	GetPQCAccount(ctx sdk.Context, address string) (types.PQCAccountInfo, bool)
 	HasPQCAccount(ctx sdk.Context, address string) bool
 	SetPQCAccount(ctx sdk.Context, info types.PQCAccountInfo) error
+
+	// EVM-lane authorisation window. ConsumeEVMWindow admits one EVM transaction
+	// against the sender's window or refuses it; see x/pqc/types/evm_window.go.
+	GetEVMWindow(ctx sdk.Context, addr sdk.AccAddress) (types.EVMAuthWindow, bool)
+	SetEVMWindow(ctx sdk.Context, addr sdk.AccAddress, w types.EVMAuthWindow) error
+	DeleteEVMWindow(ctx sdk.Context, addr sdk.AccAddress)
+	ConsumeEVMWindow(ctx sdk.Context, addr sdk.AccAddress, outflow sdkmath.Int) error
 	IncrementPQCVerifications(ctx sdk.Context)
 	IncrementClassicalFallbacks(ctx sdk.Context)
 	IncrementMLKEMOperations(ctx sdk.Context)

@@ -31,4 +31,8 @@ var (
 	ErrInvalidHybridSig   = errors.Register(ModuleName, 23, "invalid hybrid signature format")
 	ErrMalformedExtension = errors.Register(ModuleName, 24, "malformed PQC extension payload")
 	ErrInvalidTimestamp   = errors.Register(ModuleName, 25, "invalid PQC timestamp")
+	// EVM-lane authorisation window (see evm_window.go).
+	ErrNoEVMWindow        = errors.Register(ModuleName, 26, "no open EVM authorisation window")
+	ErrEVMWindowExhausted = errors.Register(ModuleName, 27, "EVM authorisation window exhausted")
+	ErrInvalidEVMWindow   = errors.Register(ModuleName, 28, "invalid EVM authorisation window")
 )
