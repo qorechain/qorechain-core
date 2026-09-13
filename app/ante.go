@@ -95,22 +95,34 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 		return nil, errors.New("ibc keeper is required for ante builder")
 	}
 
-	// Pre-build both handler chains once to avoid per-TX allocation overhead.
-	// The decorators hold pointers to these param structs; we refresh the
-	// pointed-to values from keeper state at the start of every AnteHandle
-	// invocation so that governance-updated params take effect immediately
-	// instead of being stale defaults for the lifetime of the node (ME-05).
-	evmParams := evmtypes.DefaultParams()
-	fmParams := feemarkettypes.DefaultParams()
-	evmHandler := newMonoEVMAnteHandler(options, &evmParams, &fmParams)
-	cosmosHandler := newCosmosAnteHandler(options, &fmParams)
-
-	// Return the dual-routing ante handler function.
+	// PARAMS ARE READ PER INVOCATION, INTO LOCALS, AND NEVER SHARED.
+	//
+	// This used to pre-build both handler chains once and hand the decorators
+	// POINTERS to two param structs that the returned handler then overwrote on
+	// every call. The intent was sound, namely that governance-updated params take
+	// effect immediately instead of being stale for the process lifetime, but the
+	// implementation made those structs shared mutable state.
+	//
+	// The same ante handler instance serves the SIMULATE path, and simulation is
+	// served from the gRPC, REST and JSON-RPC goroutines, which run concurrently
+	// with consensus. Our validators run with the API and JSON-RPC enabled, and the
+	// public endpoint answers simulation requests. So an unauthenticated
+	// eth_estimateGas wrote these structs from a query context while FinalizeBlock
+	// decorators read them: an unsynchronised read and write of a multi-field
+	// struct, and block execution capable of validating a transaction against
+	// fee-market params fetched for a different context. Divergence that depends on
+	// timing and on external query traffic is the worst property a consensus bug can
+	// have.
+	//
+	// Locals inside the closure cost an allocation per transaction and remove the
+	// sharing entirely. That is the right trade: the previous version was optimising
+	// away an allocation at the cost of a consensus hazard.
 	return func(ctx sdk.Context, tx sdk.Tx, sim bool) (sdk.Context, error) {
-		// Refresh cached params from on-chain state so decorators always
-		// operate on live values rather than stale construction-time defaults.
-		evmParams = options.EvmKeeper.GetParams(ctx)
-		fmParams = options.FeeMarketKeeper.GetParams(ctx)
+		evmParams := options.EvmKeeper.GetParams(ctx)
+		fmParams := options.FeeMarketKeeper.GetParams(ctx)
+		evmHandler := newMonoEVMAnteHandler(options, &evmParams, &fmParams)
+		cosmosHandler := newCosmosAnteHandler(options, &fmParams)
+
 		// Check for EVM extension options to route appropriately.
 		txWithExtensions, ok := tx.(ante.HasExtensionOptionsTx)
 		if ok {
@@ -220,6 +232,11 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// this can be rolled out per-node. Remove once governance has set
 		// code_upload_access to Nobody.
 		NewWasmMempoolGuardDecorator(),
+		// Runs here, near the front, because the decorator that expands a multisig
+		// signature into event bytes sits much further down (SetPubKey) and the
+		// expansion is exponential in nesting depth. A guard placed after it would
+		// be checking a node that had already run out of memory.
+		NewMultisigDepthGuardDecorator(),
 		// CosmWasm decorators — limit simulation gas and track tx position
 		wasmkeeper.NewLimitSimulationGasDecorator(options.WasmConfig.SimulationGasLimit),
 		wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService),

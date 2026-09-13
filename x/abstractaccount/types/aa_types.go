@@ -15,10 +15,7 @@ func ValidateSessionKey(key SessionKey) error {
 	if key.Expiry.IsZero() {
 		return fmt.Errorf("session key expiry cannot be zero")
 	}
-	ttl := time.Until(key.Expiry)
-	if ttl > MaxSessionTTL {
-		return fmt.Errorf("session key TTL %v exceeds maximum %v", ttl, MaxSessionTTL)
-	}
+	// The TTL bound is NOT checked here. See ValidateAuthenticatorTTL.
 	if len(key.Permissions) == 0 {
 		return fmt.Errorf("session key must have at least one permission")
 	}
@@ -108,9 +105,7 @@ func ValidateAuthenticator(a Authenticator) error {
 	if a.Expiry.IsZero() {
 		return fmt.Errorf("authenticator expiry cannot be zero")
 	}
-	if ttl := time.Until(a.Expiry); ttl > MaxSessionTTL {
-		return fmt.Errorf("authenticator TTL %v exceeds maximum %v", ttl, MaxSessionTTL)
-	}
+	// The TTL bound is NOT checked here. See ValidateAuthenticatorTTL.
 	if len(a.Permissions) == 0 {
 		return fmt.Errorf("authenticator must have at least one permission")
 	}
@@ -147,4 +142,34 @@ type SessionKey struct {
 // IsExpired checks if a session key has expired.
 func (sk SessionKey) IsExpired(now time.Time) bool {
 	return now.After(sk.Expiry)
+}
+
+// ValidateAuthenticatorTTL bounds how far in the future an expiry may sit, measured
+// against BLOCK TIME.
+//
+// WHY THIS IS NOT IN ValidateBasic, WHICH IS WHERE IT USED TO BE. ValidateBasic runs
+// inside the ante chain, which executes during block finalisation, where every
+// validator must reach the same answer for the same transaction. The check used
+// time.Until, i.e. the node's own wall clock. A registration whose expiry sits
+// within milliseconds of the boundary is then accepted by validators whose clock puts
+// it under the limit and rejected by those whose clock puts it over. Different
+// validators produce different block results, the app hashes diverge, and the chain
+// halts. Submitting one message with a tuned expiry is enough to trigger it, from
+// anywhere, for the price of one transaction.
+//
+// Block time is the same number for every validator executing the same block, which
+// is the whole reason consensus code reads it and never the wall clock. The check
+// therefore moves to the handler, where a context exists.
+//
+// The same rule already had to be learned once in this codebase: x/ai carries a
+// comment about using block time "instead of time.Now() which breaks consensus".
+// This is that rule in the one place it had not been applied.
+func ValidateAuthenticatorTTL(expiry, blockTime time.Time) error {
+	if expiry.IsZero() {
+		return fmt.Errorf("expiry cannot be zero")
+	}
+	if ttl := expiry.Sub(blockTime); ttl > MaxSessionTTL {
+		return fmt.Errorf("TTL %v exceeds maximum %v", ttl, MaxSessionTTL)
+	}
+	return nil
 }
