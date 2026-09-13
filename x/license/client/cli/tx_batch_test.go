@@ -119,6 +119,47 @@ func TestDuplicateDetectionKeyIsPerGranteeAndFeature(t *testing.T) {
 	}
 }
 
+// THE COLLISION THAT THE FIRST CUT HAD. Blocked entries used to fail the whole
+// batch. Once a blocked feature is queued, that means every batch carrying one is
+// refused, taking down the grants that CAN pass. The block would then be blocking the
+// wrong thing, silently, and the queue would have to be pre-filtered by whoever built
+// it, putting the list of blocked features in two places that can drift.
+//
+// Excluding is safe here in a way it is not elsewhere: each grant is independent, so
+// removing one does not change what the others mean. That is the test for whether
+// excluding is acceptable rather than dangerous, and it is why this one may be
+// excluded while a signer flag on someone else's account may not.
+func TestBlockedEntriesAreExcludedNotFatalToTheBatch(t *testing.T) {
+	a := sdk.AccAddress([]byte("a-validator-operator")).String()
+	b := sdk.AccAddress([]byte("a-lightnode-operatr")).String()
+	grants := []batchGrant{
+		{Grantee: a, FeatureID: types.FeatureValidatorOperator},
+		{Grantee: b, FeatureID: types.FeatureLightNodeOperator},
+	}
+
+	var blocked, allowed []batchGrant
+	for _, g := range grants {
+		if _, isBlocked := blockedFeatures[g.FeatureID]; isBlocked {
+			blocked = append(blocked, g)
+			continue
+		}
+		allowed = append(allowed, g)
+	}
+
+	if len(allowed) != 1 || allowed[0].FeatureID != types.FeatureValidatorOperator {
+		t.Fatalf("the validator grant did not survive alongside a blocked one: %+v", allowed)
+	}
+	if len(blocked) != 1 || blocked[0].FeatureID != types.FeatureLightNodeOperator {
+		t.Fatalf("the blocked grant was not set aside: %+v", blocked)
+	}
+	for _, g := range allowed {
+		if _, isBlocked := blockedFeatures[g.FeatureID]; isBlocked {
+			t.Fatal("a blocked feature reached the transaction, which is the one thing " +
+				"excluding must never do")
+		}
+	}
+}
+
 // The confirmation asks for the count rather than a yes, because typing the count
 // requires having read the list, and reading the list is the authorisation.
 func TestConfirmationRequiresTheCountNotAYes(t *testing.T) {

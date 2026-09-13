@@ -149,10 +149,6 @@ The granting key never leaves the machine you run this on.`,
 				if _, err := sdk.AccAddressFromBech32(g.Grantee); err != nil {
 					return fmt.Errorf("%s: invalid grantee %q: %w", where, g.Grantee, err)
 				}
-				if reason, blocked := blockedFeatures[g.FeatureID]; blocked {
-					return fmt.Errorf("%s: %q cannot be granted yet.\n\n  %s",
-						where, g.FeatureID, reason)
-				}
 				if !types.IsValidFeatureID(g.FeatureID) {
 					return fmt.Errorf("%s: unknown feature id %q", where, g.FeatureID)
 				}
@@ -168,12 +164,38 @@ The granting key never leaves the machine you run this on.`,
 				seen[key] = where
 			}
 
+			// Set aside what the binary currently refuses to grant. EXCLUDED, NOT
+			// FATAL, and the difference was a real design error on the first cut.
+			//
+			// Failing the batch meant that once a blocked feature was queued, every
+			// batch containing one would be refused, taking the grants that CAN pass
+			// down with it. The block would then be silently blocking the wrong thing.
+			//
+			// Skipping is safe here in a way it is not elsewhere: each grant is
+			// independent, so removing one does not change what the others mean. That
+			// is the test for whether skipping is acceptable, and it passes. The
+			// refusal itself is untouched, because the excluded entries never reach the
+			// transaction.
+			//
+			// Keeping this decision in the binary rather than asking the producer of
+			// the batch to pre-filter also keeps the list of blocked features in ONE
+			// place. Two copies would drift, and the copy that matters is this one.
+			blocked := make([]batchGrant, 0)
+			allowed := make([]batchGrant, 0, len(batch.Grants))
+			for _, g := range batch.Grants {
+				if _, isBlocked := blockedFeatures[g.FeatureID]; isBlocked {
+					blocked = append(blocked, g)
+					continue
+				}
+				allowed = append(allowed, g)
+			}
+
 			// Drop what is already granted. Without this one already-held licence
 			// fails the whole transaction, and the operator cannot tell which.
 			queryClient := types.NewQueryClient(clientCtx)
-			todo := make([]batchGrant, 0, len(batch.Grants))
+			todo := make([]batchGrant, 0, len(allowed))
 			skipped := make([]batchGrant, 0)
-			for _, g := range batch.Grants {
+			for _, g := range allowed {
 				res, err := queryClient.Check(cmd.Context(), &types.QueryCheckRequest{
 					Grantee: g.Grantee, FeatureId: g.FeatureID,
 				})
@@ -189,7 +211,7 @@ The granting key never leaves the machine you run this on.`,
 				todo = append(todo, g)
 			}
 
-			printBatch(cmd, clientCtx, batch, todo, skipped)
+			printBatch(cmd, clientCtx, batch, todo, skipped, blocked)
 			if len(todo) == 0 {
 				fmt.Fprintln(cmd.ErrOrStderr(), "\nNothing to grant. No transaction built.")
 				return nil
@@ -252,7 +274,7 @@ func loadBatch(cmd *cobra.Command, src string) ([]byte, error) {
 
 // printBatch shows exactly what will be signed. This is the authorisation step, so it
 // prints every grant rather than a count.
-func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, todo, skipped []batchGrant) {
+func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, todo, skipped, blocked []batchGrant) {
 	// Deliberately stderr. The mainnet flow is
 	//   grant-batch ... --generate-only > tx.json
 	//   tx pqc cosign tx.json ...
@@ -289,6 +311,22 @@ func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, t
 	}
 	for _, f := range features {
 		fmt.Fprintf(out, "    %s: %d\n", f, byFeature[f])
+	}
+
+	if len(blocked) > 0 {
+		fmt.Fprintf(out, "\nNOT granted, refused by this binary (%d):\n", len(blocked))
+		for _, g := range blocked {
+			fmt.Fprintf(out, "  %-45s %s\n", g.Grantee, g.FeatureID)
+		}
+		reasons := map[string]bool{}
+		for _, g := range blocked {
+			if r, ok := blockedFeatures[g.FeatureID]; ok && !reasons[g.FeatureID] {
+				reasons[g.FeatureID] = true
+				fmt.Fprintf(out, "\n  %s: %s\n", g.FeatureID, r)
+			}
+		}
+		fmt.Fprintf(out, "\n  These stay queued. They are not lost, and they need no\n"+
+			"  re-entry: they grant themselves once a release lifts the refusal.\n")
 	}
 
 	if len(skipped) > 0 {
