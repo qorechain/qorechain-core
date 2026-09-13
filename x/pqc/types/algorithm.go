@@ -172,3 +172,21 @@ func DefaultMLKEM1024Info() AlgorithmInfo {
 		DeprecatedAt:   0,
 	}
 }
+
+// ExpectedPublicKeySize returns the public key size for an algorithm whose
+// parameters are known at compile time, and whether it is one of those.
+//
+// Only the algorithms this binary ships are known here. One added by governance
+// afterwards returns known=false and is checked by the keeper against the on-chain
+// registry instead. Validation that needs state belongs where the state is; this is
+// the half that can refuse a malformed key before it ever reaches a handler.
+func ExpectedPublicKeySize(id AlgorithmID) (uint32, bool) {
+	switch id {
+	case AlgorithmDilithium5:
+		return DefaultDilithium5Info().PublicKeySize, true
+	case AlgorithmMLKEM1024:
+		return DefaultMLKEM1024Info().PublicKeySize, true
+	default:
+		return 0, false
+	}
+}

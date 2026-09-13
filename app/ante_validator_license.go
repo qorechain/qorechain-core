@@ -3,6 +3,7 @@ package app
 import (
 	errorsmod "cosmossdk.io/errors"
 	"cosmossdk.io/math"
+	"github.com/cosmos/cosmos-sdk/x/authz"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
@@ -40,7 +41,42 @@ func (d ValidatorLicenseDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 		return next(ctx, tx, simulate)
 	}
 
-	for _, msg := range tx.GetMsgs() {
+	return d.checkMsgs(ctx, tx.GetMsgs(), 0, next, tx, simulate)
+}
+
+// checkMsgs walks the message tree, descending into authz MsgExec.
+//
+// WHY THE WALK. The gate used to look only at the transaction's top-level messages.
+// authz wraps its payload in Any, so a MsgCreateValidator inside a MsgExec was
+// invisible to it, and both rules it enforces were bypassed at once: the
+// validator_operator licence and the 100,000 QOR self-bond floor. Granting yourself
+// an authz grant costs nothing and needs nobody's permission, so this was not a
+// narrow path. The wasm mempool guard in this same package already walks the tree
+// for exactly this reason; the licence gate simply had not been given the same
+// treatment.
+func (d ValidatorLicenseDecorator) checkMsgs(
+	ctx sdk.Context, msgs []sdk.Msg, depth int, next sdk.AnteHandler, tx sdk.Tx, simulate bool,
+) (sdk.Context, error) {
+	if depth > 4 {
+		return ctx, errorsmod.Wrap(errortypes.ErrUnauthorized,
+			"authz nesting too deep to inspect for validator creation")
+	}
+
+	for _, msg := range msgs {
+		if exec, ok := msg.(*authz.MsgExec); ok {
+			inner, err := exec.GetMessages()
+			if err != nil {
+				// A payload that will not unpack cannot be inspected, so it cannot
+				// be shown to satisfy the gate.
+				return ctx, errorsmod.Wrap(errortypes.ErrUnauthorized,
+					"authz payload could not be unpacked for inspection")
+			}
+			if _, err := d.checkMsgs(ctx, inner, depth+1, nil, nil, simulate); err != nil {
+				return ctx, err
+			}
+			continue
+		}
+
 		createVal, ok := msg.(*stakingtypes.MsgCreateValidator)
 		if !ok {
 			continue
@@ -67,5 +103,9 @@ func (d ValidatorLicenseDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simula
 		}
 	}
 
+	if next == nil {
+		// Recursive call: nothing to hand on, the caller continues the chain.
+		return ctx, nil
+	}
 	return next(ctx, tx, simulate)
 }

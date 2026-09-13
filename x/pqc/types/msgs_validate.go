@@ -14,6 +14,23 @@ func (msg *MsgRegisterPQCKey) ValidateBasic() error {
 	if len(msg.DilithiumPubkey) == 0 && msg.KeyType != KeyTypeClassicalOnly {
 		return ErrInvalidKeyLength.Wrap("dilithium pubkey required for hybrid or pqc_only key type")
 	}
+	// THE LENGTH IS CHECKED, NOT JUST THE PRESENCE.
+	//
+	// Only non-emptiness was checked here, and the 2592-byte size check lives
+	// elsewhere, applied to keys carried inside a hybrid signature rather than to a
+	// key being registered. Under the post-quantum-required posture this chain runs,
+	// an account that registers a short or malformed key can never produce a valid
+	// signature again, for anything, including the rotation that would repair it:
+	// both rotate and migrate verify against the key already on file. One
+	// transaction, self-inflicted, irreversible, and nothing stopped it.
+	if len(msg.DilithiumPubkey) > 0 {
+		if want := int(DefaultDilithium5Info().PublicKeySize); len(msg.DilithiumPubkey) != want {
+			return ErrInvalidKeyLength.Wrapf(
+				"dilithium public key must be %d bytes, got %d; registering a key of the "+
+					"wrong length leaves the account unable to sign anything ever again, "+
+					"including the rotation that would undo it", want, len(msg.DilithiumPubkey))
+		}
+	}
 	switch msg.KeyType {
 	case KeyTypeHybrid, KeyTypePQCOnly, KeyTypeClassicalOnly:
 		return nil
@@ -49,6 +66,23 @@ func (msg *MsgRegisterPQCKeyV2) ValidateBasic() error {
 	}
 	if len(msg.PublicKey) == 0 && msg.KeyType != KeyTypeClassicalOnly {
 		return ErrInvalidKeyLength.Wrap("public_key required for hybrid or pqc_only key type")
+	}
+	// Length is checked for the algorithms whose size is known at compile time, for
+	// the same reason the KEM check above is: a key of the wrong length leaves the
+	// account unable to sign anything ever again, including the rotation that would
+	// repair it, because rotate and migrate both verify against the key on file.
+	//
+	// An algorithm governance added after this binary shipped is not checked here,
+	// only in the keeper against the on-chain registry. That is the same split as the
+	// KEM check: refuse what is statically known to be wrong, and leave what needs
+	// state to the place that has it.
+	if want, known := ExpectedPublicKeySize(msg.AlgorithmID); known && len(msg.PublicKey) > 0 {
+		if len(msg.PublicKey) != int(want) {
+			return ErrInvalidKeyLength.Wrapf(
+				"a %s public key must be %d bytes, got %d; registering a key of the wrong "+
+					"length leaves the account permanently unable to sign, with no way back",
+				msg.AlgorithmID, want, len(msg.PublicKey))
+		}
 	}
 	switch msg.KeyType {
 	case KeyTypeHybrid, KeyTypePQCOnly, KeyTypeClassicalOnly:
