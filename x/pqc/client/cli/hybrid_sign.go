@@ -3,7 +3,6 @@
 package cli
 
 import (
-	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -109,7 +108,7 @@ registered on-chain. The mnemonic is read from STDIN. Stores the private key und
 	return cmd
 }
 
-func pqcKeyDir(home string) string  { return filepath.Join(home, "pqc") }
+func pqcKeyDir(home string) string { return filepath.Join(home, "pqc") }
 func pqcKeyPath(home, name string) string {
 	return filepath.Join(pqcKeyDir(home), name+".dilithium")
 }
@@ -127,7 +126,7 @@ key hex. Register it on-chain with:
 
   qorechaind tx pqc register-key <printed-pubkey-hex> hybrid --from <key>
 
-then sign transactions with `+"`tx pqc cosign`"+`.`,
+then sign transactions with ` + "`tx pqc cosign`" + `.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -171,7 +170,7 @@ any tx command using --generate-only, e.g.:
   qorechaind tx bank send <from> <to> 1000uqor --generate-only > tx.json
   qorechaind tx pqc cosign tx.json --from <from> --pqc-key <name> --chain-id <id>
 
-The --pqc-key name refers to a key created with `+"`tx pqc gen-key`"+`.`,
+The --pqc-key name refers to a key created with ` + "`tx pqc gen-key`" + `.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -263,7 +262,7 @@ func hybridCosignBroadcast(clientCtx client.Context, msgs []*codectypes.Any, mem
 	}
 
 	// PQC sign-bytes = BE32(len(B0))||B0||BE32(len(authInfo))||authInfo.
-	pqcSig, err := qpqc.MLDSA87.Sign(pqcSk, frame(b0, authInfoBytes))
+	pqcSig, err := qpqc.MLDSA87.Sign(pqcSk, types.HybridSignBytes(clientCtx.ChainID, b0, authInfoBytes))
 	if err != nil {
 		return fmt.Errorf("dilithium sign: %w", err)
 	}
@@ -468,16 +467,8 @@ the rotation tx is cosigned (hybrid) with the old key so it passes the PQC ante.
 	return cmd
 }
 
-// frame builds the length-prefixed PQC sign-bytes the chain re-derives in
-// ante_hybrid.getSignBytes: BE32(len(b0))||b0||BE32(len(auth))||auth.
-func frame(b0, auth []byte) []byte {
-	buf := make([]byte, 4+len(b0)+4+len(auth))
-	binary.BigEndian.PutUint32(buf[0:4], uint32(len(b0)))
-	copy(buf[4:4+len(b0)], b0)
-	binary.BigEndian.PutUint32(buf[4+len(b0):8+len(b0)], uint32(len(auth)))
-	copy(buf[8+len(b0):], auth)
-	return buf
-}
+// The PQC sign-bytes are built by types.HybridSignBytes, shared with the chain's
+// ante handler so the two cannot drift.
 
 func loadPQCPrivKey(home, name string) ([]byte, error) {
 	raw, err := os.ReadFile(pqcKeyPath(home, name))
