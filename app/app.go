@@ -672,6 +672,10 @@ func NewQoreChainApp(
 	// Register the v3.1.85 coordinated governance upgrade handler (mainnet).
 	app.registerUpgradeHandlers()
 
+	// Fixes carried in patched dependencies read their on/off state through
+	// the protocol-feature record; no-op in the community build.
+	app.wireDependencyGates()
+
 	// --- Initialize FairBlock module (via factory, v1.2.0 — threshold IBE) ---
 	fairblockStoreKey := storetypes.NewKVStoreKey(fairblocktypes.StoreKey)
 	app.MountStores(fairblockStoreKey)

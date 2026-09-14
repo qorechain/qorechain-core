@@ -87,6 +87,11 @@ type PQCKeeper interface {
 	GetHybridSignatureMode(ctx sdk.Context) types.HybridSignatureMode
 	IncrementHybridVerifications(ctx sdk.Context)
 
+	// Protocol features: behaviour switches for fixes that live in patched
+	// dependencies. See types/features.go.
+	EnableProtocolFeature(ctx sdk.Context, name string) error
+	ProtocolFeatureEnabled(ctx sdk.Context, name string) bool
+
 	// Genesis
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState

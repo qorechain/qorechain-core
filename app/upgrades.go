@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/module"
 
 	inflationtypes "github.com/qorechain/qorechain-core/x/inflation/types"
+	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
 
 // UpgradeNameV3_1_85 is the on-chain name of the v3.1.85 coordinated governance
@@ -155,6 +156,16 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 				"reserved", pool.Reserved.String(),
 				"outstanding", pool.Outstanding.String(),
 			)
+
+			// Fixes that live in patched dependencies switch on here, at the plan
+			// height, and never before: the patched code asks the application
+			// whether the feature is enabled, and below this height the answer
+			// is no, so history replays byte-identically.
+			for _, f := range pqctypes.AllProtocolFeatures {
+				if err := app.PQCKeeper.EnableProtocolFeature(sdkCtx, f); err != nil {
+					return fromVM, err
+				}
+			}
 			return fromVM, nil
 		},
 	)

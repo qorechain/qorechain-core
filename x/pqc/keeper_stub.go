@@ -136,6 +136,9 @@ func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 // EVM-lane authorisation window: the public build has no EVM lane enforcement, so
 // these are inert. ConsumeEVMWindow refuses rather than admits, because a stub that
 // silently allowed the lane would be the very gap the window exists to close.
+func (k *StubKeeper) EnableProtocolFeature(_ sdk.Context, _ string) error  { return nil }
+func (k *StubKeeper) ProtocolFeatureEnabled(_ sdk.Context, _ string) bool { return false }
+
 func (k *StubKeeper) GetEVMWindow(_ sdk.Context, _ sdk.AccAddress) (types.EVMAuthWindow, bool) {
 	return types.EVMAuthWindow{}, false
 }
