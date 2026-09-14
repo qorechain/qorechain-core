@@ -27,6 +27,11 @@ service Query {
   rpc Stats(QueryStatsRequest) returns (QueryStatsResponse) {
     option (google.api.http).get = "/qorechain/lightnode/v1/stats";
   }
+  // RewardPool returns how the module account balance is split between the
+  // reserved pool, rewards owed to operators, and what is distributable.
+  rpc RewardPool(QueryRewardPoolRequest) returns (QueryRewardPoolResponse) {
+    option (google.api.http).get = "/qorechain/lightnode/v1/reward_pool";
+  }
 }
 
 // LightNodeView is a flat representation of a registered light node.
@@ -71,4 +76,29 @@ message QueryStatsResponse {
   uint64 total_active = 2;
   string total_rewards = 3;
   int64 last_reward_height = 4;
+}
+
+message QueryRewardPoolRequest {}
+message QueryRewardPoolResponse {
+  // balance is the module account's total uqor holding.
+  string balance = 1;
+  // reserved accumulated while no node was eligible; it is excluded from
+  // distribution and moves only by governance.
+  string reserved = 2;
+  // outstanding is credited to operators but not yet claimed.
+  string outstanding = 3;
+  // payable is reserve that governance released back into distribution; it
+  // drains to operators over time at the capped rate.
+  string payable = 5;
+  // max_reward_per_block_per_node bounds what one node may be credited per block.
+  string max_reward_per_block_per_node = 6;
+  // distributable is what the next distribution run may hand out:
+  // balance - reserved - outstanding.
+  string distributable = 4;
+  // initialized reports whether the split has been established by the
+  // coordinated upgrade handler. Until it is, the figures above describe a raw
+  // balance that the module does not yet account for, and clients that gate on
+  // the accounting being live (the licence batch tool) must treat the pool as
+  // not ready.
+  bool initialized = 7;
 }

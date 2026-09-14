@@ -1,6 +1,8 @@
 package types
 
 import (
+	"cosmossdk.io/math"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -12,11 +14,12 @@ import (
 
 // Message type constants.
 const (
-	TypeMsgRegisterLightNode     = "register_light_node"
-	TypeMsgHeartbeat             = "heartbeat"
-	TypeMsgDeregisterLightNode   = "deregister_light_node"
-	TypeMsgClaimLightNodeRewards = "claim_light_node_rewards"
-	TypeMsgUpdateLightNodeParams = "update_light_node_params"
+	TypeMsgRegisterLightNode       = "register_light_node"
+	TypeMsgHeartbeat               = "heartbeat"
+	TypeMsgDeregisterLightNode     = "deregister_light_node"
+	TypeMsgClaimLightNodeRewards   = "claim_light_node_rewards"
+	TypeMsgUpdateLightNodeParams   = "update_light_node_params"
+	TypeMsgReleaseLightNodeReserve = "release_light_node_reserve"
 )
 
 func (msg MsgRegisterLightNode) ValidateBasic() error {
@@ -102,6 +105,35 @@ func (msg MsgUpdateLightNodeParams) ValidateBasic() error {
 }
 
 func (msg MsgUpdateLightNodeParams) GetSigners() []sdk.AccAddress {
+	addr, err := sdk.AccAddressFromBech32(msg.Authority)
+	if err != nil {
+		return nil
+	}
+	return []sdk.AccAddress{addr}
+}
+
+func (msg MsgReleaseLightNodeReserve) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
+		return err
+	}
+	amount, ok := math.NewIntFromString(msg.Amount)
+	if !ok {
+		return ErrInvalidParams.Wrapf("invalid amount %q", msg.Amount)
+	}
+	if !amount.IsPositive() {
+		return ErrInvalidParams.Wrap("amount must be positive")
+	}
+	// An empty destination is meaningful: it releases the amount into the
+	// ordinary light-node distribution rather than sending it anywhere.
+	if msg.Destination != "" {
+		if _, err := sdk.AccAddressFromBech32(msg.Destination); err != nil {
+			return ErrInvalidParams.Wrapf("invalid destination: %s", err)
+		}
+	}
+	return nil
+}
+
+func (msg MsgReleaseLightNodeReserve) GetSigners() []sdk.AccAddress {
 	addr, err := sdk.AccAddressFromBech32(msg.Authority)
 	if err != nil {
 		return nil

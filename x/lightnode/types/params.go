@@ -15,18 +15,51 @@ type Params struct {
 	MinUptimeForRewards  math.LegacyDec `json:"min_uptime_for_rewards"` // minimum uptime ratio to qualify for rewards
 	MaxLightNodes        uint64         `json:"max_light_nodes"`        // maximum number of registered light nodes
 	HeartbeatGracePeriod int64          `json:"heartbeat_grace_period"` // extra blocks allowed before marking inactive
+
+	// MaxRewardPerBlockPerNode bounds what one active light node can be credited
+	// per block, in uqor. It exists because the pot and the participation are set
+	// independently: the fee split pays the module a fixed slice of each epoch's
+	// emission whatever the participation, so a purely proportional payout hands a
+	// single operator the entire slice.
+	//
+	// It is a BOUND on the proportional split, not a replacement for it. A node
+	// receives min(its proportional share, this bound x blocks elapsed x uptime).
+	// With few operators everyone sits at the bound and earns a predictable,
+	// sellable amount; once enough operators join that the proportional share
+	// falls below the bound, the original stake-weighted distribution takes over
+	// again on its own. The pathological case is fenced off without changing the
+	// product.
+	//
+	// Sized from the operator's actual outlay, which is the 50 USD licence rather
+	// than the 1,000 QOR bond: 2,000 QOR/month per active node. At 2.22 s/block
+	// that is 2,592,000/2.22 = 1,167,567 blocks/month, so 1,713 uqor/block gives
+	// 2,000.04 QOR/month. (Measured cadence is 2.322 s/block, at which the same
+	// constant yields ~1,912 QOR/month; 1,790 would hit 2,000 exactly.)
+	//
+	// At the 0.00517 USD/QOR sale-round reference that is 10.34 USD/month plus
+	// ~2.09 USD of staking, recovering a 50 USD licence in about four months.
+	// The 16 current buyers cost 32,000 QOR/month out of a 2.23M QOR fund - 1.4%
+	// - and the fund carries over 1,100 operators before it needs revisiting.
+	// Uncapped, the first registrant takes the whole fund and recovers the licence
+	// in 187 minutes.
+	//
+	// Governance can adjust it, but asymmetrically: raising it is easy, lowering
+	// it after operators have been paid reads as a withdrawn promise. Hence a
+	// conservative value rather than the most the fund would bear.
+	MaxRewardPerBlockPerNode math.Int `json:"max_reward_per_block_per_node"`
 }
 
 // DefaultParams returns the default lightnode module parameters.
 func DefaultParams() Params {
 	return Params{
-		RegistrationFee:      math.NewInt(1_000_000),           // 1 QOR in uqor
-		HeartbeatInterval:    1000,                             // every 1000 blocks
-		MinDelegatedStake:    math.NewInt(1_000_000_000),       // 1000 QOR in uqor
-		RewardShare:          math.LegacyNewDecWithPrec(3, 2),  // 0.03 (3%)
-		MinUptimeForRewards:  math.LegacyNewDecWithPrec(80, 2), // 0.80 (80%)
-		MaxLightNodes:        10000,
-		HeartbeatGracePeriod: 100,
+		RegistrationFee:          math.NewInt(1_000_000),           // 1 QOR in uqor
+		HeartbeatInterval:        1000,                             // every 1000 blocks
+		MinDelegatedStake:        math.NewInt(1_000_000_000),       // 1000 QOR in uqor
+		RewardShare:              math.LegacyNewDecWithPrec(3, 2),  // 0.03 (3%)
+		MinUptimeForRewards:      math.LegacyNewDecWithPrec(80, 2), // 0.80 (80%)
+		MaxLightNodes:            10000,
+		HeartbeatGracePeriod:     100,
+		MaxRewardPerBlockPerNode: math.NewInt(1713), // ~2,000 QOR/month per active node
 	}
 }
 
@@ -53,5 +86,21 @@ func (p Params) Validate() error {
 	if p.HeartbeatGracePeriod < 0 {
 		return fmt.Errorf("heartbeat_grace_period must be non-negative, got %d", p.HeartbeatGracePeriod)
 	}
+	if p.MaxRewardPerBlockPerNode.IsNil() {
+		return fmt.Errorf("max_reward_per_block_per_node must be set")
+	}
+	if p.MaxRewardPerBlockPerNode.IsNegative() {
+		return fmt.Errorf("max_reward_per_block_per_node must be non-negative, got %s", p.MaxRewardPerBlockPerNode)
+	}
 	return nil
+}
+
+// Normalized fills in fields absent from a stored or genesis-supplied record.
+// Params written before max_reward_per_block_per_node existed decode with it
+// unset, which would panic the first time the reward maths touched it.
+func (p Params) Normalized() Params {
+	if p.MaxRewardPerBlockPerNode.IsNil() {
+		p.MaxRewardPerBlockPerNode = DefaultParams().MaxRewardPerBlockPerNode
+	}
+	return p
 }

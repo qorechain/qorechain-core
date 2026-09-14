@@ -23,6 +23,7 @@ func GetQueryCmd() *cobra.Command {
 		CmdQueryParams(),
 		CmdQueryRewards(),
 		CmdQueryStats(),
+		CmdQueryRewardPool(),
 	)
 
 	return cmd
@@ -128,6 +129,28 @@ func CmdQueryStats() *cobra.Command {
 			}
 			qc := types.NewQueryClient(clientCtx)
 			res, err := qc.Stats(cmd.Context(), &types.QueryStatsRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
+		},
+	}
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+func CmdQueryRewardPool() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "reward-pool",
+		Short: "Query how the module reward balance splits into reserved, owed and distributable",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			qc := types.NewQueryClient(clientCtx)
+			res, err := qc.RewardPool(cmd.Context(), &types.QueryRewardPoolRequest{})
 			if err != nil {
 				return err
 			}

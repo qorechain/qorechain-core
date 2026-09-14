@@ -8,6 +8,7 @@ const (
 	EventTypeLightNodeClaimRewards       = "lightnode_claim_rewards"
 	EventTypeLightNodeStatusChange       = "lightnode_status_change"
 	EventTypeLightNodeRewardDistribution = "lightnode_reward_distribution"
+	EventTypeLightNodeReserveRelease     = "lightnode_reserve_release"
 
 	AttributeKeyAddress      = "address"
 	AttributeKeyNodeType     = "node_type"
@@ -15,4 +16,5 @@ const (
 	AttributeKeyStatus       = "status"
 	AttributeKeyRewardAmount = "reward_amount"
 	AttributeKeyBlockHeight  = "block_height"
+	AttributeKeyDestination  = "destination"
 )

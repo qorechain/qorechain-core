@@ -25,17 +25,17 @@ const (
 
 // LightNodeInfo describes a registered light node.
 type LightNodeInfo struct {
-	Address                  string     `json:"address"`
-	NodeType                 NodeType   `json:"node_type"`
-	Version                  string     `json:"version"`
-	Capabilities             []string   `json:"capabilities"`
-	Status                   NodeStatus `json:"status"`
-	RegisteredAt             int64      `json:"registered_at"`
-	LastHeartbeat            int64      `json:"last_heartbeat"`
-	TotalHeartbeats          uint64     `json:"total_heartbeats"`
-	ExpectedHeartbeats       uint64     `json:"expected_heartbeats"`
-	DelegatedStake           string     `json:"delegated_stake"`
-	AccumulatedRewards       string     `json:"accumulated_rewards"`
+	Address            string     `json:"address"`
+	NodeType           NodeType   `json:"node_type"`
+	Version            string     `json:"version"`
+	Capabilities       []string   `json:"capabilities"`
+	Status             NodeStatus `json:"status"`
+	RegisteredAt       int64      `json:"registered_at"`
+	LastHeartbeat      int64      `json:"last_heartbeat"`
+	TotalHeartbeats    uint64     `json:"total_heartbeats"`
+	ExpectedHeartbeats uint64     `json:"expected_heartbeats"`
+	DelegatedStake     string     `json:"delegated_stake"`
+	AccumulatedRewards string     `json:"accumulated_rewards"`
 
 	// InitialHeartbeatInterval records the heartbeat cadence in force when the
 	// node registered. It is INFORMATIONAL ONLY: provenance for the operator,

@@ -7,6 +7,7 @@ type GenesisState struct {
 	Params     Params          `json:"params"`
 	LightNodes []LightNodeInfo `json:"light_nodes"`
 	Stats      LightNodeStats  `json:"stats"`
+	RewardPool RewardPool      `json:"reward_pool"`
 }
 
 // DefaultGenesisState returns the default genesis state.
@@ -15,6 +16,7 @@ func DefaultGenesisState() *GenesisState {
 		Params:     DefaultParams(),
 		LightNodes: []LightNodeInfo{},
 		Stats:      DefaultLightNodeStats(),
+		RewardPool: DefaultRewardPool(),
 	}
 }
 
@@ -41,6 +43,9 @@ func (gs GenesisState) Validate() error {
 	}
 	if gs.Stats.TotalRewards.IsNegative() {
 		return fmt.Errorf("stats total_rewards must be non-negative")
+	}
+	if err := gs.RewardPool.Validate(); err != nil {
+		return fmt.Errorf("invalid reward_pool: %w", err)
 	}
 	return nil
 }

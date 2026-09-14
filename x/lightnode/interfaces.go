@@ -28,6 +28,11 @@ type LightNodeKeeper interface {
 
 	// Rewards
 	DistributeRewards(ctx sdk.Context, totalBlockRewards math.Int) error
+
+	// EnsureRewardPoolInitialized establishes the module account's accounting
+	// split. Called from the coordinated upgrade handler so it runs at one fixed
+	// height on every node, including nodes replaying history.
+	EnsureRewardPoolInitialized(ctx sdk.Context) types.RewardPool
 	GetAccumulatedRewards(ctx sdk.Context, address string) math.Int
 	ClaimRewards(ctx sdk.Context, address string) (math.Int, error)
 

@@ -35,7 +35,10 @@ func (k *StubKeeper) GetLightNodesByStatus(_ sdk.Context, _ string) []types.Ligh
 func (k *StubKeeper) GetLightNodeCount(_ sdk.Context) uint64                              { return 0 }
 func (k *StubKeeper) RecordHeartbeat(_ sdk.Context, _ string, _ int64) error              { return nil }
 func (k *StubKeeper) DistributeRewards(_ sdk.Context, _ math.Int) error                   { return nil }
-func (k *StubKeeper) GetAccumulatedRewards(_ sdk.Context, _ string) math.Int              { return math.ZeroInt() }
+func (k *StubKeeper) EnsureRewardPoolInitialized(_ sdk.Context) types.RewardPool {
+	return types.DefaultRewardPool()
+}
+func (k *StubKeeper) GetAccumulatedRewards(_ sdk.Context, _ string) math.Int { return math.ZeroInt() }
 func (k *StubKeeper) ClaimRewards(_ sdk.Context, _ string) (math.Int, error) {
 	return math.ZeroInt(), nil
 }

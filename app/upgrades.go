@@ -48,6 +48,25 @@ const UpgradeNameV3_1_86 = "v3.1.86"
 // regardless of that drift.
 const UpgradeNameV3_1_94 = "v3.1.94"
 
+// UpgradeNameV3_1_98 is the coordinated governance upgrade for the release that
+// bundles the September security batch with the light-node reward accounting.
+// Unlike v3.1.85/86 this one WRITES STATE, so the height matters: the handler
+// snapshots the module account balance that accumulated while no node was
+// eligible into the reserved pool, and from that block on the EndBlocker
+// distributes only what has accrued since the previous run, bounded per node.
+//
+// The snapshot lives here rather than in the EndBlocker precisely because it
+// must key off chain state and not off when a process started. Every node runs
+// this handler at the same plan height, replaying nodes included, so the write
+// is identical everywhere. Below that height the lightnode module writes
+// nothing, which keeps historical replay byte-identical to the old binary.
+//
+// The name is the release version, so the MsgSoftwareUpgrade plan and the
+// binary agree by construction. If the release is renumbered, rename this in
+// the same commit: a plan whose name matches no handler halts every validator
+// at the upgrade height with "no upgrade handler".
+const UpgradeNameV3_1_98 = "v3.1.98"
+
 // registerUpgradeHandlers wires the named upgrade handlers. Called after the
 // keepers are constructed. Registering a handler is harmless until a matching
 // MsgSoftwareUpgrade actually executes, so the soak binary can carry it safely.
@@ -118,6 +137,23 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 				"per_epoch", params.FixedEmission().String(),
 				"cumulative_cap", params.EmissionCap().String(),
 				"height", sdkCtx.BlockHeight(),
+			)
+			return fromVM, nil
+		},
+	)
+
+	// v3.1.98 - light-node reward accounting. This handler is the ONLY place the
+	// reward-pool split is established, so it happens at one height network-wide.
+	// Idempotent: a pool already initialized is returned untouched.
+	app.UpgradeKeeper.SetUpgradeHandler(
+		UpgradeNameV3_1_98,
+		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+			sdkCtx := sdk.UnwrapSDKContext(ctx)
+			pool := app.LightNodeKeeper.EnsureRewardPoolInitialized(sdkCtx)
+			app.LightNodeKeeper.Logger().Info("lightnode reward pool established at upgrade",
+				"height", sdkCtx.BlockHeight(),
+				"reserved", pool.Reserved.String(),
+				"outstanding", pool.Outstanding.String(),
 			)
 			return fromVM, nil
 		},
