@@ -27,6 +27,8 @@ func GetTxCmd() *cobra.Command {
 		GetCmdRegisterPQCKey(),
 		GetCmdRegisterPQCKeyV2(),
 		GetCmdMigratePQCKey(),
+		GetCmdOpenEVMWindow(),
+		GetCmdCloseEVMWindow(),
 	)
 	// Client-side hybrid signer (gen-key, cosign) — real in the full build,
 	// placeholders in the community build.

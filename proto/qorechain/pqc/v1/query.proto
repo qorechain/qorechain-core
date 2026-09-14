@@ -11,6 +11,36 @@ service Query {
   rpc Account(QueryAccountRequest) returns (QueryAccountResponse) {
     option (google.api.http).get = "/qorechain/pqc/v1/account/{address}";
   }
+
+  // EVMWindow returns an address's open EVM-lane authorisation window, if any,
+  // with what remains of it at the current height.
+  rpc EVMWindow(QueryEVMWindowRequest) returns (QueryEVMWindowResponse) {
+    option (google.api.http).get = "/qorechain/pqc/v1/evm_window/{address}";
+  }
+}
+
+message QueryEVMWindowRequest {
+  string address = 1;
+}
+
+message QueryEVMWindowResponse {
+  // found reports whether a window is stored. A stored window may still be
+  // exhausted or expired; check live.
+  bool found = 1;
+  // live reports whether the window admits at least one more transaction of
+  // zero value at the current height.
+  bool live = 2;
+  uint64 opened_height = 3;
+  uint64 expiry_height = 4;
+  uint64 max_txs = 5;
+  uint64 used_txs = 6;
+  string max_value = 7;
+  string used_value = 8;
+  // remaining_blocks, remaining_txs and remaining_value say which bound is
+  // closest to running out, so a refused caller can tell why.
+  uint64 remaining_blocks = 9;
+  uint64 remaining_txs = 10;
+  string remaining_value = 11;
 }
 
 message QueryAccountRequest {

@@ -31,6 +31,7 @@ func GetQueryCmd() *cobra.Command {
 		GetCmdQueryMigration(),
 		GetCmdQueryParams(),
 		GetCmdQueryHybridMode(),
+		GetCmdQueryEVMWindow(),
 	)
 
 	return cmd

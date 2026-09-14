@@ -17,6 +17,11 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgAddAlgorithm{},
 		&MsgDeprecateAlgorithm{},
 		&MsgDisableAlgorithm{},
+		// EVM-lane authorisation window. Without these two registrations the tx
+		// decoder rejects the messages with "unable to resolve type URL", and the
+		// unit tests never notice because they call the handlers directly.
+		&MsgOpenEVMWindow{},
+		&MsgCloseEVMWindow{},
 	)
 
 	// PQCHybridSignature is a TX extension option carried in
@@ -40,5 +45,7 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgAddAlgorithm{}, "pqc/MsgAddAlgorithm", nil)
 	cdc.RegisterConcrete(&MsgDeprecateAlgorithm{}, "pqc/MsgDeprecateAlgorithm", nil)
 	cdc.RegisterConcrete(&MsgDisableAlgorithm{}, "pqc/MsgDisableAlgorithm", nil)
+	cdc.RegisterConcrete(&MsgOpenEVMWindow{}, "pqc/MsgOpenEVMWindow", nil)
+	cdc.RegisterConcrete(&MsgCloseEVMWindow{}, "pqc/MsgCloseEVMWindow", nil)
 	cdc.RegisterConcrete(&PQCHybridSignature{}, "pqc/PQCHybridSignature", nil)
 }
