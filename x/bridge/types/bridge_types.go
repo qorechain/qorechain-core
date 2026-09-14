@@ -754,5 +754,13 @@ func ParseAmount(s string) (sdkmath.Int, error) {
 	if !ok {
 		return sdkmath.Int{}, ErrInvalidAmount.Wrapf("cannot parse amount: %s", s)
 	}
+	// NewIntFromString accepts a leading minus sign, and nothing downstream of the
+	// message validation checked the sign. A bridge amount is a quantity of value to
+	// mint, release or lock, and a negative quantity has no meaning any handler
+	// should be asked to interpret: refusing it here is the only answer that cannot
+	// be wrong, whatever a keeper would have done with it.
+	if !i.IsPositive() {
+		return sdkmath.Int{}, ErrInvalidAmount.Wrapf("amount must be positive, got %s", s)
+	}
 	return i, nil
 }

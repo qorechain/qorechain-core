@@ -1,7 +1,7 @@
 package types
 
 import (
-	"fmt"
+	"encoding/binary"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -132,9 +132,43 @@ func (msg MsgBridgeAttestation) GetSigners() []sdk.AccAddress {
 }
 
 // GetSignBytes returns the attestation data that was signed.
-func (msg MsgBridgeAttestation) GetSignBytes() []byte {
-	// Deterministic byte representation for PQC signature verification
-	return []byte(fmt.Sprintf("%s|%s|%s|%s|%s|%s",
-		msg.Chain, msg.EventType, msg.OperationID,
-		msg.TxHash, msg.Amount.String(), msg.Asset))
+// SignBytesForChain is the payload a bridge validator's ML-DSA key signs for an
+// attestation.
+//
+// WHAT WAS WRONG WITH THE PREVIOUS ENCODING. It was a pipe-joined format string over
+// six fields, with no length prefixes and no chain-id. None of the fields is
+// forbidden from containing a pipe, so field boundaries could be moved: two
+// distinct operations could serialise to identical bytes, and one valid
+// attestation signature would then verify for the other. It also bound no chain, so
+// an attestation signed for the testnet verified on mainnet if the same validator
+// key was registered on both.
+//
+// Every field is now length-prefixed with BE64, the same framing every other signed
+// payload in this codebase uses (x/svm/types/auth_sign.go, x/abstractaccount sign
+// bytes), a domain tag prevents the bytes from being valid as anything else the key
+// signs, and the chain-id is bound first. Distinct inputs always hash differently.
+//
+//	"qorechain-bridge-attestation-v2" ‖ BE64(len(chainID)) ‖ chainID ‖
+//	  BE64(len(chain)) ‖ chain ‖ BE64(len(eventType)) ‖ eventType ‖
+//	  BE64(len(operationID)) ‖ operationID ‖ BE64(len(txHash)) ‖ txHash ‖
+//	  BE64(len(amount)) ‖ amount ‖ BE64(len(asset)) ‖ asset
+//
+// Bridge validators sign this with their registered key; the chain re-derives it
+// from the stored operation, so an attestation that does not match the operation
+// it claims to attest fails verification. The signed format changed, so this rides a
+// coordinated upgrade: attestations produced under the old format are rejected by
+// nodes running this, and validators must update their signer at the same height.
+func (msg MsgBridgeAttestation) SignBytesForChain(chainID string) []byte {
+	fields := []string{
+		chainID, msg.Chain, msg.EventType, msg.OperationID,
+		msg.TxHash, msg.Amount.String(), msg.Asset,
+	}
+	out := []byte("qorechain-bridge-attestation-v2")
+	for _, f := range fields {
+		var n [8]byte
+		binary.BigEndian.PutUint64(n[:], uint64(len(f)))
+		out = append(out, n[:]...)
+		out = append(out, f...)
+	}
+	return out
 }
