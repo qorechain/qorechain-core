@@ -1,13 +1,17 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/license/types"
+	lightnodetypes "github.com/qorechain/qorechain-core/x/lightnode/types"
 )
 
 // parseBatch runs the document through the same decoding the command does, so the
@@ -21,44 +25,83 @@ func parseBatch(t *testing.T, doc string) batchFile {
 	return b
 }
 
-// THE INTERLOCK. Granting a light-node operator licence today credits the first
-// registrant the entire accumulated reward pool: 3.1M QOR on mainnet, 66.5B on
-// testnet, measured with zero nodes registered. The block lives in the binary rather
-// than in a flag or a parameter, so lifting it takes a deliberate release. This test
-// is what stops it being removed absent-mindedly alongside an unrelated change.
-func TestLightNodeOperatorIsBlockedFromGranting(t *testing.T) {
-	reason, blocked := blockedFeatures[types.FeatureLightNodeOperator]
-	if !blocked {
-		t.Fatal("lightnode_operator can be granted again. If the reward-pool fix has " +
-			"shipped, this test should have been deleted in the same commit; if it has " +
-			"not, the first grantee takes the whole pool")
-	}
-	// The reason has to survive too: an operator who hits this needs to know why, not
-	// just that something said no.
-	for _, want := range []string{"EndBlocker", "whole", "reward-pool fix"} {
-		if !strings.Contains(reason, want) {
-			t.Fatalf("the block's explanation lost %q, leaving an operator with a "+
-				"refusal and no reason: %q", want, reason)
-		}
+// THE INTERLOCK. Granting a light-node operator licence on a chain that has not
+// established its reward-pool accounting credits the first registrant the entire
+// accumulated pool: 3.1M QOR on mainnet, 66.5B on testnet, measured with zero nodes
+// registered. The gate lives in the binary rather than in a flag or a parameter, and
+// it asks the chain rather than trusting the release, because the release binary is
+// the same before and after the upgrade height. This test is what stops the gate
+// being removed absent-mindedly alongside an unrelated change.
+func TestLightNodeOperatorIsChainGated(t *testing.T) {
+	if _, gated := chainGatedFeatures[types.FeatureLightNodeOperator]; !gated {
+		t.Fatal("lightnode_operator is no longer gated on the chain's reward-pool state; " +
+			"a grant onto a network below its upgrade height hands the first registrant " +
+			"the whole pool")
 	}
 }
 
-// The features that are safe to grant must not be caught by the interlock, or the
-// block stops being a targeted safety measure and becomes an outage.
+// The three answers a chain can give, and what each must mean for the grant. An
+// operator who is refused needs to know why, so the reasons are checked too.
+func TestLightNodeGrantWaitsForTheChainToEstablishTheRewardPool(t *testing.T) {
+	// Previous release: the query route does not exist.
+	reason, blocked := lightNodeGrantGate(nil, errors.New("unknown method RewardPool"))
+	if !blocked {
+		t.Fatal("a chain without the reward_pool query was allowed; its EndBlocker " +
+			"pays the whole balance to the first node")
+	}
+	for _, want := range []string{"reward_pool", "whole module balance", "first node"} {
+		if !strings.Contains(reason, want) {
+			t.Fatalf("the refusal for an old chain lost %q: %q", want, reason)
+		}
+	}
+
+	// This release, upgrade not executed yet: the query answers but the accounting
+	// is not established, so the validators may still be on the paying release.
+	reason, blocked = lightNodeGrantGate(&lightnodetypes.QueryRewardPoolResponse{Initialized: false}, nil)
+	if !blocked {
+		t.Fatal("a chain that has not executed the upgrade was allowed")
+	}
+	for _, want := range []string{"upgrade", "whole module balance"} {
+		if !strings.Contains(reason, want) {
+			t.Fatalf("the refusal for a pre-upgrade chain lost %q: %q", want, reason)
+		}
+	}
+
+	// A nil answer without an error is a client bug, and it must fail closed.
+	if _, blocked = lightNodeGrantGate(nil, nil); !blocked {
+		t.Fatal("a nil answer was treated as safe")
+	}
+
+	// The accounting is established: the grant may go through.
+	if reason, blocked = lightNodeGrantGate(&lightnodetypes.QueryRewardPoolResponse{Initialized: true}, nil); blocked {
+		t.Fatalf("a chain with the reward pool established was refused: %q", reason)
+	}
+}
+
+// The features that are safe to grant must not be caught by the compile-time block,
+// or the block stops being a targeted safety measure and becomes an outage. The
+// light-node feature is listed deliberately: its protection is the chain gate, not
+// a block, and both at once would refuse it everywhere.
 func TestOtherFeaturesAreNotBlocked(t *testing.T) {
-	for _, f := range []string{types.FeatureValidatorOperator, types.FeatureQCBBridge} {
+	for _, f := range []string{types.FeatureValidatorOperator, types.FeatureQCBBridge, types.FeatureLightNodeOperator} {
 		if _, blocked := blockedFeatures[f]; blocked {
 			t.Fatalf("%q is blocked, which stops legitimate granting", f)
 		}
 	}
 }
 
-// Every blocked feature must be a real feature id. A typo here would silently protect
-// nothing at all, and the protection would look present while being absent.
+// Every blocked or gated feature must be a real feature id. A typo here would
+// silently protect nothing at all, and the protection would look present while
+// being absent.
 func TestBlockedFeaturesAreRealFeatureIDs(t *testing.T) {
 	for f := range blockedFeatures {
 		if !types.IsValidFeatureID(f) {
 			t.Fatalf("blocked feature %q is not a known feature id, so it blocks nothing", f)
+		}
+	}
+	for f := range chainGatedFeatures {
+		if !types.IsValidFeatureID(f) {
+			t.Fatalf("gated feature %q is not a known feature id, so it gates nothing", f)
 		}
 	}
 }
@@ -130,33 +173,84 @@ func TestDuplicateDetectionKeyIsPerGranteeAndFeature(t *testing.T) {
 // excluding is acceptable rather than dangerous, and it is why this one may be
 // excluded while a signer flag on someone else's account may not.
 func TestBlockedEntriesAreExcludedNotFatalToTheBatch(t *testing.T) {
+	// Nothing is compile-time blocked in this release, so the test plants a block
+	// of its own: the mechanism has to keep working for the day a feature needs
+	// holding back again.
+	blockedFeatures[types.FeatureQCBBridge] = "planted by the test"
+	defer delete(blockedFeatures, types.FeatureQCBBridge)
+
 	a := sdk.AccAddress([]byte("a-validator-operator")).String()
-	b := sdk.AccAddress([]byte("a-lightnode-operatr")).String()
+	b := sdk.AccAddress([]byte("a-bridge-operator-20")).String()
 	grants := []batchGrant{
 		{Grantee: a, FeatureID: types.FeatureValidatorOperator},
-		{Grantee: b, FeatureID: types.FeatureLightNodeOperator},
+		{Grantee: b, FeatureID: types.FeatureQCBBridge},
 	}
 
-	var blocked, allowed []batchGrant
-	for _, g := range grants {
-		if _, isBlocked := blockedFeatures[g.FeatureID]; isBlocked {
-			blocked = append(blocked, g)
-			continue
-		}
-		allowed = append(allowed, g)
-	}
+	allowed, blocked, reasons := setAside(context.Background(), client.Context{}, grants)
 
 	if len(allowed) != 1 || allowed[0].FeatureID != types.FeatureValidatorOperator {
 		t.Fatalf("the validator grant did not survive alongside a blocked one: %+v", allowed)
 	}
-	if len(blocked) != 1 || blocked[0].FeatureID != types.FeatureLightNodeOperator {
+	if len(blocked) != 1 || blocked[0].FeatureID != types.FeatureQCBBridge {
 		t.Fatalf("the blocked grant was not set aside: %+v", blocked)
+	}
+	if reasons[types.FeatureQCBBridge] != "planted by the test" {
+		t.Fatalf("the refusal lost its reason: %q", reasons[types.FeatureQCBBridge])
 	}
 	for _, g := range allowed {
 		if _, isBlocked := blockedFeatures[g.FeatureID]; isBlocked {
 			t.Fatal("a blocked feature reached the transaction, which is the one thing " +
 				"excluding must never do")
 		}
+	}
+}
+
+// A chain gate that says no sets its grants aside the same way, asks the chain once
+// per batch rather than once per grant, and leaves the other grants alone.
+func TestChainGatedEntriesAreExcludedNotFatalToTheBatch(t *testing.T) {
+	calls := 0
+	chainGatedFeatures[types.FeatureQCBBridge] = func(context.Context, client.Context) (string, bool) {
+		calls++
+		return "the chain is not ready for this feature", true
+	}
+	defer delete(chainGatedFeatures, types.FeatureQCBBridge)
+
+	grants := []batchGrant{
+		{Grantee: sdk.AccAddress([]byte("a-validator-operator")).String(), FeatureID: types.FeatureValidatorOperator},
+		{Grantee: sdk.AccAddress([]byte("a-bridge-operator-01")).String(), FeatureID: types.FeatureQCBBridge},
+		{Grantee: sdk.AccAddress([]byte("a-bridge-operator-02")).String(), FeatureID: types.FeatureQCBBridge},
+	}
+
+	allowed, blocked, reasons := setAside(context.Background(), client.Context{}, grants)
+
+	if calls != 1 {
+		t.Fatalf("the chain was asked %d times for one feature; once per batch is the contract", calls)
+	}
+	if len(allowed) != 1 || allowed[0].FeatureID != types.FeatureValidatorOperator {
+		t.Fatalf("the validator grant did not survive alongside gated ones: %+v", allowed)
+	}
+	if len(blocked) != 2 {
+		t.Fatalf("both gated grants should be set aside, got %+v", blocked)
+	}
+	if !strings.Contains(reasons[types.FeatureQCBBridge], "not ready") {
+		t.Fatalf("the refusal lost its reason: %q", reasons[types.FeatureQCBBridge])
+	}
+}
+
+// A gate that says yes must not leave a trace: the grant goes through and no reason
+// is printed for it.
+func TestAnOpenChainGateLetsTheGrantThrough(t *testing.T) {
+	chainGatedFeatures[types.FeatureQCBBridge] = func(context.Context, client.Context) (string, bool) {
+		return "", false
+	}
+	defer delete(chainGatedFeatures, types.FeatureQCBBridge)
+
+	grants := []batchGrant{
+		{Grantee: sdk.AccAddress([]byte("a-bridge-operator-01")).String(), FeatureID: types.FeatureQCBBridge},
+	}
+	allowed, blocked, reasons := setAside(context.Background(), client.Context{}, grants)
+	if len(allowed) != 1 || len(blocked) != 0 || len(reasons) != 0 {
+		t.Fatalf("an open gate changed the batch: allowed=%+v blocked=%+v reasons=%+v", allowed, blocked, reasons)
 	}
 }
 

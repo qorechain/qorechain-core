@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -18,6 +19,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/license/types"
+	lightnodetypes "github.com/qorechain/qorechain-core/x/lightnode/types"
 )
 
 // Granting licences in one reviewed batch, signed by a person.
@@ -53,21 +55,91 @@ import (
 // leave the operator reconciling which of fifteen grants happened, which is exactly
 // the state this is meant to avoid.
 
-// blockedFeatures are features that may not be granted yet, whatever the list says
-// and whoever signs it.
+// blockedFeatures are features that may not be granted at all, whatever the list
+// says and whoever signs it. Keyed by feature id, valued by the reason shown to the
+// operator.
 //
 // This is a compile-time block, so lifting it takes a deliberate release rather than
-// a flag, a parameter, or an environment variable. That is the point: the reasons
-// below are not "not ready yet", they are "granting this today causes a specific,
-// measured loss", and a protection against that should not be removable by
-// configuration.
-var blockedFeatures = map[string]string{
-	types.FeatureLightNodeOperator: "the x/lightnode EndBlocker still distributes the " +
-		"entire module account balance, and a freshly registered node is eligible " +
-		"immediately, so the first grantee to register and delegate is credited the whole " +
-		"accumulated pool. Measured 2026-09-13: 3,146,264 QOR on mainnet and 66,515,760,258 " +
-		"QOR on testnet, both with zero nodes registered. Remove this entry in the same " +
-		"release that ships the reward-pool fix, not before",
+// a flag, a parameter, or an environment variable. That is the point: an entry here
+// is not "not ready yet", it is "granting this causes a specific, measured loss", and
+// a protection against that should not be removable by configuration.
+//
+// Empty since the lightnode reward-pool fix. Until then lightnode_operator sat here,
+// because the x/lightnode EndBlocker paid the module account's entire balance
+// (3,146,264 QOR on mainnet, 66,515,760,258 QOR on testnet, measured 2026-09-13 with
+// zero nodes registered) to whichever grantee registered first. That feature is now
+// gated on the state of the chain instead: see chainGatedFeatures.
+var blockedFeatures = map[string]string{}
+
+// chainGatedFeatures are features whose safety depends on the chain this command is
+// talking to, decided once per batch by asking it. The decision is made against the
+// NETWORK rather than against the binary in the operator's hands: the release that
+// carries the fix is the same binary before and after the upgrade height, and the
+// validators keep running the previous release until that height. A compile-time
+// lift would have let a grant through onto a chain whose EndBlocker still pays the
+// whole balance out.
+//
+// lightnode_operator: the reward-pool accounting is established by the coordinated
+// upgrade handler at the plan height, and the chain reports it through the
+// reward_pool query. Before that height the query either does not exist (previous
+// release) or answers initialized=false (this release, upgrade not yet executed),
+// and both refuse the grant.
+var chainGatedFeatures = map[string]func(ctx context.Context, clientCtx client.Context) (reason string, blocked bool){
+	types.FeatureLightNodeOperator: func(ctx context.Context, clientCtx client.Context) (string, bool) {
+		res, err := lightnodetypes.NewQueryClient(clientCtx).RewardPool(ctx,
+			&lightnodetypes.QueryRewardPoolRequest{})
+		return lightNodeGrantGate(res, err)
+	},
+}
+
+// lightNodeGrantGate decides from the reward-pool answer whether a light-node
+// operator licence may be granted on the chain that gave it. Kept apart from the
+// query so the three answers a chain can give are testable without a network.
+func lightNodeGrantGate(res *lightnodetypes.QueryRewardPoolResponse, err error) (string, bool) {
+	if err != nil {
+		return "the chain does not answer the light-node reward_pool query (" + err.Error() +
+			"), so it runs a release whose EndBlocker pays the whole module balance to the " +
+			"first node that registers; the licence cannot be granted there yet", true
+	}
+	if res == nil || !res.Initialized {
+		return "the chain carries the reward-pool code but has not executed the upgrade " +
+			"that establishes the accounting; until that height the validators may still " +
+			"run the release that pays the whole module balance to the first node that " +
+			"registers", true
+	}
+	return "", false
+}
+
+// setAside splits a validated batch into what may be granted and what this binary
+// refuses, with the reason per refused feature. EXCLUDED, NOT FATAL: see the
+// comment at the call site.
+func setAside(ctx context.Context, clientCtx client.Context, grants []batchGrant) (allowed, blocked []batchGrant, reasons map[string]string) {
+	allowed = make([]batchGrant, 0, len(grants))
+	blocked = make([]batchGrant, 0)
+	reasons = map[string]string{}
+	// Each gate asks the chain once per batch, whatever the number of grants.
+	decided := map[string]bool{}
+	for _, g := range grants {
+		if r, isBlocked := blockedFeatures[g.FeatureID]; isBlocked {
+			reasons[g.FeatureID] = r
+			blocked = append(blocked, g)
+			continue
+		}
+		if gate, gated := chainGatedFeatures[g.FeatureID]; gated {
+			if !decided[g.FeatureID] {
+				decided[g.FeatureID] = true
+				if r, isBlocked := gate(ctx, clientCtx); isBlocked {
+					reasons[g.FeatureID] = r
+				}
+			}
+			if _, isBlocked := reasons[g.FeatureID]; isBlocked {
+				blocked = append(blocked, g)
+				continue
+			}
+		}
+		allowed = append(allowed, g)
+	}
+	return allowed, blocked, reasons
 }
 
 // batchFile is the document the payment system produces and a person reviews.
@@ -180,15 +252,7 @@ The granting key never leaves the machine you run this on.`,
 			// Keeping this decision in the binary rather than asking the producer of
 			// the batch to pre-filter also keeps the list of blocked features in ONE
 			// place. Two copies would drift, and the copy that matters is this one.
-			blocked := make([]batchGrant, 0)
-			allowed := make([]batchGrant, 0, len(batch.Grants))
-			for _, g := range batch.Grants {
-				if _, isBlocked := blockedFeatures[g.FeatureID]; isBlocked {
-					blocked = append(blocked, g)
-					continue
-				}
-				allowed = append(allowed, g)
-			}
+			allowed, blocked, reasons := setAside(cmd.Context(), clientCtx, batch.Grants)
 
 			// Drop what is already granted. Without this one already-held licence
 			// fails the whole transaction, and the operator cannot tell which.
@@ -211,7 +275,7 @@ The granting key never leaves the machine you run this on.`,
 				todo = append(todo, g)
 			}
 
-			printBatch(cmd, clientCtx, batch, todo, skipped, blocked)
+			printBatch(cmd, clientCtx, batch, todo, skipped, blocked, reasons)
 			if len(todo) == 0 {
 				fmt.Fprintln(cmd.ErrOrStderr(), "\nNothing to grant. No transaction built.")
 				return nil
@@ -274,7 +338,7 @@ func loadBatch(cmd *cobra.Command, src string) ([]byte, error) {
 
 // printBatch shows exactly what will be signed. This is the authorisation step, so it
 // prints every grant rather than a count.
-func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, todo, skipped, blocked []batchGrant) {
+func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, todo, skipped, blocked []batchGrant, reasons map[string]string) {
 	// Deliberately stderr. The mainnet flow is
 	//   grant-batch ... --generate-only > tx.json
 	//   tx pqc cosign tx.json ...
@@ -314,19 +378,20 @@ func printBatch(cmd *cobra.Command, clientCtx client.Context, batch batchFile, t
 	}
 
 	if len(blocked) > 0 {
-		fmt.Fprintf(out, "\nNOT granted, refused by this binary (%d):\n", len(blocked))
+		fmt.Fprintf(out, "\nNOT granted, refused (%d):\n", len(blocked))
 		for _, g := range blocked {
 			fmt.Fprintf(out, "  %-45s %s\n", g.Grantee, g.FeatureID)
 		}
-		reasons := map[string]bool{}
+		shown := map[string]bool{}
 		for _, g := range blocked {
-			if r, ok := blockedFeatures[g.FeatureID]; ok && !reasons[g.FeatureID] {
-				reasons[g.FeatureID] = true
+			if r, ok := reasons[g.FeatureID]; ok && !shown[g.FeatureID] {
+				shown[g.FeatureID] = true
 				fmt.Fprintf(out, "\n  %s: %s\n", g.FeatureID, r)
 			}
 		}
 		fmt.Fprintf(out, "\n  These stay queued. They are not lost, and they need no\n"+
-			"  re-entry: they grant themselves once a release lifts the refusal.\n")
+			"  re-entry: they grant themselves once the refusal lifts, whether by a\n"+
+			"  release or by the chain reaching the state the grant waits for.\n")
 	}
 
 	if len(skipped) > 0 {
