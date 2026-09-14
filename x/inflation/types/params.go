@@ -9,7 +9,8 @@ import (
 // Emission modes.
 //
 // EmissionModeSchedule is the original behaviour: each epoch mints
-// totalSupply * rate / 365. It is self-feeding — supply grows, so the base
+// totalSupply * rate * epoch_length / blocks_per_year (rate / 365 at the
+// mainnet epoch length). It is self-feeding — supply grows, so the base
 // grows, so the next epoch mints more. It can never bound a total.
 //
 // EmissionModeFixed mints a constant amount per epoch, which together with
@@ -18,6 +19,29 @@ const (
 	EmissionModeSchedule = "schedule"
 	EmissionModeFixed    = "fixed"
 )
+
+// BlocksPerDay and BlocksPerYear fix the calendar the schedule is written
+// against: an annual rate, one day per 43,200 blocks (2 s target). Epoch
+// lengths are converted to a share of the year through these constants, so a
+// chain that chooses shorter epochs mints proportionally less per epoch and
+// advances the schedule year after the same number of blocks.
+const (
+	BlocksPerDay  = int64(43_200)
+	BlocksPerYear = 365 * BlocksPerDay
+)
+
+// EpochsPerYear is how many epochs of this length make up a schedule year,
+// never less than one. 365 for the mainnet epoch length.
+func (p Params) EpochsPerYear() uint64 {
+	if p.EpochLength < 1 {
+		return 365
+	}
+	n := BlocksPerYear / p.EpochLength
+	if n < 1 {
+		return 1
+	}
+	return uint64(n)
+}
 
 // EmissionTier defines the inflation rate for a given year.
 type EmissionTier struct {
@@ -170,8 +194,15 @@ func (p Params) EpochEmission(rate math.LegacyDec, totalSupply, alreadyMinted ma
 		if rate.IsNil() || rate.IsZero() || totalSupply.IsNil() || !totalSupply.IsPositive() {
 			return math.ZeroInt()
 		}
-		const epochsPerYear = int64(365)
-		amount = rate.MulInt(totalSupply).QuoInt64(epochsPerYear).TruncateInt()
+		// The annual rate is spread over the year by block count, so an epoch
+		// mints the share of the year its length represents. For the mainnet
+		// convention (43,200 blocks per epoch, one day at 2 s) this is exactly
+		// rate * supply / 365, the historical formula, and it is computed on the
+		// same rational so the truncated integer is byte-identical on replay.
+		// Any other epoch length used to mint a full day's emission regardless:
+		// the public testnet, configured with 30-block epochs, minted a day's
+		// worth every 30 seconds and grew its supply 900-fold.
+		amount = rate.MulInt(totalSupply).MulInt64(p.EpochLength).QuoInt64(BlocksPerYear).TruncateInt()
 	}
 	if !amount.IsPositive() {
 		return math.ZeroInt()

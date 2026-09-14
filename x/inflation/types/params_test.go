@@ -135,3 +135,43 @@ func TestRoundTripKeepsNewFields(t *testing.T) {
 		t.Fatalf("round trip lost data: %+v", back)
 	}
 }
+
+// The historical formula divided the annual rate by 365 whatever the epoch
+// length. The replacement spreads it by block count, which must give the very
+// same integer for the mainnet epoch length on every supply, or a node
+// replaying history with the new binary mints a different amount and forks.
+func TestMainnetEpochLengthKeepsTheHistoricalEmission(t *testing.T) {
+	p := DefaultParams()
+	p.EpochLength = BlocksPerDay
+	for _, supply := range []int64{
+		1, 365, 366, 1_000_000, 4_485_743_877_000_000, 4_485_743_877_123_456, 9_999_999_999_999_999,
+	} {
+		for _, rate := range []string{"0.175", "0.11", "0.07", "0.02", "0.001234567890123456"} {
+			got := p.EpochEmission(dec(rate), math.NewInt(supply), math.ZeroInt())
+			want := dec(rate).MulInt(math.NewInt(supply)).QuoInt64(365).TruncateInt()
+			if !got.Equal(want) {
+				t.Fatalf("supply %d rate %s: got %s want %s", supply, rate, got, want)
+			}
+		}
+	}
+	if p.EpochsPerYear() != 365 {
+		t.Fatalf("mainnet epoch length must give 365 epochs per year, got %d", p.EpochsPerYear())
+	}
+}
+
+// A 30-block epoch is 1/1440 of a day, so it mints 1/1440 of a day's emission,
+// not a whole day's. This is the public testnet's configuration; at the old
+// formula it minted 69.9 million QOR every 30 seconds.
+func TestShortEpochMintsItsShareOfTheYear(t *testing.T) {
+	p := DefaultParams()
+	p.EpochLength = 30
+	supply := math.NewInt(1_400_000_000_000_000)
+	got := p.EpochEmission(dec("0.02"), supply, math.ZeroInt())
+	day := dec("0.02").MulInt(supply).QuoInt64(365).TruncateInt()
+	if !got.Mul(math.NewInt(1440)).LTE(day) || got.Mul(math.NewInt(1440)).LT(day.Sub(math.NewInt(1440))) {
+		t.Fatalf("30-block epoch must mint one 1440th of a day: got %s, day %s", got, day)
+	}
+	if p.EpochsPerYear() != 525_600 {
+		t.Fatalf("30-block epochs: want 525,600 per year, got %d", p.EpochsPerYear())
+	}
+}
