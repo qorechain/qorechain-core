@@ -158,7 +158,11 @@ func GetCmdMigratePQCKey() *cobra.Command {
 This requires dual signatures - one from your old key and one from your new key - proving
 ownership of both. A migration must be active for your current algorithm (started via governance).
 
-The message signed by both keys is: "migrate:<your-address>"`,
+Both keys sign types.MigrationSignBytes(chain-id, your-address, from-algorithm,
+new-algorithm, execution-height, old-pubkey, new-pubkey): the destination key is
+part of what the old key vouches for, so the signatures cannot be reused with a
+different new key. The execution height is the height the transaction lands at;
+sign for the next block and broadcast immediately.`,
 		Args: cobra.ExactArgs(5),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)

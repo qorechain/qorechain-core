@@ -105,6 +105,16 @@ func (msg *MsgMigratePQCKey) ValidateBasic() error {
 	if msg.NewAlgorithmID == AlgorithmUnspecified {
 		return ErrInvalidAlgorithm.Wrap("new_algorithm_id is required")
 	}
+	// A migration to a key-encapsulation algorithm would leave the account
+	// with a key that cannot sign, and one to a key of the wrong size with a
+	// key that cannot verify; both brick the account. Refuse what is known
+	// statically, the keeper checks the registry for the rest.
+	if msg.NewAlgorithmID.IsKEM() {
+		return ErrInvalidAlgorithm.Wrapf("%s is a key-encapsulation algorithm and cannot authenticate an account", msg.NewAlgorithmID)
+	}
+	if want, known := ExpectedPublicKeySize(msg.NewAlgorithmID); known && len(msg.NewPublicKey) != int(want) {
+		return ErrInvalidKeyLength.Wrapf("%s public key must be %d bytes, got %d", msg.NewAlgorithmID, want, len(msg.NewPublicKey))
+	}
 	if len(msg.OldSignature) == 0 {
 		return ErrDualSigRequired.Wrap("old_signature is required for migration")
 	}

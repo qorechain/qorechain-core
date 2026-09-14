@@ -174,12 +174,39 @@ func TestMsgMigratePQCKey_ValidateBasic(t *testing.T) {
 			MsgMigratePQCKey{
 				Sender:         testAddr,
 				OldPublicKey:   make([]byte, 32),
-				NewPublicKey:   make([]byte, 32),
+				NewPublicKey:   make([]byte, 2592),
 				NewAlgorithmID: AlgorithmDilithium5,
 				OldSignature:   make([]byte, 64),
 				NewSignature:   make([]byte, 64),
 			},
 			false,
+		},
+		{
+			// A destination key of the wrong size would be stored and could never
+			// verify: the account is bricked at the next transaction.
+			"new pubkey of the wrong size for the target algorithm",
+			MsgMigratePQCKey{
+				Sender:         testAddr,
+				OldPublicKey:   make([]byte, 32),
+				NewPublicKey:   make([]byte, 32),
+				NewAlgorithmID: AlgorithmDilithium5,
+				OldSignature:   make([]byte, 64),
+				NewSignature:   make([]byte, 64),
+			},
+			true,
+		},
+		{
+			// ML-KEM encapsulates; it cannot sign, so it cannot authenticate.
+			"migration to a key-encapsulation algorithm",
+			MsgMigratePQCKey{
+				Sender:         testAddr,
+				OldPublicKey:   make([]byte, 32),
+				NewPublicKey:   make([]byte, 1568),
+				NewAlgorithmID: AlgorithmMLKEM1024,
+				OldSignature:   make([]byte, 64),
+				NewSignature:   make([]byte, 64),
+			},
+			true,
 		},
 		{
 			"missing old pubkey",
