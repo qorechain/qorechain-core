@@ -16,6 +16,9 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
 		&MsgDeployProgram{},
 		&MsgExecuteProgram{},
+		// Governance parameter update. Added with the message; without this line the
+		// tx decoder refuses it with "unable to resolve type URL".
+		&MsgUpdateParams{},
 		&MsgCreateAccount{},
 		&MsgRegisterSVMPQCKey{},
 	)
@@ -25,6 +28,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgDeployProgram{}, "svm/MsgDeployProgram", nil)
 	cdc.RegisterConcrete(&MsgExecuteProgram{}, "svm/MsgExecuteProgram", nil)
+	cdc.RegisterConcrete(&MsgUpdateParams{}, "svm/MsgUpdateParams", nil)
 	cdc.RegisterConcrete(&MsgCreateAccount{}, "svm/MsgCreateAccount", nil)
 	cdc.RegisterConcrete(&MsgRegisterSVMPQCKey{}, "svm/MsgRegisterSVMPQCKey", nil)
 }
