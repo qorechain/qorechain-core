@@ -40,6 +40,11 @@ type MultilayerKeeper interface {
 	// anchors against the layer creator's registered Dilithium key.
 	SetAnchorVerifier(v types.AnchorSignatureVerifier)
 
+	// SetBankKeeper wires the bank so registration can lock the creator's
+	// stake. Without it every registration is refused: a registry that cannot
+	// collect the documented stake must not hand out slots for free.
+	SetBankKeeper(bk types.BankKeeper)
+
 	// Genesis
 	InitGenesis(ctx sdk.Context, state types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState

@@ -102,6 +102,9 @@ var (
 		{Account: "burn", Permissions: []string{authtypes.Burner}},
 		{Account: "xqore", Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: "inflation", Permissions: []string{authtypes.Minter}},
+		// multilayer holds layer creators' registration stakes until the layer
+		// is decommissioned; no mint or burn.
+		{Account: "multilayer"},
 		// lightnode receives the 3% light-node share of the fee split (burn
 		// DistributeFees) and pays it out to registered light nodes.
 		{Account: "lightnode"},
@@ -453,6 +456,10 @@ var (
 
 func ProvideEVMCustomGetSigner() signing.CustomGetSigner {
 	return evmvmtypes.MsgEthereumTxCustomGetSigner
+}
+
+func ProvideERC20CustomGetSigner() signing.CustomGetSigner {
+	return erc20types.MsgConvertERC20CustomGetSigner
 }
 
 // blockedModuleAccountsExcept returns every module account in the permission table

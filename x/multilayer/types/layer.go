@@ -82,6 +82,14 @@ type LayerConfig struct {
 
 	// Creator
 	Creator string `json:"creator"` // bech32 address of layer creator
+
+	// CreatorStake is the uqor the creator locked in the module account when
+	// the layer was registered (the min_*_stake parameter at that time). It is
+	// returned when the layer is decommissioned. Before this field existed
+	// registration collected nothing, so a registry slot cost only the
+	// transaction fee and all ten sidechain slots could be held for about
+	// 2 QOR; omitted from JSON when zero so older records read back unchanged.
+	CreatorStake string `json:"creator_stake,omitempty"`
 }
 
 // StateAnchor represents a state root commitment from a subsidiary chain

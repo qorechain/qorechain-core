@@ -97,6 +97,7 @@ func (k *StubKeeper) SetParams(_ sdk.Context, _ types.Params) error {
 }
 
 func (k *StubKeeper) SetAnchorVerifier(_ types.AnchorSignatureVerifier) {}
+func (k *StubKeeper) SetBankKeeper(_ types.BankKeeper)                  {}
 
 func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 
