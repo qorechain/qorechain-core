@@ -223,10 +223,19 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 	return sdk.ChainAnteDecorators(
 		// Reject MsgEthereumTx on the Cosmos SDK path — must use ExtensionOptionsEthereumTx
 		cosmosante.NewRejectMessagesDecorator(),
-		// Prevent MsgEthereumTx and MsgCreateVestingAccount from being used in authz
+		// Refuse MsgEthereumTx and every vesting-creation message inside authz,
+		// nested to any depth. All three vesting messages convert an address that
+		// does not yet exist into a vesting account, at the sender's choice of
+		// target, so any one of them is the griefing primitive; naming only the
+		// first left the permanent-locked and periodic forms reachable through a
+		// grant. The circuit breaker also checks nested messages at the router,
+		// but this is the release-independent layer and must be complete on its
+		// own.
 		cosmosante.NewAuthzLimiterDecorator(
 			sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{}),
 			sdk.MsgTypeURL(&sdkvesting.MsgCreateVestingAccount{}),
+			sdk.MsgTypeURL(&sdkvesting.MsgCreatePermanentLockedAccount{}),
+			sdk.MsgTypeURL(&sdkvesting.MsgCreatePeriodicVestingAccount{}),
 		),
 		ante.NewSetUpContextDecorator(),
 		// Mempool-only guard: refuse CosmWasm upload/instantiate into this

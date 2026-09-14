@@ -41,6 +41,7 @@ import (
 	_ "cosmossdk.io/x/nft/module"
 	_ "cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
+	erc20types "github.com/cosmos/evm/x/erc20/types"
 	evmvmtypes "github.com/cosmos/evm/x/vm/types"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -433,11 +434,19 @@ var (
 				),
 			},
 		),
-		// EVM custom signers — required for MsgEthereumTx and MsgConvertERC20
-		// to be recognized by the InterfaceRegistry signing context.
+		// EVM custom signers. MsgEthereumTx and MsgConvertERC20 both carry their
+		// sender as a hex address, which the SDK signing context cannot read as
+		// a signer on its own; each needs the custom resolver its module ships.
 		// Provided as functions (depinject collects many-per-container types).
+		//
+		// The erc20 one was missing: this comment promised it, the code did not
+		// provide it, and the signing context fell back to bech32-decoding the
+		// hex sender. Every MsgConvertERC20 was refused at CheckTx with
+		// "decoding bech32 failed", so once a token pair was registered there
+		// was no way back from the ERC-20 form to the native coin.
 		depinject.Provide(
 			ProvideEVMCustomGetSigner,
+			ProvideERC20CustomGetSigner,
 		),
 	)
 )
