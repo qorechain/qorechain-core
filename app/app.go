@@ -914,6 +914,7 @@ func (app *QoreChainApp) setAnteHandler(
 			},
 			CircuitKeeper:         &app.CircuitKeeper,
 			PQCKeeper:             app.PQCKeeper,
+			StakingKeeper:         app.StakingKeeper,
 			PQCClient:             app.pqcClient,
 			AIKeeper:              app.AIKeeper,
 			SVMKeeper:             app.SVMKeeper,

@@ -13,7 +13,14 @@ type QCAConfig struct {
 // DefaultQCAConfig returns the default configuration.
 func DefaultQCAConfig() QCAConfig {
 	return QCAConfig{
-		UseReputationWeighting: true,
+		// FALSE, and deliberately so. The reputation-weighted proposer selector has
+		// no execution path: GetPoolWeightedProposer has zero call sites, the module
+		// declares no block hooks and installs no proposal handler, so proposer
+		// selection is stock stake-weighted whatever this says. A default of true
+		// made the on-chain configuration misrepresent the consensus path the
+		// network actually runs, and that was reported from outside. Flip it back
+		// to true only in the commit that wires the selector.
+		UseReputationWeighting: false,
 		MinReputationScore:     0.1,
 		PoolConfig:             DefaultPoolConfig(),
 		BondingCurveConfig:     DefaultBondingCurveConfig(),

@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 
 	corestoretypes "cosmossdk.io/core/store"
 	errorsmod "cosmossdk.io/errors"
@@ -57,6 +58,7 @@ type HandlerOptions struct {
 	GasAbstractionKeeper gasabstractionmod.GasAbstractionKeeper
 	BurnKeeper           burnmod.BurnKeeper
 	LicenseKeeper        licensemod.LicenseKeeper
+	StakingKeeper        *stakingkeeper.Keeper
 
 	// EVM keepers — the concrete AccountKeeper is needed because the EVM ante
 	// interfaces require GetSequence which the SDK ante.AccountKeeper interface lacks.
@@ -250,7 +252,7 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		ante.NewValidateMemoDecorator(options.AccountKeeper),
 		// Validator licensing gate — MsgCreateValidator requires an active
 		// validator_operator license + >=100,000 QOR self-bond (height-0 exempt).
-		NewValidatorLicenseDecorator(options.LicenseKeeper),
+		NewValidatorLicenseDecorator(options.LicenseKeeper, options.StakingKeeper),
 		// PQC signature verification — runs before standard sig verify
 		NewPQCVerifyDecorator(options.PQCKeeper, options.PQCClient),
 		// PQC hybrid signature verification — checks TX extension for dual Ed25519 + ML-DSA-87

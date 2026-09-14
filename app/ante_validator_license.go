@@ -7,6 +7,7 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
+	stakingkeeper "github.com/cosmos/cosmos-sdk/x/staking/keeper"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	licensemod "github.com/qorechain/qorechain-core/x/license"
@@ -27,11 +28,12 @@ var MinValidatorSelfBond = math.NewInt(100_000_000_000)
 // creation is gated.
 type ValidatorLicenseDecorator struct {
 	licenseKeeper licensemod.LicenseKeeper
+	stakingKeeper *stakingkeeper.Keeper
 }
 
 // NewValidatorLicenseDecorator builds the decorator.
-func NewValidatorLicenseDecorator(lk licensemod.LicenseKeeper) ValidatorLicenseDecorator {
-	return ValidatorLicenseDecorator{licenseKeeper: lk}
+func NewValidatorLicenseDecorator(lk licensemod.LicenseKeeper, sk *stakingkeeper.Keeper) ValidatorLicenseDecorator {
+	return ValidatorLicenseDecorator{licenseKeeper: lk, stakingKeeper: sk}
 }
 
 // AnteHandle enforces the validator licensing + self-bond rules.
@@ -77,6 +79,15 @@ func (d ValidatorLicenseDecorator) checkMsgs(
 			continue
 		}
 
+		// THE FLOOR IS AN OPERATING THRESHOLD, NOT ONLY AN ADMISSION ONE. It used to
+		// be checked exactly once, at creation, so an operator could admit
+		// themselves with 100,000 QOR and then undelegate down to 1 uqor while the
+		// validator kept signing. A self-bond that only has to exist at the door is
+		// a deposit, not a bond.
+		if err := d.refuseSelfBondBelowFloor(ctx, msg); err != nil {
+			return ctx, err
+		}
+
 		createVal, ok := msg.(*stakingtypes.MsgCreateValidator)
 		if !ok {
 			continue
@@ -108,4 +119,60 @@ func (d ValidatorLicenseDecorator) checkMsgs(
 		return ctx, nil
 	}
 	return next(ctx, tx, simulate)
+}
+
+// refuseSelfBondBelowFloor refuses an undelegation or redelegation by a validator's
+// own operator that would leave the self-bond under MinValidatorSelfBond.
+//
+// Only the operator's OWN delegation to their OWN validator counts as self-bond, so
+// an ordinary delegator moving stake is untouched, and so is an operator moving
+// stake they hold on someone else's validator. Genesis validators are not exempt
+// here: the floor is the rule for operating, and it did not apply to them only
+// because nothing checked it after admission.
+func (d ValidatorLicenseDecorator) refuseSelfBondBelowFloor(ctx sdk.Context, msg sdk.Msg) error {
+	if d.stakingKeeper == nil {
+		return nil
+	}
+
+	var delegator, validator string
+	var leaving sdk.Coin
+	switch m := msg.(type) {
+	case *stakingtypes.MsgUndelegate:
+		delegator, validator, leaving = m.DelegatorAddress, m.ValidatorAddress, m.Amount
+	case *stakingtypes.MsgBeginRedelegate:
+		delegator, validator, leaving = m.DelegatorAddress, m.ValidatorSrcAddress, m.Amount
+	default:
+		return nil
+	}
+
+	valAddr, err := sdk.ValAddressFromBech32(validator)
+	if err != nil {
+		return nil // the staking handler reports the malformed address
+	}
+	delAddr, err := sdk.AccAddressFromBech32(delegator)
+	if err != nil {
+		return nil
+	}
+	if !delAddr.Equals(sdk.AccAddress(valAddr)) {
+		return nil // not the operator's own bond
+	}
+
+	val, err := d.stakingKeeper.GetValidator(ctx, valAddr)
+	if err != nil {
+		return nil
+	}
+	del, err := d.stakingKeeper.GetDelegation(ctx, delAddr, valAddr)
+	if err != nil {
+		return nil
+	}
+	selfBond := val.TokensFromShares(del.Shares).TruncateInt()
+	remaining := selfBond.Sub(leaving.Amount)
+	if remaining.LT(MinValidatorSelfBond) {
+		return errorsmod.Wrapf(errortypes.ErrInvalidRequest,
+			"this would leave the validator's self-bond at %s uqor, below the required "+
+				"minimum of %s uqor (100,000 QOR); the floor applies for as long as the "+
+				"validator operates, not only when it is created",
+			remaining, MinValidatorSelfBond)
+	}
+	return nil
 }

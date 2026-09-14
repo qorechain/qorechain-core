@@ -119,15 +119,29 @@ var (
 		{Account: "svm"},
 	}
 
-	// blockAccAddrs defines blocked module account addresses.
-	blockAccAddrs = []string{
-		authtypes.FeeCollectorName,
-		distrtypes.ModuleName,
-		minttypes.ModuleName,
-		stakingtypes.BondedPoolName,
-		stakingtypes.NotBondedPoolName,
-		nft.ModuleName,
-	}
+	// blockAccAddrs defines the module accounts that may NOT receive an ordinary
+	// bank send.
+	//
+	// EVERY MODULE ACCOUNT, WITH ONE NAMED EXCEPTION. This used to be an explicit
+	// six-entry list, and because the list was non-empty the SDK never fell through
+	// to its default of blocking every module account. Each of the eighteen custom
+	// module accounts, and the remaining standard ones, could therefore receive a
+	// plain MsgSend. Two consequences: coins sent there by mistake are unrecoverable,
+	// turning a typo into permanent loss; and an unsolicited deposit breaks any
+	// module invariant that assumes the module balance equals what the module itself
+	// recorded, which is exactly the precisebank export failure that was reported
+	// alongside this.
+	//
+	// The list is computed from the permission table so a module added later is
+	// blocked by default rather than by someone remembering to add it here.
+	// Module-to-module transfers are unaffected: the fee split, staking pools and
+	// reward flows use SendCoinsFromModuleToModule, which does not consult this list.
+	//
+	// The exception: "svm" is designed to be pre-funded by a plain send. It custodies
+	// PDA and program lamports as native QOR and the testnet faucet credits from it,
+	// with an explicit invariant that it never mints. Blocking it would break that
+	// funding path, so it is left receivable, deliberately and alone.
+	blockAccAddrs = blockedModuleAccountsExcept("svm")
 
 	// ModuleConfig defines the standard Cosmos SDK module configuration for QoreChain.
 	// Custom modules (x/pqc, x/ai, x/reputation, x/qca) will be registered manually
@@ -430,4 +444,21 @@ var (
 
 func ProvideEVMCustomGetSigner() signing.CustomGetSigner {
 	return evmvmtypes.MsgEthereumTxCustomGetSigner
+}
+
+// blockedModuleAccountsExcept returns every module account in the permission table
+// except the named ones. Written as a function of the table so the blocklist can
+// never again silently omit a module that exists.
+func blockedModuleAccountsExcept(allow ...string) []string {
+	allowed := map[string]bool{}
+	for _, a := range allow {
+		allowed[a] = true
+	}
+	out := make([]string, 0, len(moduleAccPerms))
+	for _, p := range moduleAccPerms {
+		if !allowed[p.Account] {
+			out = append(out, p.Account)
+		}
+	}
+	return out
 }

@@ -66,7 +66,19 @@ func (d GasAbstractionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate
 		return ctx, types.ErrUnsupportedDenom.Wrapf("denom %s not accepted for fee payment", feeDenom)
 	}
 
-	// v1.2.0: Static conversion rates -- actual swap handled at fee deduction
-	// Future: integrate with DEX or oracle for dynamic rates
-	return next(ctx, tx, simulate)
+	// FAIL CLOSED: THERE IS NO CONVERSION.
+	//
+	// The comment this replaced said the swap "is handled at fee deduction". It is
+	// not, anywhere: the conversion rates in the configuration appear only in the
+	// type defaults, in genesis validation and in a query that echoes them back.
+	// An accepted non-native fee reached the native-only deduction path
+	// unconverted, and the declared rates, including a 10:1 one, were never
+	// applied. Admitting the transaction here promised a conversion the chain does
+	// not perform. Until one exists, an accepted-but-unconvertible denom is
+	// refused with a message that says so, rather than passed on to fail, or
+	// worse to succeed, somewhere that does not know the rate was supposed to
+	// matter.
+	return ctx, types.ErrUnsupportedDenom.Wrapf(
+		"denom %s is listed as accepted for fees, but fee conversion is not "+
+			"implemented on this chain; pay fees in %s", feeDenom, config.NativeDenom)
 }
