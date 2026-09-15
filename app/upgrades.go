@@ -9,6 +9,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
+	evmtypes "github.com/cosmos/evm/x/vm/types"
+
 	inflationtypes "github.com/qorechain/qorechain-core/x/inflation/types"
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
@@ -165,6 +167,17 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 				if err := app.PQCKeeper.EnableProtocolFeature(sdkCtx, f); err != nil {
 					return fromVM, err
 				}
+			}
+
+			// The EVM lane was closed on the circuit breaker ahead of this release
+			// as the interim mitigation for the locked-balance defect the feature
+			// above fixes. Reopen it here, in the same block the fix takes effect,
+			// so the lane comes back without anyone having to remember to send a
+			// reset, and comes back with this release's post-quantum
+			// authorisation window already enforced on it. Removing an entry that
+			// is not there is a no-op, so a chain that never tripped is unaffected.
+			if err := app.CircuitKeeper.DisableList.Remove(sdkCtx, sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{})); err != nil {
+				return fromVM, err
 			}
 			return fromVM, nil
 		},
