@@ -822,6 +822,15 @@ func NewQoreChainApp(
 		panic(err)
 	}
 
+	// The upgrade module took its initial version map from the modules the
+	// dependency-injection container knew about, which is none of the ones
+	// registered just above. RunMigrations treats a module missing from the
+	// map as brand new and calls InitGenesis with default state on it, so a
+	// future upgrade that migrates would have reset feemarket, evm, erc20,
+	// wasm and every QoreChain module. Rebuild the map from the final module
+	// set; the release upgrade handler repairs it on chains already running.
+	app.UpgradeKeeper.SetInitVersionMap(app.ModuleManager.GetVersionMap())
+
 	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}

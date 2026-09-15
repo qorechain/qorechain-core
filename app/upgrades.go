@@ -179,7 +179,31 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 			if err := app.CircuitKeeper.DisableList.Remove(sdkCtx, sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{})); err != nil {
 				return fromVM, err
 			}
-			return fromVM, nil
+
+			// The stored version map only ever listed the dependency-injected
+			// modules; the manually registered ones (evm, feemarket, erc20,
+			// precisebank, wasm, ibc and every QoreChain module) were absent, so
+			// a later upgrade that calls RunMigrations would have re-initialised
+			// them from default genesis. Record every module the binary runs at
+			// its current consensus version. Nothing is migrated here.
+			return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
 		},
 	)
+}
+
+// mergeMissingModuleVersions returns fromVM with an entry for every module in
+// current that fromVM lacks. Entries fromVM already has are left exactly as
+// they are: those carry the version state was written at, and changing them is
+// what a migration is for.
+func mergeMissingModuleVersions(fromVM, current module.VersionMap) module.VersionMap {
+	out := make(module.VersionMap, len(fromVM)+len(current))
+	for name, v := range fromVM {
+		out[name] = v
+	}
+	for name, v := range current {
+		if _, ok := out[name]; !ok {
+			out[name] = v
+		}
+	}
+	return out
 }
