@@ -66,11 +66,20 @@ func (o *Observation) ToFixedPoint() ([ObservationDimensions]int64, error) {
 			// Truncate to integer after scaling.
 			product = product.TruncateDec()
 		}
+		// TruncateInt64 panics past the int64 range; this runs inside the
+		// block hooks, so report the out-of-range dimension as the error the
+		// signature already promises instead of halting the chain on it.
+		if product.Abs().GT(maxFixedPoint) {
+			return out, fmt.Errorf("observation[%d]: value %s exceeds the fixed-point range", i, o.Values[i])
+		}
 		v := product.TruncateInt64()
 		out[i] = v
 	}
 	return out, nil
 }
+
+// maxFixedPoint is the largest scaled value that fits an int64.
+var maxFixedPoint = math.LegacyNewDec(int64(9223372036854775807))
 
 // Validate performs basic validation of the observation.
 func (o *Observation) Validate() error {

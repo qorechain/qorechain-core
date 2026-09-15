@@ -12,6 +12,8 @@ var (
 	one  = sdkmath.LegacyOneDec()
 	two  = sdkmath.LegacyNewDec(2)
 	half = one.Quo(two)
+
+	sigmoidSaturation = sdkmath.LegacyNewDec(40)
 )
 
 // IntegerSqrt computes the square root of x using Newton's method.
@@ -134,6 +136,15 @@ func TaylorLn1PlusXSmall(u sdkmath.LegacyDec) sdkmath.LegacyDec {
 // For numerical stability with negative x, uses: sigmoid(x) = 1 - sigmoid(-x).
 // Error < 0.1% for x in [-3, 3].
 func SigmoidApprox(x sdkmath.LegacyDec) sdkmath.LegacyDec {
+	// A sigmoid squashes every real input into (0, 1). Beyond |x| = 40 the
+	// result is 1 or 0 to eighteen decimals, so answer directly rather than
+	// pushing ExpApprox towards its bound.
+	if x.GT(sigmoidSaturation) {
+		return one
+	}
+	if x.LT(sigmoidSaturation.Neg()) {
+		return zero
+	}
 	// For negative x, use symmetry: sigmoid(x) = 1 - sigmoid(-x)
 	if x.IsNegative() {
 		return one.Sub(SigmoidApprox(x.Neg()))
@@ -183,7 +194,21 @@ func ReputationMultiplier(r sdkmath.LegacyDec) sdkmath.LegacyDec {
 // series is accurate; the result is then squared k times. For |x| <= 1, k=0 and
 // the computation is identical to the plain series. Fully deterministic
 // (LegacyDec throughout, integer halving for the reduction count).
+// ExpArgumentBound is the largest |x| ExpApprox evaluates. exp(170) is about
+// 7e73, comfortably inside LegacyDec's 315-bit range; the squaring step of the
+// range reduction overflows (and panics) from about x = 177. Arguments beyond
+// the bound saturate to the bound, so a consensus-path caller that is handed
+// an out-of-range input gets a large finite number instead of halting every
+// validator in BeginBlock or EndBlock.
+var ExpArgumentBound = sdkmath.LegacyNewDec(170)
+
 func ExpApprox(x sdkmath.LegacyDec) sdkmath.LegacyDec {
+	if x.GT(ExpArgumentBound) {
+		x = ExpArgumentBound
+	} else if x.LT(ExpArgumentBound.Neg()) {
+		x = ExpArgumentBound.Neg()
+	}
+
 	// Range reduction: halve x until |x| <= 1, counting the halvings.
 	xr := x
 	k := 0
