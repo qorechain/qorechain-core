@@ -140,9 +140,14 @@ type RollupConfig struct {
 	ProofConfig     ProofConfig     `json:"proof_config"`
 	Status          RollupStatus    `json:"status"`
 	StakeAmount     int64           `json:"stake_amount"` // uqor
-	LayerID         string          `json:"layer_id"`
-	CreatedHeight   int64           `json:"created_height"`
-	CreatedAt       time.Time       `json:"created_at"`
+	// EscrowAmount is what the module account actually holds for this rollup:
+	// the stake less the creation burn. It is what StopRollup returns. Zero on
+	// records written before the burn was enforced, which were escrowed in
+	// full; the keeper treats zero as "the whole stake".
+	EscrowAmount  int64     `json:"escrow_amount,omitempty"`
+	LayerID       string    `json:"layer_id"`
+	CreatedHeight int64     `json:"created_height"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 // Validate checks invariants on the RollupConfig.
