@@ -11,6 +11,7 @@ import (
 type EVMWindowKeeper interface {
 	HasPQCAccount(ctx sdk.Context, address string) bool
 	ConsumeEVMWindow(ctx sdk.Context, addr sdk.AccAddress, outflow sdkmath.Int) error
+	ProtocolFeatureEnabled(ctx sdk.Context, name string) bool
 }
 
 // EVMWindowDecorator is a pass-through stub for public builds.

@@ -173,9 +173,10 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 			// as the interim mitigation for the locked-balance defect the feature
 			// above fixes. Reopen it here, in the same block the fix takes effect,
 			// so the lane comes back without anyone having to remember to send a
-			// reset, and comes back with this release's post-quantum
-			// authorisation window already enforced on it. Removing an entry that
-			// is not there is a no-op, so a chain that never tripped is unaffected.
+			// reset. The post-quantum authorisation window on that lane ships in
+			// this binary but stays staged (pqctypes.StagedProtocolFeatures); the
+			// next release's handler switches it on. Removing an entry that is not
+			// there is a no-op, so a chain that never tripped is unaffected.
 			if err := app.CircuitKeeper.DisableList.Remove(sdkCtx, sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{})); err != nil {
 				return fromVM, err
 			}

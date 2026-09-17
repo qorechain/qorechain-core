@@ -20,14 +20,29 @@ const (
 	// slashFactor * InitialBalance across the destination's unbonding entries
 	// and live delegation.
 	FeatureRedelegationSlashCap = "staking-redelegation-slash-cap"
+	// FeatureEVMPQCAuthorisationWindow makes the post-quantum requirement true
+	// on the EVM lane: an EVM transaction is admitted only from an account that
+	// holds a registered post-quantum key and has opened a bounded
+	// authorisation window with a Cosmos-lane message. The window messages,
+	// queries and CLI ship with the binary and work regardless; only the
+	// refusal in the ante path waits for this switch.
+	FeatureEVMPQCAuthorisationWindow = "evm-pqc-authorisation-window"
 )
 
-// AllProtocolFeatures lists every feature this binary knows. A fresh chain
-// enables all of them at genesis; the release upgrade handler enables the
-// ones it introduces.
+// AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain
+// enables all of them at genesis, and the release upgrade handler enables
+// them at the plan height. A feature that is not yet released is listed in
+// StagedProtocolFeatures instead: the code is in the binary, the switch stays
+// off on every chain, and a later release's handler turns it on.
 var AllProtocolFeatures = []string{
 	FeatureEVMLockedBalanceScaling,
 	FeatureRedelegationSlashCap,
+}
+
+// StagedProtocolFeatures are known to this binary and enabled by no path in
+// it. Moving one to AllProtocolFeatures is what releases it.
+var StagedProtocolFeatures = []string{
+	FeatureEVMPQCAuthorisationWindow,
 }
 
 // ProtocolFeaturePrefix is the store prefix under which enabled features are
