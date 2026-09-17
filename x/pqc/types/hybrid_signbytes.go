@@ -30,6 +30,20 @@ const HybridSignBytesDomain = "qorechain-pqc-hybrid-v2"
 // implementation in x/pqc/client/cli, the public SDK and the wallet adapter all
 // build these bytes and must move together; a client on the old form produces a
 // digest this chain rejects, which fails closed rather than ambiguously.
+// HybridSignBytesLegacy is the first form, verified for every block below the
+// release that introduced v2 (protocol feature pqc-sign-bytes-v2), so that
+// history replays byte-identically:
+//
+//	BE32(len(B0)) ‖ B0 ‖ BE32(len(authInfo)) ‖ authInfo
+func HybridSignBytesLegacy(b0, authInfo []byte) []byte {
+	buf := make([]byte, 4+len(b0)+4+len(authInfo))
+	binary.BigEndian.PutUint32(buf[0:4], uint32(len(b0)))
+	copy(buf[4:4+len(b0)], b0)
+	binary.BigEndian.PutUint32(buf[4+len(b0):8+len(b0)], uint32(len(authInfo)))
+	copy(buf[8+len(b0):], authInfo)
+	return buf
+}
+
 func HybridSignBytes(chainID string, b0, authInfo []byte) []byte {
 	out := make([]byte, 0, len(HybridSignBytesDomain)+8+len(chainID)+4+len(b0)+4+len(authInfo))
 	out = append(out, HybridSignBytesDomain...)

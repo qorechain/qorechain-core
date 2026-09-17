@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/binary"
+	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
@@ -158,6 +159,24 @@ func (msg MsgBridgeAttestation) GetSigners() []sdk.AccAddress {
 // it claims to attest fails verification. The signed format changed, so this rides a
 // coordinated upgrade: attestations produced under the old format are rejected by
 // nodes running this, and validators must update their signer at the same height.
+// LegacySignBytes is the first form of the attestation payload, verified for
+// every block below the release that introduced v2 (protocol feature
+// pqc-sign-bytes-v2). Kept verbatim so that history replays byte-identically.
+func (msg MsgBridgeAttestation) LegacySignBytes() []byte {
+	return []byte(fmt.Sprintf("%s|%s|%s|%s|%s|%s",
+		msg.Chain, msg.EventType, msg.OperationID,
+		msg.TxHash, msg.Amount.String(), msg.Asset))
+}
+
+// SignBytesFor picks the form the chain verifies at this point in its
+// history: v2 once the protocol feature is on, the legacy form before.
+func (msg MsgBridgeAttestation) SignBytesFor(chainID string, v2 bool) []byte {
+	if v2 {
+		return msg.SignBytesForChain(chainID)
+	}
+	return msg.LegacySignBytes()
+}
+
 func (msg MsgBridgeAttestation) SignBytesForChain(chainID string) []byte {
 	fields := []string{
 		chainID, msg.Chain, msg.EventType, msg.OperationID,

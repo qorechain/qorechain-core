@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/binary"
+	"fmt"
 )
 
 // MigrationSignBytesDomain tags the message both keys sign in an algorithm
@@ -26,6 +27,17 @@ const MigrationSignBytesDomain = "qorechain-key-migration-v2"
 // new_public_key is only meaningful if the OLD key also vouched for that exact
 // destination. The execution height is kept from v1; it is what stops a
 // migration being replayed later, and the client learns it from the chain.
+// MigrationSignBytesLegacy is the first preimage, verified below the release
+// that introduced v2 (protocol feature pqc-sign-bytes-v2). It names the
+// account, the algorithms and the height, not the keys; kept verbatim so that
+// history replays byte-identically.
+func MigrationSignBytesLegacy(chainID, account string, fromAlgo, toAlgo uint32, height int64) []byte {
+	return []byte(fmt.Sprintf(
+		"qorechain-key-migration:chain=%s:from=%d:to=%d:account=%s:height=%d",
+		chainID, fromAlgo, toAlgo, account, height,
+	))
+}
+
 func MigrationSignBytes(chainID, account string, fromAlgo, toAlgo uint32, height int64, oldPub, newPub []byte) []byte {
 	out := make([]byte, 0, len(MigrationSignBytesDomain)+8+len(chainID)+8+len(account)+4+4+8+4+len(oldPub)+4+len(newPub))
 	out = append(out, MigrationSignBytesDomain...)

@@ -32,6 +32,12 @@ const (
 	// FeatureAITxRateLimit enforces the declared per-sender transaction rate
 	// limit in the ante path.
 	FeatureAITxRateLimit = "ai-tx-rate-limit"
+	// FeaturePQCSignBytesV2 switches every post-quantum signed payload the
+	// chain verifies (hybrid transaction sign-bytes, key-migration preimage,
+	// bridge attestation) from its first form to the domain-tagged,
+	// chain-bound v2 form. Below the switch the chain verifies exactly what
+	// wallets signed historically; from it, only v2. No block accepts both.
+	FeaturePQCSignBytesV2 = "pqc-sign-bytes-v2"
 	// FeatureEVMPQCAuthorisationWindow makes the post-quantum requirement true
 	// on the EVM lane: an EVM transaction is admitted only from an account that
 	// holds a registered post-quantum key and has opened a bounded
@@ -52,6 +58,7 @@ var AllProtocolFeatures = []string{
 	FeatureInflationEpochScaling,
 	FeatureBurnStakerShareToStakers,
 	FeatureAITxRateLimit,
+	FeaturePQCSignBytesV2,
 }
 
 // StagedProtocolFeatures are known to this binary and enabled by no path in
