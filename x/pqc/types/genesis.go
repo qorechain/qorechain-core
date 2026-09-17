@@ -1,5 +1,7 @@
 package types
 
+import "fmt"
+
 // GenesisState defines the pqc module's genesis state.
 type GenesisState struct {
 	Params   Params           `json:"params"`
@@ -9,6 +11,14 @@ type GenesisState struct {
 	// Algorithm agility genesis (v0.6.0)
 	Algorithms []AlgorithmInfo `json:"algorithms"`
 	Migrations []MigrationInfo `json:"migrations,omitempty"`
+
+	// ProtocolFeatures are the behaviour switches enabled from the first
+	// block. A chain born on this binary lists every released feature; the
+	// genuine genesis of a network that upgrades into it lists none, so
+	// InitGenesis writes no feature record at height 0 (a store key the
+	// network's history never had) and the release upgrade handler enables
+	// them at the plan height instead.
+	ProtocolFeatures []string `json:"protocol_features,omitempty"`
 }
 
 // DefaultGenesisState returns the default genesis state.
@@ -23,11 +33,23 @@ func DefaultGenesisState() *GenesisState {
 			DefaultMLKEM1024Info(),
 		},
 		Migrations: []MigrationInfo{},
+		// Copied, so a caller mutating the genesis cannot edit the release list.
+		ProtocolFeatures: append([]string(nil), AllProtocolFeatures...),
 	}
 }
 
 // Validate performs basic genesis state validation.
 func (gs GenesisState) Validate() error {
+	seenFeature := map[string]bool{}
+	for _, f := range gs.ProtocolFeatures {
+		if !KnownProtocolFeature(f) {
+			return fmt.Errorf("unknown protocol feature %q in genesis", f)
+		}
+		if seenFeature[f] {
+			return fmt.Errorf("duplicate protocol feature %q in genesis", f)
+		}
+		seenFeature[f] = true
+	}
 	if gs.Params.MinSecurityLevel < 1 || gs.Params.MinSecurityLevel > 5 {
 		return ErrInvalidKeyLength.Wrap("min_security_level must be between 1 and 5")
 	}

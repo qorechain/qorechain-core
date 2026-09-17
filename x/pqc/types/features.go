@@ -45,6 +45,22 @@ var StagedProtocolFeatures = []string{
 	FeatureEVMPQCAuthorisationWindow,
 }
 
+// KnownProtocolFeature reports whether this binary knows the feature at all,
+// released or staged.
+func KnownProtocolFeature(name string) bool {
+	for _, f := range AllProtocolFeatures {
+		if f == name {
+			return true
+		}
+	}
+	for _, f := range StagedProtocolFeatures {
+		if f == name {
+			return true
+		}
+	}
+	return false
+}
+
 // ProtocolFeaturePrefix is the store prefix under which enabled features are
 // recorded, one key per feature, value 0x01.
 var ProtocolFeaturePrefix = []byte("pqc/features/")
