@@ -41,7 +41,6 @@ import (
 	_ "cosmossdk.io/x/nft/module"
 	_ "cosmossdk.io/x/upgrade"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
-	erc20types "github.com/cosmos/evm/x/erc20/types"
 	evmvmtypes "github.com/cosmos/evm/x/vm/types"
 
 	"github.com/cosmos/cosmos-sdk/runtime"
@@ -437,29 +436,27 @@ var (
 				),
 			},
 		),
-		// EVM custom signers. MsgEthereumTx and MsgConvertERC20 both carry their
-		// sender as a hex address, which the SDK signing context cannot read as
-		// a signer on its own; each needs the custom resolver its module ships.
-		// Provided as functions (depinject collects many-per-container types).
+		// EVM custom signer. MsgEthereumTx carries its sender as a hex address
+		// and its proto declares no signer field, so the SDK signing context
+		// needs the custom resolver the module ships.
 		//
-		// The erc20 one was missing: this comment promised it, the code did not
-		// provide it, and the signing context fell back to bech32-decoding the
-		// hex sender. Every MsgConvertERC20 was refused at CheckTx with
-		// "decoding bech32 failed", so once a token pair was registered there
-		// was no way back from the ERC-20 form to the native coin.
+		// MsgConvertERC20 must NOT get one, although the module ships one too:
+		// its proto DOES declare a signer field, and a depinject application
+		// validates the signing context at startup (runtime.ProvideInterfaceRegistry),
+		// which refuses a custom resolver for a message that already has a
+		// signer field. Registering it made every binary panic at startup,
+		// caught by the release build of v3.1.98 before it left the build host.
+		// The conversion message is made usable the other way round: the
+		// module is patched at build time to accept a bech32 sender (see
+		// deps/patches/cosmos-evm/0003), which the default resolver reads.
 		depinject.Provide(
 			ProvideEVMCustomGetSigner,
-			ProvideERC20CustomGetSigner,
 		),
 	)
 )
 
 func ProvideEVMCustomGetSigner() signing.CustomGetSigner {
 	return evmvmtypes.MsgEthereumTxCustomGetSigner
-}
-
-func ProvideERC20CustomGetSigner() signing.CustomGetSigner {
-	return erc20types.MsgConvertERC20CustomGetSigner
 }
 
 // blockedModuleAccountsExcept returns every module account in the permission table
