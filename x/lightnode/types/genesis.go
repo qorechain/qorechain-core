@@ -7,7 +7,12 @@ type GenesisState struct {
 	Params     Params          `json:"params"`
 	LightNodes []LightNodeInfo `json:"light_nodes"`
 	Stats      LightNodeStats  `json:"stats"`
-	RewardPool RewardPool      `json:"reward_pool"`
+	// RewardPool is present in the genesis of a chain born on this binary and
+	// absent from the genuine genesis of a chain that upgrades into it. Absent
+	// means InitGenesis writes no pool record at height 0, exactly like the
+	// binary the network's history was made with; the coordinated upgrade
+	// handler establishes the record at the plan height instead.
+	RewardPool *RewardPool `json:"reward_pool,omitempty"`
 }
 
 // DefaultGenesisState returns the default genesis state.
@@ -16,7 +21,7 @@ func DefaultGenesisState() *GenesisState {
 		Params:     DefaultParams(),
 		LightNodes: []LightNodeInfo{},
 		Stats:      DefaultLightNodeStats(),
-		RewardPool: DefaultRewardPool(),
+		RewardPool: func() *RewardPool { p := DefaultRewardPool(); return &p }(),
 	}
 }
 
@@ -44,8 +49,10 @@ func (gs GenesisState) Validate() error {
 	if gs.Stats.TotalRewards.IsNegative() {
 		return fmt.Errorf("stats total_rewards must be non-negative")
 	}
-	if err := gs.RewardPool.Validate(); err != nil {
-		return fmt.Errorf("invalid reward_pool: %w", err)
+	if gs.RewardPool != nil {
+		if err := gs.RewardPool.Validate(); err != nil {
+			return fmt.Errorf("invalid reward_pool: %w", err)
+		}
 	}
 	return nil
 }

@@ -46,7 +46,29 @@ type Params struct {
 	// Governance can adjust it, but asymmetrically: raising it is easy, lowering
 	// it after operators have been paid reads as a withdrawn promise. Hence a
 	// conservative value rather than the most the fund would bear.
-	MaxRewardPerBlockPerNode math.Int `json:"max_reward_per_block_per_node"`
+	//
+	// A POINTER, deliberately. Params are stored as JSON, and math.Int is a
+	// struct, which encoding/json never treats as empty: a value type here would
+	// serialise "0" for a record that never had the field, so the bytes the
+	// new binary writes at height 0 (and on every SetParams) would differ from
+	// the ones the network's history holds, and a replay from genesis would
+	// diverge. With a pointer an absent field stays absent, byte for byte.
+	// Read it through MaxRewardPerBlock(), never directly.
+	MaxRewardPerBlockPerNode *math.Int `json:"max_reward_per_block_per_node,omitempty"`
+}
+
+// defaultMaxRewardPerBlockPerNode is the bound a record that predates the field
+// is read with: 1,713 uqor per block, about 2,000 QOR per month per active node.
+var defaultMaxRewardPerBlockPerNode = math.NewInt(1713)
+
+// MaxRewardPerBlock is the per-node bound to use, with the default standing in
+// for a record written before the field existed. It does not materialise the
+// field on the receiver, so a later SetParams still writes the old shape.
+func (p Params) MaxRewardPerBlock() math.Int {
+	if p.MaxRewardPerBlockPerNode == nil || p.MaxRewardPerBlockPerNode.IsNil() {
+		return defaultMaxRewardPerBlockPerNode
+	}
+	return *p.MaxRewardPerBlockPerNode
 }
 
 // DefaultParams returns the default lightnode module parameters.
@@ -59,7 +81,7 @@ func DefaultParams() Params {
 		MinUptimeForRewards:      math.LegacyNewDecWithPrec(80, 2), // 0.80 (80%)
 		MaxLightNodes:            10000,
 		HeartbeatGracePeriod:     100,
-		MaxRewardPerBlockPerNode: math.NewInt(1713), // ~2,000 QOR/month per active node
+		MaxRewardPerBlockPerNode: &defaultMaxRewardPerBlockPerNode, // ~2,000 QOR/month per active node
 	}
 }
 
@@ -86,21 +108,13 @@ func (p Params) Validate() error {
 	if p.HeartbeatGracePeriod < 0 {
 		return fmt.Errorf("heartbeat_grace_period must be non-negative, got %d", p.HeartbeatGracePeriod)
 	}
-	if p.MaxRewardPerBlockPerNode.IsNil() {
-		return fmt.Errorf("max_reward_per_block_per_node must be set")
-	}
-	if p.MaxRewardPerBlockPerNode.IsNegative() {
+	// Absent is valid: every record written before the field existed, and
+	// the genuine genesis files of both networks, lack it. Refusing it here
+	// is what made a previous cut reject the real mainnet genesis and fall at
+	// height 0 instead of starting.
+	if p.MaxRewardPerBlockPerNode != nil && !p.MaxRewardPerBlockPerNode.IsNil() &&
+		p.MaxRewardPerBlockPerNode.IsNegative() {
 		return fmt.Errorf("max_reward_per_block_per_node must be non-negative, got %s", p.MaxRewardPerBlockPerNode)
 	}
 	return nil
-}
-
-// Normalized fills in fields absent from a stored or genesis-supplied record.
-// Params written before max_reward_per_block_per_node existed decode with it
-// unset, which would panic the first time the reward maths touched it.
-func (p Params) Normalized() Params {
-	if p.MaxRewardPerBlockPerNode.IsNil() {
-		p.MaxRewardPerBlockPerNode = DefaultParams().MaxRewardPerBlockPerNode
-	}
-	return p
 }
