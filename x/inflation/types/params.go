@@ -186,6 +186,15 @@ func (p Params) Validate() error {
 // when the cap is reached, and clamps the final epoch so cumulative minting
 // lands exactly on the cap rather than overshooting it.
 func (p Params) EpochEmission(rate math.LegacyDec, totalSupply, alreadyMinted math.Int) math.Int {
+	return p.EpochEmissionScaled(rate, totalSupply, alreadyMinted, true)
+}
+
+// EpochEmissionScaled is EpochEmission with the epoch-length scaling as a
+// switch. Off, it is the historical formula (a day's emission per epoch,
+// whatever the epoch length), which every block below the release upgrade
+// height was made with and must replay byte-identically; on, the corrected
+// one. The switch is a protocol feature the upgrade handler turns on.
+func (p Params) EpochEmissionScaled(rate math.LegacyDec, totalSupply, alreadyMinted math.Int, scaled bool) math.Int {
 	var amount math.Int
 	switch p.Mode() {
 	case EmissionModeFixed:
@@ -193,6 +202,11 @@ func (p Params) EpochEmission(rate math.LegacyDec, totalSupply, alreadyMinted ma
 	default:
 		if rate.IsNil() || rate.IsZero() || totalSupply.IsNil() || !totalSupply.IsPositive() {
 			return math.ZeroInt()
+		}
+		if !scaled {
+			const epochsPerYear = int64(365)
+			amount = rate.MulInt(totalSupply).QuoInt64(epochsPerYear).TruncateInt()
+			break
 		}
 		// The annual rate is spread over the year by block count, so an epoch
 		// mints the share of the year its length represents. For the mainnet

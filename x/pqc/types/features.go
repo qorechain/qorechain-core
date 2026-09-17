@@ -20,6 +20,18 @@ const (
 	// slashFactor * InitialBalance across the destination's unbonding entries
 	// and live delegation.
 	FeatureRedelegationSlashCap = "staking-redelegation-slash-cap"
+	// FeatureInflationEpochScaling spreads schedule-mode emission over the
+	// year by block count, so an epoch mints the share of the year its length
+	// represents instead of a full day regardless of length.
+	FeatureInflationEpochScaling = "inflation-epoch-scaling"
+	// FeatureBurnStakerShareToStakers leaves the staker share of fees in the
+	// fee collector, where the distribution module pays it out, instead of
+	// depositing it in the distribution module's balance where nobody could
+	// claim it.
+	FeatureBurnStakerShareToStakers = "burn-staker-share-to-stakers"
+	// FeatureAITxRateLimit enforces the declared per-sender transaction rate
+	// limit in the ante path.
+	FeatureAITxRateLimit = "ai-tx-rate-limit"
 	// FeatureEVMPQCAuthorisationWindow makes the post-quantum requirement true
 	// on the EVM lane: an EVM transaction is admitted only from an account that
 	// holds a registered post-quantum key and has opened a bounded
@@ -37,6 +49,9 @@ const (
 var AllProtocolFeatures = []string{
 	FeatureEVMLockedBalanceScaling,
 	FeatureRedelegationSlashCap,
+	FeatureInflationEpochScaling,
+	FeatureBurnStakerShareToStakers,
+	FeatureAITxRateLimit,
 }
 
 // StagedProtocolFeatures are known to this binary and enabled by no path in

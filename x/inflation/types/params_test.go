@@ -175,3 +175,35 @@ func TestShortEpochMintsItsShareOfTheYear(t *testing.T) {
 		t.Fatalf("30-block epochs: want 525,600 per year, got %d", p.EpochsPerYear())
 	}
 }
+
+// The two formulas, side by side, on the testnet's 30-block epochs: the
+// historical one mints a full day per epoch (what every block below the
+// upgrade height was made with, and must replay byte-identically), the scaled
+// one mints the 30-block share of the year. On the mainnet epoch length the
+// two agree to the integer.
+func TestEpochEmissionScalingIsASwitch(t *testing.T) {
+	rate := math.LegacyNewDecWithPrec(2, 2)      // 2%
+	supply := math.NewInt(6_702_460_660_317_650) // uqor
+	p := DefaultParams()
+	p.EmissionMode = EmissionModeSchedule
+	p.MaxTotalEmission = nil
+
+	p.EpochLength = 30
+	legacy := p.EpochEmissionScaled(rate, supply, math.ZeroInt(), false)
+	scaled := p.EpochEmissionScaled(rate, supply, math.ZeroInt(), true)
+	wantLegacy := rate.MulInt(supply).QuoInt64(365).TruncateInt()
+	if !legacy.Equal(wantLegacy) {
+		t.Fatalf("legacy formula changed: got %s want %s", legacy, wantLegacy)
+	}
+	if !scaled.Mul(math.NewInt(1440)).LTE(legacy) || scaled.Mul(math.NewInt(1441)).LT(legacy) {
+		t.Fatalf("scaled emission is not the 30-block share of a day: legacy %s scaled %s", legacy, scaled)
+	}
+	if !p.EpochEmission(rate, supply, math.ZeroInt()).Equal(scaled) {
+		t.Fatal("EpochEmission must be the scaled form")
+	}
+
+	p.EpochLength = BlocksPerDay
+	if a, b := p.EpochEmissionScaled(rate, supply, math.ZeroInt(), false), p.EpochEmissionScaled(rate, supply, math.ZeroInt(), true); !a.Equal(b) {
+		t.Fatalf("on the mainnet epoch length the two formulas must agree: %s vs %s", a, b)
+	}
+}
