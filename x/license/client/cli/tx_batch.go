@@ -285,7 +285,7 @@ The granting key never leaves the machine you run this on.`,
 			// an unsigned document that still has to be cosigned, which is where the
 			// real authorisation happens. Prompting would only block the pipeline.
 			generateOnly, _ := cmd.Flags().GetBool(flags.FlagGenerateOnly)
-			confirmed, _ := cmd.Flags().GetBool("yes")
+			confirmed, _ := cmd.Flags().GetBool(flags.FlagSkipConfirmation)
 			if !confirmed && !generateOnly {
 				ok, err := confirm(cmd, len(todo))
 				if err != nil {
@@ -310,9 +310,11 @@ The granting key never leaves the machine you run this on.`,
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msgs...)
 		},
 	}
-	cmd.Flags().Bool("yes", false,
-		"skip the confirmation prompt (for a list you have already reviewed)")
 	cmd.Flags().Duration("timeout", 15*time.Second, "timeout when the batch is a URL")
+	// The review prompt is skipped by the SDK's own --yes/-y, which
+	// AddTxFlagsToCmd defines: defining a second "yes" here made cobra panic at
+	// startup ("flag redefined"), which took the whole binary down, not just
+	// this command. One flag, one meaning: a list already reviewed.
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
