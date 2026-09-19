@@ -27,3 +27,26 @@ func TestLegacySignBytesAreTheOldExpressions(t *testing.T) {
 		t.Fatalf("migration legacy form changed: %q", got)
 	}
 }
+
+// The client-side choice of form: the two networks that predate v2 sign v1
+// until the upgrade is applied on them, and v2 from then on; any other chain
+// was born verifying v2.
+func TestSignBytesVersionFor(t *testing.T) {
+	cases := []struct {
+		chain   string
+		applied int64
+		want    int
+	}{
+		{"qorechain-vladi", 0, 1},
+		{"qorechain-diana", 0, 1},
+		{"qorechain-vladi", 3_000_000, 2},
+		{"qorechain-diana", 5_746_000, 2},
+		{"qorechain-devnet", 0, 2},
+		{"updev98", 0, 2},
+	}
+	for _, c := range cases {
+		if got := SignBytesVersionFor(c.chain, c.applied); got != c.want {
+			t.Errorf("SignBytesVersionFor(%q, %d) = %d, want %d", c.chain, c.applied, got, c.want)
+		}
+	}
+}

@@ -20,6 +20,8 @@ import (
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	signing "github.com/cosmos/cosmos-sdk/types/tx/signing"
 
+	upgradetypes "cosmossdk.io/x/upgrade/types"
+
 	qpqc "github.com/qorechain/qorechain-pqc/go"
 
 	"github.com/qorechain/qorechain-core/x/pqc/types"
@@ -201,10 +203,11 @@ The --pqc-key name refers to a key created with ` + "`tx pqc gen-key`" + `.`,
 			if err != nil {
 				return err
 			}
-			return hybridCosignBroadcast(clientCtx, rawTx.Body.Messages, rawTx.Body.Memo, rawTx.Body.TimeoutHeight, rawTx.AuthInfo.Fee, sk)
+			return hybridCosignBroadcast(cmd, clientCtx, rawTx.Body.Messages, rawTx.Body.Memo, rawTx.Body.TimeoutHeight, rawTx.AuthInfo.Fee, sk)
 		},
 	}
 	cmd.Flags().String("pqc-key", "", "name of the Dilithium key (created with `tx pqc gen-key`)")
+	addSignBytesFlag(cmd)
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
@@ -214,7 +217,44 @@ The --pqc-key name refers to a key created with ` + "`tx pqc gen-key`" + `.`,
 // classical secp256k1 signature, then broadcasts it. This is the shared core of
 // `tx pqc cosign` and `tx pqc rotate-key` — anything that must submit a
 // PQC-required tx from a key held locally as an ML-DSA-87 secret.
-func hybridCosignBroadcast(clientCtx client.Context, msgs []*codectypes.Any, memo string, timeoutHeight uint64, fee *txtypes.Fee, pqcSk []byte) error {
+// flagSignBytes selects the hybrid sign-bytes form. "auto" asks the chain.
+const flagSignBytes = "sign-bytes"
+
+func addSignBytesFlag(cmd *cobra.Command) {
+	cmd.Flags().String(flagSignBytes, "auto",
+		"hybrid sign-bytes form: auto (ask the chain whether the "+types.SignBytesV2Upgrade+
+			" upgrade has been applied), v1 (networks before that upgrade) or v2")
+}
+
+// resolveSignBytes picks the form to sign. One binary must sign for a network
+// that has upgraded (v2 only) and for one that has not (v1 only): the chain
+// accepts exactly one form at any height, never both. "auto" reads the applied
+// plan from the node the command talks to, so the answer follows that network.
+func resolveSignBytes(cmd *cobra.Command, clientCtx client.Context) (int, error) {
+	mode, _ := cmd.Flags().GetString(flagSignBytes)
+	switch mode {
+	case "v1":
+		return 1, nil
+	case "v2":
+		return 2, nil
+	case "", "auto":
+	default:
+		return 0, fmt.Errorf("--%s must be auto, v1 or v2, got %q", flagSignBytes, mode)
+	}
+	res, err := upgradetypes.NewQueryClient(clientCtx).AppliedPlan(cmd.Context(),
+		&upgradetypes.QueryAppliedPlanRequest{Name: types.SignBytesV2Upgrade})
+	if err != nil {
+		return 0, fmt.Errorf("cannot ask the node whether %s is applied (%w); pass --%s v1 or v2",
+			types.SignBytesV2Upgrade, err, flagSignBytes)
+	}
+	return types.SignBytesVersionFor(clientCtx.ChainID, res.Height), nil
+}
+
+func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []*codectypes.Any, memo string, timeoutHeight uint64, fee *txtypes.Fee, pqcSk []byte) error {
+	version, err := resolveSignBytes(cmd, clientCtx)
+	if err != nil {
+		return err
+	}
 	// Resolve the signing account (classical secp256k1 key).
 	fromRec, err := clientCtx.Keyring.Key(clientCtx.FromName)
 	if err != nil {
@@ -261,8 +301,12 @@ func hybridCosignBroadcast(clientCtx client.Context, msgs []*codectypes.Any, mem
 		return err
 	}
 
-	// PQC sign-bytes = BE32(len(B0))||B0||BE32(len(authInfo))||authInfo.
-	pqcSig, err := qpqc.MLDSA87.Sign(pqcSk, types.HybridSignBytes(clientCtx.ChainID, b0, authInfoBytes))
+	// PQC sign-bytes in the form this network verifies at its current height.
+	signBytes := types.HybridSignBytes(clientCtx.ChainID, b0, authInfoBytes)
+	if version == 1 {
+		signBytes = types.HybridSignBytesLegacy(b0, authInfoBytes)
+	}
+	pqcSig, err := qpqc.MLDSA87.Sign(pqcSk, signBytes)
 	if err != nil {
 		return fmt.Errorf("dilithium sign: %w", err)
 	}
@@ -456,13 +500,14 @@ the rotation tx is cosigned (hybrid) with the old key so it passes the PQC ante.
 				}
 			}
 			fee := &txtypes.Fee{Amount: feeCoins, GasLimit: gas}
-			return hybridCosignBroadcast(clientCtx, []*codectypes.Any{msgAny}, "", 0, fee, oldSk)
+			return hybridCosignBroadcast(cmd, clientCtx, []*codectypes.Any{msgAny}, "", 0, fee, oldSk)
 		},
 	}
 	cmd.Flags().String("old-derivation", "bridge", "derivation of the CURRENT key: bridge (shake256(mnemonic), chain-bridge/faucet-api) | adapter (address-bound, SDK/wallet-adapter)")
 	cmd.Flags().String("new-derivation", "adapter", "derivation of the NEW key when not --new-random: adapter | bridge")
 	cmd.Flags().Bool("new-random", false, "rotate to a fresh random key instead of a mnemonic-derived one (store it with --new-key-out)")
 	cmd.Flags().String("new-key-out", "", "store the new private key under <home>/pqc/<name>.dilithium for future signing")
+	addSignBytesFlag(cmd)
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
