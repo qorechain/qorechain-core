@@ -27,9 +27,9 @@ func (k *StubKeeper) Logger() log.Logger { return k.logger }
 func (k *StubKeeper) CreateRollup(_ sdk.Context, _ types.RollupConfig) (*types.RollupConfig, error) {
 	return nil, types.ErrRollupNotActive
 }
-func (k *StubKeeper) PauseRollup(_ sdk.Context, _ string, _ string) error { return nil }
-func (k *StubKeeper) ResumeRollup(_ sdk.Context, _ string) error          { return nil }
-func (k *StubKeeper) StopRollup(_ sdk.Context, _ string) error            { return nil }
+func (k *StubKeeper) PauseRollup(_ sdk.Context, _, _ string, _ string) error { return nil }
+func (k *StubKeeper) ResumeRollup(_ sdk.Context, _, _ string) error          { return nil }
+func (k *StubKeeper) StopRollup(_ sdk.Context, _, _ string) error            { return nil }
 func (k *StubKeeper) GetRollup(_ sdk.Context, _ string) (*types.RollupConfig, error) {
 	return nil, types.ErrRollupNotFound
 }

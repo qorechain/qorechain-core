@@ -84,6 +84,11 @@ const UpgradeNameV3_1_98 = "v3.1.98"
 // there is a no-op, and the version map merge adds only what is missing.
 const UpgradeNameV3_2_0 = "v3.2.0"
 
+// relayerFriendlyTxPerMinute is the per-sender ceiling the release sets, in
+// transactions per 30-block window. The module ships a default of 10, which is
+// a wallet's ceiling, not a relayer's.
+const relayerFriendlyTxPerMinute = 600
+
 // registerUpgradeHandlers wires the named upgrade handlers. Called after the
 // keepers are constructed. Registering a handler is harmless until a matching
 // MsgSoftwareUpgrade actually executes, so the soak binary can carry it safely.
@@ -177,6 +182,21 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 		// is no, so history replays byte-identically.
 		for _, f := range pqctypes.AllProtocolFeatures {
 			if err := app.PQCKeeper.EnableProtocolFeature(sdkCtx, f); err != nil {
+				return fromVM, err
+			}
+		}
+
+		// The per-sender transaction limit becomes real in this release, and at
+		// its default of 10 per 30 blocks it also throttles the accounts that
+		// relay for the network: an IBC relayer delivers one message per packet
+		// and would stall at ten. x/ai has no MsgUpdateParams at all, so this
+		// value can only be set here or at genesis. 600 per 30 blocks is about
+		// twenty transactions per second from one sender, which is far above
+		// any legitimate wallet and still bounds a flooder.
+		aiCfg := app.AIKeeper.GetConfig(sdkCtx)
+		if aiCfg.MaxTxPerMinute < relayerFriendlyTxPerMinute {
+			aiCfg.MaxTxPerMinute = relayerFriendlyTxPerMinute
+			if err := app.AIKeeper.SetConfig(sdkCtx, aiCfg); err != nil {
 				return fromVM, err
 			}
 		}

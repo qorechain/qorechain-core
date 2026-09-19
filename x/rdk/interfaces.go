@@ -13,9 +13,11 @@ type RDKKeeper interface {
 
 	// Rollup Lifecycle
 	CreateRollup(ctx sdk.Context, config types.RollupConfig) (*types.RollupConfig, error)
-	PauseRollup(ctx sdk.Context, rollupID string, reason string) error
-	ResumeRollup(ctx sdk.Context, rollupID string) error
-	StopRollup(ctx sdk.Context, rollupID string) error
+	// The caller is the account that signed the message; the keeper refuses
+	// anyone but the rollup's creator (stopping a rollup returns its bond).
+	PauseRollup(ctx sdk.Context, caller, rollupID string, reason string) error
+	ResumeRollup(ctx sdk.Context, caller, rollupID string) error
+	StopRollup(ctx sdk.Context, caller, rollupID string) error
 	GetRollup(ctx sdk.Context, rollupID string) (*types.RollupConfig, error)
 	ListRollups(ctx sdk.Context) ([]*types.RollupConfig, error)
 	ListRollupsByCreator(ctx sdk.Context, creator string) ([]*types.RollupConfig, error)

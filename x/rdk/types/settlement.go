@@ -28,6 +28,10 @@ type SettlementBatch struct {
 	// WithdrawalsRoot commits this batch's L2->L1 messages (withdrawals) as a
 	// binary Merkle root. Empty when the batch carries no cross-layer messages.
 	WithdrawalsRoot []byte `json:"withdrawals_root,omitempty"`
+	// Submitter is the account that settled this batch. It is checked against
+	// the rollup's sequencing policy before the batch is stored, and kept so
+	// the record says who committed the state it is trusted for.
+	Submitter string `json:"submitter,omitempty"`
 }
 
 // BatchChallengeRecord records an open fraud-proof challenge against an
