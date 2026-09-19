@@ -103,6 +103,15 @@ var (
 		{Account: "inflation", Permissions: []string{authtypes.Minter}},
 		// multilayer holds layer creators' registration stakes until the layer
 		// is decommissioned; no mint or burn.
+		// The bridge module MINTS the QoreChain side of an inbound deposit and
+		// BURNS on withdrawal, but had no account here at all, so the first
+		// deposit on an activated route would have failed at MintCoins with
+		// "module account bridge does not exist" and left the operation stuck
+		// pending with the counterparty funds locked (QSR-2026-0225). Nothing
+		// has ever reached that path: zero routes are active and the derived
+		// address qor1zlefkpe3g0vvm9a4h0jf9000lmqutlh90ut59e has never existed
+		// or held a coin on either network, so adding it changes no history.
+		{Account: "bridge", Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: "multilayer"},
 		// lightnode receives the 3% light-node share of the fee split (burn
 		// DistributeFees) and pays it out to registered light nodes.

@@ -902,6 +902,13 @@ func (app *QoreChainApp) setupEVMMempool(logger log.Logger) {
 		evmmempool.NewEthSignerExtractionAdapter(sdkmempool.NewDefaultSignerExtractionAdapter()),
 	)
 	app.SetPrepareProposal(proposalHandler.PrepareProposalHandler())
+	// And ProcessProposal, which was missing: without it baseapp keeps the NoOp
+	// handler that accepts every proposed block unread, so a proposer's
+	// malformed or non-decodable bytes are only discovered during execution
+	// (QSR-2026-0237). Validators run the same handler, so this changes what a
+	// block must look like to be accepted, and it ships with the coordinated
+	// upgrade rather than as a rolling change.
+	app.SetProcessProposal(proposalHandler.ProcessProposalHandler())
 }
 
 func (app *QoreChainApp) setAnteHandler(
