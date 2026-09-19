@@ -19,6 +19,12 @@ service Query {
   rpc Records(QueryRecordsRequest) returns (QueryRecordsResponse) {
     option (google.api.http).get = "/qorechain/burn/v1/records";
   }
+  // StrandedRewards returns the staker share that was deposited into the
+  // distribution module's balance without backing any claim, as recorded at
+  // the release upgrade, and how much of it is left.
+  rpc StrandedRewards(QueryStrandedRewardsRequest) returns (QueryStrandedRewardsResponse) {
+    option (google.api.http).get = "/qorechain/burn/v1/stranded_rewards";
+  }
   // Milestone returns the cumulative-TX milestone burn state.
   rpc Milestone(QueryMilestoneRequest) returns (QueryMilestoneResponse) {
     option (google.api.http).get = "/qorechain/burn/v1/milestone";
@@ -68,3 +74,15 @@ message QueryRecordsResponse { repeated BurnRecordView records = 1; }
 
 message QueryMilestoneRequest {}
 message QueryMilestoneResponse { MilestoneStateView state = 1; }
+
+message QueryStrandedRewardsRequest {}
+message QueryStrandedRewardsResponse {
+  // reserved is what is left to release, in uqor.
+  string reserved = 1;
+  // released is how much governance has already moved out, in uqor.
+  string released = 2;
+  // initialized is false until the release upgrade takes the snapshot.
+  bool initialized = 3;
+  // snapshot_height is the height the snapshot was taken at.
+  int64 snapshot_height = 4;
+}

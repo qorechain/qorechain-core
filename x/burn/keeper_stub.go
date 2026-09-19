@@ -41,3 +41,14 @@ func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()
 }
+
+// Stranded staker share: inert in the community build.
+func (k *StubKeeper) EnsureStrandedSnapshot(_ sdk.Context) types.StrandedRewards {
+	return types.StrandedRewards{}.Normalized()
+}
+func (k *StubKeeper) GetStrandedRewards(_ sdk.Context) types.StrandedRewards {
+	return types.StrandedRewards{}.Normalized()
+}
+func (k *StubKeeper) ReleaseStranded(_ sdk.Context, _ math.Int, _ string) error {
+	return types.ErrInvalidAmount.Wrap("the burn module is not available in this build")
+}

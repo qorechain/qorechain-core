@@ -186,6 +186,18 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 			}
 		}
 
+		// The staker share that was deposited into the distribution module's
+		// balance without backing any claim is recorded here, once, at one
+		// height on every node. From this block the share stops being
+		// stranded, because the fee split leaves it in the fee collector; what
+		// had already piled up moves only by a governance vote, exactly like
+		// the light-node reserve.
+		stranded := app.BurnKeeper.EnsureStrandedSnapshot(sdkCtx)
+		app.BurnKeeper.Logger().Info("stranded staker share established at upgrade",
+			"height", sdkCtx.BlockHeight(),
+			"reserved", stranded.Reserved.String(),
+		)
+
 		// The per-sender transaction limit becomes real in this release, and at
 		// its default of 10 per 30 blocks it also throttles the accounts that
 		// relay for the network: an IBC relayer delivers one message per packet

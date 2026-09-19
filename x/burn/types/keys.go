@@ -17,3 +17,6 @@ var (
 	MilestoneStateKey = []byte("burn/milestone-state")
 	BlockTxCountKey   = []byte("burn/block-tx-count")
 )
+
+// BondDenom is the chain's base denomination, the only one this module moves.
+const BondDenom = "uqor"

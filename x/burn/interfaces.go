@@ -9,8 +9,21 @@ import (
 )
 
 // BurnKeeper is the interface for the x/burn module's keeper.
+// DistributionLiability reports what the distribution module owes, so the burn
+// module can tell that apart from what merely sits in its balance. Implemented
+// by the application over the SDK's distribution keeper.
+type DistributionLiability interface {
+	TotalOwed(ctx sdk.Context) math.Int
+}
+
 type BurnKeeper interface {
 	Logger() log.Logger
+
+	// Stranded staker share: recorded once by the release upgrade handler,
+	// released only by a governance vote.
+	EnsureStrandedSnapshot(ctx sdk.Context) types.StrandedRewards
+	GetStrandedRewards(ctx sdk.Context) types.StrandedRewards
+	ReleaseStranded(ctx sdk.Context, amount math.Int, destination string) error
 
 	GetParams(ctx sdk.Context) types.Params
 	SetParams(ctx sdk.Context, params types.Params) error

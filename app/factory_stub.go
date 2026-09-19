@@ -130,7 +130,7 @@ func init() {
 		return rlconsensusmod.AppModuleBasic{}
 	}
 
-	NewBurnKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ bankkeeper.BaseKeeper, logger log.Logger) burnmod.BurnKeeper {
+	NewBurnKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ bankkeeper.BaseKeeper, _ burnmod.DistributionLiability, _ string, logger log.Logger) burnmod.BurnKeeper {
 		return burnmod.NewStubKeeper(logger)
 	}
 	NewBurnAppModule = func(keeper burnmod.BurnKeeper) module.AppModule {

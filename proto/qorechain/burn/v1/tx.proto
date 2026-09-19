@@ -1,0 +1,35 @@
+syntax = "proto3";
+package qorechain.burn.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/burn/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+
+// Msg defines the burn module's transaction service.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // ReleaseStrandedRewards moves part of the stranded staker share.
+  // Governance-only.
+  rpc ReleaseStrandedRewards(MsgReleaseStrandedRewards) returns (MsgReleaseStrandedRewardsResponse);
+}
+
+// MsgReleaseStrandedRewards releases part of the staker share that this module
+// deposited into the distribution module's BALANCE without recording it as
+// anyone's outstanding reward. Those coins back no claim: the distribution
+// module does not know it holds them, so no delegator can ever withdraw them,
+// and they accumulated with every emission until this release stopped the
+// leak. Like the light-node reserve, nobody earned them, so where they go is a
+// governance decision rather than a race.
+message MsgReleaseStrandedRewards {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  // authority must be the governance module account.
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // amount is the uqor to release from the stranded pool.
+  string amount = 2;
+  // destination receives the coins.
+  string destination = 3 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+message MsgReleaseStrandedRewardsResponse {}

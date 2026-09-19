@@ -8,4 +8,6 @@ var (
 	ErrInvalidBurnSource = errors.Register(ModuleName, 4, "invalid burn source")
 	ErrInvalidParams     = errors.Register(ModuleName, 5, "invalid burn params")
 	ErrInsufficientFunds = errors.Register(ModuleName, 6, "insufficient funds for burn")
+	ErrInvalidAmount     = errors.Register(ModuleName, 7, "invalid amount")
+	ErrUnauthorized      = errors.Register(ModuleName, 8, "unauthorized: governance only")
 )

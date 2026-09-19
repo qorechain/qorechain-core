@@ -515,6 +515,8 @@ func NewQoreChainApp(
 		app.appCodec,
 		burnStoreKey,
 		app.BankKeeper,
+		distributionLiability{k: app.DistrKeeper},
+		authAddr,
 		logger,
 	)
 
