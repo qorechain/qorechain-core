@@ -59,13 +59,17 @@ var AllProtocolFeatures = []string{
 	FeatureBurnStakerShareToStakers,
 	FeatureAITxRateLimit,
 	FeaturePQCSignBytesV2,
+	// Released in v3.2.0: an EVM transaction is admitted only from an account
+	// that holds a post-quantum key and has opened a bounded authorisation
+	// window with a Cosmos-lane message. Deferring it would have meant
+	// reopening the EVM lane at the upgrade height with no post-quantum
+	// enforcement at all, which is the exposure QSR-2026-0254 describes.
+	FeatureEVMPQCAuthorisationWindow,
 }
 
 // StagedProtocolFeatures are known to this binary and enabled by no path in
 // it. Moving one to AllProtocolFeatures is what releases it.
-var StagedProtocolFeatures = []string{
-	FeatureEVMPQCAuthorisationWindow,
-}
+var StagedProtocolFeatures = []string{}
 
 // KnownProtocolFeature reports whether this binary knows the feature at all,
 // released or staged.

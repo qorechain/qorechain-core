@@ -31,6 +31,21 @@ func TestLegacySignBytesAreTheOldExpressions(t *testing.T) {
 // The client-side choice of form: the two networks that predate v2 sign v1
 // until the upgrade is applied on them, and v2 from then on; any other chain
 // was born verifying v2.
+func TestSignBytesVersionForEitherUpgradeName(t *testing.T) {
+	// The testnet took the switch as v3.1.98 and keeps only that record; the
+	// mainnet takes it as v3.2.0. A client that asks for one name only would
+	// sign the wrong form on the other network.
+	if got := SignBytesVersionForApplied("qorechain-diana", map[string]int64{"v3.1.98": 5746000}); got != 2 {
+		t.Fatalf("a network that upgraded under the earlier name must verify v2, got v%d", got)
+	}
+	if got := SignBytesVersionForApplied("qorechain-vladi", map[string]int64{"v3.2.0": 3000000}); got != 2 {
+		t.Fatalf("a network that upgraded under the release name must verify v2, got v%d", got)
+	}
+	if got := SignBytesVersionForApplied("qorechain-vladi", map[string]int64{"v3.2.0": 0, "v3.1.98": 0}); got != 1 {
+		t.Fatalf("a network that has taken neither must verify v1, got v%d", got)
+	}
+}
+
 func TestSignBytesVersionFor(t *testing.T) {
 	cases := []struct {
 		chain   string

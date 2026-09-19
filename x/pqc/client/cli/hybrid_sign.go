@@ -223,7 +223,7 @@ const flagSignBytes = "sign-bytes"
 func addSignBytesFlag(cmd *cobra.Command) {
 	cmd.Flags().String(flagSignBytes, "auto",
 		"hybrid sign-bytes form: auto (ask the chain whether the "+types.SignBytesV2Upgrade+
-			" upgrade has been applied), v1 (networks before that upgrade) or v2")
+			" upgrade has been applied, or the name it shipped under earlier), v1 or v2")
 }
 
 // resolveSignBytes picks the form to sign. One binary must sign for a network
@@ -241,13 +241,19 @@ func resolveSignBytes(cmd *cobra.Command, clientCtx client.Context) (int, error)
 	default:
 		return 0, fmt.Errorf("--%s must be auto, v1 or v2, got %q", flagSignBytes, mode)
 	}
-	res, err := upgradetypes.NewQueryClient(clientCtx).AppliedPlan(cmd.Context(),
-		&upgradetypes.QueryAppliedPlanRequest{Name: types.SignBytesV2Upgrade})
-	if err != nil {
-		return 0, fmt.Errorf("cannot ask the node whether %s is applied (%w); pass --%s v1 or v2",
-			types.SignBytesV2Upgrade, err, flagSignBytes)
+	// Ask for every name the switch has shipped under: a network that took it
+	// under the earlier name keeps that record and no other.
+	applied := make(map[string]int64, len(types.SignBytesV2Upgrades))
+	q := upgradetypes.NewQueryClient(clientCtx)
+	for _, name := range types.SignBytesV2Upgrades {
+		res, err := q.AppliedPlan(cmd.Context(), &upgradetypes.QueryAppliedPlanRequest{Name: name})
+		if err != nil {
+			return 0, fmt.Errorf("cannot ask the node whether %s is applied (%w); pass --%s v1 or v2",
+				name, err, flagSignBytes)
+		}
+		applied[name] = res.Height
 	}
-	return types.SignBytesVersionFor(clientCtx.ChainID, res.Height), nil
+	return types.SignBytesVersionForApplied(clientCtx.ChainID, applied), nil
 }
 
 func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []*codectypes.Any, memo string, timeoutHeight uint64, fee *txtypes.Fee, pqcSk []byte) error {

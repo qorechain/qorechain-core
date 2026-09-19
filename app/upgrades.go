@@ -70,6 +70,20 @@ const UpgradeNameV3_1_94 = "v3.1.94"
 // at the upgrade height with "no upgrade handler".
 const UpgradeNameV3_1_98 = "v3.1.98"
 
+// UpgradeNameV3_2_0 is the same release under the number it ships as. The
+// testnet took this batch as "v3.1.98" and keeps that record; mainnet takes it
+// as v3.2.0, which is what the EVM-lane post-quantum requirement makes it: a
+// breaking change for every wallet on that lane, not a patch. Both names are
+// registered and run the SAME handler, so a node replays the testnet's history
+// and executes the mainnet plan with one binary.
+//
+// A network that already ran the v3.1.98 handler and then takes v3.2.0 (the
+// testnet, to pick up the EVM window) executes it twice: every step is
+// idempotent by construction - the reward pool returns the established record,
+// enabling a feature twice is a no-op, removing a circuit entry that is not
+// there is a no-op, and the version map merge adds only what is missing.
+const UpgradeNameV3_2_0 = "v3.2.0"
+
 // registerUpgradeHandlers wires the named upgrade handlers. Called after the
 // keepers are constructed. Registering a handler is harmless until a matching
 // MsgSoftwareUpgrade actually executes, so the soak binary can carry it safely.
@@ -145,51 +159,52 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 		},
 	)
 
-	// v3.1.98 - light-node reward accounting. This handler is the ONLY place the
-	// reward-pool split is established, so it happens at one height network-wide.
-	// Idempotent: a pool already initialized is returned untouched.
-	app.UpgradeKeeper.SetUpgradeHandler(
-		UpgradeNameV3_1_98,
-		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
-			sdkCtx := sdk.UnwrapSDKContext(ctx)
-			pool := app.LightNodeKeeper.EnsureRewardPoolInitialized(sdkCtx)
-			app.LightNodeKeeper.Logger().Info("lightnode reward pool established at upgrade",
-				"height", sdkCtx.BlockHeight(),
-				"reserved", pool.Reserved.String(),
-				"outstanding", pool.Outstanding.String(),
-			)
+	// The release handler, registered under both names (see UpgradeNameV3_2_0).
+	// It is the ONLY place the reward-pool split is established, so that happens
+	// at one height network-wide. Idempotent throughout.
+	releaseHandler := func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
+		sdkCtx := sdk.UnwrapSDKContext(ctx)
+		pool := app.LightNodeKeeper.EnsureRewardPoolInitialized(sdkCtx)
+		app.LightNodeKeeper.Logger().Info("lightnode reward pool established at upgrade",
+			"height", sdkCtx.BlockHeight(),
+			"reserved", pool.Reserved.String(),
+			"outstanding", pool.Outstanding.String(),
+		)
 
-			// Fixes that live in patched dependencies switch on here, at the plan
-			// height, and never before: the patched code asks the application
-			// whether the feature is enabled, and below this height the answer
-			// is no, so history replays byte-identically.
-			for _, f := range pqctypes.AllProtocolFeatures {
-				if err := app.PQCKeeper.EnableProtocolFeature(sdkCtx, f); err != nil {
-					return fromVM, err
-				}
-			}
-
-			// The EVM lane was closed on the circuit breaker ahead of this release
-			// as the interim mitigation for the locked-balance defect the feature
-			// above fixes. Reopen it here, in the same block the fix takes effect,
-			// so the lane comes back without anyone having to remember to send a
-			// reset. The post-quantum authorisation window on that lane ships in
-			// this binary but stays staged (pqctypes.StagedProtocolFeatures); the
-			// next release's handler switches it on. Removing an entry that is not
-			// there is a no-op, so a chain that never tripped is unaffected.
-			if err := app.CircuitKeeper.DisableList.Remove(sdkCtx, sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{})); err != nil {
+		// Fixes that live in patched dependencies switch on here, at the plan
+		// height, and never before: the patched code asks the application
+		// whether the feature is enabled, and below this height the answer
+		// is no, so history replays byte-identically.
+		for _, f := range pqctypes.AllProtocolFeatures {
+			if err := app.PQCKeeper.EnableProtocolFeature(sdkCtx, f); err != nil {
 				return fromVM, err
 			}
+		}
 
-			// The stored version map only ever listed the dependency-injected
-			// modules; the manually registered ones (evm, feemarket, erc20,
-			// precisebank, wasm, ibc and every QoreChain module) were absent, so
-			// a later upgrade that calls RunMigrations would have re-initialised
-			// them from default genesis. Record every module the binary runs at
-			// its current consensus version. Nothing is migrated here.
-			return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
-		},
-	)
+		// The EVM lane was closed on the circuit breaker ahead of this release
+		// as the interim mitigation for the locked-balance defect the feature
+		// above fixes. Reopen it here, in the same block the fix takes effect,
+		// so the lane comes back without anyone having to remember to send a
+		// reset. It comes back WITH the post-quantum authorisation window
+		// enforced on it, enabled among the features above: reopening the lane
+		// without that requirement would restore a lane on which a classical
+		// key alone spends the full balance of a post-quantum account, which is
+		// the exposure QSR-2026-0254 describes. Removing an entry that is not
+		// there is a no-op, so a chain that never tripped is unaffected.
+		if err := app.CircuitKeeper.DisableList.Remove(sdkCtx, sdk.MsgTypeURL(&evmtypes.MsgEthereumTx{})); err != nil {
+			return fromVM, err
+		}
+
+		// The stored version map only ever listed the dependency-injected
+		// modules; the manually registered ones (evm, feemarket, erc20,
+		// precisebank, wasm, ibc and every QoreChain module) were absent, so
+		// a later upgrade that calls RunMigrations would have re-initialised
+		// them from default genesis. Record every module the binary runs at
+		// its current consensus version. Nothing is migrated here.
+		return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
+	}
+	app.UpgradeKeeper.SetUpgradeHandler(UpgradeNameV3_1_98, releaseHandler)
+	app.UpgradeKeeper.SetUpgradeHandler(UpgradeNameV3_2_0, releaseHandler)
 }
 
 // mergeMissingModuleVersions returns fromVM with an entry for every module in

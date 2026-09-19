@@ -31,10 +31,17 @@ const HybridSignBytesDomain = "qorechain-pqc-hybrid-v2"
 // build these bytes and must move together; a client on the old form produces a
 // digest this chain rejects, which fails closed rather than ambiguously.
 // SignBytesV2Upgrade names the coordinated upgrade whose handler switches a
-// chain that existed before it from the first sign-bytes form to v2. A client
-// asks the chain whether that plan has been applied to know which form to
-// sign; the chain itself decides by its protocol-feature record.
-const SignBytesV2Upgrade = "v3.1.98"
+// chain that existed before it from the first sign-bytes form to v2, for the
+// networks that have not taken it yet. A client asks the chain whether that
+// plan has been applied to know which form to sign; the chain itself decides
+// by its protocol-feature record.
+const SignBytesV2Upgrade = "v3.2.0"
+
+// SignBytesV2Upgrades lists every upgrade name that switched a network to v2.
+// The testnet took the switch under the earlier name and keeps that record
+// forever, so a client must accept either. Ask for each in turn: any one of
+// them applied means the network verifies v2.
+var SignBytesV2Upgrades = []string{"v3.2.0", "v3.1.98"}
 
 // legacySignBytesChains are the networks that were running before v2 existed
 // and switch to it only at SignBytesV2Upgrade. Any other chain starts on a
@@ -52,6 +59,19 @@ func SignBytesVersionFor(chainID string, v2AppliedHeight int64) int {
 		return 2
 	}
 	return 1
+}
+
+// SignBytesVersionForApplied is SignBytesVersionFor over every known upgrade
+// name: the greatest applied height decides, so a chain that took the switch
+// under either name answers v2.
+func SignBytesVersionForApplied(chainID string, appliedHeights map[string]int64) int {
+	var best int64
+	for _, name := range SignBytesV2Upgrades {
+		if h := appliedHeights[name]; h > best {
+			best = h
+		}
+	}
+	return SignBytesVersionFor(chainID, best)
 }
 
 // HybridSignBytesLegacy is the first form, verified for every block below the
