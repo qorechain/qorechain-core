@@ -40,7 +40,7 @@ func TestMempoolWiring(t *testing.T) {
 // The [qorechain] section of a freshly written app.toml carries the defaults
 // and reads back as them.
 func TestAppTomlQoreChainSection(t *testing.T) {
-	tmplStr, cfg := initAppConfig()
+	tmplStr, cfg := initAppConfig("")
 	tmpl, err := template.New("app").Parse(tmplStr)
 	if err != nil {
 		t.Fatal(err)
