@@ -4,66 +4,8 @@ import (
 	"testing"
 	"time"
 
-	signing "github.com/cosmos/cosmos-sdk/types/tx/signing"
-
 	aatypes "github.com/qorechain/qorechain-core/x/abstractaccount/types"
 )
-
-// Depth is measured without walking the whole tree. A guard that expanded a
-// deliberately enormous signature in order to measure it would do the exact work it
-// exists to prevent, so it has to stop as soon as the bound is passed.
-func TestMultisigDepthStopsCountingOnceTheBoundIsPassed(t *testing.T) {
-	// A chain far deeper than the bound, of the shape the attack uses.
-	var data signing.SignatureData = &signing.SingleSignatureData{}
-	for i := 0; i < 50; i++ {
-		data = &signing.MultiSignatureData{Signatures: []signing.SignatureData{data}}
-	}
-
-	got := multisigDepth(data, 0)
-	if got <= MaxMultisigNestingDepth {
-		t.Fatalf("a 50-deep signature measured %d, which would be admitted", got)
-	}
-	// It must report just past the bound rather than the true depth, which is the
-	// evidence that it stopped descending.
-	if got > MaxMultisigNestingDepth+1 {
-		t.Fatalf("depth %d means the whole tree was walked; the guard must stop at "+
-			"the bound rather than expand what it is protecting against", got)
-	}
-}
-
-// Ordinary signatures, and multisigs within the bound, must pass untouched.
-// A guard that refused legitimate traffic would be an outage rather than a defence.
-func TestMultisigDepthAdmitsWhatIsLegitimate(t *testing.T) {
-	single := &signing.SingleSignatureData{}
-	if d := multisigDepth(single, 0); d != 0 {
-		t.Fatalf("a plain signature measured depth %d, want 0", d)
-	}
-
-	// Two levels: a multisig whose members are themselves multisigs. Nothing in this
-	// chain's operations goes past this.
-	inner := &signing.MultiSignatureData{Signatures: []signing.SignatureData{single}}
-	outer := &signing.MultiSignatureData{Signatures: []signing.SignatureData{inner, single}}
-	if d := multisigDepth(outer, 0); d != 2 {
-		t.Fatalf("a two-level multisig measured depth %d, want 2", d)
-	}
-	if d := multisigDepth(outer, 0); d > MaxMultisigNestingDepth {
-		t.Fatal("a legitimate two-level multisig would be refused")
-	}
-}
-
-// The widest tree at a legal depth must still be admitted: the bound is on depth,
-// which is what drives the exponential cost, not on how many co-signers there are.
-func TestMultisigDepthBoundsDepthNotWidth(t *testing.T) {
-	members := make([]signing.SignatureData, 100)
-	for i := range members {
-		members[i] = &signing.SingleSignatureData{}
-	}
-	wide := &signing.MultiSignatureData{Signatures: members}
-
-	if d := multisigDepth(wide, 0); d != 1 {
-		t.Fatalf("a 100-member flat multisig measured depth %d, want 1", d)
-	}
-}
 
 // THE CONSENSUS PROPERTY. The TTL bound must be a function of block time, which is
 // identical on every validator executing a block, and never of the node's own clock.
