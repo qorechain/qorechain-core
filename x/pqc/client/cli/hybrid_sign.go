@@ -16,6 +16,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	signing "github.com/cosmos/cosmos-sdk/types/tx/signing"
@@ -164,7 +165,7 @@ then sign transactions with ` + "`tx pqc cosign`" + `.`,
 func getCmdCosign() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cosign [unsigned-tx.json]",
-		Short: "PQC+classical sign a generate-only tx and broadcast it",
+		Short: "PQC+classical sign a generate-only tx and broadcast it (or print it, or estimate its gas)",
 		Long: `Attach a Dilithium-5 hybrid signature (and the account's classical
 secp256k1 signature) to a transaction and broadcast it. Produce the input with
 any tx command using --generate-only, e.g.:
@@ -172,7 +173,13 @@ any tx command using --generate-only, e.g.:
   qorechaind tx bank send <from> <to> 1000uqor --generate-only > tx.json
   qorechaind tx pqc cosign tx.json --from <from> --pqc-key <name> --chain-id <id>
 
-The --pqc-key name refers to a key created with ` + "`tx pqc gen-key`" + `.`,
+The --pqc-key name refers to a key created with ` + "`tx pqc gen-key`" + `.
+
+The standard tx flags are honoured: --generate-only prints the signed tx as
+JSON instead of broadcasting it (submit it later with ` + "`tx broadcast`" + `);
+--offline does the same without contacting a node and needs --account-number,
+--sequence and --sign-bytes v1|v2; --dry-run simulates it and prints the gas
+estimate.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -241,6 +248,9 @@ func resolveSignBytes(cmd *cobra.Command, clientCtx client.Context) (int, error)
 	default:
 		return 0, fmt.Errorf("--%s must be auto, v1 or v2, got %q", flagSignBytes, mode)
 	}
+	if clientCtx.Offline {
+		return 0, fmt.Errorf("--%s auto asks the node, which --offline forbids; pass --%s v1 or v2", flagSignBytes, flagSignBytes)
+	}
 	// Ask for every name the switch has shipped under: a network that took it
 	// under the earlier name keeps that record and no other.
 	applied := make(map[string]int64, len(types.SignBytesV2Upgrades))
@@ -261,8 +271,18 @@ func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []
 	if err != nil {
 		return err
 	}
-	// Resolve the signing account (classical secp256k1 key).
-	fromRec, err := clientCtx.Keyring.Key(clientCtx.FromName)
+	if clientCtx.Simulate && clientCtx.Offline {
+		return fmt.Errorf("--%s needs the node, which --%s forbids", flags.FlagDryRun, flags.FlagOffline)
+	}
+	// Resolve the signing account (classical secp256k1 key). With
+	// --generate-only, --from may have been given as an address; the key must
+	// still be in the keyring, because this command signs.
+	var fromRec *keyring.Record
+	if clientCtx.FromName != "" {
+		fromRec, err = clientCtx.Keyring.Key(clientCtx.FromName)
+	} else {
+		fromRec, err = clientCtx.Keyring.KeyByAddress(clientCtx.FromAddress)
+	}
 	if err != nil {
 		return err
 	}
@@ -274,9 +294,9 @@ func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []
 	if err != nil {
 		return err
 	}
-	accNum, seq, err := clientCtx.AccountRetriever.GetAccountNumberSequence(clientCtx, fromAddr)
+	accNum, seq, err := signerAccountNumberSequence(cmd, clientCtx, fromAddr)
 	if err != nil {
-		return fmt.Errorf("fetch account number/sequence: %w", err)
+		return err
 	}
 
 	// AuthInfo: single DIRECT signer (from account's secp256k1 key) + fee.
@@ -346,7 +366,7 @@ func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []
 	if err != nil {
 		return err
 	}
-	classicalSig, _, err := clientCtx.Keyring.Sign(clientCtx.FromName, signDocBytes, signing.SignMode_SIGN_MODE_DIRECT)
+	classicalSig, _, err := clientCtx.Keyring.Sign(fromRec.Name, signDocBytes, signing.SignMode_SIGN_MODE_DIRECT)
 	if err != nil {
 		return fmt.Errorf("classical sign: %w", err)
 	}
@@ -359,6 +379,56 @@ func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []
 	txBytes, err := txRaw.Marshal()
 	if err != nil {
 		return err
+	}
+	return deliverSignedTx(cmd, clientCtx, txBytes)
+}
+
+// signerAccountNumberSequence returns the signer's account number and
+// sequence: from --account-number and --sequence when both are given (required
+// with --offline), else from the node.
+func signerAccountNumberSequence(cmd *cobra.Command, clientCtx client.Context, addr sdk.AccAddress) (uint64, uint64, error) {
+	f := cmd.Flags()
+	if f.Changed(flags.FlagAccountNumber) && f.Changed(flags.FlagSequence) {
+		accNum, _ := f.GetUint64(flags.FlagAccountNumber)
+		seq, _ := f.GetUint64(flags.FlagSequence)
+		return accNum, seq, nil
+	}
+	if clientCtx.Offline {
+		return 0, 0, fmt.Errorf("--%s requires --%s and --%s", flags.FlagOffline, flags.FlagAccountNumber, flags.FlagSequence)
+	}
+	accNum, seq, err := clientCtx.AccountRetriever.GetAccountNumberSequence(clientCtx, addr)
+	if err != nil {
+		return 0, 0, fmt.Errorf("fetch account number/sequence: %w", err)
+	}
+	return accNum, seq, nil
+}
+
+// deliverSignedTx honours the standard tx flags for a fully signed tx:
+// --dry-run simulates it and reports the gas estimate on stderr, as the SDK
+// does; --generate-only and --offline print it as JSON on stdout (submit it
+// later with `tx broadcast`); otherwise it is broadcast.
+func deliverSignedTx(cmd *cobra.Command, clientCtx client.Context, txBytes []byte) error {
+	if clientCtx.Simulate {
+		res, err := txtypes.NewServiceClient(clientCtx).Simulate(cmd.Context(), &txtypes.SimulateRequest{TxBytes: txBytes})
+		if err != nil {
+			return fmt.Errorf("simulate: %w", err)
+		}
+		if res.GasInfo == nil {
+			return fmt.Errorf("simulate: no gas info in the response")
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(), "gas estimate: %d\n", res.GasInfo.GasUsed)
+		return nil
+	}
+	if clientCtx.GenerateOnly || clientCtx.Offline {
+		tx, err := clientCtx.TxConfig.TxDecoder()(txBytes)
+		if err != nil {
+			return err
+		}
+		json, err := clientCtx.TxConfig.TxJSONEncoder()(tx)
+		if err != nil {
+			return err
+		}
+		return clientCtx.PrintString(string(json) + "\n")
 	}
 	res, err := clientCtx.BroadcastTx(txBytes)
 	if err != nil {
@@ -406,6 +476,18 @@ the rotation tx is cosigned (hybrid) with the old key so it passes the PQC ante.
 			address := clientCtx.GetFromAddress().String()
 			if address == "" {
 				return fmt.Errorf("--from is required (the account whose key is rotating)")
+			}
+
+			// A random key exists only in this process: rotating to it without
+			// saving it would leave the account with a PQC key nobody holds.
+			outName, _ := cmd.Flags().GetString("new-key-out")
+			if newRandom, _ := cmd.Flags().GetBool("new-random"); newRandom && outName == "" && !clientCtx.Simulate {
+				return fmt.Errorf("refusing to rotate to a key that would not be saved: --new-random needs --new-key-out <name>")
+			}
+			if outName != "" && !clientCtx.Simulate {
+				if _, err := os.Stat(pqcKeyPath(clientCtx.HomeDir, outName)); err == nil {
+					return fmt.Errorf("%s already exists; pick another --new-key-out name", pqcKeyPath(clientCtx.HomeDir, outName))
+				}
 			}
 
 			data, err := io.ReadAll(cmd.InOrStdin())
@@ -462,14 +544,14 @@ the rotation tx is cosigned (hybrid) with the old key so it passes the PQC ante.
 				return fmt.Errorf("new-key rotation sign: %w", err)
 			}
 
-			// 4. Store the NEW private key locally so the account can sign with it
-			//    once the rotation lands.
-			outName, _ := cmd.Flags().GetString("new-key-out")
-			if outName != "" {
+			// 4. Store the NEW private key locally, durably and before anything
+			//    is broadcast or printed, so the account can sign with it once the
+			//    rotation lands. A dry run rotates nothing and stores nothing.
+			if outName != "" && !clientCtx.Simulate {
 				if err := os.MkdirAll(pqcKeyDir(clientCtx.HomeDir), 0o700); err != nil {
 					return err
 				}
-				if err := os.WriteFile(pqcKeyPath(clientCtx.HomeDir, outName), []byte(hex.EncodeToString(newSk)), 0o600); err != nil {
+				if err := writeKeyFileSync(pqcKeyPath(clientCtx.HomeDir, outName), []byte(hex.EncodeToString(newSk))); err != nil {
 					return err
 				}
 				fmt.Fprintf(cmd.ErrOrStderr(), "stored new Dilithium-5 private key: %s\n", pqcKeyPath(clientCtx.HomeDir, outName))
@@ -511,7 +593,7 @@ the rotation tx is cosigned (hybrid) with the old key so it passes the PQC ante.
 	}
 	cmd.Flags().String("old-derivation", "bridge", "derivation of the CURRENT key: bridge (shake256(mnemonic), chain-bridge/faucet-api) | adapter (address-bound, SDK/wallet-adapter)")
 	cmd.Flags().String("new-derivation", "adapter", "derivation of the NEW key when not --new-random: adapter | bridge")
-	cmd.Flags().Bool("new-random", false, "rotate to a fresh random key instead of a mnemonic-derived one (store it with --new-key-out)")
+	cmd.Flags().Bool("new-random", false, "rotate to a fresh random key instead of a mnemonic-derived one (requires --new-key-out)")
 	cmd.Flags().String("new-key-out", "", "store the new private key under <home>/pqc/<name>.dilithium for future signing")
 	addSignBytesFlag(cmd)
 	flags.AddTxFlagsToCmd(cmd)
@@ -520,6 +602,25 @@ the rotation tx is cosigned (hybrid) with the old key so it passes the PQC ante.
 
 // The PQC sign-bytes are built by types.HybridSignBytes, shared with the chain's
 // ante handler so the two cannot drift.
+
+// writeKeyFileSync creates path exclusively with mode 0600, writes bz and
+// syncs it, so a key written before a broadcast survives a crash and never
+// replaces an existing key.
+func writeKeyFileSync(path string, bz []byte) error {
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := f.Write(bz); err != nil {
+		f.Close()
+		return err
+	}
+	if err := f.Sync(); err != nil {
+		f.Close()
+		return err
+	}
+	return f.Close()
+}
 
 func loadPQCPrivKey(home, name string) ([]byte, error) {
 	raw, err := os.ReadFile(pqcKeyPath(home, name))
