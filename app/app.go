@@ -399,9 +399,9 @@ func NewQoreChainApp(
 		app.StakingKeeper,
 		app.FeeMarketKeeper,
 		&app.ConsensusParamsKeeper,
-		&app.Erc20Keeper,           // forward reference — assigned below
-		resolveEVMChainID(appOpts), // per-network EVM chain ID (diana=9800, vladi=9801)
-		"",                         // tracer (empty = default)
+		&app.Erc20Keeper,                       // forward reference — assigned below
+		mustResolveEVMChainID(logger, appOpts), // per-network EVM chain ID (diana=9800, vladi=9801)
+		"",                                     // tracer (empty = default)
 	)
 
 	// Step 4: Erc20Keeper (depends on EVMKeeper; forward-ref to TransferKeeper)
