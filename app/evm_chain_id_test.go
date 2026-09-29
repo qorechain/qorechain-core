@@ -6,8 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"cosmossdk.io/log"
-
 	"github.com/cosmos/cosmos-sdk/client/flags"
 )
 
@@ -120,7 +118,7 @@ func TestCheckRPCEVMChainID(t *testing.T) {
 func TestMustResolveEVMChainIDRefuses(t *testing.T) {
 	t.Setenv(EnvEVMChainID, "")
 	home := homeWithGenesis(t, CosmosChainIDMainnet)
-	if got := mustResolveEVMChainID(log.NewNopLogger(), mockAppOpts{flags.FlagHome: home, appOptEVMChainID: uint64(9801)}); got != EVMChainIDMainnet {
+	if got, _ := mustResolveEVMChainID(mockAppOpts{flags.FlagHome: home, appOptEVMChainID: uint64(9801)}); got != EVMChainIDMainnet {
 		t.Fatalf("got %d", got)
 	}
 
@@ -136,7 +134,7 @@ func TestMustResolveEVMChainIDRefuses(t *testing.T) {
 					t.Fatalf("unexpected panic %v", r)
 				}
 			}()
-			mustResolveEVMChainID(log.NewNopLogger(), opts)
+			mustResolveEVMChainID(opts)
 		})
 	}
 	refuses("env on mainnet", mockAppOpts{flags.FlagHome: home}, "9800")

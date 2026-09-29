@@ -272,6 +272,7 @@ func newApp(
 	// (`start`), not for pruning/snapshot which also build the app. No-op in the
 	// community build (the SVM RPC server lives in the full-build overlay).
 	if isStartCommand() {
+		qoreApp.LogStartupIdentity(logger)
 		startSVMRPCIfEnabled(logger, qoreApp, appOpts)
 	}
 	return qoreApp

@@ -253,6 +253,11 @@ type QoreChainApp struct {
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
 
+	// evmChainID is the EIP-155 chain ID the EVM keeper runs with, resolved
+	// for evmCosmosChainID (see mustResolveEVMChainID).
+	evmChainID       uint64
+	evmCosmosChainID string
+
 	// simulation manager
 	sm *module.SimulationManager
 }
@@ -387,6 +392,7 @@ func NewQoreChainApp(
 	)
 
 	// Step 3: EVMKeeper (depends on FeeMarket, PreciseBank; forward-ref to Erc20Keeper)
+	app.evmChainID, app.evmCosmosChainID = mustResolveEVMChainID(appOpts)
 	allKeys := app.kvStoreKeys()
 	app.EVMKeeper = evmkeeper.NewKeeper(
 		app.appCodec,
@@ -399,9 +405,9 @@ func NewQoreChainApp(
 		app.StakingKeeper,
 		app.FeeMarketKeeper,
 		&app.ConsensusParamsKeeper,
-		&app.Erc20Keeper,                       // forward reference — assigned below
-		mustResolveEVMChainID(logger, appOpts), // per-network EVM chain ID (diana=9800, vladi=9801)
-		"",                                     // tracer (empty = default)
+		&app.Erc20Keeper, // forward reference — assigned below
+		app.evmChainID,   // per-network EVM chain ID (diana=9800, vladi=9801)
+		"",               // tracer (empty = default)
 	)
 
 	// Step 4: Erc20Keeper (depends on EVMKeeper; forward-ref to TransferKeeper)

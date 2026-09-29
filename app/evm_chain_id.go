@@ -101,9 +101,12 @@ func checkRPCEVMChainID(appOpts servertypes.AppOptions, keeperID uint64) error {
 }
 
 // mustResolveEVMChainID resolves and cross-checks the EVM chain ID at app
-// construction, logs the mapping, and stops the process on a configuration
-// that would make this node accept signatures meant for another chain.
-func mustResolveEVMChainID(logger log.Logger, appOpts servertypes.AppOptions) uint64 {
+// construction and stops the process on a configuration that would make this
+// node accept signatures meant for another chain. It returns the EVM chain ID
+// and the Cosmos chain-id it was resolved for. It does not log: commands such
+// as export build the app too and write their result to stdout, where the log
+// also goes; LogStartupIdentity reports the mapping when the node starts.
+func mustResolveEVMChainID(appOpts servertypes.AppOptions) (uint64, string) {
 	id, cosmosID, err := resolveEVMChainID(appOpts)
 	if err == nil && cosmosID != "" {
 		err = checkRPCEVMChainID(appOpts, id)
@@ -111,17 +114,27 @@ func mustResolveEVMChainID(logger log.Logger, appOpts servertypes.AppOptions) ui
 	if err != nil {
 		panic(fmt.Sprintf("refusing to start: %v", err))
 	}
-	switch _, known := knownEVMChainIDs[cosmosID]; {
-	case cosmosID == "":
+	return id, cosmosID
+}
+
+// LogStartupIdentity logs, once at node start, the Cosmos chain-id to EVM
+// chain ID mapping this node runs with and the PQC library it loaded.
+func (app *QoreChainApp) LogStartupIdentity(logger log.Logger) {
+	_, known := knownEVMChainIDs[app.evmCosmosChainID]
+	switch {
+	case app.evmCosmosChainID == "":
 	case known:
-		logger.Info("EVM chain ID", "chain_id", cosmosID, "evm_chain_id", id)
+		logger.Info("EVM chain ID", "chain_id", app.evmCosmosChainID, "evm_chain_id", app.evmChainID)
 	case os.Getenv(EnvEVMChainID) == "":
 		logger.Warn("unknown chain-id, using the testnet EVM chain ID; set "+EnvEVMChainID+" to choose another",
-			"chain_id", cosmosID, "evm_chain_id", id)
+			"chain_id", app.evmCosmosChainID, "evm_chain_id", app.evmChainID)
 	default:
-		logger.Info("EVM chain ID from "+EnvEVMChainID, "chain_id", cosmosID, "evm_chain_id", id)
+		logger.Info("EVM chain ID from "+EnvEVMChainID, "chain_id", app.evmCosmosChainID, "evm_chain_id", app.evmChainID)
 	}
-	return id
+	if PQCLibraryInfo != nil {
+		path, version := PQCLibraryInfo()
+		logger.Info("libqorepqc self-test passed", "library", path, "version", version)
+	}
 }
 
 // genesisChainID best-effort reads the chain_id from <home>/config/genesis.json.
