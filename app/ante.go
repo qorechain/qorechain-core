@@ -120,6 +120,12 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 	// sharing entirely. That is the right trade: the previous version was optimising
 	// away an allocation at the cost of a consensus hazard.
 	return func(ctx sdk.Context, tx sdk.Tx, sim bool) (sdk.Context, error) {
+		// A tx without a Fee panics on the Cosmos lane; refuse it cleanly on the
+		// mempool and simulate paths, for both lanes. Block execution is unchanged.
+		if err := refuseFeelessTx(ctx, tx, sim); err != nil {
+			return ctx, err
+		}
+
 		evmParams := options.EvmKeeper.GetParams(ctx)
 		fmParams := options.FeeMarketKeeper.GetParams(ctx)
 		evmHandler := newMonoEVMAnteHandler(options, &evmParams, &fmParams)

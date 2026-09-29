@@ -332,6 +332,9 @@ func NewQoreChainApp(
 
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
+	// Keep panic stack traces in the node log instead of the tx response.
+	app.AddRunTxRecoveryHandler(newQuietPanicRecoveryHandler(logger))
+
 	// Governance hooks (ProposalRewardHook) are installed via depinject —
 	// see ProvideGovHooks. They must NOT be set manually here: the gov module's
 	// InvokeSetHooks already ran during Build, so a second SetHooks would panic.
