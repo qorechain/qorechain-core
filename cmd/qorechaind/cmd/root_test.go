@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/cosmos/cosmos-sdk/client/flags"
+
+	"github.com/qorechain/qorechain-core/app"
 )
 
 // THE STARTUP PATH. NewRootCmd runs depinject, which builds the interface
@@ -89,4 +91,27 @@ func captureStdout(t *testing.T, f func()) string {
 	}()
 	w.Close()
 	return <-done
+}
+
+// TestInitAppConfigPinsKnownNetworks pins the init-time half of QSR-2026-0151:
+// a home initialised for a public network without QORE_EVM_CHAIN_ID gets that
+// network's EVM chain ID in app.toml, so the start-up cross-check accepts it.
+func TestInitAppConfigPinsKnownNetworks(t *testing.T) {
+	for _, c := range []struct {
+		chainID, env string
+		want         uint64
+	}{
+		{app.CosmosChainIDMainnet, "", app.EVMChainIDMainnet},
+		{app.CosmosChainIDTestnet, "", app.EVMChainIDTestnet},
+		{"some-devnet", "", app.EVMChainIDTestnet},
+		{"", "", app.EVMChainIDTestnet},
+		{"some-devnet", "12345", 12345},
+		{app.CosmosChainIDMainnet, "9801", app.EVMChainIDMainnet},
+	} {
+		t.Setenv(app.EnvEVMChainID, c.env)
+		_, cfg := initAppConfig(c.chainID)
+		if got := cfg.(QoreChainConfig).EVM.EVMChainID; got != c.want {
+			t.Errorf("chain-id %q, env %q: evm-chain-id %d, want %d", c.chainID, c.env, got, c.want)
+		}
+	}
 }

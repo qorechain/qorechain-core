@@ -84,7 +84,12 @@ enable = {{ .SVMRPC.Enable }}
 address = "{{ .SVMRPC.Address }}"
 `
 
-func initAppConfig() (string, interface{}) {
+// initAppConfig returns the app.toml template and defaults. chainID is the
+// --chain-id of the running command, when it has one (init does): for a public
+// network it sets the [evm] evm-chain-id default to that network's pinned EVM
+// chain ID, so a home initialised without QORE_EVM_CHAIN_ID passes the start-up
+// cross-check instead of carrying the testnet value.
+func initAppConfig(chainID string) (string, interface{}) {
 	srvCfg := serverconfig.DefaultConfig()
 	srvCfg.MinGasPrices = "0uqor" // base denom: uqor (10^6 = 1 QOR)
 
@@ -93,10 +98,14 @@ func initAppConfig() (string, interface{}) {
 	// resolves at runtime (app.resolveEVMChainID). The cosmos/evm default (262144)
 	// otherwise leaks into the RPC backend (rpc/backend EvmChainID) and the
 	// tx-conversion layer, so every eth_sendRawTransaction is rejected with
-	// "incorrect chain-id; expected 262144". Default to the testnet EVM chain ID;
+	// "incorrect chain-id; expected 262144". Default to the pinned EVM chain ID of
+	// a public network named by --chain-id, else the testnet EVM chain ID;
 	// QORE_EVM_CHAIN_ID overrides it (e.g. 9801 for mainnet) — the same env var the
 	// keeper honors, keeping both layers in agreement on a single binary.
 	evmCfg.EVMChainID = app.EVMChainIDTestnet
+	if pinned, ok := app.PinnedEVMChainID(chainID); ok {
+		evmCfg.EVMChainID = pinned
+	}
 	if v := os.Getenv(app.EnvEVMChainID); v != "" {
 		if n, err := strconv.ParseUint(v, 10, 64); err == nil && n != 0 {
 			evmCfg.EVMChainID = n

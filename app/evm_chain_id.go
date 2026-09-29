@@ -43,6 +43,13 @@ var knownEVMChainIDs = map[string]uint64{
 	CosmosChainIDTestnet: EVMChainIDTestnet,
 }
 
+// PinnedEVMChainID returns the EVM chain ID pinned for a public network's
+// Cosmos chain-id, and whether the chain-id is one of them.
+func PinnedEVMChainID(cosmosID string) (uint64, bool) {
+	id, ok := knownEVMChainIDs[cosmosID]
+	return id, ok
+}
+
 // resolveEVMChainID determines the EVM (EIP-155) chain ID so a single binary can
 // serve either network, and returns the Cosmos chain-id it resolved it for.
 //
