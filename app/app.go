@@ -224,6 +224,8 @@ type QoreChainApp struct {
 	// only when the EVM chain config is installed (always, in practice) and
 	// powers the EVM JSON-RPC server's transaction pool.
 	EVMMempool *evmmempool.ExperimentalEVMMempool
+	// evmBroadcaster gossips the transactions EVMMempool promotes.
+	evmBroadcaster *evmTxBroadcaster
 
 	// CosmWasm keeper
 	WasmKeeper wasmkeeper.Keeper
@@ -882,9 +884,13 @@ func (app *QoreChainApp) setupEVMMempool(logger log.Logger) {
 		return
 	}
 
+	// The broadcaster is set explicitly: the default one would capture
+	// app.clientCtx as it is now, before the node exists (see evmTxBroadcaster).
+	app.evmBroadcaster = newEVMTxBroadcaster(logger, app.txConfig)
 	mempoolConfig := &evmmempool.EVMMempoolConfig{
 		AnteHandler:   app.AnteHandler(),
 		BlockGasLimit: 100_000_000,
+		BroadCastTxFn: app.evmBroadcaster.enqueue,
 	}
 
 	evmMempool := evmmempool.NewExperimentalEVMMempool(
@@ -1043,6 +1049,16 @@ func (app *QoreChainApp) GetMempool() sdkmempool.ExtMempool {
 // SetClientCtx sets the client context on the application (used by the EVM JSON-RPC server).
 func (app *QoreChainApp) SetClientCtx(clientCtx client.Context) {
 	app.clientCtx = clientCtx
+}
+
+// RegisterTxService registers the tx service and hands the EVM mempool's
+// broadcaster the client context, which from here on carries the in-process
+// node client (the server calls this after starting the node).
+func (app *QoreChainApp) RegisterTxService(clientCtx client.Context) {
+	app.App.RegisterTxService(clientCtx)
+	if app.evmBroadcaster != nil {
+		app.evmBroadcaster.setClientCtx(clientCtx)
+	}
 }
 
 // GetMaccPerms returns a copy of the module account permissions.

@@ -188,10 +188,12 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 // decorator is what verifies the Ethereum signature and establishes the sender.
 // Checking a window against an unverified sender would let anyone consume someone
 // else's authorisation. The circuit breaker runs FIRST, because a message type that
-// has been switched off should cost nothing to reject.
+// has been switched off should cost nothing to reject. The replay guard follows it:
+// it is a mempool-only check and passes straight through in block execution.
 func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
+		NewEVMReplayGuardDecorator(),
 		evmante.NewEVMMonoDecorator(
 			options.EVMAccountKeeper,
 			options.FeeMarketKeeper,
