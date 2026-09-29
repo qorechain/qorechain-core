@@ -17,11 +17,12 @@ type protoTxProvider interface {
 // reads it, in CheckTx, ReCheckTx and simulate.
 //
 // The SDK's tx wrapper (v0.53.6) dereferences AuthInfo.Fee without a nil check,
-// and so does the EVM lane's ValidateTx. On the Cosmos lane SetUpContextDecorator
-// is the first thing to ask for the gas limit, so such a transaction panics on
-// either lane. baseapp recovers the panic, but the recovered error used to carry
-// the whole stack trace back to whoever called simulate or broadcast. This turns
-// it into a plain error on the public paths, before any panic.
+// and on the Cosmos lane SetUpContextDecorator is the first thing to ask for the
+// gas limit, so such a transaction panics there. baseapp recovers the panic, but
+// the recovered error used to carry the whole stack trace back to whoever called
+// simulate or broadcast. This turns it into a plain error on the public paths,
+// before any panic. (The EVM lane already refuses it without a panic, through
+// the tx's ValidateBasic in ValidateTx; it is refused here with a clearer error.)
 //
 // It is called ahead of lane routing so both lanes are covered. Block execution
 // keeps its current behaviour (the panic is recovered and the transaction fails
