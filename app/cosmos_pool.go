@@ -10,6 +10,7 @@ import (
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
@@ -176,7 +177,7 @@ func (m *evictingMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 	if kerr != nil {
 		return err
 	}
-	p := m.priority.GetTxPriority(ctx, tx)
+	p := m.priorityOf(ctx, tx)
 
 	for attempt := 0; attempt < maxEvictAttempts; attempt++ {
 		victimKey, victim, ok := m.victim(k.sender, p)
@@ -224,6 +225,17 @@ func (m *evictingMempool) Remove(tx sdk.Tx) error {
 	return err
 }
 
+// priorityOf ranks tx for the index. The priority reads the EVM denom from the
+// store; on the CheckTx context that read would be charged to the tx's gas
+// meter after the pool has already taken the tx, so it runs on a copy with an
+// infinite meter. The pool's own ranking of the same tx is left as it was.
+func (m *evictingMempool) priorityOf(ctx context.Context, tx sdk.Tx) math.Int {
+	if sdkCtx, ok := ctx.(sdk.Context); ok {
+		ctx = sdkCtx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	}
+	return m.priority.GetTxPriority(ctx, tx)
+}
+
 func (m *evictingMempool) record(ctx context.Context, tx sdk.Tx) {
 	k, err := m.key(tx)
 	if err != nil {
@@ -234,7 +246,7 @@ func (m *evictingMempool) record(ctx context.Context, tx sdk.Tx) {
 		se = &senderEntries{nonces: make(map[uint64]poolEntry)}
 		m.entries[k.sender] = se
 	}
-	se.nonces[k.nonce] = poolEntry{tx: tx, priority: m.priority.GetTxPriority(ctx, tx)}
+	se.nonces[k.nonce] = poolEntry{tx: tx, priority: m.priorityOf(ctx, tx)}
 	m.retail(k.sender, se, ok)
 }
 

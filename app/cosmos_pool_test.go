@@ -1,12 +1,14 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
+	storetypes "cosmossdk.io/store/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
@@ -189,4 +191,37 @@ func TestEvictingMempoolUnderLoadStaysBounded(t *testing.T) {
 		}
 	}
 	t.Logf("%d inserts in %v", 5*n, time.Since(start))
+}
+
+// The index ranks a tx on a context with its own gas meter, so its extra
+// priority read is never charged to the CheckTx gas meter.
+func TestEvictingMempoolIndexDoesNotChargeTxGas(t *testing.T) {
+	charging := memTxPriority()
+	rank := charging.GetTxPriority
+	charging.GetTxPriority = func(goCtx context.Context, tx sdk.Tx) math.Int {
+		sdk.UnwrapSDKContext(goCtx).GasMeter().ConsumeGas(1000, "priority read")
+		return rank(goCtx, tx)
+	}
+	inner := sdkmempool.NewPriorityMempool(sdkmempool.PriorityNonceMempoolConfig[math.Int]{
+		TxPriority:      memTxPriority(),
+		SignerExtractor: memTxSigners{},
+		MaxTx:           1,
+	})
+	m := newEvictingMempool(inner, charging, log.NewNopLogger())
+	m.signers = memTxSigners{}
+
+	meter := storetypes.NewGasMeter(10)
+	ctx := proposalCtx(-1).WithGasMeter(meter)
+	if err := m.Insert(ctx, &memTx{id: 0, signer: addr(0), fee: 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := m.Insert(ctx, &memTx{id: 1, signer: addr(1), fee: 2}); err != nil {
+		t.Fatalf("eviction insert: %v", err)
+	}
+	if meter.GasConsumed() != 0 {
+		t.Fatalf("index charged %d gas to the tx", meter.GasConsumed())
+	}
+	if !poolTxs(m)[1] {
+		t.Fatal("the better-paying tx should be pooled")
+	}
 }
