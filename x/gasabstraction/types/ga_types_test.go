@@ -63,3 +63,31 @@ func TestAcceptedFeeTokenJson(t *testing.T) {
 		t.Errorf("ConversionRate mismatch: expected %q, got %q", token.ConversionRate, decoded.ConversionRate)
 	}
 }
+
+// TestGenesisValidateChecksRates pins QSR-2026-0262: genesis validation uses
+// the full config rules, so a rate that is zero, negative or not a number is
+// refused rather than only an empty one.
+func TestGenesisValidateChecksRates(t *testing.T) {
+	if err := DefaultGenesisState().Validate(); err != nil {
+		t.Fatalf("default genesis must validate: %v", err)
+	}
+	for _, rate := range []string{"0", "-1", "abc", "", "0.0"} {
+		gs := DefaultGenesisState()
+		gs.Config.AcceptedTokens = append(gs.Config.AcceptedTokens, AcceptedFeeToken{Denom: "ibc/X", ConversionRate: rate})
+		if err := gs.Validate(); err == nil {
+			t.Errorf("rate %q validated", rate)
+		}
+	}
+	gs := DefaultGenesisState()
+	gs.Config.NativeDenom = ""
+	if gs.Validate() == nil {
+		t.Error("empty native denom validated")
+	}
+	// Every default accepted token parses to a positive rate.
+	for _, tok := range DefaultGasAbstractionConfig().AcceptedTokens {
+		one := GasAbstractionConfig{NativeDenom: "uqor", AcceptedTokens: []AcceptedFeeToken{tok}}
+		if err := one.Validate(); err != nil {
+			t.Errorf("default token %s: %v", tok.Denom, err)
+		}
+	}
+}
