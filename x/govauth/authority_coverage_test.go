@@ -32,11 +32,13 @@ var (
 // Deliberate exceptions, named one by one so each is a decision rather than a
 // pattern that might quietly absorb a real gap.
 var gatedElsewhere = map[string]string{
-	"license/MsgGrantLicense":   "keeper checks the store-backed grant authority",
-	"license/MsgRevokeLicense":  "keeper checks the store-backed grant authority",
-	"license/MsgSuspendLicense": "keeper checks the store-backed grant authority",
-	"license/MsgResumeLicense":  "keeper checks the store-backed grant authority",
-	"inflation/MsgUpdateParams": "keeper checks k.Authority(), the same derived gov address",
+	"license/MsgGrantLicense":              "keeper checks the store-backed grant authority",
+	"license/MsgRevokeLicense":             "keeper checks the store-backed grant authority",
+	"license/MsgSuspendLicense":            "keeper checks the store-backed grant authority",
+	"license/MsgResumeLicense":             "keeper checks the store-backed grant authority",
+	"inflation/MsgUpdateParams":            "keeper checks k.Authority(), the same derived gov address",
+	"burn/MsgReleaseStrandedRewards":       "handler compares msg.Authority with the gov module address the app passes to NewBurnKeeper",
+	"lightnode/MsgReleaseLightNodeReserve": "handler compares msg.Authority with k.Authority(), the gov module address fixed in the keeper constructor",
 }
 
 // moduleOf names the module a path belongs to, from either
