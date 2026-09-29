@@ -59,8 +59,20 @@ func (p Params) Validate() error {
 	if p.FailedTxBurnRate.IsNegative() || p.FailedTxBurnRate.GT(math.LegacyOneDec()) {
 		return fmt.Errorf("failed_tx_burn_rate must be between 0 and 1")
 	}
-	if p.LightNodeShare.IsNegative() || p.LightNodeShare.GT(math.LegacyOneDec()) {
-		return fmt.Errorf("light_node_share must be between 0 and 1")
+	// Each share is bounded on its own, not only through the sum: 1.3 and -0.3
+	// also add up, and a negative share would reach the distribution split.
+	for _, s := range []struct {
+		name string
+		v    math.LegacyDec
+	}{
+		{"validator_share", p.ValidatorShare},
+		{"treasury_share", p.TreasuryShare},
+		{"staker_share", p.StakerShare},
+		{"light_node_share", p.LightNodeShare},
+	} {
+		if s.v.IsNil() || s.v.IsNegative() || s.v.GT(math.LegacyOneDec()) {
+			return fmt.Errorf("%s must be between 0 and 1, got %s", s.name, s.v)
+		}
 	}
 	// validator_share + burn (gas_burn_rate) + treasury + staker + light_node must equal 1.0
 	totalShares := p.ValidatorShare.Add(p.GasBurnRate).Add(p.TreasuryShare).Add(p.StakerShare).Add(p.LightNodeShare)
