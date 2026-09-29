@@ -23,7 +23,10 @@ func NewQueryServer(k LicenseKeeper) types.QueryServer {
 
 var _ types.QueryServer = queryServer{}
 
-func licenseView(l types.License) *types.LicenseView {
+// licenseView renders a grant as seen at height. Active uses the same predicate
+// as the keeper's on-chain gate (License.IsActive), so an expired grant that is
+// still waiting for the EndBlocker sweep is not reported as active.
+func licenseView(l types.License, height int64) *types.LicenseView {
 	return &types.LicenseView{
 		Grantee:   l.Grantee,
 		FeatureId: l.FeatureID,
@@ -32,13 +35,14 @@ func licenseView(l types.License) *types.LicenseView {
 		GrantedBy: l.GrantedBy,
 		Suspended: l.Suspended,
 		Metadata:  l.Metadata,
+		Active:    l.IsActive(height),
 	}
 }
 
-func licenseViews(ls []types.License) []*types.LicenseView {
+func licenseViews(ls []types.License, height int64) []*types.LicenseView {
 	out := make([]*types.LicenseView, len(ls))
 	for i := range ls {
-		out[i] = licenseView(ls[i])
+		out[i] = licenseView(ls[i], height)
 	}
 	return out
 }
@@ -49,7 +53,8 @@ func (q queryServer) Check(goCtx context.Context, req *types.QueryCheckRequest) 
 	if err != nil {
 		return nil, status.Errorf(codes.NotFound, "no license for %s/%s", req.Grantee, req.FeatureId)
 	}
-	return &types.QueryCheckResponse{License: licenseView(l), Active: !l.Suspended}, nil
+	height := ctx.BlockHeight()
+	return &types.QueryCheckResponse{License: licenseView(l, height), Active: l.IsActive(height)}, nil
 }
 
 func (q queryServer) Holders(goCtx context.Context, req *types.QueryHoldersRequest) (*types.QueryHoldersResponse, error) {
@@ -58,7 +63,7 @@ func (q queryServer) Holders(goCtx context.Context, req *types.QueryHoldersReque
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &types.QueryHoldersResponse{Licenses: licenseViews(ls)}, nil
+	return &types.QueryHoldersResponse{Licenses: licenseViews(ls, ctx.BlockHeight())}, nil
 }
 
 func (q queryServer) List(goCtx context.Context, req *types.QueryListRequest) (*types.QueryListResponse, error) {
@@ -67,5 +72,5 @@ func (q queryServer) List(goCtx context.Context, req *types.QueryListRequest) (*
 	if err != nil {
 		return nil, status.Error(codes.Internal, err.Error())
 	}
-	return &types.QueryListResponse{Licenses: licenseViews(ls)}, nil
+	return &types.QueryListResponse{Licenses: licenseViews(ls, ctx.BlockHeight())}, nil
 }
