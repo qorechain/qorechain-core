@@ -285,17 +285,12 @@ replace (
 
 	// QoreChain EVM: pin pebble for geth fork compatibility
 	github.com/cockroachdb/pebble => github.com/cockroachdb/pebble v0.0.0-20230928194634-aa077af62593
-	// CONFIDENTIAL until 2026-09-01 15:00 UTC (11:00 New York). The embargo was
-	// EXTENDED from 2026-08-25 by Cosmos Labs, deliberately, to give other chains
-	// time to patch - so publishing this line early shortens a window someone
-	// else is relying on. Points cosmos/evm at the private
-	// security repo Cosmos Labs shared with us. The tag carries both the August
-	// private-disclosure patch and the v0.6.2 fixes: an underflow guard in
-	// stateObject.SubBalance, and ParseAmount summing the extended denom, which
-	// matters here because this chain runs extended_denom "aqor".
-	//
-	// Do NOT push this line to the public repo before the embargo lifts.
-	github.com/cosmos/evm => github.com/cosmos/evm-ghsa-aug-2026 v0.6.3-august-2026-hotfix
+	// cosmos/evm: the public v0.6.3 release. It carries the August 2026 security fix
+	// and the v0.6.2 fixes (the stateObject.SubBalance underflow guard, and ParseAmount
+	// summing the extended denom, which matters because this chain runs "aqor"). It is
+	// the same Go source as the private hotfix tag the chain was built from while the
+	// disclosure was under embargo; only the README differs.
+	github.com/cosmos/evm => github.com/cosmos/evm v0.6.3
 
 	// wasmd: replace deprecated JWT library
 	github.com/dgrijalva/jwt-go => github.com/golang-jwt/jwt/v4 v4.4.2
