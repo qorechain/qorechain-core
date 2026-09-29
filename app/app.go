@@ -12,6 +12,7 @@ import (
 	clienthelpers "cosmossdk.io/client/v2/helpers"
 	"cosmossdk.io/depinject"
 	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	circuitkeeper "cosmossdk.io/x/circuit/keeper"
 	evidencekeeper "cosmossdk.io/x/evidence/keeper"
@@ -862,7 +863,7 @@ func NewQoreChainApp(
 	// enables the EVM JSON-RPC transaction pool (and nonce-gap support). It is
 	// guarded by the EVM chain config, which x/vm's keeper installs at
 	// construction, so in practice it always runs.
-	app.setupEVMMempool(logger)
+	app.setupEVMMempool(logger, ReadMempoolConfig(appOpts))
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
@@ -874,14 +875,23 @@ func NewQoreChainApp(
 // setupEVMMempool installs the experimental EVM+Cosmos unified mempool and the
 // matching CheckTx / PrepareProposal handlers. Mirrors the cosmos/evm
 // integration guide; must be called after SetAnteHandler.
-func (app *QoreChainApp) setupEVMMempool(logger log.Logger) {
+func (app *QoreChainApp) setupEVMMempool(logger log.Logger, cfg MempoolConfig) {
 	if evmtypes.GetChainConfig() == nil {
 		return
 	}
 
+	// The Cosmos pool is bounded (QSR-2026-0286). It used to be unbounded, and
+	// the node's /check_tx RPC runs CheckTx without adding the tx to the
+	// consensus engine's own mempool, so neither its size nor its byte limit
+	// applied to what that route put here. The priority is the pool's default, spelled out so the
+	// evicting wrapper below ranks entries the same way.
+	cosmosPriority := cosmosTxPriority(func(ctx sdk.Context) string {
+		return app.EVMKeeper.GetEvmCoinInfo(ctx).Denom
+	})
 	mempoolConfig := &evmmempool.EVMMempoolConfig{
-		AnteHandler:   app.AnteHandler(),
-		BlockGasLimit: 100_000_000,
+		AnteHandler:      app.AnteHandler(),
+		BlockGasLimit:    100_000_000,
+		CosmosPoolConfig: &sdkmempool.PriorityNonceMempoolConfig[math.Int]{TxPriority: cosmosPriority},
 	}
 
 	evmMempool := evmmempool.NewExperimentalEVMMempool(
@@ -892,18 +902,30 @@ func (app *QoreChainApp) setupEVMMempool(logger log.Logger) {
 		app.txConfig,
 		app.clientCtx,
 		mempoolConfig,
-		0, // cosmosPoolMaxTx: 0 = unbounded cosmos pool
+		cfg.CosmosMempoolMaxTxs,
 	)
 	app.EVMMempool = evmMempool
 
-	app.SetMempool(evmMempool)
+	// baseapp inserts and removes through the wrapper, so a full Cosmos pool
+	// makes room for a better-paying tx instead of refusing everyone.
+	mp := newEvictingMempool(evmMempool, cosmosPriority, logger.With(log.ModuleKey, "mempool"))
+	app.SetMempool(mp)
 	app.SetCheckTxHandler(evmmempool.NewCheckTxHandler(evmMempool))
 
-	proposalHandler := baseapp.NewDefaultProposalHandler(evmMempool, app)
-	proposalHandler.SetSignerExtractionAdapter(
-		evmmempool.NewEthSignerExtractionAdapter(sdkmempool.NewDefaultSignerExtractionAdapter()),
-	)
-	app.SetPrepareProposal(proposalHandler.PrepareProposalHandler())
+	// PrepareProposal checks that a candidate fits before running the ante on
+	// it and bounds how long it keeps looking (QSR-2026-0029). It is local to
+	// the proposer: every tx it includes passed the same verification as
+	// before, so the unchanged ProcessProposal below accepts its blocks, and
+	// blocks from proposers still on the default handler are accepted too.
+	signerAdapter := evmmempool.NewEthSignerExtractionAdapter(sdkmempool.NewDefaultSignerExtractionAdapter())
+	app.SetPrepareProposal(prepareProposalHandler(
+		mp, app, signerAdapter,
+		proposalLimits{Budget: cfg.PrepareProposalBudget, MaxSkips: cfg.PrepareProposalMaxSkips},
+		logger.With(log.ModuleKey, "prepare-proposal"),
+	))
+
+	proposalHandler := baseapp.NewDefaultProposalHandler(mp, app)
+	proposalHandler.SetSignerExtractionAdapter(signerAdapter)
 	// And ProcessProposal, which was missing: without it baseapp keeps the NoOp
 	// handler that accepts every proposed block unread, so a proposer's
 	// malformed or non-decodable bytes are only discovered during execution
@@ -1029,7 +1051,13 @@ func (app *QoreChainApp) RegisterPendingTxListener(listener func(common.Hash)) {
 }
 
 // GetMempool returns the application's mempool as an ExtMempool.
+// The cosmos/evm start command type-asserts it to *ExperimentalEVMMempool to
+// wire the event bus and the JSON-RPC txpool, so the unified pool itself is
+// returned rather than the evicting wrapper baseapp holds.
 func (app *QoreChainApp) GetMempool() sdkmempool.ExtMempool {
+	if app.EVMMempool != nil {
+		return app.EVMMempool
+	}
 	mp := app.Mempool()
 	if ext, ok := mp.(sdkmempool.ExtMempool); ok {
 		return ext
