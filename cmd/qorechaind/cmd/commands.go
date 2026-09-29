@@ -52,7 +52,41 @@ type QoreChainConfig struct {
 	JSONRPC cosmosevmserverconfig.JSONRPCConfig `mapstructure:"json-rpc"`
 	TLS     cosmosevmserverconfig.TLSConfig     `mapstructure:"tls"`
 	SVMRPC  SVMRPCConfig                        `mapstructure:"svm-rpc"`
+
+	QoreChain QoreChainNodeConfig `mapstructure:"qorechain"`
 }
+
+// QoreChainNodeConfig holds node-local limits on the app-side mempool and on
+// PrepareProposal. They change only what this node keeps in memory and what it
+// puts in the blocks it proposes, never what a block must contain to be valid.
+type QoreChainNodeConfig struct {
+	CosmosMempoolMaxTxs     int    `mapstructure:"cosmos-mempool-max-txs"`
+	PrepareProposalBudget   string `mapstructure:"prepare-proposal-budget"`
+	PrepareProposalMaxSkips int    `mapstructure:"prepare-proposal-max-skips"`
+}
+
+// DefaultQoreChainNodeTemplate is appended to the app.toml template. An
+// app.toml without this section gets the same defaults.
+const DefaultQoreChainNodeTemplate = `
+###############################################################################
+###                       QoreChain node limits                            ###
+###############################################################################
+
+[qorechain]
+
+# Maximum number of Cosmos transactions held in the app-side mempool. When it is
+# full, a new tx that pays more per gas evicts the lowest-paying one; otherwise
+# it is refused. Must be positive (0 or less means the default, 5000).
+cosmos-mempool-max-txs = {{ .QoreChain.CosmosMempoolMaxTxs }}
+
+# Time PrepareProposal may spend selecting transactions before it proposes what
+# it already has. "0s" disables the budget.
+prepare-proposal-budget = "{{ .QoreChain.PrepareProposalBudget }}"
+
+# PrepareProposal stops after this many candidates in a row that do not fit in
+# the remaining block space. 0 disables the cap.
+prepare-proposal-max-skips = {{ .QoreChain.PrepareProposalMaxSkips }}
+`
 
 // SVMRPCConfig configures the Solana-compatible JSON-RPC server (consumed by
 // @solana/web3.js and other Solana ecosystem tooling). The server lives in
@@ -117,12 +151,18 @@ func initAppConfig() (string, interface{}) {
 		// out of the box (full build only). Disable or move the port on multi-node
 		// single-host setups to avoid 8899 conflicts.
 		SVMRPC: SVMRPCConfig{Enable: true, Address: "127.0.0.1:8899"},
+		QoreChain: QoreChainNodeConfig{
+			CosmosMempoolMaxTxs:     app.DefaultCosmosMempoolMaxTxs,
+			PrepareProposalBudget:   app.DefaultPrepareProposalBudget.String(),
+			PrepareProposalMaxSkips: app.DefaultPrepareProposalMaxSkips,
+		},
 	}
 
 	// Combine the standard SDK template with the EVM + SVM-RPC config templates
 	customAppTemplate := serverconfig.DefaultConfigTemplate +
 		cosmosevmserverconfig.DefaultEVMConfigTemplate +
-		DefaultSVMRPCTemplate
+		DefaultSVMRPCTemplate +
+		DefaultQoreChainNodeTemplate
 
 	return customAppTemplate, qoreConfig
 }
