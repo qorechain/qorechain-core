@@ -30,6 +30,9 @@ message LicenseView {
   string granted_by = 5;
   bool suspended = 6;
   string metadata = 7;
+  // active is true when the grant is not suspended and has not expired at the
+  // height the query was served at (expires_at 0 never expires).
+  bool active = 8;
 }
 
 message QueryCheckRequest {
@@ -38,7 +41,10 @@ message QueryCheckRequest {
 }
 message QueryCheckResponse {
   LicenseView license = 1;
-  // active is true when the grant exists and is not suspended.
+  // active is true when the grant exists, is not suspended and has not
+  // expired at the height the query was served at. An expired grant stays in
+  // the store until the next sweep but is reported inactive from its
+  // expires_at height on.
   bool active = 2;
 }
 

@@ -47,6 +47,9 @@ var (
 	NewPQCVerifyDecorator       func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator
 	NewPQCHybridVerifyDecorator func(keeper pqcmod.PQCKeeper, client pqcmod.PQCClient) sdk.AnteDecorator
 	NewPQCReplayGuardDecorator  func() sdk.AnteDecorator
+	// PQCLibraryInfo reports the native PQC library the process loaded (path,
+	// version) for the start-up log. Nil in the public build.
+	PQCLibraryInfo func() (path, version string)
 
 	// AI module factories
 	NewAIKeeper           func(cdc codec.Codec, storeKey storetypes.StoreKey, logger log.Logger) aimod.AIKeeper

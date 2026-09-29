@@ -1,7 +1,5 @@
 package types
 
-import "fmt"
-
 // GenesisState defines the gasabstraction module genesis state.
 type GenesisState struct {
 	Config GasAbstractionConfig `json:"config"`
@@ -14,18 +12,9 @@ func DefaultGenesisState() *GenesisState {
 	}
 }
 
-// Validate validates the genesis state.
+// Validate validates the genesis state with the same rules as the config
+// itself: every accepted token needs a parseable, positive conversion rate,
+// not merely a non-empty one.
 func (gs GenesisState) Validate() error {
-	if gs.Config.NativeDenom == "" {
-		return fmt.Errorf("native denom cannot be empty")
-	}
-	for _, t := range gs.Config.AcceptedTokens {
-		if t.Denom == "" {
-			return fmt.Errorf("accepted token denom cannot be empty")
-		}
-		if t.ConversionRate == "" {
-			return fmt.Errorf("conversion rate cannot be empty for denom %s", t.Denom)
-		}
-	}
-	return nil
+	return gs.Config.Validate()
 }
