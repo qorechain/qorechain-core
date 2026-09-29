@@ -15,6 +15,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/config"
 	nodeservice "github.com/cosmos/cosmos-sdk/client/grpc/node"
 	"github.com/cosmos/cosmos-sdk/codec"
+	addresscodec "github.com/cosmos/cosmos-sdk/codec/address"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/server"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -95,7 +96,12 @@ func NewRootCmd() *cobra.Command {
 	moduleBasicManager[ibctm.AppModuleBasic{}.Name()] = ibctm.AppModuleBasic{}
 
 	// EVM modules
-	moduleBasicManager[evmvm.AppModuleBasic{}.Name()] = evmvm.AppModuleBasic{}
+	// The EVM basic carries the address codec its tx commands use; a zero value
+	// leaves it nil and `tx evm send` panics. The constructor only stores its
+	// arguments, so nil keepers are fine for the CLI.
+	evmBasic := evmvm.NewAppModule(nil, nil, nil,
+		addresscodec.NewBech32Codec(sdk.GetConfig().GetBech32AccountAddrPrefix())).AppModuleBasic
+	moduleBasicManager[evmBasic.Name()] = evmBasic
 	moduleBasicManager[evmfeemarket.AppModuleBasic{}.Name()] = evmfeemarket.AppModuleBasic{}
 	moduleBasicManager[evmerc20.AppModuleBasic{}.Name()] = evmerc20.AppModuleBasic{}
 	moduleBasicManager[evmprecisebank.AppModuleBasic{}.Name()] = evmprecisebank.AppModuleBasic{}
