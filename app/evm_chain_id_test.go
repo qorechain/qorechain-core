@@ -138,5 +138,21 @@ func TestMustResolveEVMChainIDRefuses(t *testing.T) {
 		})
 	}
 	refuses("env on mainnet", mockAppOpts{flags.FlagHome: home}, "9800")
-	refuses("app.toml on mainnet", mockAppOpts{flags.FlagHome: home, appOptEVMChainID: uint64(9800)}, "")
+
+	// An old app.toml value starts the node and is reported, never refused:
+	// earlier releases wrote 9800 or 262144 there.
+	for _, v := range []interface{}{uint64(9800), int64(262144)} {
+		t.Setenv(EnvEVMChainID, "")
+		got, _ := mustResolveEVMChainID(mockAppOpts{flags.FlagHome: home, appOptEVMChainID: v})
+		if got != EVMChainIDMainnet {
+			t.Fatalf("app.toml %v: keeper EVM chain ID %d, want %d", v, got, EVMChainIDMainnet)
+		}
+		if rpcEVMChainIDMismatch == "" {
+			t.Fatalf("app.toml %v: mismatch not recorded for the startup warning", v)
+		}
+	}
+	mustResolveEVMChainID(mockAppOpts{flags.FlagHome: home, appOptEVMChainID: uint64(9801)})
+	if rpcEVMChainIDMismatch != "" {
+		t.Fatalf("matching app.toml reported as a mismatch: %s", rpcEVMChainIDMismatch)
+	}
 }

@@ -115,14 +115,26 @@ func checkRPCEVMChainID(appOpts servertypes.AppOptions, keeperID uint64) error {
 // also goes; LogStartupIdentity reports the mapping when the node starts.
 func mustResolveEVMChainID(appOpts servertypes.AppOptions) (uint64, string) {
 	id, cosmosID, err := resolveEVMChainID(appOpts)
-	if err == nil && cosmosID != "" {
-		err = checkRPCEVMChainID(appOpts, id)
-	}
 	if err != nil {
 		panic(fmt.Sprintf("refusing to start: %v", err))
 	}
+	// A mismatched app.toml evm-chain-id only affects this node's JSON-RPC
+	// answers, as it always has; the keeper, and so consensus, uses the pinned
+	// value either way. Nodes initialised by earlier releases carry 9800 or
+	// 262144 there, so refusing to start would turn an upgrade into an outage.
+	// It is reported loudly at start instead (LogStartupIdentity).
+	rpcEVMChainIDMismatch = ""
+	if cosmosID != "" {
+		if rerr := checkRPCEVMChainID(appOpts, id); rerr != nil {
+			rpcEVMChainIDMismatch = rerr.Error()
+		}
+	}
 	return id, cosmosID
 }
+
+// rpcEVMChainIDMismatch holds the app.toml evm-chain-id mismatch found at app
+// construction, reported as a warning when the node starts.
+var rpcEVMChainIDMismatch string
 
 // LogStartupIdentity logs, once at node start, the Cosmos chain-id to EVM
 // chain ID mapping this node runs with and the PQC library it loaded.
@@ -137,6 +149,10 @@ func (app *QoreChainApp) LogStartupIdentity(logger log.Logger) {
 			"chain_id", app.evmCosmosChainID, "evm_chain_id", app.evmChainID)
 	default:
 		logger.Info("EVM chain ID from "+EnvEVMChainID, "chain_id", app.evmCosmosChainID, "evm_chain_id", app.evmChainID)
+	}
+	if rpcEVMChainIDMismatch != "" {
+		logger.Error("JSON-RPC EVM chain ID does not match this network; eth_chainId and signed EVM transactions sent to this node's JSON-RPC will use the wrong chain ID until app.toml is fixed",
+			"problem", rpcEVMChainIDMismatch)
 	}
 	if PQCLibraryInfo != nil {
 		path, version := PQCLibraryInfo()
