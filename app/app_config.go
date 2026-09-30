@@ -212,6 +212,9 @@ var (
 					"rdk",
 					"lightnode",
 					"license",
+					// Refill the fee conversion float at the prices x/amm has just
+					// recomputed (a no-op below the v3.2.2 fee conversion switch).
+					"gasabstraction",
 					// EVM post-block processing
 					"evm",
 					"feemarket",

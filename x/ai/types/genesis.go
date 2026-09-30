@@ -22,5 +22,13 @@ func (gs GenesisState) Validate() error {
 	if gs.Config.RiskThreshold < 0 || gs.Config.RiskThreshold > 1 {
 		return ErrInvalidConfig.Wrap("risk_threshold must be between 0 and 1")
 	}
+	if gs.Config.MaxEVMTxPerMinute < 0 {
+		return ErrInvalidConfig.Wrap("max_evm_tx_per_minute must not be negative")
+	}
+	switch gs.Config.AnomalyAction {
+	case "", AnomalyActionFlag, AnomalyActionReject:
+	default:
+		return ErrInvalidConfig.Wrapf("anomaly_action %q, expected %q or %q", gs.Config.AnomalyAction, AnomalyActionFlag, AnomalyActionReject)
+	}
 	return nil
 }

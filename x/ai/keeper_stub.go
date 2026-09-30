@@ -80,6 +80,7 @@ func (k *StubKeeper) AnalyzeTransaction(_ sdk.Context, _ types.TransactionInfo, 
 		Confidence:  1.0,
 	}, nil
 }
+func (k *StubKeeper) PruneLegacyTxHistory(_ sdk.Context) int          { return 0 }
 func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()

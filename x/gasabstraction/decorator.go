@@ -24,9 +24,19 @@ func NewGasAbstractionDecorator(keeper GasAbstractionKeeper) GasAbstractionDecor
 // Otherwise, verifies the fee denom is accepted and marks context for conversion.
 func (d GasAbstractionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	// Genesis transactions (gentxs) are delivered during InitChain at block
-	// height 0 and legitimately carry no fee; simulate runs (gas estimation)
-	// likewise have no real fee. Exempt both from the fee policy.
-	if ctx.BlockHeight() == 0 || simulate {
+	// height 0 and legitimately carry no fee. Exempt them from the fee policy.
+	if ctx.BlockHeight() == 0 {
+		return next(ctx, tx, simulate)
+	}
+	// Simulation (gas estimation) usually carries no fee and is exempt, but a
+	// simulation that names a non-native fee is told now what delivery would
+	// say, instead of estimating a transaction that can never be delivered
+	// (QSR-2026-0294). Simulation never runs in block execution, so this
+	// changes no block's result.
+	if simulate {
+		if err := d.refuseUnconvertibleInSimulation(ctx, tx); err != nil {
+			return ctx, err
+		}
 		return next(ctx, tx, simulate)
 	}
 
@@ -81,4 +91,31 @@ func (d GasAbstractionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate
 	return ctx, types.ErrUnsupportedDenom.Wrapf(
 		"denom %s is listed as accepted for fees, but fee conversion is not "+
 			"implemented on this chain; pay fees in %s", feeDenom, config.NativeDenom)
+}
+
+// refuseUnconvertibleInSimulation applies the deliver-path denom checks to a
+// simulated transaction whose fee is non-empty and not native. An empty fee
+// (the usual estimation request) passes.
+func (d GasAbstractionDecorator) refuseUnconvertibleInSimulation(ctx sdk.Context, tx sdk.Tx) error {
+	if !d.keeper.IsEnabled(ctx) {
+		return nil
+	}
+	feeTx, ok := tx.(sdk.FeeTx)
+	if !ok {
+		return nil
+	}
+	fees := feeTx.GetFee()
+	if fees.IsZero() {
+		return nil
+	}
+	config := d.keeper.GetConfig(ctx)
+	if fees[0].Denom == config.NativeDenom {
+		return nil
+	}
+	if _, ok := config.Token(fees[0].Denom); !ok {
+		return types.ErrUnsupportedDenom.Wrapf("denom %s not accepted for fee payment", fees[0].Denom)
+	}
+	return types.ErrUnsupportedDenom.Wrapf(
+		"denom %s is listed as accepted for fees, but fee conversion is not "+
+			"available on this path; pay fees in %s", fees[0].Denom, config.NativeDenom)
 }

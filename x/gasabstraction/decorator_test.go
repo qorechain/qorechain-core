@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/gasabstraction/types"
@@ -34,6 +35,10 @@ func (m mockGasAbstractionKeeper) IsEnabled(_ sdk.Context) bool {
 func (m mockGasAbstractionKeeper) GetAcceptedTokens(_ sdk.Context) []types.AcceptedFeeToken {
 	return m.config.AcceptedTokens
 }
+
+func (m mockGasAbstractionKeeper) BlockConversionUsed(_ sdk.Context) math.Int       { return math.ZeroInt() }
+func (m mockGasAbstractionKeeper) AddBlockConversionUsed(_ sdk.Context, _ math.Int) {}
+func (m mockGasAbstractionKeeper) SetConversionDeps(_ ConversionDeps)               {}
 
 func (m mockGasAbstractionKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 

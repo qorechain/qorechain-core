@@ -26,6 +26,10 @@ type AIKeeper interface {
 	AnalyzeTransaction(ctx sdk.Context, tx types.TransactionInfo, history []types.TransactionInfo) (*types.AnomalyResult, error)
 	ScoreContract(ctx sdk.Context, code []byte, chain string) (*types.RiskScore, error)
 
+	// PruneLegacyTxHistory deletes the per-height transaction history the
+	// screening kept before v3.2.2 and returns how many entries it removed.
+	PruneLegacyTxHistory(ctx sdk.Context) int
+
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)
 	ExportGenesis(ctx sdk.Context) *types.GenesisState
 }

@@ -6,6 +6,7 @@ import (
 
 	corestoretypes "cosmossdk.io/core/store"
 	errorsmod "cosmossdk.io/errors"
+	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 	circuitante "cosmossdk.io/x/circuit/ante"
 
@@ -34,6 +35,7 @@ import (
 	evmkeeper "github.com/cosmos/evm/x/vm/keeper"
 
 	aimod "github.com/qorechain/qorechain-core/x/ai"
+	ammmod "github.com/qorechain/qorechain-core/x/amm"
 	burnmod "github.com/qorechain/qorechain-core/x/burn"
 	fairblockmod "github.com/qorechain/qorechain-core/x/fairblock"
 	gasabstractionmod "github.com/qorechain/qorechain-core/x/gasabstraction"
@@ -56,6 +58,7 @@ type HandlerOptions struct {
 	SVMBankKeeper        svmmod.SVMBankKeeper
 	FairBlockKeeper      fairblockmod.FairBlockKeeper
 	GasAbstractionKeeper gasabstractionmod.GasAbstractionKeeper
+	AMMKeeper            ammmod.AMMKeeper
 	BurnKeeper           burnmod.BurnKeeper
 	LicenseKeeper        licensemod.LicenseKeeper
 	StakingKeeper        *stakingkeeper.Keeper
@@ -194,6 +197,17 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 // has been switched off should cost nothing to reject. The replay guard follows it:
 // a mempool-only check below the v3.2.2 plan height, and a refusal in block
 // execution too from it (FeatureEVMUnprotectedTxRefusal).
+//
+// PARITY (v3.2.2, QSR-2026-0147, QSR-2026-0042). The per-sender rate limit, the
+// anomaly screening and the milestone-burn transaction counter ran only on the
+// Cosmos lane, so moving traffic to this lane escaped the limit and none of it
+// counted toward the burn schedule. From the EVM ante parity switch they run
+// here too, last, after the window decorator: the sender is verified by then and
+// only a transaction that is actually admitted is screened and counted, the same
+// rule as on the Cosmos lane. Their bookkeeping is off the gas meter or under the
+// mono decorator's unlimited one, which the EVM resets to its own gas used, so
+// receipts and gas estimates do not change. Below the switch the lane is exactly
+// what it was.
 func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
@@ -210,6 +224,14 @@ func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, f
 		// authorizations will take effect, so it asks for the consent of
 		// exactly those authorities (v3.2.2).
 		pqcmod.NewEVMWindowDecorator(options.PQCKeeper, options.EvmKeeper),
+		featureGatedDecorators{
+			pqc:     options.PQCKeeper,
+			feature: pqctypes.FeatureEVMAnteParity,
+			inner: []sdk.AnteDecorator{
+				NewAIEVMAnomalyDecorator(options.AIKeeper),
+				NewBurnTxCountDecorator(options.BurnKeeper),
+			},
+		},
 	)
 }
 
@@ -295,18 +317,11 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		NewSVMComputeBudgetDecorator(options.SVMKeeper),
 		// SVM fee deduction — charges uqor per SVM execute/deploy message
 		NewSVMDeductFeeDecorator(options.SVMKeeper, options.SVMBankKeeper),
-		// Use EVM fee market min gas price instead of standard min gas price.
-		// Exempt at genesis (height 0): gentxs are delivered fee-free during
-		// InitChain, but the min-gas-price floor would otherwise reject them.
-		genesisExemptDecorator{cosmosante.NewMinGasPriceDecorator(fmParams)},
-		ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper),
-		// Gas abstraction — convert non-native fee denoms for fee deduction
-		NewGasAbstractionDecorator(options.GasAbstractionKeeper),
-		// Build the fee checker from the live, per-block-refreshed feemarket
-		// params (fmParams) rather than options.TxFeeChecker, which is bound to
-		// stale DefaultParams (base_fee 1e9) and would ignore the calibrated
-		// base_fee for cosmos-path txs.
-		ante.NewDeductFeeDecorator(options.AccountKeeper, options.BankKeeper, options.FeegrantKeeper, evmante.NewDynamicFeeChecker(fmParams)),
+		// The fee path. A fee in the native denom (or in several denoms) runs
+		// the native decorators below exactly as they always ran. From the gas
+		// abstraction fees switch, a fee in one accepted non-native denom is
+		// converted instead: see x/gasabstraction/fee_decorator.go.
+		newFeeRouter(options, fmParams),
 		ante.NewSetPubKeyDecorator(options.AccountKeeper),
 		ante.NewValidateSigCountDecorator(options.AccountKeeper),
 		ante.NewSigGasConsumeDecorator(options.AccountKeeper, options.SigGasConsumer),
@@ -323,6 +338,59 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// Track cumulative gas wanted for EIP-1559 base fee calculation
 		evmante.NewGasWantedDecorator(options.EvmKeeper, options.FeeMarketKeeper, fmParams),
 	)
+}
+
+// newFeeRouter builds the fee path. Native lists the historical decorators in
+// their historical order; it is what every transaction runs below the switch.
+func newFeeRouter(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.AnteDecorator {
+	// The native fee checker is built from the live, per-block-refreshed
+	// feemarket params (fmParams) rather than options.TxFeeChecker, which is
+	// bound to stale DefaultParams (base_fee 1e9) and would ignore the
+	// calibrated base_fee for cosmos-path txs.
+	feeChecker := evmante.NewDynamicFeeChecker(fmParams)
+	minGasPrice := cosmosante.NewMinGasPriceDecorator(fmParams)
+	txSizeGas := ante.NewConsumeGasForTxSizeDecorator(options.AccountKeeper)
+	return gasabstractionmod.NewFeeRouterDecorator(gasabstractionmod.FeeRouterOptions{
+		Enabled: func(ctx sdk.Context) bool {
+			return options.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureGasAbstractionFees)
+		},
+		Native: []sdk.AnteDecorator{
+			// Use EVM fee market min gas price instead of standard min gas price.
+			// Exempt at genesis (height 0): gentxs are delivered fee-free during
+			// InitChain, but the min-gas-price floor would otherwise reject them.
+			genesisExemptDecorator{minGasPrice},
+			txSizeGas,
+			// Gas abstraction: refuses a non-native fee this path cannot take.
+			NewGasAbstractionDecorator(options.GasAbstractionKeeper),
+			ante.NewDeductFeeDecorator(options.AccountKeeper, options.BankKeeper, options.FeegrantKeeper, feeChecker),
+		},
+		Keeper:         options.GasAbstractionKeeper,
+		BankKeeper:     options.BankKeeper.(gasabstractionmod.ConversionBankKeeper),
+		AccountKeeper:  options.AccountKeeper,
+		FeegrantKeeper: feegrantForConversion(options.FeegrantKeeper),
+		Pools:          options.AMMKeeper,
+		TxSizeGas:      txSizeGas,
+		MinGasPrice:    minGasPrice,
+		FeeChecker:     feeChecker,
+		MinFeePerGas: func(ctx sdk.Context) math.LegacyDec {
+			fee := fmParams.MinGasPrice
+			if fee.IsNil() {
+				fee = math.LegacyZeroDec()
+			}
+			if base := fmParams.BaseFee; !base.IsNil() && base.GT(fee) {
+				fee = base
+			}
+			return fee
+		},
+	})
+}
+
+// feegrantForConversion adapts the ante's fee-grant keeper; nil stays nil.
+func feegrantForConversion(k ante.FeegrantKeeper) gasabstractionmod.ConversionFeegrantKeeper {
+	if k == nil {
+		return nil
+	}
+	return k
 }
 
 // sigVerificationGasConsumerWithPQC is the signature gas consumer that handles

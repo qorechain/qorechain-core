@@ -1,0 +1,41 @@
+syntax = "proto3";
+package qorechain.gasabstraction.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/gasabstraction/types";
+
+import "gogoproto/gogo.proto";
+
+// FeeToken is a token accepted for fee payment and how it is priced.
+message FeeToken {
+  string denom = 1;
+  // conversion_rate is native units per unit of denom (the static rate).
+  string conversion_rate = 2;
+  // price_source is "static" or "amm_twap"; empty means listed but not
+  // usable for fees.
+  string price_source = 3;
+  // rate_expiry_height is the last height a static rate is used.
+  int64 rate_expiry_height = 4;
+  // pool_id is the x/amm pool pairing denom with the native denom.
+  uint64 pool_id = 5;
+  // min_liquidity is the native-side reserve the pool must hold.
+  string min_liquidity = 6;
+  // max_deviation_bps bounds |TWAP - spot| / spot and the refill slippage.
+  uint32 max_deviation_bps = 7;
+}
+
+// FeeConfig is the gas abstraction configuration.
+message FeeConfig {
+  bool enabled = 1;
+  string native_denom = 2;
+  repeated FeeToken accepted_tokens = 3 [(gogoproto.nullable) = false];
+  // premium_bps is the share of a converted fee's value the float keeps.
+  uint32 premium_bps = 4;
+  // max_tip_multiplier bounds a converted fee at this multiple of the
+  // minimum fee for its gas; zero means no bound.
+  uint32 max_tip_multiplier = 5;
+  // float_min is the native amount the float always keeps.
+  string float_min = 6;
+  // block_conversion_cap is the most the float pays out per block; zero
+  // means conversion is off.
+  string block_conversion_cap = 7;
+}
