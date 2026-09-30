@@ -15,6 +15,21 @@ type ReputationParams struct {
 	Delta    string `json:"delta"`     // Time weight
 	Lambda   string `json:"lambda"`    // Decay constant (blocks)
 	MinScore string `json:"min_score"` // Minimum reputation threshold
+	// EpochBlocks is how often (in blocks) reputation scoring v2 rescores the
+	// bonded set (v3.2.2). Zero or absent means DefaultEpochBlocks; omitted
+	// while zero, so params stored before it existed serialise unchanged.
+	EpochBlocks int64 `json:"epoch_blocks,omitempty"`
+}
+
+// DefaultEpochBlocks is the rescoring interval when EpochBlocks is unset.
+const DefaultEpochBlocks int64 = 100
+
+// ParamEpochBlocks returns EpochBlocks, or DefaultEpochBlocks when unset.
+func (p ReputationParams) ParamEpochBlocks() int64 {
+	if p.EpochBlocks <= 0 {
+		return DefaultEpochBlocks
+	}
+	return p.EpochBlocks
 }
 
 // DefaultReputationParams returns default parameters per whitepaper.
@@ -98,6 +113,15 @@ type ValidatorReputation struct {
 	SlashingEvents    uint64 `json:"slashing_events"`
 	CommunityVotes    int64  `json:"community_votes"`
 	JoinedAtHeight    int64  `json:"joined_at_height"`
+	// GovParticipation is the validator's governance participation ratio
+	// (LegacyDec string), the ContributionScore input from reputation
+	// scoring v2 on. Omitted while empty, so every record written before it
+	// existed serialises byte-identically.
+	GovParticipation string `json:"gov_participation,omitempty"`
+	// InactiveSince is the height from which the validator is out of the
+	// bonded set (scoring v2): its record is no longer rescored. Zero while
+	// it is bonded; omitted while zero.
+	InactiveSince int64 `json:"inactive_since,omitempty"`
 }
 
 // GetCompositeScoreDec returns the CompositeScore as a LegacyDec.

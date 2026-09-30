@@ -30,6 +30,16 @@ type Keeper struct {
 	storeKey      storetypes.StoreKey
 	stakingKeeper *stakingkeeper.Keeper
 	logger        log.Logger
+
+	// staking is what the scoring reads from x/staking (set from stakingKeeper
+	// when there is one; tests substitute their own).
+	staking StakingReader
+	// slashing is what the scoring reads from x/slashing (scoring v2).
+	slashing SlashingReader
+	// scoringV2 answers, per block and from chain state, whether the scoring
+	// fixed in v3.2.2 is on (see scoring_v2.go). Nil means off, which keeps
+	// the historical EndBlocker byte for byte.
+	scoringV2 func(ctx sdk.Context) bool
 }
 
 // NewKeeper creates a new reputation keeper.
@@ -39,12 +49,16 @@ func NewKeeper(
 	stakingKeeper *stakingkeeper.Keeper,
 	logger log.Logger,
 ) Keeper {
-	return Keeper{
+	k := Keeper{
 		cdc:           cdc,
 		storeKey:      storeKey,
 		stakingKeeper: stakingKeeper,
 		logger:        logger.With("module", types.ModuleName),
 	}
+	if stakingKeeper != nil {
+		k.staking = stakingKeeper
+	}
+	return k
 }
 
 func (k Keeper) Logger() log.Logger { return k.logger }
@@ -126,6 +140,9 @@ func (k Keeper) GetAllValidatorReputations(ctx sdk.Context) []types.ValidatorRep
 // Returns float64 to satisfy the ReputationReader interface used by other modules.
 func (k Keeper) CalculateReputation(ctx sdk.Context, valAddr string) float64 {
 	params := k.GetParams(ctx)
+	if k.scoringV2Enabled(ctx) {
+		return k.calculateReputationV2WithParams(ctx, valAddr, params)
+	}
 	return k.calculateReputationWithParams(ctx, valAddr, params)
 }
 
@@ -152,7 +169,12 @@ func (k Keeper) calculateReputationFromExisting(ctx sdk.Context, rep types.Valid
 	P := k.calculatePerformanceScore(rep)
 	C := k.calculateContributionScore(rep)
 	T := k.calculateTimeScore(ctx, rep)
+	return k.composeReputation(ctx, rep, params, S, P, C, T)
+}
 
+// composeReputation applies the weighted formula and the time decay to the
+// given components and returns the updated record.
+func (k Keeper) composeReputation(ctx sdk.Context, rep types.ValidatorReputation, params types.ReputationParams, S, P, C, T sdkmath.LegacyDec) types.ValidatorReputation {
 	// Parse weights
 	alpha := params.ParamAlpha()
 	beta := params.ParamBeta()
@@ -236,6 +258,10 @@ func (k Keeper) calculateTimeScore(ctx sdk.Context, rep types.ValidatorReputatio
 // Only validators who actually signed the previous block (BlockIDFlagCommit)
 // receive uptime credit — preventing inflated reputation for offline validators.
 func (k Keeper) EndBlocker(ctx sdk.Context) error {
+	if k.scoringV2Enabled(ctx) {
+		return k.endBlockerV2(ctx)
+	}
+
 	// Get the current block's proposer
 	proposer := ctx.BlockHeader().ProposerAddress
 	if proposer == nil {
