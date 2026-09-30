@@ -1,0 +1,524 @@
+{
+ "config": {
+  "min_validators": 10,
+  "attestation_threshold": 7,
+  "challenge_period_secs": 86400,
+  "large_transfer_threshold": "100000000000",
+  "enabled": true
+ },
+ "chain_configs": [
+  {
+   "chain_id": "ethereum",
+   "name": "Ethereum",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 12,
+   "supported_assets": [
+    "ETH",
+    "USDC",
+    "USDT",
+    "WBTC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "solana",
+   "name": "Solana",
+   "chain_type": "solana",
+   "status": "pending",
+   "min_confirmations": 32,
+   "supported_assets": [
+    "SOL",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "ton",
+   "name": "TON",
+   "chain_type": "ton",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "TON",
+    "USDT"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "bsc",
+   "name": "BNB Smart Chain",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 15,
+   "supported_assets": [
+    "BNB",
+    "USDC",
+    "USDT"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "avalanche",
+   "name": "Avalanche C-Chain",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 12,
+   "supported_assets": [
+    "AVAX",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "polygon",
+   "name": "Polygon PoS",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 128,
+   "supported_assets": [
+    "POL",
+    "USDC",
+    "USDT",
+    "WETH"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "arbitrum",
+   "name": "Arbitrum One",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 64,
+   "supported_assets": [
+    "ETH",
+    "USDC",
+    "ARB",
+    "USDT"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "sui",
+   "name": "Sui",
+   "chain_type": "sui",
+   "status": "pending",
+   "min_confirmations": 3,
+   "supported_assets": [
+    "SUI",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "optimism",
+   "name": "Optimism",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "ETH",
+    "USDC",
+    "OP"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "base",
+   "name": "Base",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "ETH",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "aptos",
+   "name": "Aptos",
+   "chain_type": "aptos",
+   "status": "pending",
+   "min_confirmations": 6,
+   "supported_assets": [
+    "APT",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "bitcoin",
+   "name": "Bitcoin",
+   "chain_type": "bitcoin",
+   "status": "pending",
+   "min_confirmations": 6,
+   "supported_assets": [
+    "BTC"
+   ],
+   "max_single_transfer": "500000000000",
+   "daily_limit": "5000000000000"
+  },
+  {
+   "chain_id": "near",
+   "name": "NEAR Protocol",
+   "chain_type": "near",
+   "status": "pending",
+   "min_confirmations": 3,
+   "supported_assets": [
+    "NEAR",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "cardano",
+   "name": "Cardano",
+   "chain_type": "cardano",
+   "status": "pending",
+   "min_confirmations": 15,
+   "supported_assets": [
+    "ADA"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "polkadot",
+   "name": "Polkadot",
+   "chain_type": "polkadot",
+   "status": "pending",
+   "min_confirmations": 12,
+   "supported_assets": [
+    "DOT"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "tezos",
+   "name": "Tezos",
+   "chain_type": "tezos",
+   "status": "pending",
+   "min_confirmations": 2,
+   "supported_assets": [
+    "XTZ"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "tron",
+   "name": "TRON",
+   "chain_type": "tron",
+   "status": "pending",
+   "min_confirmations": 20,
+   "supported_assets": [
+    "TRX",
+    "USDT"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "zksync_era",
+   "name": "zkSync Era",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 12,
+   "supported_assets": [
+    "ETH",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "linea",
+   "name": "Linea",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 12,
+   "supported_assets": [
+    "ETH",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "scroll",
+   "name": "Scroll",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 12,
+   "supported_assets": [
+    "ETH",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "starknet",
+   "name": "Starknet",
+   "chain_type": "starknet",
+   "status": "pending",
+   "min_confirmations": 12,
+   "supported_assets": [
+    "ETH",
+    "STRK",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "blast",
+   "name": "Blast",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "ETH",
+    "USDB"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "mantle",
+   "name": "Mantle",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "MNT",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "hyperliquid",
+   "name": "Hyperliquid",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "berachain",
+   "name": "Berachain",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "BERA",
+    "HONEY"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "sonic",
+   "name": "Sonic",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "S",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "sei",
+   "name": "Sei",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "SEI",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "monad",
+   "name": "Monad",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 30,
+   "supported_assets": [
+    "MON",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "plasma",
+   "name": "Plasma",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "XPL",
+    "USDT"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "xrpl",
+   "name": "XRP Ledger",
+   "chain_type": "xrpl",
+   "status": "pending",
+   "min_confirmations": 4,
+   "supported_assets": [
+    "XRP",
+    "RLUSD"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "stellar",
+   "name": "Stellar",
+   "chain_type": "stellar",
+   "status": "pending",
+   "min_confirmations": 5,
+   "supported_assets": [
+    "XLM",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "hedera",
+   "name": "Hedera",
+   "chain_type": "hedera",
+   "status": "pending",
+   "min_confirmations": 4,
+   "supported_assets": [
+    "HBAR",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "algorand",
+   "name": "Algorand",
+   "chain_type": "algorand",
+   "status": "pending",
+   "min_confirmations": 4,
+   "supported_assets": [
+    "ALGO",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "injective",
+   "name": "Injective",
+   "chain_type": "ibc",
+   "status": "pending",
+   "min_confirmations": 1,
+   "supported_assets": [
+    "INJ",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "filecoin",
+   "name": "Filecoin (FVM)",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "FIL",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "cronos",
+   "name": "Cronos",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 12,
+   "supported_assets": [
+    "CRO",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  },
+  {
+   "chain_id": "kaia",
+   "name": "Kaia",
+   "chain_type": "evm",
+   "bridge_contract": "0x0000000000000000000000000000000000000000",
+   "status": "pending",
+   "min_confirmations": 10,
+   "supported_assets": [
+    "KAIA",
+    "USDC"
+   ],
+   "max_single_transfer": "1000000000000",
+   "daily_limit": "10000000000000"
+  }
+ ],
+ "validators": [],
+ "operations": [],
+ "locked": [],
+ "circuit_breakers": [],
+ "params": {
+  "admin": "qor1lgn73vxgf0q902wvxyxwxh8d4tkxphzvlm4qjf"
+ }
+}

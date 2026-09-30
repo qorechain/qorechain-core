@@ -31,7 +31,36 @@ func GetTxCmd() *cobra.Command {
 		cmdBridgeAttestation(),
 		cmdUpdateChainConfig(),
 		cmdSetVerifierBootstrap(),
+		cmdUpdateCircuitBreakerLimits(),
 	)
+	return cmd
+}
+
+// cmdUpdateCircuitBreakerLimits sets a chain's single-transfer and daily limits
+// (bridge_admin, qcb_bridge licence holder, or governance). "0" means unlimited.
+func cmdUpdateCircuitBreakerLimits() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "update-circuit-breaker-limits [chain-id] [max-single-transfer] [daily-limit]",
+		Short: "Set a chain's circuit breaker limits in base units, 0 = unlimited (bridge_admin/qcb_bridge/governance)",
+		Args:  cobra.ExactArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			msg := &types.MsgUpdateCircuitBreakerLimits{
+				Admin:             clientCtx.GetFromAddress().String(),
+				ChainId:           args[0],
+				MaxSingleTransfer: args[1],
+				DailyLimit:        args[2],
+			}
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
 

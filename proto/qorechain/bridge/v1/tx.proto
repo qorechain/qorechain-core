@@ -39,6 +39,11 @@ service Msg {
   // quorum / Bitcoin checkpoint / Starknet state root). Same authorization as
   // UpdateChainConfig. (Ethereum uses UpdateEthLightClient.)
   rpc SetVerifierBootstrap(MsgSetVerifierBootstrap) returns (MsgSetVerifierBootstrapResponse);
+
+  // UpdateCircuitBreakerLimits sets a chain's single-transfer and daily limits.
+  // Signed by the bridge_admin key, a qcb_bridge licence holder, or governance.
+  // Before it existed the limits could only be set in genesis.
+  rpc UpdateCircuitBreakerLimits(MsgUpdateCircuitBreakerLimits) returns (MsgUpdateCircuitBreakerLimitsResponse);
 }
 
 // MsgUpdateChainConfig sets/replaces a chain's bridge configuration. Empty
@@ -145,3 +150,17 @@ message MsgUpdateEthLightClient {
   bytes update = 2;
 }
 message MsgUpdateEthLightClientResponse {}
+
+// MsgUpdateCircuitBreakerLimits replaces a chain's circuit breaker limits. Both
+// are amounts in the chain's base unit; "0" means unlimited. When both are
+// non-zero, max_single_transfer may not exceed daily_limit. The daily counter
+// and pause state are left as they are.
+message MsgUpdateCircuitBreakerLimits {
+  option (cosmos.msg.v1.signer) = "admin";
+
+  string admin = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string chain_id = 2;
+  string max_single_transfer = 3;
+  string daily_limit = 4;
+}
+message MsgUpdateCircuitBreakerLimitsResponse {}

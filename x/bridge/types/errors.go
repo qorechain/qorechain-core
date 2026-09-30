@@ -32,4 +32,6 @@ var (
 	ErrUnauthorized                 = errors.Register(ModuleName, 28, "unauthorized bridge operation")
 	ErrDepositVerifierNotConfigured = errors.Register(ModuleName, 29, "deposit verifier not configured")
 	ErrEventTypeMismatch            = errors.Register(ModuleName, 30, "attestation event type does not match operation type")
+	ErrInvalidBridgeConfig          = errors.Register(ModuleName, 31, "invalid bridge configuration")
+	ErrNotEnabled                   = errors.Register(ModuleName, 32, "not enabled at this height")
 )
