@@ -689,6 +689,7 @@ func NewQoreChainApp(
 	// Fixes carried in patched dependencies read their on/off state through
 	// the protocol-feature record; no-op in the community build.
 	app.wireDependencyGates()
+	app.wireModuleGates()
 
 	// --- Initialize FairBlock module (via factory, v1.2.0 — threshold IBE) ---
 	fairblockStoreKey := storetypes.NewKVStoreKey(fairblocktypes.StoreKey)

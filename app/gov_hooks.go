@@ -16,8 +16,31 @@ import (
 var _ govtypes.GovHooks = ProposalRewardHook{}
 
 // ProposalRewardAmount is the reward (in uqor) sent to the proposer when a
-// governance proposal passes.
+// governance proposal passes. From the v3.2.2 plan height it is a ceiling: see
+// proposalReward.
 var ProposalRewardAmount = math.NewInt(1_000_000_000) // 1,000 QOR
+
+// GovProposerRewardCapEnabled answers, per block and from chain state, whether
+// the proposer reward is bounded by the proposal's deposit
+// (FeatureGovProposerRewardCap, v3.2.2). Unset or false pays the flat
+// historical amount, so the rewards already paid replay unchanged. Wired by the
+// application to the protocol-feature record.
+var GovProposerRewardCapEnabled func(ctx sdk.Context) bool
+
+// proposalReward is what a passed proposal pays its proposer (QSR-2026-0162).
+//
+// It used to be a flat 1,000 QOR from the community treasury for every passed
+// proposal, a hundred times the 10 QOR minimum deposit, so a trivial proposal
+// that could win a vote was profitable. Bounded, the reward is the smaller of
+// ProposalRewardAmount and the uqor the proposal had on deposit: it can never
+// exceed the stake the proposer side put at risk of a veto burn. The reward
+// stays automatic; governance raising min_deposit raises what it can reach.
+func proposalReward(ctx sdk.Context, totalDeposit sdk.Coins) math.Int {
+	if GovProposerRewardCapEnabled == nil || !GovProposerRewardCapEnabled(ctx) {
+		return ProposalRewardAmount
+	}
+	return math.MinInt(ProposalRewardAmount, totalDeposit.AmountOf("uqor"))
+}
 
 // ProposalRewardHook rewards proposers whose governance proposals pass.
 type ProposalRewardHook struct {
@@ -74,10 +97,16 @@ func (h ProposalRewardHook) AfterProposalVotingPeriodEnded(ctx context.Context, 
 		return fmt.Errorf("invalid proposer address: %w", err)
 	}
 
-	reward := sdk.NewCoins(sdk.NewCoin("uqor", ProposalRewardAmount))
+	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	amount := proposalReward(sdkCtx, proposal.TotalDeposit)
+	if !amount.IsPositive() {
+		sdkCtx.Logger().Info("governance proposal reward: nothing to pay, the proposal had no uqor on deposit",
+			"proposal_id", proposalID, "proposer", proposal.Proposer)
+		return nil
+	}
+	reward := sdk.NewCoins(sdk.NewCoin("uqor", amount))
 	if err := h.bankKeeper.SendCoinsFromModuleToAccount(ctx, "protocolpool", proposerAddr, reward); err != nil {
 		// Log but don't fail the EndBlocker — treasury may be empty
-		sdkCtx := sdk.UnwrapSDKContext(ctx)
 		sdkCtx.Logger().Warn("governance proposal reward: failed to send reward",
 			"proposal_id", proposalID,
 			"proposer", proposal.Proposer,
@@ -86,13 +115,12 @@ func (h ProposalRewardHook) AfterProposalVotingPeriodEnded(ctx context.Context, 
 		return nil
 	}
 
-	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	sdkCtx.EventManager().EmitEvent(
 		sdk.NewEvent(
 			"proposal_reward",
 			sdk.NewAttribute("proposal_id", fmt.Sprintf("%d", proposalID)),
 			sdk.NewAttribute("proposer", proposal.Proposer),
-			sdk.NewAttribute("reward_amount", ProposalRewardAmount.String()),
+			sdk.NewAttribute("reward_amount", amount.String()),
 		),
 	)
 
