@@ -9,6 +9,8 @@ import (
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	signing "github.com/cosmos/cosmos-sdk/types/tx/signing"
 	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+
+	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
 
 // The multisig signature bound, identical to the one cosmos-sdk v0.53.8 enforces
@@ -23,7 +25,8 @@ const (
 )
 
 // MultisigDepthGuardDecorator refuses multisig signatures beyond the bound in
-// every execution mode except block execution.
+// every node-local execution mode, and in block execution once the v3.2.2
+// protocol feature FeatureMultisigSignatureBound is on.
 //
 // THE DEFECT IT COVERS, which is upstream and not ours. The SDK's signatureDataToBz
 // (v0.53.6) recurses into nested multisig data, collects every descendant's bytes
@@ -34,33 +37,69 @@ const (
 // needs no valid signature, and the signature data comes from mode_info, so an
 // ordinary single-key account can carry an arbitrarily deep multisig.
 //
-// WHERE IT RUNS. CheckTx, ReCheckTx, simulate (gRPC, REST and abci_query
-// /app/simulate all arrive with simulate set), PrepareProposal and ProcessProposal.
-// None of these modes executes during replay or changes stored state: simulate
-// and CheckTx never commit, and a ProcessProposal refusal is this validator's vote
-// against a proposal, not a state transition. So all of them can be rolled out one
-// node at a time. Refusing in ProcessProposal is what stops a malicious proposer
-// from putting such a transaction straight into a block and exhausting every
-// validator's memory; honest proposers never include one, because every mempool
-// already refuses it.
+// NODE-LOCAL MODES (since v3.2.1, unconditional). CheckTx, ReCheckTx, simulate
+// (gRPC, REST and abci_query /app/simulate all arrive with simulate set),
+// PrepareProposal and ProcessProposal. None of these modes executes during replay
+// or changes stored state: simulate and CheckTx never commit, and a
+// ProcessProposal refusal is this validator's vote against a proposal, not a state
+// transition. So all of them can be rolled out one node at a time. Refusing in
+// ProcessProposal is what stops a malicious proposer from putting such a
+// transaction straight into a block and exhausting every validator's memory;
+// honest proposers never include one, because every mempool already refuses it.
 //
-// Block execution (FinalizeBlock, and InitChain's gentx delivery) is left
-// untouched: a DeliverTx refusal would change which transactions are valid and
-// needs a coordinated height. That leg ships separately behind a protocol feature.
+// BLOCK EXECUTION (FinalizeBlock, and InitChain's gentx delivery) enforces the
+// same bound only when FeatureMultisigSignatureBound is enabled
+// (QSR-2026-0035, QSR-2026-0164). A DeliverTx refusal changes which transactions
+// are valid, so it waits for the v3.2.2 plan height: below it the switch is off
+// and the decorator passes block execution straight through, exactly as before,
+// so history replays byte-identically. The switch is read off the gas meter, so
+// consulting it changes no gas either. The release handler turns it on in
+// PreBlock of the plan height, before any transaction of that block runs, so
+// there is no one-block gap. A public build's PQC keeper stub always answers
+// "off", so only the full validator build enforces this leg.
 //
 // This runs BEFORE the SDK's SetPubKeyDecorator, which is the thing that would
-// expand the signature. A guard that ran after it would be measuring a node that
-// had already run out of memory.
-type MultisigDepthGuardDecorator struct{}
+// expand the signature, and before DeductFee, so a refused transaction pays no
+// fee and emits nothing. A guard that ran after SetPubKey would be measuring a
+// node that had already run out of memory.
+type MultisigDepthGuardDecorator struct {
+	// blockBoundEnabled reports whether the bound also applies in block
+	// execution. Nil means never, which is the pre-v3.2.2 behaviour.
+	blockBoundEnabled func(sdk.Context) bool
+}
 
-func NewMultisigDepthGuardDecorator() MultisigDepthGuardDecorator {
-	return MultisigDepthGuardDecorator{}
+// NewMultisigDepthGuardDecorator builds the guard. blockBoundEnabled answers
+// whether FeatureMultisigSignatureBound is on for ctx; it is consulted only in
+// block execution. Pass nil to keep block execution unchecked.
+func NewMultisigDepthGuardDecorator(blockBoundEnabled func(sdk.Context) bool) MultisigDepthGuardDecorator {
+	return MultisigDepthGuardDecorator{blockBoundEnabled: blockBoundEnabled}
+}
+
+// multisigBoundFeature is the block-execution switch read from the PQC
+// keeper's protocol-feature record.
+func multisigBoundFeature(k interface {
+	ProtocolFeatureEnabled(ctx sdk.Context, name string) bool
+}) func(sdk.Context) bool {
+	if k == nil {
+		return nil
+	}
+	return func(ctx sdk.Context) bool {
+		return k.ProtocolFeatureEnabled(ctx, pqctypes.FeatureMultisigSignatureBound)
+	}
+}
+
+// enforces reports whether the bound applies to this transaction.
+func (d MultisigDepthGuardDecorator) enforces(ctx sdk.Context, simulate bool) bool {
+	if enforcesNodeLocalPolicy(ctx, simulate) {
+		return true
+	}
+	return d.blockBoundEnabled != nil && d.blockBoundEnabled(ctx)
 }
 
 func (d MultisigDepthGuardDecorator) AnteHandle(
 	ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler,
 ) (sdk.Context, error) {
-	if !enforcesNodeLocalPolicy(ctx, simulate) {
+	if !d.enforces(ctx, simulate) {
 		return next(ctx, tx, simulate)
 	}
 
@@ -88,7 +127,8 @@ func (d MultisigDepthGuardDecorator) AnteHandle(
 // enforcesNodeLocalPolicy reports whether ctx is one of the execution modes in
 // which a node may apply its own admission policy: the mempool (CheckTx and
 // ReCheckTx, both on the check state), simulation, and proposal building and
-// voting. It is false for block execution.
+// voting. It is false for block execution, where the bound depends on
+// FeatureMultisigSignatureBound instead (see MultisigDepthGuardDecorator).
 //
 // The mode is read from IsCheckTx and the simulate flag as well as ExecMode,
 // because baseapp only stamps ExecMode on some contexts: the check state carries

@@ -234,7 +234,7 @@ func TestNodeLocalPolicyModes(t *testing.T) {
 
 func TestMultisigGuardErrorIsTooManySignatures(t *testing.T) {
 	tx := buildSignedTx(t, chain(3))
-	_, err := NewMultisigDepthGuardDecorator().AnteHandle(
+	_, err := NewMultisigDepthGuardDecorator(nil).AnteHandle(
 		sdk.Context{}.WithIsCheckTx(true), tx, false, failIfReached(t))
 	if !errors.Is(err, errortypes.ErrTooManySignatures) {
 		t.Fatalf("got %v, want ErrTooManySignatures (the code v0.53.8 returns)", err)
