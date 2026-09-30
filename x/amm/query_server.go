@@ -101,6 +101,13 @@ func (q queryServer) QuoteExactIn(goCtx context.Context, req *types.QueryQuoteEx
 	if !ok {
 		return nil, status.Error(codes.InvalidArgument, "invalid amount_in")
 	}
+	if iq, ok := q.keeper.(ImpactQuoter); ok {
+		out, fee, impact, err := iq.QuoteExactInWithImpact(ctx, req.PoolId, req.DenomIn, amtIn)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		return &types.QueryQuoteExactInResponse{AmountOut: out.String(), Fee: fee.String(), ImpactBps: impact}, nil
+	}
 	out, fee, err := q.keeper.QuoteExactIn(ctx, req.PoolId, req.DenomIn, amtIn)
 	if err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
@@ -113,6 +120,13 @@ func (q queryServer) QuoteExactOut(goCtx context.Context, req *types.QueryQuoteE
 	amtOut, ok := math.NewIntFromString(req.AmountOut)
 	if !ok {
 		return nil, status.Error(codes.InvalidArgument, "invalid amount_out")
+	}
+	if iq, ok := q.keeper.(ImpactQuoter); ok {
+		in, fee, impact, err := iq.QuoteExactOutWithImpact(ctx, req.PoolId, req.DenomOut, amtOut)
+		if err != nil {
+			return nil, status.Error(codes.InvalidArgument, err.Error())
+		}
+		return &types.QueryQuoteExactOutResponse{AmountIn: in.String(), Fee: fee.String(), ImpactBps: impact}, nil
 	}
 	in, fee, err := q.keeper.QuoteExactOut(ctx, req.PoolId, req.DenomOut, amtOut)
 	if err != nil {

@@ -64,3 +64,12 @@ type AMMKeeper interface {
 
 // LPBalance is re-exported for module-level consumers (CLI, queries).
 type LPBalance = ammtypes.LPBalance
+
+// ImpactQuoter is implemented by keepers that can report a quoted trade's price
+// impact (v3.2.2). It is optional, so the AMMKeeper interface and every
+// implementation of it stay as they are; the query server uses it when present
+// to fill the quote responses' impact_bps.
+type ImpactQuoter interface {
+	QuoteExactInWithImpact(ctx sdk.Context, poolID uint64, denomIn string, amountIn math.Int) (amountOut, feePaid math.Int, impactBps uint32, err error)
+	QuoteExactOutWithImpact(ctx sdk.Context, poolID uint64, denomOut string, amountOut math.Int) (amountIn, feePaid math.Int, impactBps uint32, err error)
+}

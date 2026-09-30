@@ -22,4 +22,5 @@ var (
 	ErrInvalidAmount         = errors.Register(codespace, 15, "invalid amount")
 	ErrSameDenom             = errors.Register(codespace, 16, "tokenA and tokenB must differ")
 	ErrPoolLimitReached      = errors.Register(codespace, 17, "pool creator has reached max pools")
+	ErrPriceImpactExceeded   = errors.Register(codespace, 18, "swap price impact exceeds max_swap_impact_bps")
 )

@@ -49,4 +49,11 @@ var (
 	// PoolByLPDenomPrefix indexes pools by LP denom for fast lookup.
 	// key: PoolByLPDenomPrefix + lp_denom → varint(pool_id)
 	PoolByLPDenomPrefix = []byte{0x08}
+
+	// BlockRefPricePrefix stores, per pool, the reserves the pool had before
+	// its first swap in the current block (v3.2.2, amm-swap-impact-cap). A swap
+	// with no slippage bound is measured against that price so a trade placed
+	// in front of it in the same block cannot fill it at any price.
+	// key: BlockRefPricePrefix + uint64(pool_id) -> {height, reserve_a, reserve_b}
+	BlockRefPricePrefix = []byte{0x09}
 )

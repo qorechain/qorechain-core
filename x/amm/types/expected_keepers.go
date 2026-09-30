@@ -21,13 +21,11 @@ type BankKeeper interface {
 	SpendableCoins(ctx context.Context, addr sdk.AccAddress) sdk.Coins
 }
 
-// BurnKeeper is the AMM module's hook into the burn engine: protocol-fee
-// shares are routed through the burn keeper using BurnSourceAMM so they
-// flow into the standard 37/30/20/10/3 distribution.
-//
-// The exact signature must match qorechain-core/x/burn/types/BurnSource;
-// the AMM module imports the constant directly to avoid a circular
-// dependency.
+// BurnKeeper was the planned hook for AMM protocol fees. No implementation
+// uses it: from v3.2.2 the AMM moves the uqor protocol fee to the fee
+// collector and tells x/burn about it through a function the application
+// wires, so it is split once with the block's fees and its burned part is
+// recorded under BurnSourceAMM. Kept for importers of this package.
 type BurnKeeper interface {
 	// CollectAMMProtocolFee receives the protocol portion of a swap fee.
 	// Implementation is responsible for invoking the regular burn-engine
