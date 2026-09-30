@@ -183,6 +183,11 @@ var (
 // plus custom QoreChain modules (pqc, ai, reputation, qca, bridge).
 type QoreChainApp struct {
 	*runtime.App
+
+	// inInitChain is true only while InitChain runs (set by
+	// initChainerFlaggingGenesis). Validator admission exempts gentxs by it.
+	inInitChain bool
+
 	legacyAmino       *codec.LegacyAmino
 	appCodec          codec.Codec
 	txConfig          client.TxConfig
@@ -876,6 +881,10 @@ func NewQoreChainApp(
 	// construction, so in practice it always runs.
 	app.setupEVMMempool(logger, ReadMempoolConfig(appOpts))
 
+	// Mark InitChain so validator admission can exempt the genesis transactions
+	// whatever the chain's initial height (see executingGenesis).
+	app.SetInitChainer(app.initChainerFlaggingGenesis)
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
@@ -993,6 +1002,7 @@ func (app *QoreChainApp) setAnteHandler(
 			GasAbstractionKeeper:  app.GasAbstractionKeeper,
 			BurnKeeper:            app.BurnKeeper,
 			LicenseKeeper:         app.LicenseKeeper,
+			ExecutingGenesis:      app.executingGenesis,
 		},
 	)
 	if err != nil {

@@ -59,6 +59,9 @@ type HandlerOptions struct {
 	BurnKeeper           burnmod.BurnKeeper
 	LicenseKeeper        licensemod.LicenseKeeper
 	StakingKeeper        *stakingkeeper.Keeper
+	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
+	// exempts them). Nil falls back to height 0.
+	ExecutingGenesis func(sdk.Context) bool
 
 	// EVM keepers — the concrete AccountKeeper is needed because the EVM ante
 	// interfaces require GetSequence which the SDK ante.AccountKeeper interface lacks.
@@ -267,9 +270,12 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		ante.NewValidateBasicDecorator(),
 		ante.NewTxTimeoutHeightDecorator(),
 		ante.NewValidateMemoDecorator(options.AccountKeeper),
-		// Validator licensing gate — MsgCreateValidator requires an active
-		// validator_operator license + >=100,000 QOR self-bond (height-0 exempt).
-		NewValidatorLicenseDecorator(options.LicenseKeeper, options.StakingKeeper),
+		// Validator licensing gate: MsgCreateValidator requires an active
+		// validator_operator license + >=100,000 QOR self-bond, and an operator
+		// keeps its self-bond at the floor (genesis exempt). From v3.2.2 the
+		// staking message server enforces the same rule on every dispatch path;
+		// this copy makes CheckTx fail fast.
+		NewValidatorLicenseDecorator(options.LicenseKeeper, options.StakingKeeper, options.PQCKeeper, options.ExecutingGenesis),
 		// PQC signature verification — runs before standard sig verify
 		NewPQCVerifyDecorator(options.PQCKeeper, options.PQCClient),
 		// PQC hybrid signature verification — checks TX extension for dual Ed25519 + ML-DSA-87
