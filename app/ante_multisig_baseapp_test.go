@@ -124,13 +124,14 @@ func newGuardedBaseApp(t *testing.T, ante sdk.AnteHandler) *baseapp.BaseApp {
 }
 
 func guardedChain(s *sentinel) sdk.AnteHandler {
-	return sdk.ChainAnteDecorators(NewMultisigDepthGuardDecorator(), s)
+	return sdk.ChainAnteDecorators(NewMultisigDepthGuardDecorator(nil), s)
 }
 
 // THE ATTACK, end to end through baseapp. A depth-100 multisig on a plain key is
 // refused in simulate, CheckTx and ProcessProposal before anything that would
-// expand it, and quickly. FinalizeBlock is deliberately unchanged: that leg needs
-// a coordinated height.
+// expand it, and quickly. FinalizeBlock is unchanged while
+// FeatureMultisigSignatureBound is off: that leg needs a coordinated height and is
+// covered in ante_multisig_block_test.go.
 func TestDeepMultisigRefusedInEveryNodeLocalMode(t *testing.T) {
 	s := &sentinel{}
 	bapp := newGuardedBaseApp(t, guardedChain(s))
@@ -180,7 +181,8 @@ func TestDeepMultisigRefusedInEveryNodeLocalMode(t *testing.T) {
 		t.Fatalf("the SetPubKey stand-in was reached %d times", n)
 	}
 
-	// Block execution is untouched by this release: the tx gets past the guard.
+	// Block execution is untouched while the v3.2.2 switch is off: the tx gets
+	// past the guard.
 	if _, err := bapp.FinalizeBlock(&abci.RequestFinalizeBlock{Height: 1, Txs: [][]byte{deep}}); err != nil {
 		t.Fatal(err)
 	}

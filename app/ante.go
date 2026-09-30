@@ -257,8 +257,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// Runs here, near the front, because the decorator that expands a multisig
 		// signature into event bytes sits much further down (SetPubKey) and the
 		// expansion is exponential in nesting depth. A guard placed after it would
-		// be checking a node that had already run out of memory.
-		NewMultisigDepthGuardDecorator(),
+		// be checking a node that had already run out of memory. Block execution
+		// is covered from the v3.2.2 plan height (FeatureMultisigSignatureBound).
+		NewMultisigDepthGuardDecorator(multisigBoundFeature(options.PQCKeeper)),
 		// CosmWasm decorators — limit simulation gas and track tx position
 		wasmkeeper.NewLimitSimulationGasDecorator(options.WasmConfig.SimulationGasLimit),
 		wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService),
