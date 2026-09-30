@@ -16,6 +16,10 @@ message ConfigView {
   string routing_strategy = 2;
   string risk_threshold = 3;
   int32 max_tx_per_minute = 4;
+  // max_evm_tx_per_minute is the EVM-lane limit; zero means max_tx_per_minute.
+  int32 max_evm_tx_per_minute = 5;
+  // anomaly_action is "flag" (the default when empty) or "reject".
+  string anomaly_action = 6;
 }
 
 message StatsView {

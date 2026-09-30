@@ -1,0 +1,50 @@
+syntax = "proto3";
+package qorechain.ai.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/ai/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+
+// Msg defines the ai module's transaction service.
+//
+// Before this service existed the AI configuration (anomaly threshold,
+// per-sender rate limit) could only be set at genesis or by a release upgrade
+// handler. UpdateConfig makes it a governance parameter.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // UpdateConfig replaces the AI configuration. Governance-only.
+  rpc UpdateConfig(MsgUpdateConfig) returns (MsgUpdateConfigResponse);
+}
+
+// MsgUpdateConfig replaces the AI module configuration wholesale.
+message MsgUpdateConfig {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  // authority must be the governance module account.
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+  // anomaly_threshold is a decimal in [0, 1]: a score above it is anomalous.
+  string anomaly_threshold = 2;
+
+  // routing_strategy is "reputation_weighted" or "round_robin".
+  string routing_strategy = 3;
+
+  // risk_threshold is a decimal in [0, 1] for contract risk scoring.
+  string risk_threshold = 4;
+
+  // max_tx_per_minute is the per-sender limit over a 30-block window. Zero
+  // means no limit.
+  int32 max_tx_per_minute = 5;
+
+  // max_evm_tx_per_minute is the limit applied to EVM-lane transactions. Zero
+  // means the same as max_tx_per_minute.
+  int32 max_evm_tx_per_minute = 6;
+
+  // anomaly_action is "flag" (record and emit only) or "reject" (refuse a
+  // transaction scored above anomaly_threshold). Empty means "flag".
+  string anomaly_action = 7;
+}
+
+message MsgUpdateConfigResponse {}
