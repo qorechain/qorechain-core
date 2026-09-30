@@ -999,6 +999,12 @@ func (app *QoreChainApp) setAnteHandler(
 		panic(err)
 	}
 	app.SetAnteHandler(anteHandler)
+
+	// The post handler runs after every transaction's messages. Its only job is
+	// the post half of the failed_tx burn channel (see x/burn/ante.go), which
+	// does nothing before the channel's protocol feature is on; baseapp adds no
+	// events or gas for a post handler that does nothing.
+	app.SetPostHandler(sdk.ChainPostDecorators(burnmod.NewBurnFailedFeePostDecorator(app.BurnKeeper)))
 }
 
 // RegisterUpgradeHandlers registers any on-chain upgrade handlers.

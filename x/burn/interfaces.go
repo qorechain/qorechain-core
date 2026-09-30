@@ -37,6 +37,13 @@ type BurnKeeper interface {
 	// Fee distribution (EndBlocker)
 	DistributeFees(ctx sdk.Context) error
 
+	// Failed-transaction fees (failed_tx burn channel). RecordTxFee adds a
+	// delivered transaction's fee to the block's accumulator and reports
+	// whether it did (false when the channel is not enabled); ReleaseTxFee
+	// takes it back out once the transaction's messages succeeded.
+	RecordTxFee(ctx sdk.Context, fee math.Int) bool
+	ReleaseTxFee(ctx sdk.Context, fee math.Int)
+
 	// Milestone burn
 	IncrementBlockTxCount(ctx sdk.Context)
 	CheckMilestoneBurn(ctx sdk.Context, blockTxCount uint64) error
