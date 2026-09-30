@@ -111,7 +111,7 @@ A bare address (or empty modifiers) denotes a read-only, non-signer account.`,
 				return err
 			}
 
-			programID, err := types.Base58Decode(args[0])
+			programID, err := types.Base58DecodeCanonical(args[0])
 			if err != nil {
 				return fmt.Errorf("invalid base58 program ID: %w", err)
 			}
@@ -195,7 +195,7 @@ func parseAccountMetas(specs []string) ([]types.SvmAccountMeta, error) {
 	metas := make([]types.SvmAccountMeta, 0, len(specs))
 	for _, spec := range specs {
 		addrStr, mods, _ := strings.Cut(spec, ":")
-		addr, err := types.Base58Decode(addrStr)
+		addr, err := types.Base58DecodeCanonical(addrStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid base58 account address %q: %w", addrStr, err)
 		}
@@ -232,7 +232,7 @@ The lamports argument is the number of lamports to fund the account with.`,
 				return err
 			}
 
-			owner, err := types.Base58Decode(args[0])
+			owner, err := types.Base58DecodeCanonical(args[0])
 			if err != nil {
 				return fmt.Errorf("invalid base58 owner address: %w", err)
 			}

@@ -602,9 +602,10 @@ func NewQoreChainApp(
 	// who is calling; the keeper decodes the account list from the payload and permits
 	// a signer flag only on the caller's own address.
 	crossvmmod.SetSVMCallHandler(func(ctx sdk.Context, targetContract string, payload []byte, sender string) ([]byte, error) {
-		programAddr, err := svmtypes.Base58Decode(targetContract)
+		programAddr, err := decodeCrossVMProgramAddress(targetContract,
+			app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureSVMBase58Canonical))
 		if err != nil {
-			return nil, fmt.Errorf("invalid SVM program address: %w", err)
+			return nil, err
 		}
 		caller, err := sdk.AccAddressFromBech32(sender)
 		if err != nil {

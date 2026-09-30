@@ -52,7 +52,7 @@ func GetCmdQueryAccount() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := types.Base58Decode(args[0]); err != nil {
+			if _, err := types.Base58DecodeCanonical(args[0]); err != nil {
 				return fmt.Errorf("invalid base58 address: %w", err)
 			}
 			res, err := qc.Account(cmd.Context(), &types.QueryAccountRequest{Address: args[0]})
@@ -79,7 +79,7 @@ func GetCmdQueryProgram() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := types.Base58Decode(args[0]); err != nil {
+			if _, err := types.Base58DecodeCanonical(args[0]); err != nil {
 				return fmt.Errorf("invalid base58 address: %w", err)
 			}
 			res, err := qc.Program(cmd.Context(), &types.QueryProgramRequest{Address: args[0]})

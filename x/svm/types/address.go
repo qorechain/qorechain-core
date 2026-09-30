@@ -148,7 +148,22 @@ func Base58Encode(addr [32]byte) string {
 	return string(encoded)
 }
 
+// base58MaxAddressLen is the longest Base58 string that can decode to 32
+// bytes. 58^44 > 2^256, and each extra leading '1' adds a whole zero byte while
+// the remaining number loses fewer than 8 bits, so every valid-alphabet string
+// longer than this already failed the 32-byte bound below. Checking the length
+// first only skips the work (QSR-2026-0053 finding 5).
+const base58MaxAddressLen = 44
+
 // Base58Decode decodes a Base58 string to a [32]byte address using the Bitcoin alphabet.
+//
+// It is reachable from consensus (the cross-VM SVM call target), where its
+// error text is stored, so the order of checks and every message are exactly
+// those of v3.2.0: an empty string first, then the first character outside the
+// alphabet in scan order, then the 32-byte bound. Only the cost changed: the
+// alphabet check and the length bound run before any big-integer work, so an
+// attacker-sized input costs one linear pass instead of quadratic arithmetic.
+// TestBase58DecodeMatchesV320 holds it to the old function byte for byte.
 func Base58Decode(s string) ([32]byte, error) {
 	var result [32]byte
 
@@ -156,16 +171,21 @@ func Base58Decode(s string) ([32]byte, error) {
 		return result, fmt.Errorf("empty base58 string")
 	}
 
+	for i := 0; i < len(s); i++ {
+		if base58LookupTable[s[i]] < 0 {
+			return result, fmt.Errorf("invalid Base58 character: %c", s[i])
+		}
+	}
+	if len(s) > base58MaxAddressLen {
+		return result, fmt.Errorf("decoded address exceeds 32 bytes")
+	}
+
 	n := new(big.Int)
 	base := big.NewInt(58)
 
 	for i := 0; i < len(s); i++ {
-		val := base58LookupTable[s[i]]
-		if val < 0 {
-			return result, fmt.Errorf("invalid Base58 character: %c", s[i])
-		}
 		n.Mul(n, base)
-		n.Add(n, big.NewInt(int64(val)))
+		n.Add(n, big.NewInt(int64(base58LookupTable[s[i]])))
 	}
 
 	// Count leading '1' characters (represent leading zero bytes)
@@ -195,4 +215,21 @@ func Base58Decode(s string) ([32]byte, error) {
 	copy(result[offset:], numBytes)
 
 	return result, nil
+}
+
+// Base58DecodeCanonical decodes s like Base58Decode and then requires s to be
+// the one encoding of the result, the string Base58Encode (and every standard
+// wallet) produces for those 32 bytes. Base58Decode right-aligns whatever
+// number a string encodes, so "2" and thirty-one '1's followed by "2" name the
+// same address; a string-keyed allowlist, an indexer or an event filter would
+// treat them as two (QSR-2026-0262). The error names the canonical form.
+func Base58DecodeCanonical(s string) ([32]byte, error) {
+	addr, err := Base58Decode(s)
+	if err != nil {
+		return addr, err
+	}
+	if canonical := Base58Encode(addr); canonical != s {
+		return [32]byte{}, fmt.Errorf("non-canonical Base58 address %q: the canonical form is %q", s, canonical)
+	}
+	return addr, nil
 }
