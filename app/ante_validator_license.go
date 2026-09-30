@@ -19,7 +19,9 @@ import (
 //     dashboard fee) and a self-bond of at least MinValidatorSelfBond
 //     (100,000 QOR);
 //  2. an operator's own undelegation or redelegation may not leave the
-//     self-bond under that floor.
+//     self-bond under that floor (from the switch, a full exit is allowed);
+//  3. from the switch, MsgUnjail is refused while the operator self-bond is
+//     under that floor.
 //
 // Genesis is exempt: gentx validators are bootstrapped before any license can
 // exist.

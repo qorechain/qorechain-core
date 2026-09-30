@@ -9,6 +9,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	licensetypes "github.com/qorechain/qorechain-core/x/license/types"
@@ -41,8 +42,11 @@ const (
 	exitRefused selfBondExit = false
 	// exitAllowed lets the operator leave completely. The SDK then jails the
 	// validator in Unbond, because a self-delegation of zero is below its
-	// MinSelfDelegation, so no validator operates under the floor. Leaving a
-	// non-zero remainder under the floor is still refused.
+	// MinSelfDelegation. Leaving a non-zero remainder under the floor is still
+	// refused, and so is MsgUnjail while the self-bond is under the floor (see
+	// refuseUnjailBelowFloor): without that, exit, re-delegate 1 uqor and unjail
+	// would run a validator on a dust self-bond. exitAllowed is only ever used
+	// from the staking-admission-gate switch on, so it also selects that check.
 	exitAllowed selfBondExit = true
 )
 
@@ -57,6 +61,9 @@ const (
 //   - MsgUndelegate and MsgBeginRedelegate by a validator's own operator from
 //     their own validator: the self-bond left behind is not under the floor
 //     (see selfBondExit for a full exit).
+//   - MsgUnjail, from the switch on (exitAllowed): the operator self-bond is at
+//     least the floor, so a validator that left or was slashed under it tops up
+//     before it signs again.
 //
 // Everything else passes. Addresses that do not parse pass too, except for a
 // MsgCreateValidator's own address: the staking handler reports malformed input
@@ -66,6 +73,11 @@ func checkValidatorAdmission(
 ) error {
 	if err := refuseSelfBondBelowFloor(ctx, sk, msg, exit); err != nil {
 		return err
+	}
+	if exit == exitAllowed {
+		if err := refuseUnjailBelowFloor(ctx, sk, msg); err != nil {
+			return err
+		}
 	}
 
 	createVal, ok := msg.(*stakingtypes.MsgCreateValidator)
@@ -168,6 +180,51 @@ func refuseSelfBondBelowFloor(ctx sdk.Context, sk admissionStaking, msg sdk.Msg,
 	return nil
 }
 
+// refuseUnjailBelowFloor refuses MsgUnjail while the validator's operator
+// self-bond is under MinValidatorSelfBond (QSR-2026-0114, option C).
+//
+// THE UNJAIL IS WHERE THE FLOOR WOULD OTHERWISE LEAK. A full exit is allowed
+// from the switch on and the SDK jails the validator for it, but the SDK's own
+// unjail check only compares the self-bond with MinSelfDelegation, which is 1
+// uqor on every mainnet validator, and a jailing for self-bond sets no
+// JailedUntil. So exit, MsgDelegate of 1 uqor and MsgUnjail in the next block
+// would put the validator back in the set on a dust self-bond. The same holds
+// for a validator slashed under the floor. MsgDelegate stays ungated, so the
+// way out is always open: top up to the floor, then unjail.
+//
+// A missing self-delegation counts as zero. Addresses that do not parse and a
+// validator that does not exist pass: the slashing handler reports them with
+// its usual errors.
+func refuseUnjailBelowFloor(ctx sdk.Context, sk admissionStaking, msg sdk.Msg) error {
+	if sk == nil {
+		return nil
+	}
+	m, ok := msg.(*slashingtypes.MsgUnjail)
+	if !ok {
+		return nil
+	}
+	valAddr, err := sdk.ValAddressFromBech32(m.ValidatorAddr)
+	if err != nil {
+		return nil
+	}
+	val, err := sk.GetValidator(ctx, valAddr)
+	if err != nil {
+		return nil
+	}
+	selfBond := math.ZeroInt()
+	if del, err := sk.GetDelegation(ctx, sdk.AccAddress(valAddr), valAddr); err == nil {
+		selfBond = val.TokensFromShares(del.Shares).TruncateInt()
+	}
+	if selfBond.LT(MinValidatorSelfBond) {
+		return errorsmod.Wrapf(errortypes.ErrInvalidRequest,
+			"the validator's self-bond is %s uqor, below the required minimum of %s uqor "+
+				"(100,000 QOR); delegate from the operator account to bring it to the "+
+				"minimum, then unjail",
+			selfBond, MinValidatorSelfBond)
+	}
+	return nil
+}
+
 // stakingAdmissionActive reports whether the admission rules are enforced by the
 // staking message server (and the operator's full exit allowed). Read off the
 // gas meter, so gas is the same on both sides of the switch.
@@ -176,7 +233,8 @@ func (app *QoreChainApp) stakingAdmissionActive(ctx sdk.Context) bool {
 }
 
 // stakingAdmissionGate is what the patched staking message server calls for
-// CreateValidator, Undelegate and BeginRedelegate (wired in deps_gates.go of
+// CreateValidator, Undelegate and BeginRedelegate, and the patched slashing
+// message server for Unjail (wired in deps_gates.go of
 // the full build). Off below the switch; at genesis, gentxs are exempt because
 // no licence can exist before the chain does.
 func (app *QoreChainApp) stakingAdmissionGate(ctx sdk.Context, msg sdk.Msg) error {

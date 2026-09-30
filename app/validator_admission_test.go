@@ -10,6 +10,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/testutil"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 	"google.golang.org/protobuf/proto"
 
@@ -275,5 +276,60 @@ func TestStakingAdmissionGate_OffBelowSwitch(t *testing.T) {
 		if err := app.stakingAdmissionGate(ctx, msg); err != nil {
 			t.Fatalf("gate refused with no feature record: %v", err)
 		}
+	}
+}
+
+// QSR-2026-0114 option C: from the switch MsgUnjail needs the operator
+// self-bond at the floor, so exit + 1 uqor + unjail cannot bring a validator
+// back on a dust bond. Below the switch the rule never looks at MsgUnjail.
+func TestCheckValidatorAdmission_UnjailFloor(t *testing.T) {
+	ctx := testCtx(t, 10)
+	unjail := &slashingtypes.MsgUnjail{ValidatorAddr: opVal.String()}
+	noSelfDel := stakingWithSelfBond(qor(0))
+	delete(noSelfDel.delegations, opAcc.String()+"|"+opVal.String())
+	for _, tc := range []struct {
+		name string
+		sk   *fakeAdmissionStaking
+		ok   bool
+	}{
+		{"self-bond 1 uqor (exit then top-up of dust)", stakingWithSelfBond(math.OneInt()), false},
+		{"slashed to 99,000 QOR", stakingWithSelfBond(qor(99_000)), false},
+		{"floor minus 1 uqor", stakingWithSelfBond(qor(100_000).SubRaw(1)), false},
+		{"no self-delegation at all", noSelfDel, false},
+		{"topped up to the floor", stakingWithSelfBond(qor(100_000)), true},
+		{"above the floor", stakingWithSelfBond(qor(900_000)), true},
+	} {
+		if err := checkValidatorAdmission(ctx, nil, tc.sk, unjail, exitRefused); err != nil {
+			t.Errorf("%s: below the switch MsgUnjail must pass untouched, got %v", tc.name, err)
+		}
+		err := checkValidatorAdmission(ctx, nil, tc.sk, unjail, exitAllowed)
+		if tc.ok && err != nil {
+			t.Errorf("%s: unjail refused: %v", tc.name, err)
+		}
+		if !tc.ok && (err == nil || !strings.Contains(err.Error(), "then unjail")) {
+			t.Errorf("%s: got %v, want the top-up refusal", tc.name, err)
+		}
+	}
+	// An unknown validator is the slashing handler's to report.
+	if err := checkValidatorAdmission(ctx, nil, &fakeAdmissionStaking{}, unjail, exitAllowed); err != nil {
+		t.Errorf("unknown validator: %v", err)
+	}
+}
+
+func TestValidatorLicenseDecorator_UnjailSwitch(t *testing.T) {
+	ctx := testCtx(t, 10)
+	unjail := &slashingtypes.MsgUnjail{ValidatorAddr: opVal.String()}
+	sk := stakingWithSelfBond(math.OneInt())
+	off := ValidatorLicenseDecorator{stakingKeeper: sk, features: fakeFeatures{}}
+	if err := runLicenseAnte(t, ctx, off, unjail); err != nil {
+		t.Fatalf("feature off: unjail refused by the ante (replay parity): %v", err)
+	}
+	on := ValidatorLicenseDecorator{stakingKeeper: sk, features: fakeFeatures{pqctypes.FeatureStakingAdmissionGate: true}}
+	if err := runLicenseAnte(t, ctx, on, unjail); err == nil {
+		t.Fatal("feature on: unjail on a dust self-bond admitted by the ante")
+	}
+	exec := authz.NewMsgExec(otherAc, []sdk.Msg{unjail})
+	if err := runLicenseAnte(t, ctx, on, &exec); err == nil {
+		t.Fatal("feature on: authz-nested unjail on a dust self-bond admitted by the ante")
 	}
 }
