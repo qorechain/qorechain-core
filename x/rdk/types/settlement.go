@@ -32,6 +32,13 @@ type SettlementBatch struct {
 	// the rollup's sequencing policy before the batch is stored, and kept so
 	// the record says who committed the state it is trusted for.
 	Submitter string `json:"submitter,omitempty"`
+
+	// AnchorSignature and ValidatorSetHash carry MsgSubmitBatch's optional
+	// anchor fields to the x/multilayer anchor written for the batch (from
+	// v3.2.2). The anchor record keeps them; the batch record does not, so a
+	// stored batch has the same bytes as before.
+	AnchorSignature  []byte `json:"-"`
+	ValidatorSetHash []byte `json:"-"`
 }
 
 // BatchChallengeRecord records an open fraud-proof challenge against an

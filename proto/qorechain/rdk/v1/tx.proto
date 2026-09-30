@@ -46,6 +46,15 @@ message MsgSubmitBatch {
   // withdrawals_root commits the L2->L1 messages (withdrawals) in this batch as
   // a binary Merkle root. Empty when the batch carries no cross-layer messages.
   bytes withdrawals_root = 9;
+  // anchor_signature, when present, is the rollup creator's Dilithium
+  // signature over the v2 anchor sign bytes of this batch (see
+  // x/multilayer/types.AnchorSignBytesV2). From v3.2.2 the batch is then
+  // anchored in x/multilayer in the same transaction, and a refused anchor
+  // refuses the batch. Without it the batch settles unanchored, as before.
+  bytes anchor_signature = 10;
+  // validator_set_hash is the rollup's validator-set commitment carried in
+  // the anchor. Optional; covered by anchor_signature.
+  bytes validator_set_hash = 11;
 }
 message MsgSubmitBatchResponse {}
 

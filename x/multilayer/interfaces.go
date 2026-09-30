@@ -20,6 +20,13 @@ type MultilayerKeeper interface {
 
 	// State Anchoring (HCS)
 	AnchorState(ctx sdk.Context, msg *types.MsgAnchorState) (*types.MsgAnchorStateResponse, error)
+	// AnchorSettlement writes the anchor for a settled x/rdk batch. It is a
+	// keeper-to-keeper call, never a Msg: x/rdk has already authorised the
+	// batch submitter and ordered the batch, so the MinAnchorInterval rate
+	// limit does not apply, and a layer x/rdk registered is anchorable while
+	// it is still proposed. The anchor must still carry a valid v2 signature
+	// by the layer creator's registered Dilithium key.
+	AnchorSettlement(ctx sdk.Context, msg *types.MsgAnchorState) (*types.MsgAnchorStateResponse, error)
 	GetLatestAnchor(ctx sdk.Context, layerID string) (*types.StateAnchor, error)
 	GetAnchors(ctx sdk.Context, layerID string) ([]*types.StateAnchor, error)
 	ChallengeAnchor(ctx sdk.Context, msg *types.MsgChallengeAnchor) (*types.MsgChallengeAnchorResponse, error)

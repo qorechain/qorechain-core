@@ -20,6 +20,7 @@ var (
 	ErrInvalidLayerTransition = errors.Register(ModuleName, 15, "invalid layer status transition")
 	ErrUnauthorized           = errors.Register(ModuleName, 16, "unauthorized: insufficient permissions")
 	ErrInvalidPQCSignature    = errors.Register(ModuleName, 17, "invalid PQC aggregate signature on anchor")
+	ErrInvalidLayerID         = errors.Register(ModuleName, 18, "invalid layer id")
 
 	// ErrParamsUpdateNotEnabled is returned for MsgUpdateParams below the v3.2.2
 	// plan height, where the message had no route. Code 30 keeps clear of the

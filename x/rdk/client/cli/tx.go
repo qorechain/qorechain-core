@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/hex"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -102,6 +103,11 @@ func cmdCreateRollup() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			// The chain refuses ids outside this grammar from v3.2.2; checking
+			// here saves the fee of a transaction that would fail.
+			if err := types.ValidateRollupID(args[0]); err != nil {
+				return err
+			}
 			vm, _ := cmd.Flags().GetString("vm")
 			msg := &types.MsgCreateRollup{
 				Creator:     clientCtx.GetFromAddress().String(),
@@ -142,11 +148,46 @@ func cmdSubmitBatch() *cobra.Command {
 				BatchIndex: idx,
 				StateRoot:  stateRoot,
 			}
+			if msg.PrevStateRoot, err = hexFlag(cmd, "prev-state-root"); err != nil {
+				return err
+			}
+			if msg.DataHash, err = hexFlag(cmd, "data-hash"); err != nil {
+				return err
+			}
+			if msg.WithdrawalsRoot, err = hexFlag(cmd, "withdrawals-root"); err != nil {
+				return err
+			}
+			if msg.AnchorSignature, err = hexFlag(cmd, "anchor-signature"); err != nil {
+				return err
+			}
+			if msg.ValidatorSetHash, err = hexFlag(cmd, "validator-set-hash"); err != nil {
+				return err
+			}
+			msg.TxCount, _ = cmd.Flags().GetUint64("tx-count")
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
+	cmd.Flags().String("prev-state-root", "", "hex state root the batch starts from (the previous batch's state root)")
+	cmd.Flags().String("data-hash", "", "hex hash of the batch data posted as a DA blob")
+	cmd.Flags().String("withdrawals-root", "", "hex Merkle root of the batch's L2->L1 withdrawals")
+	cmd.Flags().Uint64("tx-count", 0, "number of rollup transactions in the batch")
+	cmd.Flags().String("anchor-signature", "", "hex Dilithium signature by the rollup creator over the v2 anchor sign bytes (see 'query rdk anchor-sign-bytes'); the batch is then anchored in x/multilayer")
+	cmd.Flags().String("validator-set-hash", "", "hex validator-set commitment carried in the anchor (covered by the anchor signature)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
+}
+
+// hexFlag reads an optional hex-encoded flag.
+func hexFlag(cmd *cobra.Command, name string) ([]byte, error) {
+	v, _ := cmd.Flags().GetString(name)
+	if v == "" {
+		return nil, nil
+	}
+	b, err := hex.DecodeString(strings.TrimPrefix(v, "0x"))
+	if err != nil {
+		return nil, fmt.Errorf("--%s: %w", name, err)
+	}
+	return b, nil
 }
 
 func cmdChallengeBatch() *cobra.Command {

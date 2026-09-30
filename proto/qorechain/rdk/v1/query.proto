@@ -3,18 +3,43 @@ package qorechain.rdk.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/rdk/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the gRPC query service for the rdk (rollup) module.
+//
+// Every RPC is also served over REST by the gRPC gateway, under
+// /qorechain/rdk/v1/. Rollup ids are restricted to [a-z0-9._-] from v3.2.2,
+// so an id is always a single clean path segment.
 service Query {
   // Params returns the module parameters.
-  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/params";
+  }
   // Rollup returns a single rollup config by ID.
-  rpc Rollup(QueryRollupRequest) returns (QueryRollupResponse);
+  rpc Rollup(QueryRollupRequest) returns (QueryRollupResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/rollup/{rollup_id}";
+  }
   // Rollups lists all rollups.
-  rpc Rollups(QueryRollupsRequest) returns (QueryRollupsResponse);
+  rpc Rollups(QueryRollupsRequest) returns (QueryRollupsResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/rollups";
+  }
   // Batch returns a settlement batch by (rollup_id, batch_index).
-  rpc Batch(QueryBatchRequest) returns (QueryBatchResponse);
+  rpc Batch(QueryBatchRequest) returns (QueryBatchResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/batch/{rollup_id}/{batch_index}";
+  }
   // LatestBatch returns the latest settlement batch for a rollup.
-  rpc LatestBatch(QueryLatestBatchRequest) returns (QueryLatestBatchResponse);
+  rpc LatestBatch(QueryLatestBatchRequest) returns (QueryLatestBatchResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/latest_batch/{rollup_id}";
+  }
+  // Batches lists a rollup's settlement batches in index order, starting at
+  // start_index, at most limit of them (default 50, maximum 100).
+  rpc Batches(QueryBatchesRequest) returns (QueryBatchesResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/batches/{rollup_id}";
+  }
+  // Blob returns a data-availability blob's metadata (not its data).
+  rpc Blob(QueryBlobRequest) returns (QueryBlobResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/blob/{rollup_id}/{blob_index}";
+  }
 }
 
 // ParamsView is the query-facing view of the module parameters.
@@ -76,3 +101,37 @@ message QueryBatchResponse { BatchView batch = 1; }
 
 message QueryLatestBatchRequest { string rollup_id = 1; }
 message QueryLatestBatchResponse { BatchView batch = 1; }
+
+message QueryBatchesRequest {
+  string rollup_id = 1;
+  // start_index is the first batch index returned.
+  uint64 start_index = 2;
+  // limit caps the number of batches returned: 0 means 50, and more than 100
+  // is capped at 100.
+  uint32 limit = 3;
+}
+message QueryBatchesResponse {
+  repeated BatchView batches = 1;
+  // next_index is the start_index of the next page, 0 when there is none.
+  uint64 next_index = 2;
+}
+
+// BlobView is the query-facing view of a data-availability blob, without the
+// blob data itself.
+message BlobView {
+  string rollup_id = 1;
+  uint64 blob_index = 2;
+  string commitment = 3;
+  uint64 data_size = 4;
+  int64 height = 5;
+  string stored_at = 6;
+  bool pruned = 7;
+  // expires_at_height is the height after which the blob may be pruned.
+  int64 expires_at_height = 8;
+}
+
+message QueryBlobRequest {
+  string rollup_id = 1;
+  uint64 blob_index = 2;
+}
+message QueryBlobResponse { BlobView blob = 1; }
