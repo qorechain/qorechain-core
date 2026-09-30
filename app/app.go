@@ -291,12 +291,18 @@ func NewQoreChainApp(
 			depinject.Supply(
 				appOpts,
 				logger,
+				// For ProvideReputationHooks: the field the reputation keeper
+				// is assigned to after Build.
+				&app.ReputationKeeper,
 			),
 			// Install the governance proposal-reward hook via depinject (one per
 			// module). The gov module's InvokeSetHooks runs during Build and sets
 			// the keeper's hooks, so a manual GovKeeper.SetHooks after Build would
 			// panic ("cannot set governance hooks twice").
 			depinject.ProvideInModule("gov_reward", ProvideGovHooks),
+			// Reputation scoring's gov and staking hooks; see
+			// ProvideReputationHooks.
+			depinject.ProvideInModule("reputation_hooks", ProvideReputationHooks),
 		)
 	)
 
@@ -505,6 +511,13 @@ func NewQoreChainApp(
 		app.StakingKeeper,
 		logger,
 	)
+	// Before the keeper is copied into QCA and the module below: the copies
+	// carry the gate with them.
+	app.ReputationKeeper.SetFeatureGate(func(ctx sdk.Context) bool {
+		return app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureReputationScoring)
+	})
+	// Scoring v2 reads the windowed signing performance x/slashing keeps.
+	app.ReputationKeeper.SetSlashingReader(app.SlashingKeeper)
 
 	// --- Initialize QCA module (manual, not depinject) ---
 	qcaStoreKey := storetypes.NewKVStoreKey(qcatypes.StoreKey)
@@ -766,6 +779,13 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// Fee conversion's float refill and float query read the bank and swap
+	// through x/amm (v3.2.2). Shared by every copy of the keeper.
+	app.GasAbstractionKeeper.SetConversionDeps(gasabstractiontypes.ConversionDeps{
+		Bank: app.BankKeeper,
+		AMM:  app.AMMKeeper,
+	})
+
 	// ==========================================================================
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
@@ -991,6 +1011,7 @@ func (app *QoreChainApp) setAnteHandler(
 			TXCounterStoreService: runtime.NewKVStoreService(wasmStoreKey),
 			FairBlockKeeper:       app.FairBlockKeeper,
 			GasAbstractionKeeper:  app.GasAbstractionKeeper,
+			AMMKeeper:             app.AMMKeeper,
 			BurnKeeper:            app.BurnKeeper,
 			LicenseKeeper:         app.LicenseKeeper,
 		},

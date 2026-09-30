@@ -56,6 +56,9 @@ var (
 	NewAIAppModule        func(keeper aimod.AIKeeper) module.AppModule
 	NewAIModuleBasic      func() module.AppModuleBasic
 	NewAIAnomalyDecorator func(keeper aimod.AIKeeper) sdk.AnteDecorator
+	// NewAIEVMAnomalyDecorator screens EVM-lane transactions (rate limit and
+	// anomaly scoring) once the EVM ante parity switch is on.
+	NewAIEVMAnomalyDecorator func(keeper aimod.AIKeeper) sdk.AnteDecorator
 
 	// Bridge module factories
 	NewBridgeKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, pqcKeeper pqcmod.PQCKeeper, burnKeeper burnmod.BurnKeeper, logger log.Logger, authority string) bridgemod.BridgeKeeper

@@ -72,6 +72,9 @@ func init() {
 	NewAIAnomalyDecorator = func(keeper aimod.AIKeeper) sdk.AnteDecorator {
 		return aimod.NewAIAnomalyDecorator(keeper)
 	}
+	NewAIEVMAnomalyDecorator = func(keeper aimod.AIKeeper) sdk.AnteDecorator {
+		return aimod.NewAIAnomalyDecorator(keeper) // pass-through stub
+	}
 
 	NewBridgeKeeper = func(_ codec.Codec, _ storetypes.StoreKey, _ pqcmod.PQCKeeper, _ burnmod.BurnKeeper, logger log.Logger, _ string) bridgemod.BridgeKeeper {
 		return bridgemod.NewStubKeeper(logger)

@@ -7,13 +7,7 @@ import (
 	"testing"
 	"text/template"
 
-	dbm "github.com/cosmos/cosmos-db"
 	"github.com/spf13/viper"
-
-	"cosmossdk.io/log"
-
-	"github.com/cosmos/cosmos-sdk/client/flags"
-	simtestutil "github.com/cosmos/cosmos-sdk/testutil/sims"
 
 	evmmempool "github.com/cosmos/evm/mempool"
 
@@ -26,8 +20,7 @@ import (
 // *ExperimentalEVMMempool to wire the event bus and the JSON-RPC txpool, and a
 // failed assertion there stops the node from starting.
 func TestMempoolWiring(t *testing.T) {
-	opts := simtestutil.AppOptionsMap{flags.FlagHome: t.TempDir()}
-	a := app.NewQoreChainApp(log.NewNopLogger(), dbm.NewMemDB(), nil, true, opts)
+	a := sharedTestApp(t)
 	if got := fmt.Sprintf("%T", a.Mempool()); got != "*app.evictingMempool" {
 		t.Fatalf("baseapp mempool is %s, want the evicting wrapper", got)
 	}
