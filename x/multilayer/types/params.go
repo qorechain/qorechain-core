@@ -1,5 +1,11 @@
 package types
 
+import (
+	"fmt"
+
+	"cosmossdk.io/math"
+)
+
 // Params defines the module parameters for the QoreChain multi-layer architecture
 type Params struct {
 	MaxSidechains              uint64 `json:"max_sidechains"`               // Maximum number of active sidechains
@@ -46,6 +52,30 @@ func (p Params) Validate() error {
 	}
 	if p.DefaultChallengePeriod == 0 {
 		return ErrInvalidAnchor.Wrap("default_challenge_period must be > 0")
+	}
+	return nil
+}
+
+// ValidateUpdate is Validate plus the checks a governance update must also pass:
+// the stakes parse as non-negative amounts and the routing threshold is a
+// decimal in [0, 1]. Genesis keeps plain Validate, so the historical genesis
+// files are judged by the rules they were written under.
+func (p Params) ValidateUpdate() error {
+	if err := p.Validate(); err != nil {
+		return err
+	}
+	for _, s := range []struct{ name, v string }{
+		{"min_sidechain_stake", p.MinSidechainStake},
+		{"min_paychain_stake", p.MinPaychainStake},
+	} {
+		amt, ok := math.NewIntFromString(s.v)
+		if !ok || amt.IsNegative() {
+			return ErrInvalidLayerTransition.Wrap(fmt.Sprintf("%s must be a non-negative integer amount, got %q", s.name, s.v))
+		}
+	}
+	th, err := math.LegacyNewDecFromStr(p.RoutingConfidenceThreshold)
+	if err != nil || th.IsNegative() || th.GT(math.LegacyOneDec()) {
+		return ErrInvalidLayerTransition.Wrap(fmt.Sprintf("routing_confidence_threshold must be a decimal between 0 and 1, got %q", p.RoutingConfidenceThreshold))
 	}
 	return nil
 }
