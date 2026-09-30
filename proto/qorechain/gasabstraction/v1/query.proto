@@ -1,0 +1,58 @@
+syntax = "proto3";
+package qorechain.gasabstraction.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/gasabstraction/types";
+
+import "cosmos/base/v1beta1/coin.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+import "qorechain/gasabstraction/v1/gasabstraction.proto";
+
+// Query defines the gas abstraction module's query service.
+service Query {
+  // Config returns the configuration.
+  rpc Config(QueryConfigRequest) returns (QueryConfigResponse) {
+    option (google.api.http).get = "/qorechain/gasabstraction/v1/config";
+  }
+  // ConversionRate returns what one unit of a fee token is worth in the
+  // native denom now, and whether it can pay fees at this height.
+  rpc ConversionRate(QueryConversionRateRequest) returns (QueryConversionRateResponse) {
+    option (google.api.http).get = "/qorechain/gasabstraction/v1/conversion_rate";
+  }
+  // Float returns the conversion float's balances and this block's usage.
+  rpc Float(QueryFloatRequest) returns (QueryFloatResponse) {
+    option (google.api.http).get = "/qorechain/gasabstraction/v1/float";
+  }
+}
+
+message QueryConfigRequest {}
+message QueryConfigResponse {
+  FeeConfig config = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryConversionRateRequest {
+  string denom = 1;
+}
+message QueryConversionRateResponse {
+  string denom = 1;
+  // rate is native units per unit of denom from the price source.
+  string rate = 2;
+  // effective_rate is rate less the premium: what a unit of fee is worth.
+  string effective_rate = 3;
+  string price_source = 4;
+  // usable says whether the token can pay fees at this height; reason says
+  // why not.
+  bool usable = 5;
+  string reason = 6;
+}
+
+message QueryFloatRequest {}
+message QueryFloatResponse {
+  string address = 1;
+  repeated cosmos.base.v1beta1.Coin balances = 2 [
+    (gogoproto.nullable) = false,
+    (gogoproto.castrepeated) = "github.com/cosmos/cosmos-sdk/types.Coins"
+  ];
+  string block_used = 3;
+  string block_cap = 4;
+}

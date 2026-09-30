@@ -4,6 +4,7 @@ package gasabstraction
 
 import (
 	"cosmossdk.io/log"
+	"cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/gasabstraction/types"
@@ -30,7 +31,10 @@ func (k *StubKeeper) IsEnabled(_ sdk.Context) bool                              
 func (k *StubKeeper) GetAcceptedTokens(_ sdk.Context) []types.AcceptedFeeToken {
 	return types.DefaultGasAbstractionConfig().AcceptedTokens
 }
-func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
+func (k *StubKeeper) BlockConversionUsed(_ sdk.Context) math.Int       { return math.ZeroInt() }
+func (k *StubKeeper) AddBlockConversionUsed(_ sdk.Context, _ math.Int) {}
+func (k *StubKeeper) SetConversionDeps(_ ConversionDeps)               {}
+func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState)  {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()
 }
