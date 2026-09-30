@@ -25,6 +25,8 @@ func GetQueryCmd() *cobra.Command {
 		CmdQueryBatch(),
 		CmdQueryConfig(),
 		CmdSuggestProfile(),
+		CmdQueryBatches(),
+		CmdAnchorSignBytes(),
 	)
 	return cmd
 }

@@ -53,6 +53,10 @@ func (k *StubKeeper) AnchorState(_ sdk.Context, _ *types.MsgAnchorState) (*types
 	return nil, fmt.Errorf("multi-layer architecture requires full build")
 }
 
+func (k *StubKeeper) AnchorSettlement(_ sdk.Context, _ *types.MsgAnchorState) (*types.MsgAnchorStateResponse, error) {
+	return nil, fmt.Errorf("multi-layer architecture requires full build")
+}
+
 func (k *StubKeeper) GetLatestAnchor(_ sdk.Context, _ string) (*types.StateAnchor, error) {
 	return nil, nil
 }

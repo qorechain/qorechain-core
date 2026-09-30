@@ -31,4 +31,6 @@ var (
 	ErrBatchNotFinalized      = errorsmod.Register(ModuleName, 27, "batch is not finalized: cross-layer withdrawals require a finalized batch")
 	ErrWithdrawalAlreadyDone  = errorsmod.Register(ModuleName, 28, "withdrawal already executed")
 	ErrInvalidWithdrawalProof = errorsmod.Register(ModuleName, 29, "withdrawal proof does not match the batch withdrawals root")
+	ErrInvalidRollupID        = errorsmod.Register(ModuleName, 30, "invalid rollup id")
+	ErrAnchorFailed           = errorsmod.Register(ModuleName, 31, "the signed state anchor for this batch was refused")
 )

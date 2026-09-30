@@ -84,3 +84,22 @@ func TestSettlementBatchFields(t *testing.T) {
 		t.Error("expected zero-value FinalizedAt to be 0")
 	}
 }
+
+// The anchor fields travel with the batch in memory only: a stored batch
+// record has the same JSON as before v3.2.2, with or without them.
+func TestSettlementBatchAnchorFieldsNotStored(t *testing.T) {
+	b := SettlementBatch{RollupID: "r", BatchIndex: 1, StateRoot: []byte{1}}
+	plain, err := json.Marshal(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.AnchorSignature = []byte("sig")
+	b.ValidatorSetHash = []byte("vsh")
+	withAnchor, err := json.Marshal(b)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(plain) != string(withAnchor) {
+		t.Fatalf("anchor fields leak into the stored batch:\n%s\n%s", plain, withAnchor)
+	}
+}
