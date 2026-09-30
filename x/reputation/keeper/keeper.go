@@ -40,6 +40,11 @@ type Keeper struct {
 	// fixed in v3.2.2 is on (see scoring_v2.go). Nil means off, which keeps
 	// the historical EndBlocker byte for byte.
 	scoringV2 func(ctx sdk.Context) bool
+	// proposalStillVoting reports whether a proposal is still in its voting
+	// period (scoring v2). x/gov calls AfterProposalVotingPeriodEnded also
+	// when a failed expedited proposal is converted to a regular one and
+	// keeps its votes open; that call must not settle participation.
+	proposalStillVoting func(ctx sdk.Context, proposalID uint64) bool
 }
 
 // NewKeeper creates a new reputation keeper.

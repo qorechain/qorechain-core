@@ -86,6 +86,14 @@ func (k *Keeper) SetFeatureGate(enabled func(ctx sdk.Context) bool) { k.scoringV
 // SetStakingReader replaces the staking reader (tests).
 func (k *Keeper) SetStakingReader(r StakingReader) { k.staking = r }
 
+// SetProposalVotingReader installs the check that tells a proposal still in
+// its voting period (a failed expedited proposal converted to a regular one)
+// from one whose voting has really ended. Like the gate, it must be set before
+// the keeper is copied.
+func (k *Keeper) SetProposalVotingReader(stillVoting func(ctx sdk.Context, proposalID uint64) bool) {
+	k.proposalStillVoting = stillVoting
+}
+
 // SetSlashingReader installs the slashing reader. Like the gate, it must be
 // set before the keeper is copied.
 func (k *Keeper) SetSlashingReader(r SlashingReader) { k.slashing = r }
@@ -293,6 +301,13 @@ func (k Keeper) SettleGovParticipation(ctx sdk.Context, proposalID uint64) error
 		return nil
 	}
 	ctx = unmetered(ctx)
+	// x/gov also runs this hook when a failed expedited proposal is converted
+	// to a regular one: its voting period goes on, with the votes cast so
+	// far. Settling then would count the proposal twice and drop the marks
+	// of validators who already voted. It is settled when voting really ends.
+	if k.proposalStillVoting != nil && k.proposalStillVoting(ctx, proposalID) {
+		return nil
+	}
 	store := ctx.KVStore(k.storeKey)
 
 	type bonded struct {

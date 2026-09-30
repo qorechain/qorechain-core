@@ -450,6 +450,47 @@ func TestReputationV2GovParticipation(t *testing.T) {
 	}
 }
 
+// x/gov runs AfterProposalVotingPeriodEnded also when a failed expedited
+// proposal is converted to a regular one and its voting goes on. That call must
+// not settle: the proposal would count twice and the marks of validators who
+// already voted would be lost.
+func TestReputationV2ExpeditedConversionDoesNotSettle(t *testing.T) {
+	k, ctx, key := setupRepV2(t, true)
+	valA, consA := validator(t, 1, stakingtypes.Bonded)
+	k.SetStakingReader(&fakeStaking{vals: []stakingtypes.Validator{valA}})
+	k.SetValidatorReputation(ctx, types.ValidatorReputation{Address: sdk.ConsAddress(consA).String(), JoinedAtHeight: 1})
+	opA, _ := sdk.ValAddressFromBech32(valA.OperatorAddress)
+	voting := map[uint64]bool{1: true}
+	k.SetProposalVotingReader(func(_ sdk.Context, id uint64) bool { return voting[id] })
+	h := NewHooks(k)
+
+	if err := h.AfterProposalVote(ctx, 1, sdk.AccAddress(opA)); err != nil {
+		t.Fatal(err)
+	}
+	// Expedited tally failed: converted, still voting. Nothing settles.
+	if err := h.AfterProposalVotingPeriodEnded(ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	if w := ctx.KVStore(key).Get(govParticipationKey(opA)); len(w) != 0 {
+		t.Fatalf("settled during the converted voting period: window %v", w)
+	}
+	if !ctx.KVStore(key).Has(govVoteKey(1, opA)) {
+		t.Fatal("vote mark dropped before voting ended")
+	}
+	// Regular voting period ends: settled once, the earlier vote counts.
+	voting[1] = false
+	if err := h.AfterProposalVotingPeriodEnded(ctx, 1); err != nil {
+		t.Fatal(err)
+	}
+	a, _ := k.GetValidatorReputation(ctx, sdk.ConsAddress(consA).String())
+	if a.GovParticipation != sdkmath.LegacyOneDec().String() {
+		t.Fatalf("A=%q, want 1", a.GovParticipation)
+	}
+	if w := ctx.KVStore(key).Get(govParticipationKey(opA)); len(w) != 1 {
+		t.Fatalf("window %v, want one entry", w)
+	}
+}
+
 func TestReputationV2HooksNoOpWhenOff(t *testing.T) {
 	k, ctx, key := setupRepV2(t, false)
 	valA, consA := validator(t, 1, stakingtypes.Bonded)

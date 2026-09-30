@@ -47,6 +47,7 @@ import (
 	epochskeeper "github.com/cosmos/cosmos-sdk/x/epochs/keeper"
 	govkeeper "github.com/cosmos/cosmos-sdk/x/gov/keeper"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
+	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	groupkeeper "github.com/cosmos/cosmos-sdk/x/group/keeper"
 	mintkeeper "github.com/cosmos/cosmos-sdk/x/mint/keeper"
 	protocolpoolkeeper "github.com/cosmos/cosmos-sdk/x/protocolpool/keeper"
@@ -518,6 +519,13 @@ func NewQoreChainApp(
 	})
 	// Scoring v2 reads the windowed signing performance x/slashing keeps.
 	app.ReputationKeeper.SetSlashingReader(app.SlashingKeeper)
+	// Governance participation is settled when a proposal's voting really
+	// ends, not when a failed expedited proposal is converted to a regular
+	// one (x/gov runs the same hook for both).
+	app.ReputationKeeper.SetProposalVotingReader(func(ctx sdk.Context, proposalID uint64) bool {
+		p, err := app.GovKeeper.Proposals.Get(ctx, proposalID)
+		return err == nil && p.Status == govv1.StatusVotingPeriod
+	})
 
 	// --- Initialize QCA module (manual, not depinject) ---
 	qcaStoreKey := storetypes.NewKVStoreKey(qcatypes.StoreKey)

@@ -40,7 +40,7 @@ func (v goldenVote) GetBlockIDFlag() comet.BlockIDFlag { return v.f }
 
 type goldenVotes []goldenVote
 
-func (v goldenVotes) Len() int                  { return len(v) }
+func (v goldenVotes) Len() int                 { return len(v) }
 func (v goldenVotes) Get(i int) comet.VoteInfo { return v[i] }
 
 type goldenInfo struct{ votes goldenVotes }
