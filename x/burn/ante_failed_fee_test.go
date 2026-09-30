@@ -99,6 +99,11 @@ type failedFeeApp struct {
 // when withChannel is set, runs the failed-fee decorator and post handler.
 func newFailedFeeApp(t *testing.T, withChannel, on bool) failedFeeApp {
 	t.Helper()
+	return newFailedFeeAppWithChecker(t, withChannel, on, nil)
+}
+
+func newFailedFeeAppWithChecker(t *testing.T, withChannel, on bool, checker ante.TxFeeChecker) failedFeeApp {
+	t.Helper()
 	key := storetypes.NewKVStoreKey("burn")
 	bapp := baseapp.NewBaseApp("failed-fee", log.NewNopLogger(), dbm.NewMemDB(),
 		failedFeeEncoding.TxConfig.TxDecoder(), baseapp.SetChainID("failed-fee"))
@@ -112,7 +117,7 @@ func newFailedFeeApp(t *testing.T, withChannel, on bool) failedFeeApp {
 	k := &accumulatorKeeper{key: key, on: on}
 	decorators := []sdk.AnteDecorator{ante.NewSetUpContextDecorator()}
 	if withChannel {
-		decorators = append(decorators, NewBurnFailedFeeDecorator(k))
+		decorators = append(decorators, NewBurnFailedFeeDecorator(k, checker))
 		bapp.SetPostHandler(sdk.ChainPostDecorators(NewBurnFailedFeePostDecorator(k)))
 	}
 	bapp.SetAnteHandler(sdk.ChainAnteDecorators(decorators...))
@@ -244,5 +249,43 @@ func TestFailedFeeChannelIgnoresCheckTxAndSimulate(t *testing.T) {
 	}
 	if acc := on.accumulated(t); !acc.IsZero() {
 		t.Fatalf("accumulator written outside block execution: %s", acc)
+	}
+}
+
+// The accumulator records what the fee checker charged, not what the
+// transaction declares. With a dynamic-fee extension the charged fee can be far
+// below the declared one; counting the declared amount would let one cheap
+// failing transaction with an inflated declared fee make EndBlock burn a share
+// of everybody else's fees.
+func TestFailedFeeChannelRecordsTheChargedFee(t *testing.T) {
+	// A checker that charges a tenth of the declared fee, as a dynamic-fee
+	// transaction with a large fee cap and no tip is charged base fee * gas.
+	tenth := func(_ sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) {
+		declared := tx.(sdk.FeeTx).GetFee().AmountOf("uqor")
+		return sdk.NewCoins(sdk.NewCoin("uqor", declared.QuoRaw(10))), 0, nil
+	}
+	on := newFailedFeeAppWithChecker(t, true, true, tenth)
+	// success (declared 100), failure with an inflated declared fee (1e15),
+	// out of gas (declared 110).
+	txs := [][]byte{sendTx(t, 1, 100), sendTx(t, 13, 1_000_000_000_000_000), sendTx(t, 99, 110)}
+	finalize(t, on, txs)
+	if _, err := on.bapp.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	want := math.NewInt(100_000_000_000_000 + 11)
+	if acc := on.accumulated(t); !acc.Equal(want) {
+		t.Fatalf("accumulator holds %s, want %s (the charged fees of the failed txs)", acc, want)
+	}
+
+	// A checker that refuses: nothing is recorded (DeductFee would have refused
+	// the transaction before this decorator in the real chain).
+	refuse := func(sdk.Context, sdk.Tx) (sdk.Coins, int64, error) { return nil, 0, fmt.Errorf("refused") }
+	r := newFailedFeeAppWithChecker(t, true, true, refuse)
+	finalize(t, r, [][]byte{sendTx(t, 13, 7)})
+	if _, err := r.bapp.Commit(); err != nil {
+		t.Fatal(err)
+	}
+	if acc := r.accumulated(t); !acc.IsZero() {
+		t.Fatalf("accumulator holds %s after a refused fee check", acc)
 	}
 }
