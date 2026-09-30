@@ -26,6 +26,10 @@ type GenesisState struct {
 	// SpendAccumulators is every daily-spend bucket still able to bound a spend
 	// (the export day and the day before it).
 	SpendAccumulators []SpendAccumEntry `json:"spend_accumulators"`
+	// SpendAccumulatorsInt is the same for the arbitrary-precision buckets of
+	// denoms with their own per-denom limit (v3.2.2). Omitted when empty, so a
+	// chain that never used per-denom limits exports the same file as before.
+	SpendAccumulatorsInt []SpendAccumIntEntry `json:"spend_accumulators_int,omitempty"`
 	// AcceptNonceReset lets a schema-0 file with authenticators load anyway.
 	// Every authenticator then restarts at sequence 0, so any signature made on
 	// the old chain with the same chain-id becomes valid again. Set it only for
@@ -46,6 +50,13 @@ type AuthNonceEntry struct {
 type SpendAccumEntry struct {
 	KeySuffix []byte `json:"key_suffix"`
 	Amount    uint64 `json:"amount"`
+}
+
+// SpendAccumIntEntry is one arbitrary-precision daily-spend bucket, stored
+// under SpendAccumIntPrefix. Amount is a decimal integer.
+type SpendAccumIntEntry struct {
+	KeySuffix []byte `json:"key_suffix"`
+	Amount    string `json:"amount"`
 }
 
 // DefaultGenesisState returns the default genesis state.
@@ -152,6 +163,22 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("spend_accumulators[%d]: duplicate key", i)
 		}
 		seenSpend[string(s.KeySuffix)] = struct{}{}
+	}
+
+	seenSpendInt := make(map[string]struct{}, len(gs.SpendAccumulatorsInt))
+	for i, s := range gs.SpendAccumulatorsInt {
+		if err := validateSpendAccumSuffix(s.KeySuffix); err != nil {
+			return fmt.Errorf("spend_accumulators_int[%d]: %w", i, err)
+		}
+		if v, err := ParseLimitAmount(s.Amount); err != nil || s.Amount == "" {
+			return fmt.Errorf("spend_accumulators_int[%d]: amount %q is not a non-negative integer", i, s.Amount)
+		} else if v.IsZero() {
+			return fmt.Errorf("spend_accumulators_int[%d]: zero amount", i)
+		}
+		if _, dup := seenSpendInt[string(s.KeySuffix)]; dup {
+			return fmt.Errorf("spend_accumulators_int[%d]: duplicate key", i)
+		}
+		seenSpendInt[string(s.KeySuffix)] = struct{}{}
 	}
 	return nil
 }

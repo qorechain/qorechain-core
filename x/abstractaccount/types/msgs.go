@@ -53,11 +53,22 @@ func (msg MsgUpdateSpendingRules) ValidateBasic() error {
 		// appearing in every query and every interface as an active spending limit.
 		// Whoever configured it believed they had set a limit. Refusing it is the
 		// only way that belief and reality stay in step.
-		if rule.Enabled && rule.DailyLimit == 0 && rule.PerTxLimit == 0 && len(rule.AllowedDenoms) == 0 {
+		//
+		// Per-denom limits and allowed EVM calls (v3.2.2) are bounds too: a rule
+		// carrying them restricts what its keys may spend or call.
+		if rule.Enabled && rule.DailyLimit == 0 && rule.PerTxLimit == 0 && len(rule.AllowedDenoms) == 0 &&
+			!UsesSpendingPolicyFields(rule) {
 			return fmt.Errorf(
 				"rule %d is enabled but sets no per-tx limit, no daily limit and no "+
 					"denom list, so it would permit everything while appearing to be a "+
 					"spending limit; set at least one bound or disable it", i)
+		}
+		// The v3.2.2 fields are checked here only when present, so a rule
+		// written without them is validated exactly as before.
+		if UsesSpendingPolicyFields(rule) {
+			if err := ValidateSpendingPolicy(rule); err != nil {
+				return fmt.Errorf("rule %d: %w", i, err)
+			}
 		}
 	}
 	return nil
