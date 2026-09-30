@@ -29,10 +29,11 @@ func (c AIConfig) RejectsAnomalies() bool { return c.AnomalyAction == AnomalyAct
 
 // Validate checks the configuration a governance update may store.
 func (c AIConfig) Validate() error {
-	if c.AnomalyThreshold < 0 || c.AnomalyThreshold > 1 {
+	// Written so that NaN, which compares false with everything, fails too.
+	if !(c.AnomalyThreshold >= 0 && c.AnomalyThreshold <= 1) {
 		return ErrInvalidConfig.Wrap("anomaly_threshold must be between 0 and 1")
 	}
-	if c.RiskThreshold < 0 || c.RiskThreshold > 1 {
+	if !(c.RiskThreshold >= 0 && c.RiskThreshold <= 1) {
 		return ErrInvalidConfig.Wrap("risk_threshold must be between 0 and 1")
 	}
 	if c.RoutingStrategy == "" {
