@@ -37,6 +37,13 @@ const (
 // needs no valid signature, and the signature data comes from mode_info, so an
 // ordinary single-key account can carry an arbitrarily deep multisig.
 //
+// From v3.2.2 the linked SDK is v0.53.8, whose SetPubKeyDecorator applies the
+// same bound itself (flattenSignaturesAtDepth) in every mode, including block
+// execution below the plan height. That refusal comes after DeductFee and the
+// size gas, so it reports more gas used than this guard's. This guard is what
+// keeps the refusal ahead of every decorator that could touch the signature,
+// and in block execution it takes over from the plan height.
+//
 // NODE-LOCAL MODES (since v3.2.1, unconditional). CheckTx, ReCheckTx, simulate
 // (gRPC, REST and abci_query /app/simulate all arrive with simulate set),
 // PrepareProposal and ProcessProposal. None of these modes executes during replay
