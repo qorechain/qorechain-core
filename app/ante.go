@@ -202,7 +202,10 @@ func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, f
 			evmParams,
 			fmParams,
 		),
-		pqcmod.NewEVMWindowDecorator(options.PQCKeeper),
+		// The EVM keeper lets the window decorator tell which EIP-7702
+		// authorizations will take effect, so it asks for the consent of
+		// exactly those authorities (v3.2.2).
+		pqcmod.NewEVMWindowDecorator(options.PQCKeeper, options.EvmKeeper),
 	)
 }
 
