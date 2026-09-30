@@ -35,4 +35,11 @@ var (
 	ErrNoEVMWindow        = errors.Register(ModuleName, 26, "no open EVM authorisation window")
 	ErrEVMWindowExhausted = errors.Register(ModuleName, 27, "EVM authorisation window exhausted")
 	ErrInvalidEVMWindow   = errors.Register(ModuleName, 28, "invalid EVM authorisation window")
+
+	// EIP-7702 delegation consent and delegated-actor settlement (v3.2.2, see
+	// evm_delegation.go). Codes from 60 leave room below for other releases.
+	ErrNoEVMDelegationConsent  = errors.Register(ModuleName, 60, "no post-quantum consent for this EIP-7702 delegation")
+	ErrInvalidEVMDelegation    = errors.Register(ModuleName, 61, "invalid EIP-7702 delegation request")
+	ErrEVMDelegatedActorWindow = errors.Register(ModuleName, 62, "delegated account has no window covering this action")
+	ErrEVMLaneOnly             = errors.Register(ModuleName, 63, "an Ethereum transaction executes only on the EVM lane")
 )

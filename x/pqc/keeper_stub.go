@@ -6,6 +6,7 @@ import (
 	"cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/qorechain/qorechain-core/x/pqc/types"
 )
@@ -151,4 +152,20 @@ func (k *StubKeeper) DeleteEVMWindow(_ sdk.Context, _ sdk.AccAddress) {}
 
 func (k *StubKeeper) ConsumeEVMWindow(_ sdk.Context, _ sdk.AccAddress, _ sdkmath.Int) error {
 	return types.ErrNoEVMWindow
+}
+
+// EIP-7702 delegation consent: inert in the public build. Consuming refuses, for
+// the same reason ConsumeEVMWindow does.
+func (k *StubKeeper) GetEVMDelegationConsent(_ sdk.Context, _ sdk.AccAddress) (types.EVMDelegationConsent, bool) {
+	return types.EVMDelegationConsent{}, false
+}
+
+func (k *StubKeeper) SetEVMDelegationConsent(_ sdk.Context, _ sdk.AccAddress, _ types.EVMDelegationConsent) error {
+	return types.ErrInvalidEVMDelegation
+}
+
+func (k *StubKeeper) DeleteEVMDelegationConsent(_ sdk.Context, _ sdk.AccAddress) {}
+
+func (k *StubKeeper) ConsumeEVMDelegationConsent(_ sdk.Context, _ sdk.AccAddress, _ common.Address) error {
+	return types.ErrNoEVMDelegationConsent
 }

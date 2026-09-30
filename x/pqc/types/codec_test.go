@@ -32,6 +32,8 @@ func TestEveryHandledMessageIsRegistered(t *testing.T) {
 		&types.MsgDisableAlgorithm{},
 		&types.MsgOpenEVMWindow{},
 		&types.MsgCloseEVMWindow{},
+		&types.MsgAuthorizeEVMDelegation{},
+		&types.MsgClearEVMDelegation{},
 	}
 
 	for _, msg := range handled {

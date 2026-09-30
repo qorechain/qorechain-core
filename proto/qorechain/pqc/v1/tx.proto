@@ -39,8 +39,20 @@ service Msg {
   // on the EVM lane.
   rpc OpenEVMWindow(MsgOpenEVMWindow) returns (MsgOpenEVMWindowResponse);
 
-  // CloseEVMWindow revokes the sender's window immediately.
+  // CloseEVMWindow revokes the sender's window immediately. From the v3.2.2
+  // plan height it also revokes the sender's EIP-7702 delegation consent.
   rpc CloseEVMWindow(MsgCloseEVMWindow) returns (MsgCloseEVMWindowResponse);
+
+  // AuthorizeEVMDelegation records the sender's post-quantum consent to one
+  // EIP-7702 delegation: the next type-4 transaction that installs (or, with
+  // the zero address, clears) exactly this delegation on the sender's account
+  // is admitted, once, before the consent expires. Without it the EVM lane
+  // refuses a type-4 transaction that would change the account's code.
+  rpc AuthorizeEVMDelegation(MsgAuthorizeEVMDelegation) returns (MsgAuthorizeEVMDelegationResponse);
+
+  // ClearEVMDelegation removes the sender's EIP-7702 delegation directly, on
+  // the Cosmos lane, without an EVM transaction, a window or the classical key.
+  rpc ClearEVMDelegation(MsgClearEVMDelegation) returns (MsgClearEVMDelegationResponse);
 }
 
 // MsgRegisterPQCKey registers a PQC keypair for an account.
@@ -148,3 +160,28 @@ message MsgCloseEVMWindow {
   string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 }
 message MsgCloseEVMWindowResponse {}
+
+// MsgAuthorizeEVMDelegation is the account's post-quantum consent to one
+// EIP-7702 delegation of its own account. It is single-use, bounded in time,
+// replaces any earlier consent, and is revoked by MsgCloseEVMWindow.
+message MsgAuthorizeEVMDelegation {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // delegate is the 0x-prefixed 20-byte address the authorization tuple
+  // names. The zero address consents to clearing the delegation.
+  string delegate = 2;
+  // blocks is how long the consent stays usable, counted from the block that
+  // records it. Bounded by the module's maximum.
+  uint64 blocks = 3;
+}
+message MsgAuthorizeEVMDelegationResponse {
+  uint64 expiry_height = 1;
+}
+
+// MsgClearEVMDelegation removes the sender's EIP-7702 delegation designator.
+message MsgClearEVMDelegation {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+message MsgClearEVMDelegationResponse {}

@@ -4,6 +4,7 @@ import (
 	"cosmossdk.io/log"
 	sdkmath "cosmossdk.io/math"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/ethereum/go-ethereum/common"
 
 	"github.com/qorechain/qorechain-core/x/pqc/types"
 )
@@ -64,6 +65,14 @@ type PQCKeeper interface {
 	SetEVMWindow(ctx sdk.Context, addr sdk.AccAddress, w types.EVMAuthWindow) error
 	DeleteEVMWindow(ctx sdk.Context, addr sdk.AccAddress)
 	ConsumeEVMWindow(ctx sdk.Context, addr sdk.AccAddress, outflow sdkmath.Int) error
+
+	// EIP-7702 delegation consent (v3.2.2). ConsumeEVMDelegationConsent uses
+	// up the account's live consent to exactly this delegate, or refuses; see
+	// x/pqc/types/evm_delegation.go.
+	GetEVMDelegationConsent(ctx sdk.Context, addr sdk.AccAddress) (types.EVMDelegationConsent, bool)
+	SetEVMDelegationConsent(ctx sdk.Context, addr sdk.AccAddress, c types.EVMDelegationConsent) error
+	DeleteEVMDelegationConsent(ctx sdk.Context, addr sdk.AccAddress)
+	ConsumeEVMDelegationConsent(ctx sdk.Context, addr sdk.AccAddress, delegate common.Address) error
 	IncrementPQCVerifications(ctx sdk.Context)
 	IncrementClassicalFallbacks(ctx sdk.Context)
 	IncrementMLKEMOperations(ctx sdk.Context)

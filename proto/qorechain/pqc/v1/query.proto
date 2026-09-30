@@ -17,6 +17,38 @@ service Query {
   rpc EVMWindow(QueryEVMWindowRequest) returns (QueryEVMWindowResponse) {
     option (google.api.http).get = "/qorechain/pqc/v1/evm_window/{address}";
   }
+
+  // EVMDelegationConsent returns an address's EIP-7702 delegation consent, if
+  // any, together with what a client needs to sign the matching authorization
+  // tuple: the account's current delegation and EVM nonce.
+  rpc EVMDelegationConsent(QueryEVMDelegationConsentRequest) returns (QueryEVMDelegationConsentResponse) {
+    option (google.api.http).get = "/qorechain/pqc/v1/evm_delegation_consent/{address}";
+  }
+}
+
+message QueryEVMDelegationConsentRequest {
+  // address is bech32 or 0x-prefixed hex.
+  string address = 1;
+}
+
+message QueryEVMDelegationConsentResponse {
+  // found reports whether a consent is stored; live whether it is still usable
+  // at the current height.
+  bool found = 1;
+  bool live = 2;
+  // delegate is the 0x address the consent names; the zero address means
+  // clearing.
+  string delegate = 3;
+  uint64 granted_height = 4;
+  uint64 expiry_height = 5;
+  // current_delegate is the delegation installed on the account now, empty
+  // when there is none.
+  string current_delegate = 6;
+  // nonce is the account's EVM nonce now. A tuple signed for a sponsored
+  // transaction carries it; one in the account's own type-4 transaction
+  // carries it plus one, because the transaction's own nonce is consumed
+  // first.
+  uint64 nonce = 7;
 }
 
 message QueryEVMWindowRequest {

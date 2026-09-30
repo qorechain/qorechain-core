@@ -1,6 +1,10 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
 
 // GenesisState defines the pqc module's genesis state.
 type GenesisState struct {
@@ -19,6 +23,25 @@ type GenesisState struct {
 	// network's history never had) and the release upgrade handler enables
 	// them at the plan height instead.
 	ProtocolFeatures []string `json:"protocol_features,omitempty"`
+
+	// EVMWindows and EVMDelegationConsents are the live EVM-lane
+	// authorisations. They are short-lived, but an export taken while one is
+	// open must not silently revoke it on import.
+	EVMWindows            []GenesisEVMWindow            `json:"evm_windows,omitempty"`
+	EVMDelegationConsents []GenesisEVMDelegationConsent `json:"evm_delegation_consents,omitempty"`
+}
+
+// GenesisEVMWindow is one account's window in a genesis file.
+type GenesisEVMWindow struct {
+	Address string        `json:"address"`
+	Window  EVMAuthWindow `json:"window"`
+}
+
+// GenesisEVMDelegationConsent is one account's delegation consent in a
+// genesis file.
+type GenesisEVMDelegationConsent struct {
+	Address string               `json:"address"`
+	Consent EVMDelegationConsent `json:"consent"`
 }
 
 // DefaultGenesisState returns the default genesis state.
@@ -81,6 +104,33 @@ func (gs GenesisState) Validate() error {
 		}
 		if !seenIDs[mig.ToAlgorithmID] {
 			return ErrInvalidAlgorithm.Wrapf("migration references unknown target algorithm %d", mig.ToAlgorithmID)
+		}
+	}
+
+	seenWindow := map[string]bool{}
+	for _, w := range gs.EVMWindows {
+		if _, err := sdk.AccAddressFromBech32(w.Address); err != nil {
+			return ErrInvalidEVMWindow.Wrapf("genesis window address %q: %v", w.Address, err)
+		}
+		if seenWindow[w.Address] {
+			return ErrInvalidEVMWindow.Wrapf("duplicate genesis window for %s", w.Address)
+		}
+		seenWindow[w.Address] = true
+		if w.Window.MaxValue.IsNil() || w.Window.UsedValue.IsNil() {
+			return ErrInvalidEVMWindow.Wrapf("genesis window for %s lacks its value bounds", w.Address)
+		}
+	}
+	seenConsent := map[string]bool{}
+	for _, c := range gs.EVMDelegationConsents {
+		if _, err := sdk.AccAddressFromBech32(c.Address); err != nil {
+			return ErrInvalidEVMDelegation.Wrapf("genesis consent address %q: %v", c.Address, err)
+		}
+		if seenConsent[c.Address] {
+			return ErrInvalidEVMDelegation.Wrapf("duplicate genesis consent for %s", c.Address)
+		}
+		seenConsent[c.Address] = true
+		if _, err := ParseDelegate(c.Consent.Delegate); err != nil {
+			return ErrInvalidEVMDelegation.Wrapf("genesis consent for %s: %v", c.Address, err)
 		}
 	}
 

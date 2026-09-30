@@ -22,6 +22,9 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		// unit tests never notice because they call the handlers directly.
 		&MsgOpenEVMWindow{},
 		&MsgCloseEVMWindow{},
+		// EIP-7702 delegation consent and direct clear (v3.2.2).
+		&MsgAuthorizeEVMDelegation{},
+		&MsgClearEVMDelegation{},
 	)
 
 	// PQCHybridSignature is a TX extension option carried in
@@ -47,5 +50,7 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgDisableAlgorithm{}, "pqc/MsgDisableAlgorithm", nil)
 	cdc.RegisterConcrete(&MsgOpenEVMWindow{}, "pqc/MsgOpenEVMWindow", nil)
 	cdc.RegisterConcrete(&MsgCloseEVMWindow{}, "pqc/MsgCloseEVMWindow", nil)
+	cdc.RegisterConcrete(&MsgAuthorizeEVMDelegation{}, "pqc/MsgAuthorizeEVMDelegation", nil)
+	cdc.RegisterConcrete(&MsgClearEVMDelegation{}, "pqc/MsgClearEVMDelegation", nil)
 	cdc.RegisterConcrete(&PQCHybridSignature{}, "pqc/PQCHybridSignature", nil)
 }
