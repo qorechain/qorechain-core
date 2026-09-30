@@ -35,4 +35,9 @@ var (
 	ErrNoEVMWindow        = errors.Register(ModuleName, 26, "no open EVM authorisation window")
 	ErrEVMWindowExhausted = errors.Register(ModuleName, 27, "EVM authorisation window exhausted")
 	ErrInvalidEVMWindow   = errors.Register(ModuleName, 28, "invalid EVM authorisation window")
+
+	// ErrInvalidClassicalKey: a registration's ecdsa_pubkey is not a compressed
+	// secp256k1 key of the signer (QSR-2026-0281). Code 45 keeps clear of the
+	// codes other v3.2.2 fixes add after 28.
+	ErrInvalidClassicalKey = errors.Register(ModuleName, 45, "ecdsa_pubkey is not the signer's compressed secp256k1 key")
 )

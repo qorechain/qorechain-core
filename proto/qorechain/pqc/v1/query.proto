@@ -65,4 +65,8 @@ message PQCAccountView {
   int64 created_at_height = 7;
   bytes migration_public_key = 8;
   uint32 migration_algorithm_id = 9;
+  // classical_key_source says where ecdsa_pubkey comes from: "stored" (the key
+  // given at registration), "auth_account" (nothing was stored, so this is the
+  // account's on-chain public key) or "none" (neither exists yet).
+  string classical_key_source = 10;
 }
