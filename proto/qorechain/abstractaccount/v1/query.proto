@@ -64,4 +64,15 @@ message QueryPermissionSchemaResponse {
   map<string, string> msg_permissions = 3;
   // key_management_msgs are typeURLs that are NEVER delegable to a linked key.
   repeated string key_management_msgs = 4;
+  // lane_rules (schema_version 2 and later) are permission requirements that
+  // depend on a message's content rather than its type, such as a contract
+  // creation through MsgExecuteEVM needing "deploy".
+  repeated LaneRule lane_rules = 5;
+}
+
+// LaneRule states that a message matching condition requires permission.
+message LaneRule {
+  string msg_type_url = 1;
+  string condition = 2;
+  string permission = 3;
 }

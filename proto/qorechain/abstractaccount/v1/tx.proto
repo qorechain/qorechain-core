@@ -9,12 +9,55 @@ import "gogoproto/gogo.proto";
 import "cosmos/base/v1beta1/coin.proto";
 
 // SpendingRule defines spending limits for an abstract account.
+//
+// Every limit is counted per AUTHORISED EXECUTION: one signed MsgExecuteCosmos,
+// one signed MsgExecuteEVM or one authorised SVM execution. Several authorised
+// executions in one outer transaction are each checked on their own; daily
+// limits bound their total per UTC calendar day (a fixed day, not a rolling
+// window).
 message SpendingRule {
   string id = 1 [(gogoproto.customname) = "ID"];
+  // daily_limit bounds the total outflow of one denom per UTC calendar day, in
+  // base units. It applies to every denom that has no denom_limits entry. Zero
+  // means no daily limit.
   int64 daily_limit = 2;
+  // per_tx_limit is the maximum outflow of one denom per authorised execution
+  // (see above), in base units. It applies to every denom that has no
+  // denom_limits entry. Zero means no per-execution limit. What counts as
+  // outflow depends on the lane: the Cosmos lane counts the signed amount; the
+  // SVM lane counts the net decrease of the account's native balance across the
+  // execution; the EVM lane counts msg.value only until v3.2.2 and, from
+  // v3.2.2, the measured outflow of the call (native value, native balance
+  // decrease, bank coins spent and the balance or allowance change of every
+  // listed ERC-20). The name is kept for wire compatibility.
   int64 per_tx_limit = 3;
+  // allowed_denoms lists the denoms the rule's keys may move. Empty means any.
+  // An ERC-20 is listed as "erc20/<contract>".
   repeated string allowed_denoms = 4;
   bool enabled = 5;
+  // allowed_evm_calls (v3.2.2) lists the EVM calls a key bound by this rule may
+  // make with call data, as "0x<target>" (any function of that contract) or
+  // "0x<target>/0x<selector>" (that function only). Without an entry a
+  // rule-bound key may only send value, deploy (with the deploy permission)
+  // and move the ERC-20 tokens listed in allowed_denoms. Allowlisting a target
+  // trusts every argument of the calls made to it, recipients included. NFTs
+  // (ERC-721, ERC-1155) move only through contracts listed here and are not
+  // capped.
+  repeated string allowed_evm_calls = 6;
+  // denom_limits (v3.2.2) sets per-denom limits that replace per_tx_limit and
+  // daily_limit for the denoms they name, with amounts as decimal integers so
+  // 18-decimal tokens can be capped. A denom without an entry keeps the rule's
+  // per_tx_limit and daily_limit.
+  repeated DenomLimit denom_limits = 7;
+}
+
+// DenomLimit is a per-denom limit of a SpendingRule (v3.2.2). The amounts are
+// decimal integers in the denom's base units; empty or "0" means no limit of
+// that kind.
+message DenomLimit {
+  string denom = 1;
+  string per_tx_limit = 2;
+  string daily_limit = 3;
 }
 
 // Msg defines the abstractaccount module's transaction service.
@@ -76,10 +119,11 @@ message MsgRevokeAuthenticatorResponse {}
 // authenticator (v3.1.85). The relayer submits + pays fees; the authenticator
 // (scheme,pubkey) signs the domain-separated sign-bytes binding chain-id, the
 // canonical account, the pubkey, to/value/data and the account's expected EVM
-// nonce (replay protection — the nonce must equal the account's current EVM
-// nonce, and executing the call increments it, so a signature cannot be replayed).
-// The chain resolves the authenticator, checks the "evm" permission + SpendingRule
-// against `value`, then executes the call FROM the canonical account's EVM address.
+// nonce (replay protection: the nonce must equal the linked key's current
+// authenticator sequence, which a successful call increments).
+// The chain resolves the authenticator, checks the "evm" permission ("deploy"
+// for a contract creation from v3.2.2) and the SpendingRule, then executes the
+// call FROM the canonical account's EVM address.
 message MsgExecuteEVM {
   option (cosmos.msg.v1.signer) = "relayer";
   string relayer = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
@@ -91,7 +135,7 @@ message MsgExecuteEVM {
   string value = 7;     // native QOR amount in wei (aqor), decimal string
   bytes data = 8;       // EVM calldata
   uint64 gas_limit = 9;
-  uint64 nonce = 10;    // MUST equal the account's current EVM nonce
+  uint64 nonce = 10;    // MUST equal the linked key's current authenticator sequence
 }
 message MsgExecuteEVMResponse {
   bool success = 1;

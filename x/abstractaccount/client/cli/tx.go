@@ -230,7 +230,25 @@ func CmdUpdateSpendingRules() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "update-rules [account-address] [rules-json]",
 		Short: "Update spending rules (rules-json: array of SpendingRule objects)",
-		Args:  cobra.ExactArgs(2),
+		Long: `Replace the account's spending rules with rules-json, an array of SpendingRule
+objects. The rules replace the stored ones as a whole: a field left out is removed.
+
+Limits count per authorised execution (one signed execute message or SVM
+execution); daily limits bound the total per UTC calendar day.
+
+From v3.2.2 a rule may also carry:
+  allowed_evm_calls  EVM calls a rule-bound key may make with call data, as
+                     "0x<target>" or "0x<target>/0x<selector>". Listing a target
+                     trusts every argument of the calls made to it.
+  denom_limits       per-denom limits as decimal strings, for tokens whose amounts
+                     do not fit per_tx_limit / daily_limit.
+
+Example:
+  [{"id":"daily","enabled":true,"daily_limit":5000000,
+    "allowed_denoms":["uqor","erc20/0xTOKEN"],
+    "allowed_evm_calls":["0xROUTER/0x38ed1739"],
+    "denom_limits":[{"denom":"erc20/0xTOKEN","per_tx_limit":"100000000000000000000","daily_limit":"500000000000000000000"}]}]`,
+		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {

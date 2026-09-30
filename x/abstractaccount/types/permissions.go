@@ -26,12 +26,48 @@ const (
 	PermSVM      = "svm"      // SVM program execution
 	PermAMM      = "amm"      // AMM swaps + liquidity
 	PermIBC      = "ibc"      // IBC transfer
-	PermDeploy   = "deploy"   // code / program upload (wasm store, evm/svm deploy)
+	// PermDeploy covers code and program upload: wasm store and instantiate,
+	// svm deploy, and on the EVM lane a contract creation FROM the account's own
+	// address (MsgExecuteEVM with an empty `to`, or any call that advances the
+	// account's EVM nonce, from v3.2.2). A CALL to a factory contract that
+	// deploys code is an "evm" action: the new contract is the factory's, not
+	// the account's.
+	PermDeploy = "deploy"
 
 	// PermSchemaVersion is bumped whenever the taxonomy or the mapping below
 	// changes, so clients can detect drift against the on-chain schema query.
 	PermSchemaVersion = "1"
+	// PermSchemaVersionLaneRules is the schema version the permission-schema
+	// query reports once the v3.2.2 spending policy is active: the taxonomy is
+	// unchanged, and LaneRules adds the content-dependent requirements.
+	PermSchemaVersionLaneRules = "2"
 )
+
+// MsgExecuteEVMTypeURL is the type URL of the authenticator EVM lane.
+const MsgExecuteEVMTypeURL = "/qorechain.abstractaccount.v1.MsgExecuteEVM"
+
+// LaneRules returns the permission requirements that depend on a message's
+// content rather than its type (schema version 2). They apply from the v3.2.2
+// spending policy on.
+func LaneRules() []*LaneRule {
+	return []*LaneRule{
+		{
+			MsgTypeUrl: MsgExecuteEVMTypeURL,
+			Condition:  "to is empty (contract creation from the account's address)",
+			Permission: PermDeploy,
+		},
+		{
+			MsgTypeUrl: MsgExecuteEVMTypeURL,
+			Condition:  "the call advances the account's EVM nonce (a contract created from the account's address)",
+			Permission: PermDeploy,
+		},
+		{
+			MsgTypeUrl: MsgExecuteEVMTypeURL,
+			Condition:  "to is the account itself and the account's code is an EIP-7702 delegation",
+			Permission: PermAll,
+		},
+	}
+}
 
 // AllPermissions returns the canonical permission vocabulary (for the schema
 // query and for client-side validation of a requested scope).
@@ -74,7 +110,9 @@ var msgPermission = map[string]string{
 	"/cosmos.gov.v1beta1.MsgVote":     PermVote,
 	"/cosmos.gov.v1beta1.MsgVoteWeighted": PermVote,
 	"/cosmos.gov.v1beta1.MsgDeposit":  PermVote,
-	// EVM
+	// EVM. A contract creation would need PermDeploy if this map were ever used
+	// to authorise a MsgEthereumTx; the authenticator EVM lane (MsgExecuteEVM)
+	// applies that rule itself, see LaneRules.
 	"/cosmos.evm.vm.v1.MsgEthereumTx": PermEVM,
 	// CosmWasm
 	"/cosmwasm.wasm.v1.MsgExecuteContract": PermWasm,

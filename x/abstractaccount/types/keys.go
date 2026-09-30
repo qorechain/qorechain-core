@@ -29,7 +29,22 @@ var (
 	// sequence itself: the signed nonce must equal the stored value, which is
 	// bumped by one on each successful execution.
 	AuthNoncePrefix = []byte("aa/authnonce/")
+
+	// SpendAccumIntPrefix keys the daily-spend accumulator of a denom that has
+	// its own SpendingRule.DenomLimits entry (v3.2.2). The key layout after the
+	// prefix is SpendAccumKey's; the value is the decimal string of the amount,
+	// because token amounts do not fit the legacy uint64 bucket. It is a separate
+	// prefix so the legacy buckets keep their bytes and their export format.
+	SpendAccumIntPrefix = []byte("aa/spendx/")
 )
+
+// SpendAccumIntKey builds the arbitrary-precision daily-spend key for
+// (account, scope, denom, UTC day), with SpendAccumKey's layout.
+func SpendAccumIntKey(account string, scope []byte, denom string, dayUnix int64) []byte {
+	legacy := SpendAccumKey(account, scope, denom, dayUnix)
+	key := append([]byte{}, SpendAccumIntPrefix...)
+	return append(key, legacy[len(SpendAccumPrefix):]...)
+}
 
 // AuthIndexKey builds the reverse-index key for a (scheme, pubkey) authenticator.
 func AuthIndexKey(scheme string, pubkey []byte) []byte {
