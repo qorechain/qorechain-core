@@ -96,6 +96,10 @@ message QueryQuoteExactInRequest {
 message QueryQuoteExactInResponse {
   string amount_out = 1;
   string fee = 2;
+  // impact_bps is how far the quoted execution price falls below the pool's
+  // current marginal price, in basis points (v3.2.2; 0 before it). A trade
+  // over max_swap_impact_bps is refused with ErrPriceImpactExceeded instead.
+  uint32 impact_bps = 3;
 }
 
 message QueryQuoteExactOutRequest {
@@ -106,4 +110,6 @@ message QueryQuoteExactOutRequest {
 message QueryQuoteExactOutResponse {
   string amount_in = 1;
   string fee = 2;
+  // impact_bps: see QueryQuoteExactInResponse.
+  uint32 impact_bps = 3;
 }

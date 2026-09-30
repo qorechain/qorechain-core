@@ -16,6 +16,11 @@ var (
 	BurnStatsPrefix   = []byte("burn/stats/") // reserved for future per-source stats indexing
 	MilestoneStateKey = []byte("burn/milestone-state")
 	BlockTxCountKey   = []byte("burn/block-tx-count")
+	// AMMPendingProtocolFeeKey holds the uqor the AMM has routed to the fee
+	// collector as protocol fees since the last fee split (v3.2.2). The split
+	// in the same block's EndBlocker consumes and deletes it, so it is empty
+	// between blocks and in every export.
+	AMMPendingProtocolFeeKey = []byte("burn/amm-pending-uqor")
 )
 
 // BondDenom is the chain's base denomination, the only one this module moves.

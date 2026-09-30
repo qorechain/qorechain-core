@@ -12,10 +12,16 @@ type Params struct {
 	// Default 30 = 0.30%.
 	SwapFeeBps uint32 `json:"swap_fee_bps"`
 
-	// ProtocolFeeBps is the portion of the swap fee that is forwarded to the
-	// burn/treasury via x/burn (BurnSourceAMM). Must be <= SwapFeeBps.
-	// The remaining (SwapFeeBps - ProtocolFeeBps) accrues to liquidity providers.
+	// ProtocolFeeBps is the portion of the swap fee that leaves the pool, as
+	// basis points of the swap input. Must be <= SwapFeeBps. The remaining
+	// (SwapFeeBps - ProtocolFeeBps) accrues to liquidity providers.
 	// Default 10 = 0.10%.
+	//
+	// Collected from the v3.2.2 plan height (before it the whole fee stayed in
+	// the pool). A uqor protocol fee goes to the fee collector and is split with
+	// the block's fees (burn, treasury, light nodes, validators and delegators),
+	// its burned part recorded under BurnSourceAMM; a protocol fee in any other
+	// denomination goes to the community pool.
 	ProtocolFeeBps uint32 `json:"protocol_fee_bps"`
 
 	// MinLiquidity is the minimum reserve value required to create a pool,
@@ -33,8 +39,15 @@ type Params struct {
 	// Burned via BurnSourceAMM. Default 100_000_000 (100 QOR).
 	PoolCreationFee math.Int `json:"pool_creation_fee"`
 
-	// MaxSwapImpactBps caps the slippage allowed in a single swap relative to the
-	// pre-swap mid-price, in basis points. Default 500 = 5.00%. Zero disables.
+	// MaxSwapImpactBps caps the price impact of a single swap, in basis points.
+	// Default 500 = 5.00%. Zero disables. Enforced from the v3.2.2 plan height:
+	// a swap whose execution price (fee excluded) is more than the cap below
+	// the pool's marginal price just before it is refused, and a swap whose
+	// caller set no bound (min_out 0, or max_in covering the input reserve) is
+	// also refused if it is more than the cap below the price the pool had at
+	// its first swap in the block. Splitting a trade gets around the per-trade
+	// part by design; it protects a trader from their own oversized trade and
+	// an unbounded one from a trade placed in front of it, not LPs.
 	MaxSwapImpactBps uint32 `json:"max_swap_impact_bps"`
 
 	// Enabled is the module-wide kill switch. When false, all state-mutating
