@@ -314,6 +314,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		ante.NewIncrementSequenceDecorator(options.AccountKeeper),
 		// Burn module TX counter — counts transactions for milestone burn tracking
 		NewBurnTxCountDecorator(options.BurnKeeper),
+		// failed_tx burn channel, ante half (after DeductFee): records the fee;
+		// the post handler takes it back out when the messages succeed.
+		// It records what DeductFee charged, so it runs the same fee checker.
+		burnmod.NewBurnFailedFeeDecorator(options.BurnKeeper, evmante.NewDynamicFeeChecker(fmParams)),
 		// IBC redundant relay check — prevents relayers from wasting fees
 		ibcante.NewRedundantRelayDecorator(options.IBCKeeper),
 		// Track cumulative gas wanted for EIP-1559 base fee calculation

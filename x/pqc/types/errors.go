@@ -42,4 +42,8 @@ var (
 	ErrInvalidEVMDelegation    = errors.Register(ModuleName, 61, "invalid EIP-7702 delegation request")
 	ErrEVMDelegatedActorWindow = errors.Register(ModuleName, 62, "delegated account has no window covering this action")
 	ErrEVMLaneOnly             = errors.Register(ModuleName, 63, "an Ethereum transaction executes only on the EVM lane")
+	// ErrInvalidClassicalKey: a registration's ecdsa_pubkey is not a compressed
+	// secp256k1 key of the signer (QSR-2026-0281). Code 45 keeps clear of the
+	// codes other v3.2.2 fixes add after 28.
+	ErrInvalidClassicalKey = errors.Register(ModuleName, 45, "ecdsa_pubkey is not the signer's compressed secp256k1 key")
 )

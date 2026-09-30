@@ -191,3 +191,23 @@ func (msg MsgBridgeAttestation) SignBytesForChain(chainID string) []byte {
 	}
 	return out
 }
+
+// ValidateBasic checks the new limits with the same rule genesis and the
+// stored-record validation use.
+func (msg MsgUpdateCircuitBreakerLimits) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Admin); err != nil {
+		return ErrUnauthorized.Wrapf("invalid admin address: %v", err)
+	}
+	if err := ValidateChainID(msg.ChainId); err != nil {
+		return err
+	}
+	return validateLimitPair(msg.MaxSingleTransfer, msg.DailyLimit)
+}
+
+func (msg MsgUpdateCircuitBreakerLimits) GetSigners() []sdk.AccAddress {
+	addr, err := sdk.AccAddressFromBech32(msg.Admin)
+	if err != nil {
+		return nil
+	}
+	return []sdk.AccAddress{addr}
+}

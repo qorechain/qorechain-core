@@ -1,0 +1,61 @@
+syntax = "proto3";
+package qorechain.inflation.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/inflation/types";
+
+import "google/api/annotations.proto";
+
+// Query defines the inflation module's read-only query service.
+//
+// It exists so that anyone can check emission against its cap without reading
+// logs: the cap, what has been minted so far, and when the next epoch mints.
+service Query {
+  // Params returns the inflation parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/inflation/v1/params";
+  }
+  // EpochInfo returns the epoch state, cumulative emission and the cap.
+  rpc EpochInfo(QueryEpochInfoRequest) returns (QueryEpochInfoResponse) {
+    option (google.api.http).get = "/qorechain/inflation/v1/epoch_info";
+  }
+}
+
+message QueryParamsRequest {}
+
+// TierView is one year's rate in the schedule; the rate is a decimal string.
+message TierView {
+  uint64 year = 1;
+  string inflation_rate = 2;
+}
+
+// QueryParamsResponse mirrors the stored parameters; amounts are uqor strings.
+message QueryParamsResponse {
+  repeated TierView schedule = 1;
+  int64 epoch_length = 2;
+  bool enabled = 3;
+  // emission_mode is "schedule" or "fixed" (the effective mode).
+  string emission_mode = 4;
+  string fixed_epoch_emission = 5;
+  // max_total_emission is the cap on cumulative minting; "0" means uncapped.
+  string max_total_emission = 6;
+}
+
+message QueryEpochInfoRequest {}
+
+message QueryEpochInfoResponse {
+  uint64 current_epoch = 1;
+  uint64 current_year = 2;
+  // block_start is the height the current epoch started at.
+  int64 block_start = 3;
+  // next_epoch_height is the first height at which the next epoch can mint.
+  int64 next_epoch_height = 4;
+  // total_minted is everything this module has minted, in uqor.
+  string total_minted = 5;
+  // max_total_emission is the cap; "0" means uncapped.
+  string max_total_emission = 6;
+  // remaining_emission is max_total_emission - total_minted, floored at zero;
+  // empty when there is no cap.
+  string remaining_emission = 7;
+  // current_inflation_rate is the schedule rate for the current year.
+  string current_inflation_rate = 8;
+}

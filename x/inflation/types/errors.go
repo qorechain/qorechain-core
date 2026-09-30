@@ -7,4 +7,7 @@ var (
 	ErrModuleDisabled     = errors.Register(ModuleName, 3, "inflation module is disabled")
 	ErrMintFailed         = errors.Register(ModuleName, 4, "failed to mint epoch emission")
 	ErrInvalidEpochLength = errors.Register(ModuleName, 5, "invalid epoch length")
+	// ErrEmissionCapRemoved is returned when an update would drop or undercut
+	// the stored emission cap (QSR-2026-0045).
+	ErrEmissionCapRemoved = errors.Register(ModuleName, 6, "update would remove or lower the emission cap below what is minted")
 )

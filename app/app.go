@@ -694,6 +694,7 @@ func NewQoreChainApp(
 	// Fixes carried in patched dependencies read their on/off state through
 	// the protocol-feature record; no-op in the community build.
 	app.wireDependencyGates()
+	app.wireModuleGates()
 
 	// --- Initialize FairBlock module (via factory, v1.2.0 — threshold IBE) ---
 	fairblockStoreKey := storetypes.NewKVStoreKey(fairblocktypes.StoreKey)
@@ -1009,6 +1010,12 @@ func (app *QoreChainApp) setAnteHandler(
 		panic(err)
 	}
 	app.SetAnteHandler(anteHandler)
+
+	// The post handler runs after every transaction's messages. Its only job is
+	// the post half of the failed_tx burn channel (see x/burn/ante.go), which
+	// does nothing before the channel's protocol feature is on; baseapp adds no
+	// events or gas for a post handler that does nothing.
+	app.SetPostHandler(sdk.ChainPostDecorators(burnmod.NewBurnFailedFeePostDecorator(app.BurnKeeper)))
 }
 
 // RegisterUpgradeHandlers registers any on-chain upgrade handlers.

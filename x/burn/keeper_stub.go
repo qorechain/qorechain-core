@@ -33,6 +33,8 @@ func (k *StubKeeper) GetBurnStats(_ sdk.Context) types.BurnStats             { r
 func (k *StubKeeper) GetBurnRecords(_ sdk.Context, _ int) []types.BurnRecord { return nil }
 func (k *StubKeeper) DistributeFees(_ sdk.Context) error                     { return nil }
 func (k *StubKeeper) IncrementBlockTxCount(_ sdk.Context)                    {}
+func (k *StubKeeper) RecordTxFee(_ sdk.Context, _ math.Int) bool             { return false }
+func (k *StubKeeper) ReleaseTxFee(_ sdk.Context, _ math.Int)                 {}
 func (k *StubKeeper) CheckMilestoneBurn(_ sdk.Context, _ uint64) error       { return nil }
 func (k *StubKeeper) GetMilestoneState(_ sdk.Context) types.MilestoneState {
 	return types.DefaultMilestoneState()

@@ -9,9 +9,9 @@ import (
 // The MsgRegisterSidechain, MsgRegisterPaychain, MsgAnchorState,
 // MsgRouteTransaction, MsgUpdateLayerStatus and MsgChallengeAnchor messages
 // (and their responses) are generated from
-// proto/qorechain/multilayer/v1/tx.proto (see tx.pb.go). MsgUpdateParams
-// remains hand-written (embeds Params; migrated to proto in a later pass).
-// The ValidateBasic / GetSigners methods below are attached to the generated
+// proto/qorechain/multilayer/v1/tx.proto (see tx.pb.go), and so is
+// MsgUpdateParams, which spells out the Params fields (see ToParams). The
+// ValidateBasic / GetSigners methods below are attached to the generated
 // message types.
 
 const (
@@ -135,24 +135,30 @@ func (msg MsgChallengeAnchor) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{challenger}
 }
 
-// MsgUpdateParams updates module parameters (governance only). Hand-written
-// (embeds Params); migrated to proto in a later pass.
-type MsgUpdateParams struct {
-	Authority string `json:"authority"`
-	Params    Params `json:"params"`
+// ToParams converts the message into the module's parameter struct.
+func (msg MsgUpdateParams) ToParams() Params {
+	return Params{
+		MaxSidechains:              msg.MaxSidechains,
+		MaxPaychains:               msg.MaxPaychains,
+		MinAnchorInterval:          msg.MinAnchorInterval,
+		MaxAnchorInterval:          msg.MaxAnchorInterval,
+		DefaultChallengePeriod:     msg.DefaultChallengePeriod,
+		MinSidechainStake:          msg.MinSidechainStake,
+		MinPaychainStake:           msg.MinPaychainStake,
+		RoutingEnabled:             msg.RoutingEnabled,
+		RoutingConfidenceThreshold: msg.RoutingConfidenceThreshold,
+		CrossLayerFeeBundling:      msg.CrossLayerFeeBundling,
+	}
 }
 
 func (msg MsgUpdateParams) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
 		return fmt.Errorf("invalid authority address: %w", err)
 	}
-	return msg.Params.Validate()
+	return msg.ToParams().ValidateUpdate()
 }
 
 func (msg MsgUpdateParams) GetSigners() []sdk.AccAddress {
 	authority, _ := sdk.AccAddressFromBech32(msg.Authority)
 	return []sdk.AccAddress{authority}
 }
-
-// MsgUpdateParamsResponse is the response for MsgUpdateParams.
-type MsgUpdateParamsResponse struct{}
