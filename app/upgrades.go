@@ -84,6 +84,11 @@ const UpgradeNameV3_1_98 = "v3.1.98"
 // there is a no-op, and the version map merge adds only what is missing.
 const UpgradeNameV3_2_0 = "v3.2.0"
 
+// UpgradeNameV3_2_2 is the coordinated governance upgrade for the release that
+// carries the consensus fixes from the 2026-09-29 bug-bounty re-verification
+// (see ReleaseV3_2_2ProtocolFeatures). v3.2.1 was node-local and had no plan.
+const UpgradeNameV3_2_2 = "v3.2.2"
+
 // relayerFriendlyTxPerMinute is the per-sender ceiling the release sets, in
 // transactions per 30-block window. The module ships a default of 10, which is
 // a wallet's ceiling, not a relayer's.
@@ -180,7 +185,7 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 		// height, and never before: the patched code asks the application
 		// whether the feature is enabled, and below this height the answer
 		// is no, so history replays byte-identically.
-		for _, f := range pqctypes.AllProtocolFeatures {
+		for _, f := range pqctypes.ReleaseV3_2_0ProtocolFeatures {
 			if err := app.PQCKeeper.EnableProtocolFeature(sdkCtx, f); err != nil {
 				return fromVM, err
 			}
@@ -237,6 +242,8 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 	}
 	app.UpgradeKeeper.SetUpgradeHandler(UpgradeNameV3_1_98, releaseHandler)
 	app.UpgradeKeeper.SetUpgradeHandler(UpgradeNameV3_2_0, releaseHandler)
+
+	app.UpgradeKeeper.SetUpgradeHandler(UpgradeNameV3_2_2, app.upgradeV3_2_2)
 }
 
 // mergeMissingModuleVersions returns fromVM with an entry for every module in
