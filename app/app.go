@@ -915,6 +915,10 @@ func NewQoreChainApp(
 	// whatever the chain's initial height (see executingGenesis).
 	app.SetInitChainer(app.initChainerFlaggingGenesis)
 
+	// Every store is mounted by now: give the EVM keeper all of them, and
+	// refuse to start if one is missing (QSR-2026-0520).
+	app.completeEVMStoreKeys()
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
