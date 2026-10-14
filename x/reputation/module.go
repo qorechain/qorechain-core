@@ -82,7 +82,13 @@ func (AppModule) IsAppModule()        {}
 func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, data json.RawMessage) {
 	var gs types.GenesisState
 	if err := json.Unmarshal(data, &gs); err != nil {
-		panic(fmt.Sprintf("failed to unmarshal reputation genesis state: %v", err))
+		// module.HasGenesis has no error return, so this still stops the
+		// node, but with the cause wrapped (errors.As finds the JSON error)
+		// and a pointer to the check that catches it before start
+		// (QSR-2026-0511). The integer fields are JSON numbers, not the
+		// quoted strings proto-JSON uses for 64-bit integers.
+		panic(fmt.Errorf("failed to unmarshal %s genesis state (64-bit integers are JSON numbers here, not quoted strings; "+
+			"run `qorechaind genesis validate` to check the file before starting): %w", types.ModuleName, err))
 	}
 	am.keeper.InitGenesis(ctx, gs)
 }
