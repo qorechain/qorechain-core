@@ -349,6 +349,9 @@ func NewQoreChainApp(
 	// QoreChain's unified qor1/0x/svm identity. Safe/consensus-neutral: it only
 	// teaches the codec a type; no state-machine or genesis change.
 	evmcryptocodec.RegisterInterfaces(app.interfaceRegistry)
+	// The same key types on the legacy amino codecs, which gas simulation and
+	// key export use (QSR-2026-0491). Node-local; see RegisterEthKeysOnLegacyAmino.
+	RegisterEthKeysOnLegacyAmino(app.legacyAmino)
 
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
