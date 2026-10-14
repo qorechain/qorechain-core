@@ -154,8 +154,8 @@ func TestV323PqcIntegrityFeatures(t *testing.T) {
 		}
 		seen[f] = true
 	}
-	if len(seen) != 5 {
-		t.Fatalf("got %d features, want 5", len(seen))
+	if len(seen) != 6 {
+		t.Fatalf("got %d features, want 6", len(seen))
 	}
 	for _, f := range concatFeatures(ReleaseV3_2_0ProtocolFeatures, ReleaseV3_2_2ProtocolFeatures) {
 		if seen[f] {

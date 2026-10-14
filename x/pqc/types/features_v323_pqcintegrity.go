@@ -22,6 +22,10 @@ const (
 	FeaturePQCAlgorithmGovernanceGuards = "pqc-algorithm-governance-guards"
 	// A transaction carries at most one hybrid signature extension.
 	FeaturePQCHybridSingleExtension = "pqc-hybrid-single-extension"
+	// Under HybridRequired, a keyless account cannot pass the ante by
+	// attaching a hybrid extension that has no registered key to verify
+	// against; only a registration may pass, as with no extension at all.
+	FeaturePQCKeylessExtensionClosed = "pqc-keyless-extension-closed"
 )
 
 // V323PqcIntegrityFeatures is this area's share of the v3.2.3 release set.
@@ -31,4 +35,5 @@ var V323PqcIntegrityFeatures = []string{
 	FeaturePQCRotationReplayGuard,
 	FeaturePQCAlgorithmGovernanceGuards,
 	FeaturePQCHybridSingleExtension,
+	FeaturePQCKeylessExtensionClosed,
 }
