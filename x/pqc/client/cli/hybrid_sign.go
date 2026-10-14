@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -39,6 +40,9 @@ func pqcSignerCommands() []*cobra.Command {
 // (SDK / @qorechain/wallet-adapter, address-bound) is the canonical ecosystem
 // derivation; "bridge" (@qorechain/chain-bridge, faucet-api / dashboard backends)
 // is the legacy mnemonic-only derivation. See [[chain-pqc-standards-migration]].
+//
+// Neither derivation takes the BIP-39 passphrase: the words alone reproduce the
+// post-quantum key (QSR-2026-0401).
 func deriveDilithiumSeed(derivation, address, mnemonic string) ([]byte, error) {
 	switch derivation {
 	case "bridge", "mnemonic-only":
@@ -86,6 +90,7 @@ registered on-chain. The mnemonic is read from STDIN. Stores the private key und
 			// bound) vs "bridge" (@qorechain/chain-bridge, faucet-api / dashboard
 			// backends — mnemonic only).
 			derivation, _ := cmd.Flags().GetString("derivation")
+			warnLegacyDerivation(cmd, derivation)
 			seed, err := deriveDilithiumSeed(derivation, address, mnemonic)
 			if err != nil {
 				return err
@@ -94,11 +99,8 @@ registered on-chain. The mnemonic is read from STDIN. Stores the private key und
 			if err != nil {
 				return fmt.Errorf("keygen from seed: %w", err)
 			}
-			dir := pqcKeyDir(clientCtx.HomeDir)
-			if err := os.MkdirAll(dir, 0o700); err != nil {
-				return err
-			}
-			if err := os.WriteFile(pqcKeyPath(clientCtx.HomeDir, name), []byte(hex.EncodeToString(sk)), 0o600); err != nil {
+			force, _ := cmd.Flags().GetBool(flagForce)
+			if err := storeNewPQCKey(cmd, clientCtx.HomeDir, name, sk, force); err != nil {
 				return err
 			}
 			fmt.Printf("recovered Dilithium-5 private key: %s\n", pqcKeyPath(clientCtx.HomeDir, name))
@@ -106,9 +108,75 @@ registered on-chain. The mnemonic is read from STDIN. Stores the private key und
 			return nil
 		},
 	}
-	cmd.Flags().String("derivation", "adapter", "seed derivation: adapter (shake256(\"qorechain:pqc:v1|addr|mnemonic\"), SDK/wallet-adapter) | bridge (shake256(mnemonic), chain-bridge/faucet-api)")
+	cmd.Flags().String("derivation", "adapter", "seed derivation: adapter (shake256(\"qorechain:pqc:v1|addr|mnemonic\"), SDK/wallet-adapter) | bridge (deprecated: shake256(mnemonic), chain-bridge/faucet-api)")
+	cmd.Flags().Bool(flagForce, false, "replace an existing key file of this name, keeping the old one as <name>.dilithium.bak-<unix-time>")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
+}
+
+const flagForce = "force"
+
+// warnLegacyDerivation flags the mnemonic-only "bridge" derivation. It gives
+// every address of a mnemonic the same post-quantum key and remains only so
+// keys registered with it can be recovered and rotated away (QSR-2026-0401).
+func warnLegacyDerivation(cmd *cobra.Command, derivation string) {
+	if derivation == "bridge" || derivation == "mnemonic-only" {
+		fmt.Fprintln(cmd.ErrOrStderr(), "WARNING: the bridge (mnemonic-only) derivation is deprecated: it gives every "+
+			"address of a mnemonic the same post-quantum key. Rotate to the adapter derivation with "+
+			"`tx pqc rotate-key --old-derivation bridge --new-derivation adapter`.")
+	}
+}
+
+// storeNewPQCKey writes a private key under <home>/pqc/<name>.dilithium without
+// ever silently replacing one. A registered key that is overwritten is lost
+// for good: registration is one-shot and rotation needs the old key
+// (QSR-2026-0563). With force the existing file is first renamed to a
+// timestamped backup.
+func storeNewPQCKey(cmd *cobra.Command, home, name string, sk []byte, force bool) error {
+	if err := os.MkdirAll(pqcKeyDir(home), 0o700); err != nil {
+		return err
+	}
+	path := pqcKeyPath(home, name)
+	if _, err := os.Lstat(path); err == nil {
+		if !force {
+			return fmt.Errorf("%s already exists; if that key is registered on-chain, replacing it loses the "+
+				"account's post-quantum key for good. Pick another name, or pass --%s to keep it as a backup "+
+				"and write the new key", path, flagForce)
+		}
+		backup := fmt.Sprintf("%s.bak-%d", path, time.Now().Unix())
+		if _, err := os.Lstat(backup); err == nil {
+			return fmt.Errorf("backup %s already exists; retry in a second", backup)
+		}
+		if err := os.Rename(path, backup); err != nil {
+			return fmt.Errorf("back up %s: %w", path, err)
+		}
+		fmt.Fprintf(cmd.ErrOrStderr(), "kept the previous key as %s\n", backup)
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+	return writeKeyFileSync(path, []byte(hex.EncodeToString(sk)))
+}
+
+// proofOfPossession signs the registration proof with a local key and checks
+// it against the public key being registered, so a mismatched key file is
+// caught before anything is broadcast.
+func proofOfPossession(home, keyName, chainID string, algo types.AlgorithmID, sender string, pub []byte) ([]byte, error) {
+	if algo != types.AlgorithmDilithium5 {
+		return nil, fmt.Errorf("--%s signs with ML-DSA-87 (dilithium5) keys only", flagPQCKey)
+	}
+	sk, err := loadPQCPrivKey(home, keyName)
+	if err != nil {
+		return nil, err
+	}
+	bz := types.ProofOfPossessionSignBytes(chainID, uint32(algo), sender, pub)
+	sig, err := qpqc.MLDSA87.Sign(sk, bz)
+	if err != nil {
+		return nil, fmt.Errorf("proof of possession: %w", err)
+	}
+	if !qpqc.MLDSA87.Verify(pub, bz, sig) {
+		return nil, fmt.Errorf("the key %q does not match the public key being registered", keyName)
+	}
+	return sig, nil
 }
 
 func pqcKeyDir(home string) string { return filepath.Join(home, "pqc") }
@@ -137,16 +205,18 @@ then sign transactions with ` + "`tx pqc cosign`" + `.`,
 				return err
 			}
 			name := args[0]
+			force, _ := cmd.Flags().GetBool(flagForce)
+			path := pqcKeyPath(clientCtx.HomeDir, name)
+			if _, err := os.Lstat(path); err == nil && !force {
+				return fmt.Errorf("%s already exists; if that key is registered on-chain, replacing it loses the "+
+					"account's post-quantum key for good. Pick another name, or pass --%s to keep it as a backup "+
+					"and write a new key", path, flagForce)
+			}
 			pk, sk, err := qpqc.MLDSA87.Keygen()
 			if err != nil {
 				return fmt.Errorf("dilithium keygen: %w", err)
 			}
-			dir := pqcKeyDir(clientCtx.HomeDir)
-			if err := os.MkdirAll(dir, 0o700); err != nil {
-				return err
-			}
-			path := pqcKeyPath(clientCtx.HomeDir, name)
-			if err := os.WriteFile(path, []byte(hex.EncodeToString(sk)), 0o600); err != nil {
+			if err := storeNewPQCKey(cmd, clientCtx.HomeDir, name, sk, force); err != nil {
 				return err
 			}
 			fmt.Printf("stored Dilithium-5 private key: %s\n", path)
@@ -155,6 +225,7 @@ then sign transactions with ` + "`tx pqc cosign`" + `.`,
 			return nil
 		},
 	}
+	cmd.Flags().Bool(flagForce, false, "replace an existing key file of this name, keeping the old one as <name>.dilithium.bak-<unix-time>")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
@@ -501,6 +572,7 @@ the rotation tx is cosigned (hybrid) with the old key so it passes the PQC ante.
 
 			// 1. Recover the OLD (currently-registered) key.
 			oldDeriv, _ := cmd.Flags().GetString("old-derivation")
+			warnLegacyDerivation(cmd, oldDeriv)
 			oldSeed, err := deriveDilithiumSeed(oldDeriv, address, mnemonic)
 			if err != nil {
 				return fmt.Errorf("old key: %w", err)
@@ -519,6 +591,9 @@ the rotation tx is cosigned (hybrid) with the old key so it passes the PQC ante.
 				}
 			} else {
 				newDeriv, _ := cmd.Flags().GetString("new-derivation")
+				if newDeriv == "bridge" || newDeriv == "mnemonic-only" {
+					return fmt.Errorf("refusing to rotate onto the deprecated bridge (mnemonic-only) derivation; use adapter or --new-random")
+				}
 				newSeed, derr := deriveDilithiumSeed(newDeriv, address, mnemonic)
 				if derr != nil {
 					return fmt.Errorf("new key: %w", derr)

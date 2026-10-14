@@ -47,10 +47,12 @@ func GetCmdRegisterPQCKey() *cobra.Command {
 		Long: `Register a post-quantum cryptographic key for your account.
 This is the legacy command that defaults to Dilithium-5. Use 'register-key-v2' for explicit algorithm selection.
 
-Key types: hybrid, pqc_only, classical_only
+Key types: hybrid, pqc_only
   - hybrid: Both PQC and ECDSA keys (recommended)
   - pqc_only: Only PQC key, no classical fallback
-  - classical_only: Only ECDSA key (no PQC protection)`,
+
+classical_only is refused: it registers no post-quantum key, and on a chain
+that requires the hybrid signature the account could never sign again.`,
 		Example: `  # Register a hybrid Dilithium-5 key (recommended)
   qorechaind tx pqc register-key <dilithium5-pubkey-hex> hybrid --from mykey
 
@@ -69,8 +71,8 @@ Key types: hybrid, pqc_only, classical_only
 			}
 
 			keyType := args[1]
-			if keyType != types.KeyTypeHybrid && keyType != types.KeyTypePQCOnly && keyType != types.KeyTypeClassicalOnly {
-				return fmt.Errorf("invalid key type: %s (must be hybrid, pqc_only, or classical_only)", keyType)
+			if err := checkRegisterKeyType(keyType); err != nil {
+				return err
 			}
 
 			msg := &types.MsgRegisterPQCKey{
@@ -102,7 +104,12 @@ Supported algorithms:
   - dilithium5 (or 1): NIST FIPS 204 digital signature scheme
   - mlkem1024 (or 2): NIST FIPS 203 key encapsulation mechanism
 
-Key types: hybrid, pqc_only, classical_only`,
+Key types: hybrid, pqc_only (classical_only is refused, see register-key)
+
+With --pqc-key <name> (a key from gen-key or recover-key) the command also
+attaches a proof of possession: the key's signature over
+"qorechain-pqc-pop-v1|chainid|algo|address|hex(pubkey)". The chain verifies it
+when present.`,
 		Example: `  # Register a Dilithium-5 hybrid key
   qorechaind tx pqc register-key-v2 dilithium5 <pubkey-hex> hybrid --from mykey
 
@@ -127,8 +134,8 @@ Key types: hybrid, pqc_only, classical_only`,
 			}
 
 			keyType := args[2]
-			if keyType != types.KeyTypeHybrid && keyType != types.KeyTypePQCOnly && keyType != types.KeyTypeClassicalOnly {
-				return fmt.Errorf("invalid key type: %s (must be hybrid, pqc_only, or classical_only)", keyType)
+			if err := checkRegisterKeyType(keyType); err != nil {
+				return err
 			}
 
 			msg := &types.MsgRegisterPQCKeyV2{
@@ -136,6 +143,13 @@ Key types: hybrid, pqc_only, classical_only`,
 				PublicKey:   pubkeyBytes,
 				AlgorithmID: algoID,
 				KeyType:     keyType,
+			}
+			if keyName, _ := cmd.Flags().GetString(flagPQCKey); keyName != "" {
+				pop, err := proofOfPossession(clientCtx.HomeDir, keyName, clientCtx.ChainID, algoID, msg.Sender, pubkeyBytes)
+				if err != nil {
+					return err
+				}
+				msg.ProofOfPossession = pop
 			}
 
 			if err := msg.ValidateBasic(); err != nil {
@@ -146,6 +160,7 @@ Key types: hybrid, pqc_only, classical_only`,
 		},
 	}
 
+	cmd.Flags().String(flagPQCKey, "", "name of the local PQC key (gen-key / recover-key) to sign a proof of possession with")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
@@ -237,4 +252,24 @@ func parseAlgorithmID(s string) (types.AlgorithmID, error) {
 	}
 
 	return id, nil
+}
+
+// flagPQCKey names a local PQC key file under <home>/pqc.
+const flagPQCKey = "pqc-key"
+
+// checkRegisterKeyType refuses key types that would lock the account. A
+// classical_only registration stores no post-quantum key; under the
+// hybrid-required posture the account can then never produce the signature
+// every later transaction needs, and before v3.2.3 nothing could repair it
+// (QSR-2026-0550, 0400).
+func checkRegisterKeyType(keyType string) error {
+	switch keyType {
+	case types.KeyTypeHybrid, types.KeyTypePQCOnly:
+		return nil
+	case types.KeyTypeClassicalOnly:
+		return fmt.Errorf("refusing key type classical_only: it registers no post-quantum key and " +
+			"leaves the account unable to sign under the hybrid-required posture; use hybrid")
+	default:
+		return fmt.Errorf("invalid key type: %s (must be hybrid or pqc_only)", keyType)
+	}
 }
