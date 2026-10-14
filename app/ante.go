@@ -274,6 +274,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 			sdk.MsgTypeURL(&sdkvesting.MsgCreatePermanentLockedAccount{}),
 			sdk.MsgTypeURL(&sdkvesting.MsgCreatePeriodicVestingAccount{}),
 		),
+		// From v3.2.3 an account's own post-quantum key messages cannot be
+		// sent on its behalf through authz either (QSR-2026-0521, 0506).
+		pqcKeyAuthzLimiter(options.PQCKeeper),
 		ante.NewSetUpContextDecorator(),
 		// Mempool-only guard: refuse CosmWasm upload/instantiate into this
 		// node's mempool. CheckTx only, so block validity is unchanged and
