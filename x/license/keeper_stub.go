@@ -59,6 +59,8 @@ func (k *StubKeeper) HasActiveLicense(_ sdk.Context, _, _ string) bool {
 
 func (k *StubKeeper) GetAuthority() string { return k.authority }
 
+func (k *StubKeeper) SetAuthority(_ sdk.Context, authority string) { k.authority = authority }
+
 func (k *StubKeeper) InitGenesis(_ sdk.Context, gs types.GenesisState) {
 	k.authority = gs.Authority
 }

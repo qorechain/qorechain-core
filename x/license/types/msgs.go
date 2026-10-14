@@ -71,3 +71,13 @@ func (msg MsgResumeLicense) ValidateBasic() error {
 	}
 	return nil
 }
+
+func (msg MsgUpdateAuthority) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
+		return fmt.Errorf("invalid authority address: %w", err)
+	}
+	if _, err := sdk.AccAddressFromBech32(msg.NewAuthority); err != nil {
+		return fmt.Errorf("invalid new authority address: %w", err)
+	}
+	return nil
+}

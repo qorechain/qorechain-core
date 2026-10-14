@@ -2,9 +2,11 @@ package license
 
 import (
 	"context"
+	"fmt"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	"github.com/qorechain/qorechain-core/x/govauth"
 	"github.com/qorechain/qorechain-core/x/license/types"
 )
 
@@ -59,4 +61,31 @@ func (s msgServer) ResumeLicense(goCtx context.Context, msg *types.MsgResumeLice
 		return nil, err
 	}
 	return &types.MsgResumeLicenseResponse{}, nil
+}
+
+// AuthorityUpdateEnabled answers, per block and from chain state, whether
+// MsgUpdateAuthority may execute. The application wires it to the
+// license-authority-update protocol feature, so every node accepts the message
+// from the same height; unset, the message is refused.
+var AuthorityUpdateEnabled func(ctx sdk.Context) bool
+
+// UpdateAuthority replaces the licence grant authority. Only the governance
+// module account may call it, which means it runs only from a passed proposal.
+// This is the recovery path when the authority's key is lost.
+func (s msgServer) UpdateAuthority(goCtx context.Context, msg *types.MsgUpdateAuthority) (*types.MsgUpdateAuthorityResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if AuthorityUpdateEnabled == nil || !AuthorityUpdateEnabled(ctx) {
+		return nil, fmt.Errorf("licence authority updates are not enabled at this height")
+	}
+	if err := govauth.Assert(msg.Authority); err != nil {
+		return nil, err
+	}
+	if _, err := sdk.AccAddressFromBech32(msg.NewAuthority); err != nil {
+		return nil, fmt.Errorf("invalid new authority address: %w", err)
+	}
+	s.keeper.SetAuthority(ctx, msg.NewAuthority)
+	ctx.EventManager().EmitEvent(sdk.NewEvent("license_authority_updated",
+		sdk.NewAttribute("new_authority", msg.NewAuthority),
+	))
+	return &types.MsgUpdateAuthorityResponse{}, nil
 }
