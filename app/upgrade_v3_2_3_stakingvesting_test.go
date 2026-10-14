@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cosmos/cosmos-sdk/types/bech32"
+
 	"cosmossdk.io/log"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -278,5 +280,22 @@ func TestVestingCreationGateFollowsTheSwitch(t *testing.T) {
 	}
 	if err := on.vestingCreationGate(ctx, msg, authtypes.NewModuleAddress(govtypes.ModuleName), victim); err != nil {
 		t.Fatalf("governance refused: %v", err)
+	}
+}
+
+func TestInvestorEscrowsMayDeliverVesting(t *testing.T) {
+	ctx := svTestCtx()
+	msg := &vestingtypes.MsgCreatePeriodicVestingAccount{}
+	victim := sdk.AccAddress([]byte("victim______________"))
+	_, seed, err := bech32.DecodeAndConvert("qor1ue0ujtz56wy2z2paje3sxyhjx445we8yys7x8v")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := checkVestingCreation(ctx, nil, msg, sdk.AccAddress(seed), victim); err != nil {
+		t.Fatalf("seed escrow refused: %v", err)
+	}
+	other := sdk.AccAddress([]byte("other_______________"))
+	if err := checkVestingCreation(ctx, nil, msg, other, victim); err == nil {
+		t.Fatal("an arbitrary sender created a vesting account for someone else")
 	}
 }

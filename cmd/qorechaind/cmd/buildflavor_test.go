@@ -42,3 +42,20 @@ func TestStartRefusesCommunityBuildOnPublicNetwork(t *testing.T) {
 	require.NoError(t, start.Flags().Set(app.FlagCommunityUnenforcedPQC, "true"))
 	require.NoError(t, start.PreRunE(start, nil))
 }
+
+// The community docker-compose devnet reuses qorechain-diana with a genesis of
+// its own; the guard must let it start.
+func TestStartAllowsDevnetReusingPublicChainID(t *testing.T) {
+	home := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(home, "config"), 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(home, "config", "genesis.json"),
+		[]byte(`{"chain_id":"qorechain-diana","genesis_time":"2026-10-15T08:00:00Z"}`), 0o600))
+
+	root := NewRootCmd()
+	start, _, err := root.Find([]string{"start"})
+	require.NoError(t, err)
+	srvCtx := server.NewDefaultContext()
+	srvCtx.Viper.Set(flags.FlagHome, home)
+	start.SetContext(context.WithValue(context.Background(), server.ServerContextKey, srvCtx))
+	require.NoError(t, start.PreRunE(start, nil))
+}

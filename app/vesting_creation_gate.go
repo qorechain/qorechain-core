@@ -7,6 +7,7 @@ import (
 	"cosmossdk.io/collections"
 	circuittypes "cosmossdk.io/x/circuit/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/bech32"
 	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	govtypes "github.com/cosmos/cosmos-sdk/x/gov/types"
@@ -34,6 +35,32 @@ import (
 //     how the allocation escrows deliver vesting schedules to buyers: a circuit
 //     super admin grants an escrow LEVEL_SOME_MSGS over
 //     MsgCreatePeriodicVestingAccount, and revokes it after the delivery.
+//   - the sender is one of the mainnet investor allocation escrows below, which
+//     deliver vesting schedules to buyers as part of their purpose.
+
+// investorAllocationEscrows are the qorechain-vladi genesis escrows that create
+// vesting accounts for investors (seed, private, strategic, public sale). They
+// are mainnet addresses; on any other chain the list matches nothing.
+var investorAllocationEscrows = mustDecodeEscrows(
+	"qor1ue0ujtz56wy2z2paje3sxyhjx445we8yys7x8v", // seed
+	"qor12nujzu7yf4e30yyq8ndax4e3hde2lulqsh8ad4", // private
+	"qor1w225478z08ek8z3udlvv97fy2atfnmvrctqsrg", // strategic
+	"qor1us7vg99vcyqep8jf8xx4fmt0fvt7e05sa07d34", // public sale
+)
+
+// mustDecodeEscrows keys the escrows by their address bytes, so the check does
+// not depend on the process-wide bech32 prefix configuration.
+func mustDecodeEscrows(addrs ...string) map[string]bool {
+	out := make(map[string]bool, len(addrs))
+	for _, a := range addrs {
+		_, bz, err := bech32.DecodeAndConvert(a)
+		if err != nil {
+			panic(err)
+		}
+		out[string(bz)] = true
+	}
+	return out
+}
 
 // circuitPermissionReader returns the circuit-breaker permissions stored for an
 // address, and whether there are any.
@@ -46,6 +73,9 @@ func checkVestingCreation(ctx sdk.Context, perms circuitPermissionReader, msg sd
 		return nil
 	}
 	if bytes.Equal(from, authtypes.NewModuleAddress(govtypes.ModuleName)) {
+		return nil
+	}
+	if investorAllocationEscrows[string(from)] {
 		return nil
 	}
 	typeURL := sdk.MsgTypeURL(msg)

@@ -161,9 +161,16 @@ const (
 
 // ReleaseV3_2_3ProtocolFeatures is what the v3.2.3 release handler enables at
 // its plan height.
-var ReleaseV3_2_3ProtocolFeatures = []string{
-	FeatureLicenseAuthorityUpdate,
-}
+var ReleaseV3_2_3ProtocolFeatures = concatFeatures(
+	[]string{FeatureLicenseAuthorityUpdate},
+	V323PqcIntegrityFeatures,
+	V323EvmWindowFeatures,
+	V323RdkFeatures,
+	V323CrossvmPrecompileFeatures,
+	V323StakingVestingFeatures,
+	V323EconFeatures,
+	V323HardeningFeatures,
+)
 
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain
 // enables all of them at genesis, and the release upgrade handler enables

@@ -14,7 +14,11 @@ import (
 // on every node: the one-time state steps first, then the release's switches.
 func (app *QoreChainApp) upgradeV3_2_3(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
-	for _, step := range []func(sdk.Context) error{} {
+	for _, step := range []func(sdk.Context) error{
+		app.upgradeV3_2_3Rdk,
+		app.upgradeV3_2_3StakingVesting,
+		app.upgradeV3_2_3Econ,
+	} {
 		if err := step(sdkCtx); err != nil {
 			return fromVM, err
 		}

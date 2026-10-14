@@ -29,7 +29,7 @@ func wireBuildFlavorGuard(rootCmd *cobra.Command) {
 					"full overlay is absent; use it for local devnets only",
 					"chain_id", chainID, "override", override)
 			}
-			if err := app.CheckBuildFlavor(chainID, override); err != nil {
+			if err := app.CheckBuildFlavor(chainID, app.NodeGenesisTime(serverCtx.Viper), override); err != nil {
 				return err
 			}
 			if prev != nil {
