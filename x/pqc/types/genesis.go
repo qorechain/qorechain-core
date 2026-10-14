@@ -107,6 +107,10 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
+	if err := validateGenesisAccounts(gs.Accounts); err != nil {
+		return err
+	}
+
 	seenWindow := map[string]bool{}
 	for _, w := range gs.EVMWindows {
 		if _, err := sdk.AccAddressFromBech32(w.Address); err != nil {

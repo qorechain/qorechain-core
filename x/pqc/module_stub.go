@@ -55,7 +55,17 @@ func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConf
 	return gs.Validate()
 }
 
-func (AppModuleBasic) GetTxCmd() *cobra.Command    { return cli.GetTxCmd() }
+// GetTxCmd keeps the pqc commands visible but refuses to run them. This build
+// registers none of the pqc message types, so its own node cannot decode what
+// the commands would sign and broadcast (QSR-2026-0356).
+func (AppModuleBasic) GetTxCmd() *cobra.Command {
+	cmd := cli.GetTxCmd()
+	cmd.PersistentPreRunE = func(c *cobra.Command, _ []string) error {
+		return fmt.Errorf("%q is not available in the community build: it does not register the pqc "+
+			"message types, so a node running it cannot decode them; use the full (validator) build", c.CommandPath())
+	}
+	return cmd
+}
 func (AppModuleBasic) GetQueryCmd() *cobra.Command { return cli.GetQueryCmd() }
 
 // AppModule implements the AppModule interface for the pqc module (stub).
