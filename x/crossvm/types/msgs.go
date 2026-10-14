@@ -35,6 +35,23 @@ func (m *MsgCrossVMCall) ValidateBasic() error {
 	return nil
 }
 
+// PlaceholderSourceVM returns a source lane that satisfies the stateless
+// MsgCrossVMCall.ValidateBasic for a call into target.
+//
+// The chain ignores source_vm: the keeper derives the caller's lane from state
+// (SourceLaneOf). ValidateBasic still requires a VM name that differs from the
+// target, and it cannot be relaxed without changing which transactions every
+// earlier block accepted, so a client that has nothing to declare fills in this
+// placeholder. The value carries no meaning and is never read by the chain.
+func PlaceholderSourceVM(target VMType) VMType {
+	for _, vm := range []VMType{VMTypeEVM, VMTypeCosmWasm, VMTypeSVM} {
+		if vm != target {
+			return vm
+		}
+	}
+	return VMTypeEVM
+}
+
 func (m *MsgProcessQueue) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
 		return errorsmod.Wrapf(ErrInvalidMessage, "invalid authority address: %s", err)

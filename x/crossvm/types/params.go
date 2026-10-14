@@ -1,6 +1,9 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 const (
 	DefaultMaxMessageSize     uint64 = 65536 // 64KB
@@ -15,6 +18,14 @@ type Params struct {
 	MaxQueueSize       uint32 `json:"max_queue_size"`
 	QueueTimeoutBlocks int64  `json:"queue_timeout_blocks"`
 	Enabled            bool   `json:"enabled"`
+
+	// BridgeAllowedTargets lists the targets the EVM CrossVM bridge precompile
+	// may call, each as "<vm>:<contract>" (for example "cosmwasm:qor1...").
+	// From the evm-precompile-hardening switch the bridge refuses every other
+	// target, so an empty list keeps the bridge shut even if the precompile is
+	// ever activated. omitempty keeps the stored and exported params of every
+	// existing chain byte-identical.
+	BridgeAllowedTargets []string `json:"bridge_allowed_targets,omitempty"`
 }
 
 func DefaultParams() Params {
@@ -36,5 +47,26 @@ func (p Params) Validate() error {
 	if p.QueueTimeoutBlocks <= 0 {
 		return fmt.Errorf("queue timeout blocks must be positive")
 	}
+	for _, entry := range p.BridgeAllowedTargets {
+		vm, contract, ok := strings.Cut(entry, ":")
+		if !ok || contract == "" || !IsValidTargetVM(VMType(vm)) {
+			return fmt.Errorf("bridge allowed target %q must be <vm>:<contract>", entry)
+		}
+	}
 	return nil
+}
+
+// BridgeTargetAllowed reports whether the EVM bridge precompile may call
+// contract on vm.
+func (p Params) BridgeTargetAllowed(vm VMType, contract string) bool {
+	if contract == "" {
+		return false
+	}
+	want := string(vm) + ":" + contract
+	for _, entry := range p.BridgeAllowedTargets {
+		if entry == want {
+			return true
+		}
+	}
+	return false
 }
