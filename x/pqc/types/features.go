@@ -170,6 +170,7 @@ var ReleaseV3_2_3ProtocolFeatures = concatFeatures(
 	V323StakingVestingFeatures,
 	V323EconFeatures,
 	V323HardeningFeatures,
+	V323LightnodeFeatures,
 )
 
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain

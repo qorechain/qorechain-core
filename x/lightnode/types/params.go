@@ -55,6 +55,16 @@ type Params struct {
 	// diverge. With a pointer an absent field stays absent, byte for byte.
 	// Read it through MaxRewardPerBlock(), never directly.
 	MaxRewardPerBlockPerNode *math.Int `json:"max_reward_per_block_per_node,omitempty"`
+
+	// MaxRewardPerMonthPerNode is the same bound stated the way it was decided:
+	// 2,000 QOR per 30 days per active node, prorated over the wall-clock time
+	// since the previous settlement (block time, which every node agrees on).
+	// The per-block form only pays 2,000 at the cadence it was derived at
+	// (2.22 s); at the 3.2 s mainnet ran in October it paid ~1,381. From the
+	// lightnode-monthly-cap switch this bound replaces the per-block one.
+	// A pointer for the same byte-identity reason as the field above; read it
+	// through MaxRewardPerMonth().
+	MaxRewardPerMonthPerNode *math.Int `json:"max_reward_per_month_per_node,omitempty"`
 }
 
 // defaultMaxRewardPerBlockPerNode is the bound a record that predates the field
@@ -69,6 +79,22 @@ func (p Params) MaxRewardPerBlock() math.Int {
 		return defaultMaxRewardPerBlockPerNode
 	}
 	return *p.MaxRewardPerBlockPerNode
+}
+
+// defaultMaxRewardPerMonthPerNode is the decided 2,000 QOR per month per active
+// node (2026-08-24), read for any record that predates the field.
+var defaultMaxRewardPerMonthPerNode = math.NewInt(2_000_000_000)
+
+// SecondsPerRewardMonth is the 30-day month the monthly bound is stated in.
+const SecondsPerRewardMonth int64 = 2_592_000
+
+// MaxRewardPerMonth is the monthly per-node bound to use, with the default
+// standing in for a record written before the field existed.
+func (p Params) MaxRewardPerMonth() math.Int {
+	if p.MaxRewardPerMonthPerNode == nil || p.MaxRewardPerMonthPerNode.IsNil() {
+		return defaultMaxRewardPerMonthPerNode
+	}
+	return *p.MaxRewardPerMonthPerNode
 }
 
 // DefaultParams returns the default lightnode module parameters.
@@ -115,6 +141,10 @@ func (p Params) Validate() error {
 	if p.MaxRewardPerBlockPerNode != nil && !p.MaxRewardPerBlockPerNode.IsNil() &&
 		p.MaxRewardPerBlockPerNode.IsNegative() {
 		return fmt.Errorf("max_reward_per_block_per_node must be non-negative, got %s", p.MaxRewardPerBlockPerNode)
+	}
+	if p.MaxRewardPerMonthPerNode != nil && !p.MaxRewardPerMonthPerNode.IsNil() &&
+		p.MaxRewardPerMonthPerNode.IsNegative() {
+		return fmt.Errorf("max_reward_per_month_per_node must be non-negative, got %s", p.MaxRewardPerMonthPerNode)
 	}
 	return nil
 }
