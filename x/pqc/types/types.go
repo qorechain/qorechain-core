@@ -14,6 +14,12 @@ type PQCAccountInfo struct {
 	// Migration fields — set when the account is in dual-key mode during migration
 	MigrationPublicKey   []byte      `json:"migration_public_key,omitempty"`   // New algorithm public key
 	MigrationAlgorithmID AlgorithmID `json:"migration_algorithm_id,omitempty"` // New algorithm ID
+
+	// RetiredKeyHashes are SHA-256 hashes of the keys this account rotated or
+	// migrated away from (FeaturePQCRotationReplayGuard). It may not return to
+	// one, so a rotation signed before a key cycle cannot be replayed. Empty
+	// and omitted for every record written before the switch.
+	RetiredKeyHashes [][]byte `json:"retired_key_hashes,omitempty"`
 }
 
 // PQCStats tracks module-level statistics.
