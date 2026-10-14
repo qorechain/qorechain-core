@@ -27,7 +27,9 @@ LDFLAGS := -X github.com/cosmos/cosmos-sdk/version.Name=qorechain \
 	-X github.com/qorechain/qorechain-core/cmd/qorechaind/cmd.QoreBuildID=$(VERSION) \
 	-X github.com/qorechain/qorechain-core/cmd/qorechaind/cmd.QoreCommit=$(COMMIT)
 
-BUILD_FLAGS := -ldflags '$(LDFLAGS)'
+# -trimpath keeps the build host's directory layout (module cache, GOPATH) out
+# of the binary, where it surfaced in error annotations (QSR-2026-0523).
+BUILD_FLAGS := -trimpath -ldflags '$(LDFLAGS)'
 
 ###############################################################################
 ###                                Build                                    ###
