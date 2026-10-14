@@ -73,6 +73,9 @@ message QueryEVMWindowResponse {
   uint64 remaining_blocks = 9;
   uint64 remaining_txs = 10;
   string remaining_value = 11;
+  // native_only and allowed_targets report the window's scope, as opened.
+  bool native_only = 12;
+  repeated string allowed_targets = 13;
 }
 
 message QueryAccountRequest {

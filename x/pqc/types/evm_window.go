@@ -3,8 +3,10 @@ package types
 import (
 	"encoding/binary"
 	"fmt"
+	"strings"
 
 	sdkmath "cosmossdk.io/math"
+	"github.com/ethereum/go-ethereum/common"
 )
 
 // The post-quantum authorisation window for the EVM lane.
@@ -57,6 +59,94 @@ type EVMAuthWindow struct {
 	// OpenedHeight is kept for auditing: it says when the authorisation was given,
 	// which is the question asked first after a key compromise.
 	OpenedHeight uint64 `json:"opened_height"`
+
+	// NativeOnly and AllowedTargets narrow what the window admits (see
+	// CheckScope). Both are optional and omitted from the stored form when
+	// unset, so a window opened without them is stored byte for byte as before
+	// and admits exactly what it always did.
+	NativeOnly     bool     `json:"native_only,omitempty"`
+	AllowedTargets []string `json:"allowed_targets,omitempty"`
+}
+
+// WHY A SCOPE. The value bound counts native QOR only: the value a transaction
+// carries plus its maximum fee. A token transfer, an approval or any other
+// contract call carries value zero, so inside a live window a stolen classical
+// key could move every ERC-20 balance of the account while the window still
+// showed budget left (QSR-2026-0347, -0552). A contract's tokens cannot be
+// priced in uqor, so the only sound bound for them is on WHERE the
+// transaction may go, chosen by the holder of the post-quantum key when the
+// window is opened:
+//
+//   - native_only admits plain transfers of native QOR and nothing else: no
+//     calldata, no contract creation, no recipient that carries code (which a
+//     plain transfer would run), and no EIP-7702 authorizations (which could
+//     give the recipient code during the transaction);
+//   - allowed_targets admits only transactions whose recipient is listed, and
+//     never contract creation.
+//
+// Both are optional. A window opened without them keeps its original scope.
+
+// MaxEVMWindowTargets bounds the allow-list of one window. It is read on every
+// EVM transaction the window admits, so it stays short.
+const MaxEVMWindowTargets = 16
+
+// HasScope reports whether the window restricts where its transactions go.
+func (w EVMAuthWindow) HasScope() bool { return w.NativeOnly || len(w.AllowedTargets) > 0 }
+
+// EVMWindowCall is what the scope check needs to know about one EVM
+// transaction.
+type EVMWindowCall struct {
+	// To is the recipient, nil for contract creation.
+	To *common.Address
+	// DataLen is the length of the calldata (or init code).
+	DataLen int
+	// ToHasCode reports whether the recipient carries code, including an
+	// EIP-7702 delegation designator.
+	ToHasCode bool
+	// Authorizations is the length of an EIP-7702 authorization list.
+	Authorizations int
+}
+
+// CheckScope refuses a transaction outside the window's scope. A window with
+// no scope admits every call, which is the original behaviour.
+func (w EVMAuthWindow) CheckScope(c EVMWindowCall) error {
+	if w.NativeOnly {
+		switch {
+		case c.To == nil:
+			return fmt.Errorf("the window admits native QOR transfers only, not contract creation")
+		case c.DataLen > 0:
+			return fmt.Errorf("the window admits native QOR transfers only, not calldata")
+		case c.ToHasCode:
+			return fmt.Errorf("the window admits native QOR transfers only, and %s carries code", c.To.Hex())
+		case c.Authorizations > 0:
+			return fmt.Errorf("the window admits native QOR transfers only, not EIP-7702 authorizations")
+		}
+	}
+	if len(w.AllowedTargets) > 0 {
+		if c.To == nil {
+			return fmt.Errorf("the window admits listed recipients only, not contract creation")
+		}
+		for _, t := range w.AllowedTargets {
+			if strings.EqualFold(t, c.To.Hex()) {
+				return nil
+			}
+		}
+		return fmt.Errorf("the window does not list %s as an allowed recipient", c.To.Hex())
+	}
+	return nil
+}
+
+// NormalizeEVMWindowTargets returns the allow-list in the stored form: lower
+// case 0x hex, in the order given. Call it after Validate.
+func NormalizeEVMWindowTargets(targets []string) []string {
+	if len(targets) == 0 {
+		return nil
+	}
+	out := make([]string, len(targets))
+	for i, t := range targets {
+		out[i] = strings.ToLower(common.HexToAddress(t).Hex())
+	}
+	return out
 }
 
 // Bounds on what a single window may authorise. These are deliberately modest: a
@@ -131,8 +221,26 @@ func (m MsgOpenEVMWindow) Validate() error {
 	if m.MaxValue.IsNil() || !m.MaxValue.IsPositive() {
 		return fmt.Errorf("max_value must be positive")
 	}
+	if len(m.AllowedTargets) > MaxEVMWindowTargets {
+		return fmt.Errorf("allowed_targets lists %d addresses, the maximum is %d",
+			len(m.AllowedTargets), MaxEVMWindowTargets)
+	}
+	seen := make(map[common.Address]bool, len(m.AllowedTargets))
+	for _, t := range m.AllowedTargets {
+		a, err := ParseDelegate(t)
+		if err != nil {
+			return fmt.Errorf("allowed_targets: %w", err)
+		}
+		if seen[a] {
+			return fmt.Errorf("allowed_targets lists %s more than once", a.Hex())
+		}
+		seen[a] = true
+	}
 	return nil
 }
+
+// HasScope reports whether the request narrows the window's scope.
+func (m MsgOpenEVMWindow) HasScope() bool { return m.NativeOnly || len(m.AllowedTargets) > 0 }
 
 // WeiToUqorRoundUp converts an EVM-lane amount to the account base denom, rounding
 // UP.

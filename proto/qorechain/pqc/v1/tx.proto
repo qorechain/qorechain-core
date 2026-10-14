@@ -156,6 +156,16 @@ message MsgOpenEVMWindow {
     (gogoproto.customtype) = "cosmossdk.io/math.Int",
     (gogoproto.nullable) = false
   ];
+  // native_only, when true, narrows the window to plain transfers of native
+  // QOR: it refuses calldata, contract creation, a recipient that carries
+  // code, and EIP-7702 authorizations. Optional; absent keeps the window's
+  // original scope. Honoured from the evm-pqc-window-targets feature on.
+  bool native_only = 5;
+  // allowed_targets, when non-empty, narrows the window to transactions whose
+  // recipient is one of these 0x-prefixed 20-byte addresses; contract
+  // creation is refused. Optional; absent keeps the window's original scope.
+  // Honoured from the evm-pqc-window-targets feature on.
+  repeated string allowed_targets = 6;
 }
 message MsgOpenEVMWindowResponse {
   uint64 expiry_height = 1;
