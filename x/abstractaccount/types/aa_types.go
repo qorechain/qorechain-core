@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 	"time"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
 const MaxSessionTTL = 30 * 24 * time.Hour // 30 days maximum
@@ -90,8 +92,11 @@ func ValidateAuthenticator(a Authenticator) error {
 		}
 	case SchemeSecp256k1:
 		// Three accepted forms:
-		//   33 / 65 — compressed / uncompressed SEC1 public key, verified with the
-		//             cosmos secp256k1 scheme (sha256-based).
+		//   33 / 65 — compressed / uncompressed SEC1 public key. Only the 33-byte
+		//             form verifies (cosmos secp256k1 scheme, sha256-based); a
+		//             65-byte key was accepted here but never verifies, and is
+		//             refused at registration from the abstractaccount-hardening
+		//             protocol feature on (ValidateAuthenticatorStrict).
 		//   20      — an Ethereum address (keccak of the pubkey), verified with the
 		//             EIP-191 personal_sign scheme (keccak + ecrecover). This is the
 		//             form a browser wallet like MetaMask can produce, since it only
@@ -108,6 +113,42 @@ func ValidateAuthenticator(a Authenticator) error {
 	// The TTL bound is NOT checked here. See ValidateAuthenticatorTTL.
 	if len(a.Permissions) == 0 {
 		return fmt.Errorf("authenticator must have at least one permission")
+	}
+	return nil
+}
+
+// ValidateAuthenticatorStrict is ValidateAuthenticator plus the checks the
+// keeper applies at registration from the abstractaccount-hardening protocol
+// feature on. ValidateBasic cannot tell the height, so it keeps calling
+// ValidateAuthenticator alone.
+//   - A 65-byte (uncompressed) secp256k1 key is refused: verification handles
+//     only the 33-byte and 20-byte forms, so such a key could be registered
+//     and paid for but never sign (QSR-2026-0403). Register it compressed.
+//   - Every permission must be a known one (IsValidPermission). An unknown
+//     string granted nothing, but it was stored and shown as if it did
+//     (QSR-2026-0436 a).
+func ValidateAuthenticatorStrict(a Authenticator) error {
+	if err := ValidateAuthenticator(a); err != nil {
+		return err
+	}
+	if a.Scheme == SchemeSecp256k1 && len(a.PubKey) == 65 {
+		return fmt.Errorf("uncompressed (65-byte) secp256k1 keys cannot verify; register the 33-byte compressed key")
+	}
+	for _, p := range a.Permissions {
+		if !IsValidPermission(p) {
+			return fmt.Errorf("unknown permission %q", p)
+		}
+	}
+	return nil
+}
+
+// ValidateAccountAddress checks an AccountAddress field is a bech32 address
+// (QSR-2026-0436 b). The messages' ValidateBasic only checks that it is not
+// empty; the handler applies this from the abstractaccount-hardening protocol
+// feature on.
+func ValidateAccountAddress(addr string) error {
+	if _, err := sdk.AccAddressFromBech32(addr); err != nil {
+		return fmt.Errorf("invalid account address: %w", err)
 	}
 	return nil
 }
