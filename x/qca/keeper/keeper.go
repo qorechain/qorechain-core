@@ -97,6 +97,7 @@ func (k Keeper) GetConfig(ctx sdk.Context) types.QCAConfig {
 	}
 	var cfg types.QCAConfig
 	if err := json.Unmarshal(bz, &cfg); err != nil {
+		k.logger.Error("failed to unmarshal qca config, using defaults", "error", err)
 		return types.DefaultQCAConfig()
 	}
 	return cfg
