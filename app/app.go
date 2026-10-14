@@ -65,7 +65,6 @@ import (
 
 	// QoreChain EVM
 	evmante "github.com/cosmos/evm/ante/evm"
-	antetypes "github.com/cosmos/evm/ante/types"
 	evmcryptocodec "github.com/cosmos/evm/crypto/codec"
 	evmmempool "github.com/cosmos/evm/mempool"
 	srvflags "github.com/cosmos/evm/server/flags"
@@ -1004,12 +1003,15 @@ func (app *QoreChainApp) setAnteHandler(
 				SignModeHandler: txConfig.SignModeHandler(),
 				FeegrantKeeper:  app.FeeGrantKeeper,
 				SigGasConsumer:  sigVerificationGasConsumerWithPQC,
-				// Allow BOTH the EVM dynamic-fee extension and the PQC hybrid
-				// signature extension (/qorechain.pqc.v1.PQCHybridSignature).
-				// Without this the ExtensionOptionsDecorator would reject every
-				// PQC-signed tx before it reaches the hybrid verify decorator.
+				// Allow the PQC hybrid signature extension
+				// (/qorechain.pqc.v1.PQCHybridSignature). Without this the
+				// ExtensionOptionsDecorator would reject every PQC-signed tx
+				// before it reaches the hybrid verify decorator. The EVM
+				// dynamic-fee extension used to be allowed here too, but its
+				// type is not registered in this app, so no tx carrying it
+				// decodes (QSR-2026-0577); allowing it was dead code.
 				ExtensionOptionChecker: func(o *codectypes.Any) bool {
-					return antetypes.HasDynamicFeeExtensionOption(o) || o.GetTypeUrl() == pqctypes.HybridSigTypeURL
+					return o.GetTypeUrl() == pqctypes.HybridSigTypeURL
 				},
 				TxFeeChecker: evmante.NewDynamicFeeChecker(&fmDefaults),
 			},
