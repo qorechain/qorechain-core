@@ -283,15 +283,32 @@ func CmdAuthSignEVM() *cobra.Command {
 				return err
 			}
 			defer wipe(priv)
-			sb := types.EVMAuthSignBytes(args[0], args[1], pub, args[2], args[3], data, nonce)
+			// From the abstractaccount-hardening protocol feature the chain
+			// verifies the v2 digest, which binds the gas limit the relayer
+			// must then submit unchanged (QSR-2026-0474). --gas-limit selects
+			// it; without the flag the v1 digest is signed, as before.
+			gasLimit, err := cmd.Flags().GetUint64(flagAuthGasLimit)
+			if err != nil {
+				return err
+			}
+			var sb []byte
+			if gasLimit > 0 {
+				sb = types.EVMAuthSignBytesV2(args[0], args[1], pub, args[2], args[3], data, nonce, gasLimit)
+			} else {
+				sb = types.EVMAuthSignBytes(args[0], args[1], pub, args[2], args[3], data, nonce)
+			}
 			cmd.Printf("pubkey_b64: %s\n", base64.StdEncoding.EncodeToString(pub))
 			cmd.Printf("signature_b64: %s\n", base64.StdEncoding.EncodeToString(ed25519.Sign(priv, sb)))
 			return nil
 		},
 	}
 	addSeedFlags(cmd)
+	cmd.Flags().Uint64(flagAuthGasLimit, 0,
+		"sign the v2 digest binding this gas limit (required once the chain enables abstractaccount-hardening; pass the same value to execute-evm)")
 	return cmd
 }
+
+const flagAuthGasLimit = "gas-limit"
 
 func trim0x(s string) string {
 	if len(s) >= 2 && s[0] == '0' && (s[1] == 'x' || s[1] == 'X') {
