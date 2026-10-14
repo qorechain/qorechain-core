@@ -166,6 +166,9 @@ func NewRootCmd() *cobra.Command {
 	// the CLI can encode/decode Cosmos-lane txs signed by an eth-native account
 	// (`--key-type eth_secp256k1`) — mirrors the app-side registration in app.go.
 	evmcryptocodec.RegisterInterfaces(clientCtx.InterfaceRegistry)
+	// And on the legacy amino codecs, so simulate and keys export work for an
+	// eth_secp256k1 key (QSR-2026-0491).
+	app.RegisterEthKeysOnLegacyAmino(clientCtx.LegacyAmino)
 
 	rootCmd := &cobra.Command{
 		Use:           "qorechaind",

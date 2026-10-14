@@ -25,4 +25,5 @@ exec qorechaind start \
     --json-rpc.enable \
     --json-rpc.address "0.0.0.0:8545" \
     --json-rpc.ws-address "0.0.0.0:8546" \
+    --json-rpc.allow-insecure-unlock=false \
     --minimum-gas-prices "${MIN_GAS_PRICE:-0.001uqor}"

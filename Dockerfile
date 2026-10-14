@@ -15,7 +15,7 @@ COPY . .
 # Build with CGO enabled (required for go-ethereum secp256k1)
 # Public build — no PQC library, no full tags
 ENV CGO_ENABLED=1
-RUN go build -tags "netgo ledger" -ldflags "-w -s" -o /build/qorechaind ./cmd/qorechaind
+RUN go build -trimpath -tags "netgo ledger" -ldflags "-w -s" -o /build/qorechaind ./cmd/qorechaind
 
 # wasmvm (CosmWasm runtime) ships a prebuilt shared library that the binary links
 # dynamically; stage it so the runtime image can load it at startup.
