@@ -15,7 +15,27 @@ func (m *MsgSetAgentMode) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
 		return errorsmod.Wrapf(ErrInvalidAgentMode, "invalid authority address: %s", err)
 	}
-	if !ValidAgentMode(m.Mode) {
+	// The truncating conversion is the historical check: the field used to be
+	// decoded straight into the uint8 AgentMode. ValidateBasic cannot tell the
+	// height, so the exact range check on the wire value is in the handler,
+	// behind FeatureRLParamBounds (ValidateModeRange).
+	if !ValidAgentMode(m.AgentModeValue()) {
+		return errorsmod.Wrapf(ErrInvalidAgentMode, "invalid mode: %d", m.Mode)
+	}
+	return nil
+}
+
+// AgentModeValue is the mode as the module stores it. For a value above 255
+// it wraps, exactly as decoding into the uint8 AgentMode used to; callers that
+// must not accept such a value check ValidateModeRange first.
+func (m *MsgSetAgentMode) AgentModeValue() AgentMode {
+	return AgentMode(m.Mode)
+}
+
+// ValidateModeRange checks the mode as it was sent on the wire, before any
+// narrowing (QSR-2026-0434): 257 is refused, not read as 1.
+func (m *MsgSetAgentMode) ValidateModeRange() error {
+	if m.Mode > uint32(AgentModePaused) {
 		return errorsmod.Wrapf(ErrInvalidAgentMode, "invalid mode: %d", m.Mode)
 	}
 	return nil

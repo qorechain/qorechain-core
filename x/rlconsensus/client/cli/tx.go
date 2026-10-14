@@ -74,7 +74,7 @@ Valid modes:
 
 			msg := &types.MsgSetAgentMode{
 				Authority: clientCtx.GetFromAddress().String(),
-				Mode:      mode,
+				Mode:      uint32(mode),
 			}
 			if err := msg.ValidateBasic(); err != nil {
 				return err
