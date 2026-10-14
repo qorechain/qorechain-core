@@ -43,6 +43,15 @@ like every other Cosmos-lane message.
   max-value  the total it admits, counting transferred value AND the maximum fee
              each transaction could pay. Accepts uqor or qor, e.g. 1000qor.
 
+The value bound counts native QOR only. A token transfer, an approval or any
+other contract call carries value zero and is not counted against it. To bound
+those too, narrow the window's scope (from the evm-pqc-window-targets feature on):
+
+  --native-only        admit plain QOR transfers only: no calldata, no contract
+                       creation, no recipient that carries code
+  --allowed-targets    admit only these recipients (comma-separated 0x addresses);
+                       contract creation is refused
+
 Opening replaces any existing window. Close one early with close-evm-window.`,
 		Example: `  qorechaind tx pqc open-evm-window 7200 20 1000qor --from me --generate-only > w.json
   qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id qorechain-vladi`,
@@ -65,11 +74,22 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 				return fmt.Errorf("max-value: %w", err)
 			}
 
+			nativeOnly, err := cmd.Flags().GetBool(flagNativeOnly)
+			if err != nil {
+				return err
+			}
+			targets, err := cmd.Flags().GetStringSlice(flagAllowedTargets)
+			if err != nil {
+				return err
+			}
+
 			msg := &types.MsgOpenEVMWindow{
-				Sender:   clientCtx.GetFromAddress().String(),
-				Blocks:   blocks,
-				MaxTxs:   maxTxs,
-				MaxValue: maxValue,
+				Sender:         clientCtx.GetFromAddress().String(),
+				Blocks:         blocks,
+				MaxTxs:         maxTxs,
+				MaxValue:       maxValue,
+				NativeOnly:     nativeOnly,
+				AllowedTargets: targets,
 			}
 			// Fail here rather than on chain: the bounds are a security parameter
 			// and a refusal should carry the reason, not a gas bill.
@@ -79,9 +99,16 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
+	cmd.Flags().Bool(flagNativeOnly, false, "admit plain native QOR transfers only")
+	cmd.Flags().StringSlice(flagAllowedTargets, nil, "admit only these recipients (comma-separated 0x addresses)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
+
+const (
+	flagNativeOnly     = "native-only"
+	flagAllowedTargets = "allowed-targets"
+)
 
 // GetCmdCloseEVMWindow returns the command that revokes the window immediately.
 func GetCmdCloseEVMWindow() *cobra.Command {
