@@ -84,3 +84,51 @@ func (m *MsgStopRollup) ValidateBasic() error {
 	}
 	return nil
 }
+
+// RollupEscrowDenom is the denomination a rollup's stake is escrowed in, and so
+// the only one its escrow ledger can pay a withdrawal in.
+const RollupEscrowDenom = "uqor"
+
+// MaxWithdrawalProofDepth bounds the Merkle path of a withdrawal: a batch
+// commits at most 2^64 withdrawals, so a longer path can never verify.
+const MaxWithdrawalProofDepth = 64
+
+// ValidateWithdrawal is the stateless check of an L2->L1 withdrawal message.
+//
+// It is deliberately not ValidateBasic. The SDK runs ValidateBasic before the
+// ante handler, in block execution as well as in CheckTx, so adding one would
+// change, without any switch, how a historical block treats a malformed
+// withdrawal (refused before fees instead of failing in the handler). The
+// keeper calls this from v3.2.3 on (FeatureRDKEscrowLedger), at the start of
+// ExecuteWithdrawal, which keeps replays below the plan height identical.
+func (m *MsgExecuteWithdrawal) ValidateWithdrawal() error {
+	if m == nil {
+		return ErrInvalidWithdrawal.Wrap("empty message")
+	}
+	if _, err := sdk.AccAddressFromBech32(m.Submitter); err != nil {
+		return ErrInvalidWithdrawal.Wrapf("invalid submitter address: %v", err)
+	}
+	// Only emptiness is checked: ids created before v3.2.2 may sit outside the
+	// id grammar and stay valid, and an unknown id fails on the lookup.
+	if m.RollupID == "" {
+		return ErrInvalidWithdrawal.Wrap("rollup_id cannot be empty")
+	}
+	if _, err := sdk.AccAddressFromBech32(m.Recipient); err != nil {
+		return ErrInvalidWithdrawal.Wrapf("invalid recipient address: %v", err)
+	}
+	if m.Denom != RollupEscrowDenom {
+		return ErrInvalidWithdrawal.Wrapf("denom %q: rollup escrow is held in %s only", m.Denom, RollupEscrowDenom)
+	}
+	if m.Amount <= 0 {
+		return ErrInvalidWithdrawal.Wrap("amount must be positive")
+	}
+	if len(m.Proof) > MaxWithdrawalProofDepth {
+		return ErrInvalidWithdrawal.Wrapf("proof has %d levels, at most %d", len(m.Proof), MaxWithdrawalProofDepth)
+	}
+	for i, sib := range m.Proof {
+		if len(sib) != 32 {
+			return ErrInvalidWithdrawal.Wrapf("proof level %d is %d bytes, want 32", i, len(sib))
+		}
+	}
+	return nil
+}
