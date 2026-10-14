@@ -56,4 +56,11 @@ var (
 	// in front of it in the same block cannot fill it at any price.
 	// key: BlockRefPricePrefix + uint64(pool_id) -> {height, reserve_a, reserve_b}
 	BlockRefPricePrefix = []byte{0x09}
+
+	// EndBlockCursorKey holds the pool key EndBlock resumes from when there are
+	// more pools than it refreshes in one block (v3.2.3, amm-endblock-bound).
+	// Absent while every pool fits in one block. Not exported in genesis: an
+	// imported chain starts the round at the first pool.
+	// key: EndBlockCursorKey -> PoolPrefix + uint64(pool_id)
+	EndBlockCursorKey = []byte{0x20}
 )
