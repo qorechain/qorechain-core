@@ -243,6 +243,8 @@ func initRootCmd(
 		appExport,
 		WireSidecarHooks,
 	)
+	// A community build refuses to start on a public network unless told to.
+	wireBuildFlavorGuard(rootCmd)
 
 	rootCmd.AddCommand(
 		server.StatusCommand(),
