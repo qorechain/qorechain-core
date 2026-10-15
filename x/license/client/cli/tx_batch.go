@@ -11,6 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/spf13/cobra"
 
 	"github.com/cosmos/cosmos-sdk/client"
@@ -263,12 +266,13 @@ The granting key never leaves the machine you run this on.`,
 				res, err := queryClient.Check(cmd.Context(), &types.QueryCheckRequest{
 					Grantee: g.Grantee, FeatureId: g.FeatureID,
 				})
+				held, err := licenceHeld(res, err)
 				if err != nil {
 					return fmt.Errorf("could not check existing licence for %s: %w", g.Grantee, err)
 				}
 				// Any existing grant, suspended or not: GrantLicense refuses a key
 				// that already exists, and one refusal fails the whole transaction.
-				if res.License != nil {
+				if held {
 					skipped = append(skipped, g)
 					continue
 				}
@@ -414,4 +418,17 @@ func confirm(cmd *cobra.Command, n int) (bool, error) {
 		return false, nil
 	}
 	return strings.TrimSpace(answer) == fmt.Sprint(n), nil
+}
+
+// licenceHeld reads the answer to a Check query. The query server answers
+// NotFound for a grantee without the licence, which is the ordinary case for a
+// new grant and must not fail the batch. Any other error is real.
+func licenceHeld(res *types.QueryCheckResponse, err error) (bool, error) {
+	if err != nil {
+		if status.Code(err) == codes.NotFound {
+			return false, nil
+		}
+		return false, err
+	}
+	return res != nil && res.License != nil, nil
 }
