@@ -95,6 +95,30 @@ func EncodePQCKeyStatusOutput(registered bool, algorithmId uint8, pubkey []byte)
 	return arguments.Pack(registered, algorithmId, pubkey)
 }
 
+// EncodePQCKeyStatusOutputWithPossession encodes (bool registered, uint8
+// algorithmId, bytes pubkey, bool possessionProven), the output from
+// pqc-possession-flag. The flag is appended after the dynamic bytes field, so
+// the head keeps registered, algorithmId and the offset of pubkey in their
+// places and pubkey's data follows the four head words: a caller decoding
+// (bool, uint8, bytes) still reads the same three values, and one decoding
+// all four also gets the flag.
+//
+// SECURITY: a registered key proves nothing about who holds its secret
+// unless possessionProven is true. Neither pqcKeyStatus nor pqcVerify may be
+// activated for contracts without them checking it.
+func EncodePQCKeyStatusOutputWithPossession(registered bool, algorithmId uint8, pubkey []byte, possessionProven bool) ([]byte, error) {
+	boolType, _ := abi.NewType("bool", "", nil)
+	uint8Type, _ := abi.NewType("uint8", "", nil)
+	bytesType, _ := abi.NewType("bytes", "", nil)
+	arguments := abi.Arguments{
+		{Type: boolType},
+		{Type: uint8Type},
+		{Type: bytesType},
+		{Type: boolType},
+	}
+	return arguments.Pack(registered, algorithmId, pubkey, possessionProven)
+}
+
 // DecodeAIRiskScoreInput decodes aiRiskScore(bytes txData).
 func DecodeAIRiskScoreInput(input []byte) ([]byte, error) {
 	if len(input) < 4 {

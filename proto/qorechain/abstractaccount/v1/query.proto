@@ -25,6 +25,27 @@ service Query {
   rpc PermissionSchema(QueryPermissionSchemaRequest) returns (QueryPermissionSchemaResponse) {
     option (google.api.http).get = "/qorechain/abstractaccount/v1/permission_schema";
   }
+  // AuthNonce returns the sequence a linked authenticator key must sign next
+  // for an account: the nonce MsgExecuteEVM and MsgExecuteCosmos must carry
+  // (QSR-2026-0596). It is the key's own counter, not the account's EVM nonce.
+  rpc AuthNonce(QueryAuthNonceRequest) returns (QueryAuthNonceResponse) {
+    option (google.api.http).get = "/qorechain/abstractaccount/v1/auth_nonce/{address}/{pubkey_hex}";
+  }
+}
+
+message QueryAuthNonceRequest {
+  // address is the account's bech32 address.
+  string address = 1;
+  // pubkey_hex is the authenticator public key, hex encoded (0x optional).
+  string pubkey_hex = 2;
+}
+
+message QueryAuthNonceResponse {
+  // nonce is the next expected sequence; 0 for a key that has never executed.
+  uint64 nonce = 1;
+  // linked reports whether the key is currently an authenticator of the
+  // account (present and not revoked); the nonce is kept either way.
+  bool linked = 2;
 }
 
 message ConfigView {

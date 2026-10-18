@@ -20,6 +20,18 @@ type PQCAccountInfo struct {
 	// one, so a rotation signed before a key cycle cannot be replayed. Empty
 	// and omitted for every record written before the switch.
 	RetiredKeyHashes [][]byte `json:"retired_key_hashes,omitempty"`
+
+	// PossessionProven says the current key was proven by a proof of
+	// possession (FeaturePQCPossessionFlag): a registration that carried a
+	// valid one, or a rotation or migration, which verify a signature by the
+	// new key. A registration without one leaves it false. Omitted while
+	// false, so every record written before the switch keeps its bytes.
+	//
+	// A key registered without a proof may be a key whose secret nobody
+	// holds, copied from somewhere else. Anything that treats a registered key
+	// as the account's own (the pqcKeyStatus and pqcVerify precompiles, if
+	// they are ever activated for contracts) must check this flag first.
+	PossessionProven bool `json:"possession_proven,omitempty"`
 }
 
 // PQCStats tracks module-level statistics.

@@ -177,6 +177,9 @@ var ReleaseV3_2_3ProtocolFeatures = concatFeatures(
 // its plan height.
 var ReleaseV3_2_4ProtocolFeatures = concatFeatures(
 	V324LightnodeFeatures,
+	V324RdkFeatures,
+	V324PqcFeatures,
+	V324BridgeFeatures,
 )
 
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain

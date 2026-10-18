@@ -24,6 +24,32 @@ service Query {
   rpc EVMDelegationConsent(QueryEVMDelegationConsentRequest) returns (QueryEVMDelegationConsentResponse) {
     option (google.api.http).get = "/qorechain/pqc/v1/evm_delegation_consent/{address}";
   }
+
+  // ProtocolFeatures lists every protocol feature this binary knows, released
+  // or staged, with whether it is enabled at the current height, followed by
+  // any enabled feature this binary does not know.
+  rpc ProtocolFeatures(QueryProtocolFeaturesRequest) returns (QueryProtocolFeaturesResponse) {
+    option (google.api.http).get = "/qorechain/pqc/v1/protocol_features";
+  }
+}
+
+message QueryProtocolFeaturesRequest {}
+
+message ProtocolFeatureStatus {
+  string name = 1;
+  // enabled reports whether the switch is on at the current height.
+  bool enabled = 2;
+  // known is false for a feature recorded as enabled that this binary does
+  // not know (a newer release enabled it).
+  bool known = 3;
+  // staged is true for a feature this binary carries but no release has
+  // enabled yet.
+  bool staged = 4;
+}
+
+message QueryProtocolFeaturesResponse {
+  repeated ProtocolFeatureStatus features = 1;
+  int64 height = 2;
 }
 
 message QueryEVMDelegationConsentRequest {
@@ -104,4 +130,10 @@ message PQCAccountView {
   // given at registration), "auth_account" (nothing was stored, so this is the
   // account's on-chain public key) or "none" (neither exists yet).
   string classical_key_source = 10;
+  // possession_proven is true when the current key was proven by a proof of
+  // possession: a registration carrying a valid proof_of_possession, or a
+  // rotation or migration (both verify a signature by the new key). False for
+  // a key registered without a proof, and for every record from before v3.2.4.
+  // A key without it may be one whose secret the account does not hold.
+  bool possession_proven = 11;
 }

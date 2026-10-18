@@ -123,6 +123,11 @@ message MsgRegisterBridgeValidator {
   string validator_address = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
   bytes pqc_pubkey = 2 [(gogoproto.customname) = "PQCPubkey"];
   repeated string supported_chains = 3;
+  // proof_of_possession (v3.2.4) is pqc_pubkey's ML-DSA-87 signature over
+  // "qorechain-pqc-pop-v1|<chain-id>|1|<validator_address>|<hex pqc_pubkey>",
+  // the x/pqc proof of possession format. Required from
+  // bridge-validator-key-pop; ignored before it.
+  bytes proof_of_possession = 4;
 }
 message MsgRegisterBridgeValidatorResponse {}
 

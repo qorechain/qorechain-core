@@ -273,3 +273,11 @@ func checkRegisterKeyType(keyType string) error {
 		return fmt.Errorf("invalid key type: %s (must be hybrid or pqc_only)", keyType)
 	}
 }
+
+// SignProofOfPossession is proofOfPossession for other modules' commands
+// (the bridge validator registration uses the same proof format): it signs
+// the x/pqc proof of possession for sender and pub with the local key
+// keyName, and checks the key matches pub before anything is broadcast.
+func SignProofOfPossession(home, keyName, chainID string, sender string, pub []byte) ([]byte, error) {
+	return proofOfPossession(home, keyName, chainID, types.AlgorithmDilithium5, sender, pub)
+}
