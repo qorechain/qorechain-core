@@ -327,5 +327,5 @@ replace (
 require (
 	github.com/consensys/gnark v0.15.0
 	github.com/consensys/gnark-crypto v0.20.1
-	github.com/qorechain/qorechain-pqc/go v0.1.1
+	github.com/qorechain/qorechain-pqc/go v0.2.1
 )
