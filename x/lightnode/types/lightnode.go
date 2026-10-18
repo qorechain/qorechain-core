@@ -54,6 +54,13 @@ type LightNodeInfo struct {
 	// it); RecordHeartbeat then reconstructs the mark from RegisteredAt and the
 	// intervals already charged.
 	ExpectedAccruedThrough int64 `json:"expected_accrued_through"`
+
+	// RegisteredAtTime is the block time (unix seconds) of the registration,
+	// recorded from lightnode-registration-window (v3.2.4) so the monthly
+	// reward bound can start at the node's registration. Zero for nodes
+	// registered before, which never need it again: their first settlement is
+	// already behind them.
+	RegisteredAtTime int64 `json:"registered_at_time,omitempty"`
 }
 
 // LightNodeStats tracks aggregate statistics for the lightnode module.
