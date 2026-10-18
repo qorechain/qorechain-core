@@ -23,8 +23,14 @@ type SettlementBatch struct {
 	SequencerMode SequencerMode `json:"sequencer_mode"`
 	L1BlockRange  [2]int64      `json:"l1_block_range"` // For based rollups: L1 block range
 	SubmittedAt   int64         `json:"submitted_at"`   // Block height
-	FinalizedAt   int64         `json:"finalized_at"`   // Block height
-	Status        BatchStatus   `json:"status"`
+	// SubmittedTime is the block time (unix seconds) of the block the batch
+	// was submitted in. Recorded from rdk-challenge-window-time only, and then
+	// the challenge window is measured in seconds from it; zero and omitted
+	// for every batch submitted before, so their records keep their bytes and
+	// their block-count window.
+	SubmittedTime int64       `json:"submitted_time,omitempty"`
+	FinalizedAt   int64       `json:"finalized_at"` // Block height
+	Status        BatchStatus `json:"status"`
 	// WithdrawalsRoot commits this batch's L2->L1 messages (withdrawals) as a
 	// binary Merkle root. Empty when the batch carries no cross-layer messages.
 	WithdrawalsRoot []byte `json:"withdrawals_root,omitempty"`
@@ -44,10 +50,10 @@ type SettlementBatch struct {
 // BatchChallengeRecord records an open fraud-proof challenge against an
 // optimistic batch, including the challenger's escrowed bond.
 type BatchChallengeRecord struct {
-	RollupID    string `json:"rollup_id"`
-	BatchIndex  uint64 `json:"batch_index"`
-	Challenger  string `json:"challenger"`   // bech32 address that posted the challenge
-	Bond        int64  `json:"bond"`         // escrowed challenge bond (uqor)
-	Proof       []byte `json:"proof"`        // submitted fraud proof
-	ChallengedAt int64 `json:"challenged_at"` // block height
+	RollupID     string `json:"rollup_id"`
+	BatchIndex   uint64 `json:"batch_index"`
+	Challenger   string `json:"challenger"`    // bech32 address that posted the challenge
+	Bond         int64  `json:"bond"`          // escrowed challenge bond (uqor)
+	Proof        []byte `json:"proof"`         // submitted fraud proof
+	ChallengedAt int64  `json:"challenged_at"` // block height
 }
