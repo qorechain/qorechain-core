@@ -50,6 +50,11 @@ func (AppModuleBasic) DefaultGenesis(_ codec.JSONCodec) json.RawMessage {
 }
 
 func (AppModuleBasic) ValidateGenesis(_ codec.JSONCodec, _ client.TxEncodingConfig, bz json.RawMessage) error {
+	// A genesis written before this module existed (both public networks) has
+	// no section for it; that is valid and means the defaults.
+	if len(bz) == 0 {
+		return nil
+	}
 	var gs types.GenesisState
 	if err := json.Unmarshal(bz, &gs); err != nil {
 		return fmt.Errorf("failed to unmarshal %s genesis state: %w", types.ModuleName, err)
@@ -73,6 +78,12 @@ func (AppModule) IsOnePerModuleType() {}
 func (AppModule) IsAppModule()        {}
 
 func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, data json.RawMessage) {
+	// No section: a chain that started before the module. Write nothing, so a
+	// replay from that genesis reproduces its original state; the v3.2.4
+	// upgrade handler sets the module up at the plan height.
+	if len(data) == 0 {
+		return
+	}
 	var gs types.GenesisState
 	if err := json.Unmarshal(data, &gs); err != nil {
 		panic(fmt.Sprintf("failed to unmarshal stakingtier genesis state: %v", err))
