@@ -1,0 +1,18 @@
+package types
+
+import (
+	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	"github.com/cosmos/cosmos-sdk/types/msgservice"
+)
+
+// RegisterInterfaces registers the module's messages.
+func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
+	registry.RegisterImplementations((*sdk.Msg)(nil),
+		&MsgLockDelegation{},
+		&MsgUnlockEarly{},
+		&MsgClaimBonus{},
+		&MsgUpdateParams{},
+	)
+	msgservice.RegisterMsgServiceDesc(registry, &_Msg_serviceDesc)
+}

@@ -31,6 +31,7 @@ import (
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
+	stakingtiermod "github.com/qorechain/qorechain-core/x/stakingtier"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
 )
@@ -155,4 +156,13 @@ var (
 	NewAMMKeeper      func(cdc codec.Codec, storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, logger log.Logger) ammmod.AMMKeeper
 	NewAMMAppModule   func(keeper ammmod.AMMKeeper) module.AppModule
 	NewAMMModuleBasic func() module.AppModuleBasic
+
+	// StakingTier module factories (v3.2.4: delegation locks with a bonus
+	// yield). storeKey is the host store, x/inflation's (see
+	// stakingtiertypes.HostStoreKey).
+	NewStakingTierKeeper func(storeKey storetypes.StoreKey, bankKeeper bankkeeper.BaseKeeper, stakingKeeper *stakingkeeper.Keeper,
+		lightNodeKeeper lightnodemod.LightNodeKeeper, licenseKeeper licensemod.LicenseKeeper, burnKeeper burnmod.BurnKeeper,
+		logger log.Logger) stakingtiermod.StakingTierKeeper
+	NewStakingTierAppModule   func(keeper stakingtiermod.StakingTierKeeper) module.AppModule
+	NewStakingTierModuleBasic func() module.AppModuleBasic
 )

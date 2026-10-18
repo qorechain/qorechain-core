@@ -43,7 +43,9 @@ message MsgUpdateParams {
 
   bool enabled = 4;
 
-  // emission_mode is "schedule" (share of supply) or "fixed" (constant amount).
+  // emission_mode is "schedule" (share of supply), "fixed" (constant amount)
+  // or, from v3.2.4, "target_apy" (what the bonded stake needs to earn
+  // target_apy_bps through the fee split).
   string emission_mode = 5;
 
   // fixed_epoch_emission is the uqor minted per epoch in "fixed" mode.
@@ -58,6 +60,11 @@ message MsgUpdateParams {
     (gogoproto.customtype) = "cosmossdk.io/math.Int",
     (gogoproto.nullable) = false
   ];
+
+  // target_apy_bps is the yearly gross staker yield "target_apy" mode aims
+  // for, in basis points of the bonded stake (1667 is about 15% net at a 10%
+  // commission). Required, and at most 10000, in that mode.
+  uint64 target_apy_bps = 8;
 }
 
 message MsgUpdateParamsResponse {}

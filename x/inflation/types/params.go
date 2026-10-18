@@ -15,10 +15,21 @@ import (
 //
 // EmissionModeFixed mints a constant amount per epoch, which together with
 // MaxTotalEmission turns an allocation into an actual ceiling.
+//
+// EmissionModeTargetAPY (v3.2.4, protocol feature inflation-target-apy) mints
+// per epoch what the bonded stake needs to earn TargetAPYBps a year through the
+// fee split, still clamped to MaxTotalEmission. See TargetAPYEmission.
 const (
-	EmissionModeSchedule = "schedule"
-	EmissionModeFixed    = "fixed"
+	EmissionModeSchedule  = "schedule"
+	EmissionModeFixed     = "fixed"
+	EmissionModeTargetAPY = "target_apy"
 )
+
+// SecondsPerYear is the year a target yield is stated against: 365 days.
+const SecondsPerYear = int64(365 * 24 * 60 * 60)
+
+// BasisPoints is 100%.
+const BasisPoints = int64(10_000)
 
 // BlocksPerDay and BlocksPerYear fix the calendar the schedule is written
 // against: an annual rate, one day per 43,200 blocks (2 s target). Epoch
@@ -85,6 +96,15 @@ type Params struct {
 	//
 	// Pointer for the same reason as above.
 	MaxTotalEmission *math.Int `json:"max_total_emission,omitempty"`
+
+	// TargetAPYBps is the yearly yield, in basis points of the bonded stake,
+	// that EmissionModeTargetAPY aims to pay stakers before commission. It is
+	// a gross figure: a delegator nets it less their validator's commission,
+	// so 1667 is about 15% net at a 10% commission (1667 x 0.90 = 1500).
+	//
+	// Zero is omitted from the stored JSON, so params written before this
+	// field existed keep their bytes.
+	TargetAPYBps uint64 `json:"target_apy_bps,omitempty"`
 }
 
 // DefaultParams returns the default inflation parameters.
@@ -151,8 +171,18 @@ func (p Params) Validate() error {
 		if !p.FixedEmission().IsPositive() {
 			return fmt.Errorf("fixed_epoch_emission must be positive in %q mode", EmissionModeFixed)
 		}
+	case EmissionModeTargetAPY:
+		// The mode is accepted only with a target it can act on. The emission
+		// cap still applies; the target only says how fast to approach it.
+		if p.TargetAPYBps == 0 {
+			return fmt.Errorf("target_apy_bps must be positive in %q mode", EmissionModeTargetAPY)
+		}
 	default:
-		return fmt.Errorf("emission_mode must be %q or %q, got %q", EmissionModeSchedule, EmissionModeFixed, p.EmissionMode)
+		return fmt.Errorf("emission_mode must be %q, %q or %q, got %q",
+			EmissionModeSchedule, EmissionModeFixed, EmissionModeTargetAPY, p.EmissionMode)
+	}
+	if p.TargetAPYBps > uint64(BasisPoints) {
+		return fmt.Errorf("target_apy_bps must be at most %d (100%%), got %d", BasisPoints, p.TargetAPYBps)
 	}
 
 	for i, tier := range p.Schedule {
@@ -218,24 +248,80 @@ func (p Params) EpochEmissionScaled(rate math.LegacyDec, totalSupply, alreadyMin
 		// worth every 30 seconds and grew its supply 900-fold.
 		amount = rate.MulInt(totalSupply).MulInt64(p.EpochLength).QuoInt64(BlocksPerYear).TruncateInt()
 	}
-	if !amount.IsPositive() {
-		return math.ZeroInt()
-	}
+	return p.ClampToCap(amount, alreadyMinted)
+}
 
-	cap := p.EmissionCap()
-	if !cap.IsPositive() {
-		return amount // uncapped
-	}
-	minted := alreadyMinted
-	if minted.IsNil() {
-		minted = math.ZeroInt()
-	}
-	remaining := cap.Sub(minted)
-	if !remaining.IsPositive() {
+// ClampToCap returns amount, reduced so that alreadyMinted plus the result
+// never exceeds MaxTotalEmission. Zero when the cap is reached or amount is
+// not positive; amount unchanged when there is no cap.
+func (p Params) ClampToCap(amount, alreadyMinted math.Int) math.Int {
+	if amount.IsNil() || !amount.IsPositive() {
 		return math.ZeroInt()
+	}
+	remaining, capped := p.RemainingCap(alreadyMinted)
+	if !capped {
+		return amount
 	}
 	if amount.GT(remaining) {
 		return remaining
 	}
 	return amount
+}
+
+// RemainingCap reports how much may still be minted under MaxTotalEmission
+// after alreadyMinted, floored at zero. capped is false when there is no cap,
+// and the amount is then meaningless.
+func (p Params) RemainingCap(alreadyMinted math.Int) (remaining math.Int, capped bool) {
+	cap := p.EmissionCap()
+	if !cap.IsPositive() {
+		return math.ZeroInt(), false
+	}
+	minted := alreadyMinted
+	if minted.IsNil() {
+		minted = math.ZeroInt()
+	}
+	remaining = cap.Sub(minted)
+	if !remaining.IsPositive() {
+		return math.ZeroInt(), true
+	}
+	return remaining, true
+}
+
+// NominalEpochSeconds is how long an epoch lasts on the schedule's calendar
+// (BlocksPerDay blocks a day): 86,400 s for the mainnet epoch length.
+func (p Params) NominalEpochSeconds() int64 {
+	if p.EpochLength < 1 {
+		return 0
+	}
+	return p.EpochLength * 86_400 / BlocksPerDay
+}
+
+// TargetAPYEmission is the target_apy mode's emission for one epoch of
+// epochSeconds, before the cap:
+//
+//	bonded x target_apy_bps / 10,000 x epochSeconds / SecondsPerYear / stakerReach
+//
+// stakerReach is the share of every minted coin that reaches stakers through
+// the fee split (x/burn validator_share + staker_share, 0.37 + 0.10 = 0.47
+// today). Minting bonded x rate / reach makes reach x minted, the part that
+// actually reaches the bonded stake, equal to bonded x rate.
+//
+// Worked through for the default target of 1667 bps and a reach of 0.47: a
+// year mints 0.1667 / 0.47 = 35.47% of the bonded stake, of which 47% (16.67%
+// of the bonded stake) reaches stakers; after a 10% commission a delegator
+// nets 16.67% x 0.90 = 15.0%. The cumulative cap is applied by the caller.
+//
+// Integer and LegacyDec arithmetic only; zero for any non-positive input.
+func TargetAPYEmission(bonded math.Int, targetBps uint64, stakerReach math.LegacyDec, epochSeconds int64) math.Int {
+	if bonded.IsNil() || !bonded.IsPositive() || targetBps == 0 || epochSeconds <= 0 ||
+		stakerReach.IsNil() || !stakerReach.IsPositive() {
+		return math.ZeroInt()
+	}
+	return math.LegacyNewDecFromInt(bonded).
+		MulInt64(int64(targetBps)).
+		MulInt64(epochSeconds).
+		QuoInt64(BasisPoints).
+		QuoInt64(SecondsPerYear).
+		Quo(stakerReach).
+		TruncateInt()
 }

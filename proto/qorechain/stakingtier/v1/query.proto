@@ -1,0 +1,113 @@
+syntax = "proto3";
+package qorechain.stakingtier.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/stakingtier/types";
+
+import "google/api/annotations.proto";
+
+// Query defines the stakingtier module's read-only query service. Amounts are
+// uqor strings; rates are decimal strings in basis points.
+service Query {
+  // Params returns the module parameters.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/stakingtier/v1/params";
+  }
+  // Locks returns a holder's locks with their projected bonus, and what the
+  // holder can claim.
+  rpc Locks(QueryLocksRequest) returns (QueryLocksResponse) {
+    option (google.api.http).get = "/qorechain/stakingtier/v1/locks/{holder}";
+  }
+  // Pool returns the module account's funding and settlement state.
+  rpc Pool(QueryPoolRequest) returns (QueryPoolResponse) {
+    option (google.api.http).get = "/qorechain/stakingtier/v1/pool";
+  }
+}
+
+message QueryParamsRequest {}
+
+message LockTierView {
+  uint32 months = 1;
+  uint32 bonus_bps = 2;
+}
+
+message QueryParamsResponse {
+  repeated LockTierView lock_tiers = 1;
+  uint32 light_node_bonus_bps = 2;
+  uint32 validator_bonus_bps = 3;
+  uint32 max_total_apy_bps = 4;
+  uint32 early_unlock_penalty_bps = 5;
+  bool enabled = 6;
+  // min_lock_amount is the smallest lock, in uqor.
+  string min_lock_amount = 7;
+}
+
+message QueryLocksRequest {
+  string holder = 1;
+}
+
+// LockView is one lock as it stands now.
+message LockView {
+  uint64 id = 1;
+  string validator = 2;
+  // locked_amount is what the lock covers today: it shrinks with the
+  // delegation when the validator is slashed.
+  string locked_amount = 3;
+  string locked_shares = 4;
+  uint32 months = 5;
+  // tier_bonus_bps is the lock term's bonus, fixed when the lock was made.
+  uint32 tier_bonus_bps = 6;
+  int64 start_height = 7;
+  int64 start_time = 8;
+  int64 end_time = 9;
+  // accrued_bonus is credited and not yet claimed; UnlockEarly forfeits it.
+  string accrued_bonus = 10;
+  // released is true once the lock has expired; it no longer restricts the
+  // delegation and waits only for its final settlement.
+  bool released = 11;
+  // light_node_bonus_bps and validator_bonus_bps are the extra bonuses that
+  // would apply at the next settlement.
+  uint32 light_node_bonus_bps = 12;
+  uint32 validator_bonus_bps = 13;
+  // projected_bonus_bps is the yearly bonus the lock earns at the last base
+  // yield, after the max_total_apy_bps ceiling and before any pro rata scaling.
+  string projected_bonus_bps = 14;
+  // projected_bonus_to_expiry is what that rate earns from the last settlement
+  // to the lock's end.
+  string projected_bonus_to_expiry = 15;
+}
+
+message QueryLocksResponse {
+  repeated LockView locks = 1;
+  // claimable is credited to the holder outside any open lock: bonuses of
+  // expired locks and the validator self-bond bonus.
+  string claimable = 2;
+  // total_claimable is what ClaimBonus would pay now.
+  string total_claimable = 3;
+}
+
+message QueryPoolRequest {}
+
+message QueryPoolResponse {
+  // balance is the module account balance.
+  string balance = 1;
+  // outstanding is credited to holders and not yet claimed.
+  string outstanding = 2;
+  // surplus is balance less outstanding: forfeited bonus and rounding, which
+  // funds the next settlement before anything is minted.
+  string surplus = 3;
+  string total_minted = 4;
+  string total_paid = 5;
+  string total_forfeited = 6;
+  string total_penalty_burned = 7;
+  int64 last_settle_time = 8;
+  int64 last_settle_height = 9;
+  // last_owed, last_funded and last_minted describe the latest settlement:
+  // owed is the bonus due before scaling, funded what was available for it.
+  string last_owed = 10;
+  string last_funded = 11;
+  string last_minted = 12;
+  // last_base_apy_bps is the gross base staking yield of the latest epoch.
+  string last_base_apy_bps = 13;
+  // lock_count is the number of open (not yet expired) locks.
+  uint64 lock_count = 14;
+}

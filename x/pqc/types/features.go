@@ -180,6 +180,7 @@ var ReleaseV3_2_4ProtocolFeatures = concatFeatures(
 	V324RdkFeatures,
 	V324PqcFeatures,
 	V324BridgeFeatures,
+	V324StakingTierFeatures,
 )
 
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain
