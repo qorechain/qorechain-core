@@ -18,7 +18,14 @@ func DefaultGenesisState() *GenesisState {
 
 // Validate performs basic genesis state validation.
 func (gs GenesisState) Validate() error {
-	p := gs.Params
+	return gs.Params.Validate()
+}
+
+// Validate checks the parameter set: the four weights sum to 1 (within 0.01)
+// and the decay constant is positive. A zero lambda would divide by zero in the
+// time decay. It is the rule genesis validation has always applied, now also
+// applied by Keeper.SetParams so no path can store what genesis would refuse.
+func (p ReputationParams) Validate() error {
 	alpha := p.ParamAlpha()
 	beta := p.ParamBeta()
 	gamma := p.ParamGamma()
