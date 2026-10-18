@@ -13,7 +13,7 @@ QoreChain is a Layer 1 blockchain built on Cosmos SDK v0.53 with seven key innov
 
 ## Module Architecture
 
-### x/pqc — Post-Quantum Cryptography
+### x/pqc - Post-Quantum Cryptography
 
 The PQC module provides quantum-safe cryptographic operations via a Rust FFI bridge:
 
@@ -28,14 +28,14 @@ The PQC module provides quantum-safe cryptographic operations via a Rust FFI bri
 - **Quantum Random Beacon**: Verifiable random output for consensus
 
 **Hybrid Signatures (v1.1.0)**: Dual Ed25519 + ML-DSA-87 via TX extensions.
-- `HybridSignatureMode`: Disabled / Optional (default) / Required
+- `HybridSignatureMode`: Disabled / Optional / Required (default; classical-only fallback disabled)
 - `PQCHybridVerifyDecorator` checks TX extensions for PQC signatures alongside classical
 - Auto-registration: wallets attach PQC pubkey in extension for first-use onboarding
 - SHAKE-256 merkle hash foundation for future post-quantum IAVL tree replacement
 
 The PQC AnteHandler chain: `PQCVerify → PQCHybridVerify` runs before standard signature verification.
 
-### x/ai — AI Engine
+### x/ai - AI Engine
 
 The AI module implements multi-layer intelligence:
 
@@ -51,7 +51,7 @@ The AI Sidecar extends capabilities via QCAI Backend for deep analysis, contract
 
 **Federated Learning Interfaces (v1.1.0)**: On-chain FL coordination via `FederatedCoordinator` interface. Supports FedAvg, FedProx, and SCAFFOLD aggregation methods with gradient submission, round management, and global model hash anchoring for privacy-preserving distributed model training.
 
-### x/reputation — Validator Reputation
+### x/reputation - Validator Reputation
 
 Scores validators using: `R_i = alpha*S_i + beta*P_i + gamma*C_i + delta*T_i`
 
@@ -61,42 +61,41 @@ Where:
 - C_i = Community participation
 - T_i = Temporal component with decay: `exp(-dt/lambda)`
 
-### x/qca — Consensus Algorithm
+### x/qca - Consensus Algorithm
 
-Implements reputation-weighted proposer selection that integrates with Consensus Engine Engine's PrepareProposal/ProcessProposal ABCI hooks. Includes:
+Implements reputation-weighted proposer selection that integrates with the consensus engine's PrepareProposal/ProcessProposal ABCI hooks. Includes:
 - **Triple-Pool CPoS**: RPoS/DPoS/PoS validator pools with weighted sortition
 - **Custom Bonding Curve**: Loyalty-aware rewards factoring stake, duration, reputation, and protocol phase
 - **Progressive Slashing**: Escalating penalties with temporal half-life decay (capped at 33%)
 - **QDRW Governance**: Quadratic delegation with reputation weighting and xQORE boost
 
-### x/burn — Central Burn Accounting
+### x/burn - Central Burn Accounting
 
 Ten burn channels feed a unified accounting module: transaction fees, slashing, governance, cross-VM gas, bridge fees, inflation surplus, xQORE penalties, reputation penalties, system cleanup, and rollup creation burns. The EndBlocker splits collected fees: 37% validators, 30% burned, 20% treasury, 10% stakers, 3% light nodes. Tracks total burned, per-source breakdown, and burn history.
 
-### x/xqore — Governance-Boosted Staking
+### x/xqore - Governance-Boosted Staking
 
 Lock QOR to mint xQORE (1:1 ratio) for doubled QDRW governance weight. Graduated exit penalties (50%/35%/15%/0% based on lock duration) are redistributed to remaining holders via PvP rebase. Satisfies `rlconsensus.TokenomicsKeeper` for real balance lookups.
 
-### x/inflation — Epoch-Based Emission
+### x/inflation - Epoch-Based Emission
 
-Controlled inflation with year-over-year decay: Y1 17.5%, Y2 11%, Y3-4 7%, Y5+ 2%. Configurable epoch length (default 100 blocks). Tracks current epoch, year, and cumulative minted supply.
+Controlled inflation with year-over-year decay: Y1 17.5%, Y2 11%, Y3-4 7%, Y5+ 2%, scaled to the epoch length. Configurable epoch length (default 17,280 blocks). Governance (`MsgUpdateParams`) can switch to a fixed per-epoch emission and set `max_total_emission`, a hard cumulative cap. Tracks current epoch, year, and cumulative minted supply.
 
-### x/rlconsensus — Reinforcement Learning Consensus
+### x/rlconsensus - Reinforcement Learning Consensus
 
 On-chain RL agent with Go-native fixed-point MLP (~73,733 parameters). PPO inference tunes consensus parameters (block time, gas limits, pool weights) every 10 blocks. Shadow/conservative/autonomous/paused agent modes with circuit breaker auto-revert.
 
-### x/bridge — Cross-Chain Bridge (QCB)
+### x/bridge - Cross-Chain Bridge (QCB)
 
-Hub-and-spoke multi-protocol bridge supporting 25 direct cross-chain connections:
-- **IBC chains** (8): QoreChain Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon
-- **EVM chains** (6): Ethereum, BSC, Avalanche, Optimism, Base, Tron
-- **Non-IBC chains** (5): Solana, TON, Aptos, Bitcoin, NEAR
-- **Additional** (2): Cardano, Polkadot, Tezos
+Hub-and-spoke multi-protocol bridge supporting 44 direct cross-chain connections:
+- **IBC chains** (8): Cosmos Hub, Osmosis, Noble, Celestia, Stride, Akash, Babylon, Injective
+- **QCB bridge endpoints** (36): 21 EVM-family chains (Ethereum, BSC, Avalanche, Polygon, Arbitrum, Optimism, Base, zkSync Era, Linea, Scroll, Blast, Mantle, Hyperliquid, Berachain, Sonic, Sei, Monad, Plasma, Filecoin FVM, Cronos, Kaia) and 15 non-EVM chains (Solana, TON, Sui, Aptos, Bitcoin, NEAR, Cardano, Polkadot, Tezos, TRON, Starknet, XRP Ledger, Stellar, Hedera, Algorand)
+- 37 default bridge chain configurations in total (the 36 endpoints plus Injective, configured with chain type `ibc`) across 17 chain types
 - Native IBC with PQC-secured packets
 
 Security: 7-of-10 PQC multisig, 24h challenge period, circuit breakers. Bridge withdrawal fees route to the x/burn module.
 
-### x/rdk — Rollup Development Kit (v1.3.0)
+### x/rdk - Rollup Development Kit (v1.3.0)
 
 Application-specific rollup deployment framework supporting four settlement paradigms:
 
@@ -111,27 +110,27 @@ Application-specific rollup deployment framework supporting four settlement para
 
 **Integration**: Rollups register as `rollup` layer type in x/multilayer for state anchoring via HCS. Rollup creation burns 1% of stake through x/burn. RL consensus module provides AI-assisted profile selection and gas optimization.
 
-### x/babylon — BTC Restaking Adapter (v1.2.0)
+### x/babylon - BTC Restaking Adapter (v1.2.0)
 
 BTC restaking coordination module for Babylon protocol integration. Manages BTC staking positions, checkpoint submissions, and epoch snapshots.
 
-### x/abstractaccount — Account Abstraction (v1.2.0)
+### x/abstractaccount - Account Abstraction (v1.2.0)
 
 Smart-contract wallet accounts with spending rules, session keys, daily/per-tx limits, and allowed denomination restrictions.
 
-### x/fairblock — Threshold IBE Mempool (v1.2.0)
+### x/fairblock - Threshold IBE Mempool (v1.2.0)
 
 FairBlock threshold identity-based encryption stub for encrypted mempool ordering. Passthrough ante decorator in v1.2.0; tIBE decryption reserved for future activation.
 
-### x/gasabstraction — Gas Abstraction (v1.2.0)
+### x/gasabstraction - Gas Abstraction (v1.2.0)
 
-Multi-denomination fee payment supporting IBC-received tokens. Static conversion rates for testnet (uqor 1:1, ibc/USDC 1:1, ibc/ATOM 10:1). Ante decorator converts non-native fee denominations to native equivalents.
+Multi-denomination fee payment supporting IBC-received tokens. The default configuration accepts native `uqor` only; governance adds a token together with an `x/amm` pool that prices it. A fee paid in an accepted non-native token is converted through a QOR conversion float held by the module (v3.2.2), subject to a minimum pool liquidity, a maximum TWAP-to-spot deviation and a per-block conversion cap.
 
-### x/license — On-Chain License Registry (v2.5.0)
+### x/license - On-Chain License Registry (v2.5.0)
 
 The license module manages an on-chain registry of operator licenses that gate access to privileged chain features such as bridge operation, sidecar management, and validator services.
 
-- **27 feature IDs** covering bridge watching, transaction relaying, validator operations, key management, cross-chain settlement, and sidecar administration across all supported external networks.
+- **76 feature IDs**: the `qcb_bridge` umbrella, 36 `bridge_*` and 37 `validator_*` per-chain licenses across all supported external networks, plus the `lightnode_operator` and `validator_operator` operator licenses.
 - **License lifecycle**: Licenses follow a state machine: `grant → active → suspended / revoked / expired`.
   - **Grant**: Issued via governance proposal (`LicenseGrantProposal`) or admin transaction (`MsgGrantLicense`).
   - **Active**: Operator may use the licensed features. Validated on every relevant transaction by the license ante decorator.
@@ -143,18 +142,28 @@ The license module manages an on-chain registry of operator licenses that gate a
 
 ## AnteHandler Chain
 
+Cosmos lane:
+
 ```
-SetUpContext → CircuitBreaker → PQCVerify → PQCHybridVerify → AIAnomaly →
-FairBlock → SVMComputeBudget → SVMDeductFee → Extension → ValidateBasic →
-TxTimeout → Memo → MinGasPrice → ConsumeTxSize → GasAbstraction → DeductFee →
-SetPubKey → ValidateSigCount → SigGasConsume → SigVerify → IncrementSequence
+RejectEthMessages → AuthzLimiter → SetUpContext → WasmMempoolGuard → MultisigDepthGuard →
+Wasm decorators → CircuitBreaker → Extension → ValidateBasic → TxTimeout → Memo →
+ValidatorLicense → PQCVerify → PQCHybridVerify → PQCReplayGuard → AIAnomaly → FairBlock →
+SVMComputeBudget → SVMDeductFee → FeeRouter (MinGasPrice → ConsumeTxSize → GasAbstraction →
+DeductFee, or fee conversion) → SetPubKey → ValidateSigCount → SigGasConsume → SigVerify →
+IncrementSequence → BurnTxCount → BurnFailedFee → RedundantRelay → GasWanted
+```
+
+EVM lane:
+
+```
+CircuitBreaker → EVMReplayGuard → EVMMono → EVMWindow → AIEVMAnomaly → BurnTxCount
 ```
 
 ## Deployment Architecture
 
 ```
 Docker Compose Stack:
-  - qorechain-node (Consensus Engine Engine + Cosmos SDK)
+  - qorechain-node (consensus engine + Cosmos SDK)
   - ai-sidecar (gRPC + QCAI Backend)
   - indexer (WebSocket + Postgres)
   - postgres (Block data storage)

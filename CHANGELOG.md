@@ -7,6 +7,178 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.2] - 2026-10-01
+
+A coordinated governance upgrade (plan name `v3.2.2`). Every consensus change below is guarded by a protocol feature that the v3.2.2 upgrade handler turns on at the plan height (26 features, listed in `ReleaseV3_2_2ProtocolFeatures`); below that height the binary replays history byte-identically.
+
+### Added
+- **EIP-7702 post-quantum consent.** `MsgAuthorizeEVMDelegation` records an account's own post-quantum consent to one EIP-7702 delegation (single-use, time-bounded, revoked by `MsgCloseEVMWindow`); `MsgClearEVMDelegation` removes a delegation. Query: `GET /qorechain/pqc/v1/evm_delegation_consent/{address}`; CLI: `tx pqc authorize-evm-delegation` / `clear-evm-delegation`, `query pqc evm-delegation-consent`.
+- **Gas abstraction conversion float.** A fee paid in one accepted non-native token is converted through a QOR float held by the module (`MsgFundFloat`) and refilled through an `x/amm` pool. Tokens are added by governance (`MsgUpdateConfig`) with a pool, a minimum liquidity and a maximum TWAP-to-spot deviation; a per-block conversion cap and a fee premium apply. Queries: `config`, `conversion_rate`, `float`. The default configuration accepts native `uqor` only.
+- **Abstract-account spending policy.** Rule-bound keys get deny-by-default EVM calls (`allowed_evm_calls`), outflow measured from the account's actual balance change, per-token caps (`denom_limits`) and a separate `deploy` permission for contract creation.
+- `x/inflation` query service for the parameters, the emission to date and the cap.
+- `x/multilayer` `MsgUpdateParams` (governance only), and REST routes for the RDK query service (`/qorechain/rdk/v1/...`).
+- `x/ai` governance configuration updates, including the screening configuration fields.
+
+### Changed
+- **Validator admission is enforced by the staking message server.** The `validator_operator` license and the 100,000 QOR self-bond floor now hold on every dispatch path, not only in the ante handler. An operator may exit completely; `MsgUnjail` is refused while the operator's self-bond is under the floor.
+- **EVM-lane parity.** EVM transactions now run the same per-sender rate limit, anomaly screening and milestone-burn transaction counter as the Cosmos lane, and `x/ai` anomaly screening and the rate limit also apply to standard Cosmos messages. Screening is deterministic and does not change receipts or gas estimates.
+- **Reputation scoring v2.** The bonded set is rescored per epoch from live stake, performance taken from the slashing module, and governance participation settled when voting ends.
+- **Governance proposer reward** is bounded by the amount the proposal had on deposit.
+- **AMM.** A swap must name both of the pool's denominations, stable pools are priced with the stable invariant in both directions, the protocol fee is collected and routed through `x/burn`, `max_swap_impact_bps` is enforced, and StableSwap solve gas is charged on failed swaps too.
+- **Burn.** The `failed_tx` burn channel now applies, based on the fee actually charged; a milestone tier whose burn failed is retried instead of skipped.
+- **Bridge.** Genesis, admin messages and stored state share one set of configuration rules: only a route whose status is exactly `active` moves value, statuses are normalised at the upgrade, verifier trust roots are validated and zero amounts are handled consistently.
+- **RDK / multilayer.** New rollup and layer ids follow a defined grammar, keeper loops match exact ids, finalization keeps the batch pointer, settlement anchors are accepted only on the rollup creator's own layer, and anchors use v2 signed bytes.
+- **SVM.** Base58 addresses are bounded and canonical in the RPC and gRPC queries.
+- Every module account in the permission table is created as a module account at the upgrade height.
+- Dependencies: Cosmos SDK v0.53.8, consensus engine v0.38.26, ibc-go v10.7.0, IAVL v1.2.8, wasmd v0.60.9 and wasmvm v2.3.5 (public releases), x/crypto v0.57.0. cosmos/evm stays on v0.6.3. SDK v0.53.8 tightens which edge-case transactions are accepted, so this binary replaces the previous one at the upgrade height, not node by node.
+- A node whose `app.toml` `evm-chain-id` disagrees with its chain now reports the mismatch instead of refusing to start.
+
+### Security
+- An EIP-7702 delegation takes effect only with the authority account's own post-quantum consent, value leaving a delegated account is charged to that account's own authorisation window, and a failed type-4 transaction keeps the authorizations it applied.
+- Unprotected (pre-EIP-155) Ethereum transactions are refused in block execution as well as in the mempool.
+- Multisig signatures are bounded in block execution too, not only at admission.
+- PQC key registration validates the classical public key and binds it to the signer.
+- An emission cap of zero or an omitted cap is refused rather than read as unlimited.
+- Module account addresses cannot be claimed through the EVM, and contract creation keeps the sender nonce increments made during it.
+- ERC-20 reconversion on an IBC timeout or error acknowledgement is isolated, so a failed reconversion can no longer strand the refund or prevent the timeout from executing.
+- `x/rlconsensus` validates a policy's architecture with checked arithmetic before storing or running it, and `x/ai` refuses a NaN threshold in a governance config update.
+- `x/gasabstraction` keeps the native denom fixed in a config update.
+
+### Notes
+- Upgrade handler: `v3.2.2`. All one-time state work is idempotent and runs before the switches turn on.
+
+---
+
+## [3.2.1] - 2026-09-30
+
+Node-local release: no consensus change and no upgrade plan; nodes can be replaced one at a time.
+
+### Changed
+- Consensus engine v0.38.25 and grpc-go v1.83.2.
+- `qorechaind init` writes the network's pinned EVM chain ID to `app.toml`, the EVM chain ID is cross-checked against the Cosmos chain-id, and the resolved EVM chain ID and the loaded post-quantum library are reported when the node starts. The full build self-tests the post-quantum library before using it.
+- Mempool: the Cosmos pool is bounded, proposals are fit-checked before the ante handler, the eviction index is ranked by the transaction's gas meter, and EVM transactions the mempool promotes are gossiped.
+- `tx pqc cosign` and `rotate-key` honour `--generate-only`, `--offline` and `--dry-run`.
+- Genesis export and import carry authenticator sequences and spend buckets (`x/abstractaccount`), and AMM export decodes LP balances and paused pools correctly.
+
+### Security
+- Unprotected legacy Ethereum transactions are kept out of the mempool.
+- Block-sync responses are bounded by transaction count and size, and EVM JSON-RPC bounds the resources one caller can hold and answers for the block and sender that were asked for.
+- Multisig signatures are bounded in every mode except block execution (block execution follows in v3.2.2).
+- Transactions without a fee are refused cleanly, and panic stack traces no longer appear in responses.
+- The license `Check` query and the sidecar treat a license past `expires_at` as inactive.
+- The authenticator seed is kept off the command line and standard output.
+- Each fee-distribution share is bounded on its own, gas abstraction genesis validates conversion rates, and its config is validated before it is written.
+
+---
+
+## [3.2.0] - 2026-09-20
+
+A coordinated governance upgrade. Testnet took the same release under the plan name `v3.1.98` (2026-09-18) and then `v3.2.0`; both names run the same, idempotent handler. The release is a minor version because the EVM lane now requires post-quantum authorisation, a breaking change for EVM wallets. Seven protocol features are enabled at the plan height (`ReleaseV3_2_0ProtocolFeatures`).
+
+### Added
+- **Post-quantum authorisation on the EVM lane.** An EVM transaction is admitted only from an account that holds a registered post-quantum key and has opened a bounded window with `MsgOpenEVMWindow` (at most 17,280 blocks, at most 1,000 transactions, and a total outflow that counts value plus the maximum fee). Opening replaces the existing window; `MsgCloseEVMWindow` revokes it. Query `GET /qorechain/pqc/v1/evm_window/{address}`, CLI `tx pqc open-evm-window` / `close-evm-window`, `query pqc evm-window`.
+- **Protocol features.** A per-feature record in the `x/pqc` store, switched on by a release's upgrade handler at the plan height or at genesis on a new chain (exactly the features the genesis lists, and exported with it).
+- **Synchronous cross-VM calls.** `MsgCrossVMCall` executes in the transaction and returns the callee's answer; `async` keeps the queue. CosmWasm contracts can dispatch it and read the reply. SVM targets take an instruction payload with accounts, where only the caller may be a signer.
+- **Light node reward pool.** The module balance is accounted as reserved, outstanding and distributable; each block distributes only the new accrual, bounded per node by `max_reward_per_block_per_node` and scaled by uptime. The reserve moves only by governance (`MsgReleaseLightNodeReserve`). Query: `GET /qorechain/lightnode/v1/reward_pool`.
+- **Stranded staker share.** The staker share that accumulated in the distribution module before this release is recorded at the upgrade height and can be released only by governance (`MsgReleaseStrandedRewards`, `GET /qorechain/burn/v1/stranded_rewards`).
+- `x/svm` `MsgUpdateParams` (governance), the token instructions wallets use, return-data syscalls and seed-derived system instructions.
+- `tx license grant-batch` grants a reviewed batch of licenses; `lightnode_operator` grants are set aside until the chain's reward pool is initialized.
+
+### Changed
+- Hybrid transaction sign bytes, key-migration preimages and bridge attestations switch to a v2 form with a domain tag and the chain-id. Clients detect it by querying `applied_plan` for `v3.2.0` and `v3.1.98`; a chain that starts on this release uses v2 from block one.
+- The EVM lane is covered by the circuit breaker, and the upgrade reopens it with the post-quantum requirement in force in the same block.
+- The staker share of fees stays in the fee collector, where the distribution module pays it to stakers.
+- The `x/ai` per-sender rate limit is enforced, set by the upgrade to 600 transactions per 30-block window so IBC relayers are not throttled.
+- Schedule-mode emission is scaled to the epoch length, so an epoch mints the share of the year it represents.
+- The upgrade version map now lists every registered module, so a future migration cannot re-initialise modules from default genesis.
+- The bridge module has its own module account for minting and burning, and `ProcessProposal` validates proposed blocks with the same rules used to build them.
+- Every module account except `svm` refuses plain bank sends.
+- `MsgConvertERC20` can be signed (it was rejected by the signing context) and accepts a bech32 sender.
+- `x/rlconsensus` deterministic math saturates instead of panicking in the block hooks.
+- Multilayer: an unknown layer returns not-found instead of panicking.
+- EVM JSON-RPC: `eth_createAccessList` without a gas value no longer fails the handler, the `earliest` block tag resolves to the earliest state, and the unified mempool compares fees in one unit.
+
+### Security
+- The ante path no longer shares mutable parameters between simulation and block execution, judges transaction TTL against block time rather than wall-clock time, and bounds multisig nesting before signatures are expanded.
+- Validator admission (license and self-bond floor) cannot be bypassed through authz, and the floor is enforced on undelegate and redelegate as well as at creation.
+- Vesting-account creation (all three message types) is refused inside authz at any nesting depth.
+- PQC key registration requires a signing algorithm on every path, refuses key-encapsulation algorithms as authentication keys and checks key lengths; key migration binds both keys and validates the destination key.
+- An account that holds a post-quantum key can no longer unjail with a classical-only signature.
+- Bridge attestation sign bytes are injective and chain-bound, and negative amounts are refused.
+- Abstract accounts: the enabled flag is enforced on all paths, the authenticated EVM call gas is bounded, spend limits accumulate per rule (not per key), an enabled rule without a limit is refused, ERC-20 transfer, transferFrom and approve by a spend-limited key need an allow-listed token, and the authenticator sequence is consumed on the EVM lane.
+- SVM: lamport conservation and account ownership are checked before settlement, only canonical addresses are backed by a bank balance, a signed authorisation executes once, and authenticator sign bytes are injective.
+- Cross-VM: the call guard is scoped to the transaction rather than the process, the caller's lane and address are derived rather than trusted, and the EVM leg is bounded by the gas the caller paid for.
+- RDK: only the rollup's sequencer can settle, batches settle in order, escrow is ledgered per rollup, the creation burn is enforced and stop refunds only the escrowed stake.
+- Multilayer: the creator's stake is locked at registration and returned on decommission, and anchors are refused when the creator has no key.
+- EVM locked-balance accounting for vesting accounts uses the EVM's own decimal representation, and a redelegation entry's total slash is bounded by the slash factor times its initial balance.
+
+### Notes
+- Upgrade handlers: `v3.1.98` and `v3.2.0` (same handler). Wallets and SDKs must use the v2 sign bytes and open an EVM window before sending EVM transactions.
+
+---
+
+## [3.1.97] - 2026-09-04
+
+Includes 3.1.96.
+
+### Security
+- Nodes refuse CosmWasm code upload and contract instantiation (`MsgStoreCode`, `MsgInstantiateContract`, `MsgInstantiateContract2`) at mempool admission. The check runs in CheckTx only, so block validity is unchanged and nodes can be replaced one at a time.
+
+### Changed
+- Release builds are position-independent executables (3.1.97).
+
+---
+
+## [3.1.95] - 2026-08-26
+
+Includes 3.1.94.
+
+### Added
+- **Governable emission (`x/inflation`).** The module gains an authority and `MsgUpdateParams`, a fixed per-epoch emission mode and `max_total_emission`, a hard cumulative cap. The `v3.1.94` upgrade handler switches the module to fixed-mode emission with a cap; later changes go through governance.
+
+### Security
+- Administrative messages whose signer is their own `authority` field verify that the authority is governance (`x/govauth`), and a test checks that every such handler calls the guard.
+- The bridge enforces the configured attestation threshold.
+- The Docker Compose stacks publish RPC, REST, gRPC, EVM JSON-RPC, metrics and sidecar ports on `127.0.0.1` only; P2P stays public.
+
+### Changed
+- cosmos/evm v0.6.3: balance addition fails on overflow instead of wrapping (3.1.95, rolling upgrade).
+
+### Notes
+- Upgrade handler: `v3.1.94`. v3.1.95 needs no upgrade plan.
+
+---
+
+## [3.1.92] - 2026-08-24
+
+### Fixed
+- **New nodes can join again.** Gas charged by `x/ai` depended on how long a node process had been running, so a node replaying blocks could compute a different result and stop at the first block with a transaction. The configuration read is now taken off the gas meter, so gas depends only on chain state. Not consensus-breaking; nodes can be replaced one at a time.
+- `scripts/join-network.sh` creates a missing `priv_validator_state.json` when a node is restored from a snapshot, without ever overwriting an existing one.
+
+---
+
+## [3.1.90] - 2026-08-22
+
+Includes 3.1.89.
+
+### Security
+- SVM: value leaving an account requires that account's signature, not only that it is writable (3.1.89).
+
+### Fixed
+- Light nodes: expected heartbeats accrue forward, so a governance change to `heartbeat_interval` only affects blocks after it and never re-rates a node's past uptime (3.1.90).
+
+---
+
+## [3.1.87] - 2026-07-19
+
+### Changed
+- `qorechaind version` no longer prints build details and is hidden from help, and node info no longer advertises an application version, so a running build cannot be fingerprinted remotely. CLI-only and consensus-neutral.
+
+### Notes
+- Versions 3.1.88, 3.1.91 and 3.1.93 were not released on their own; their changes shipped in later releases.
+
+---
+
 ## [3.1.86] - 2026-07-05
 
 ### Added
