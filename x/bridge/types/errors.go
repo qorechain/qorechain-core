@@ -34,4 +34,6 @@ var (
 	ErrEventTypeMismatch            = errors.Register(ModuleName, 30, "attestation event type does not match operation type")
 	ErrInvalidBridgeConfig          = errors.Register(ModuleName, 31, "invalid bridge configuration")
 	ErrNotEnabled                   = errors.Register(ModuleName, 32, "not enabled at this height")
+	ErrValidatorKeyPoP              = errors.Register(ModuleName, 33, "bridge validator PQC key proof of possession missing or invalid")
+	ErrValidatorKeyInUse            = errors.Register(ModuleName, 34, "PQC key already used by another bridge validator")
 )

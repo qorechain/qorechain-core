@@ -3,6 +3,8 @@
 package cli
 
 import (
+	bridgetypes "github.com/qorechain/qorechain-core/x/bridge/types"
+
 	"bytes"
 	"encoding/hex"
 	"os"
@@ -98,5 +100,19 @@ func TestRotateKeyRefusesBridgeTarget(t *testing.T) {
 		"--from", fx.keyName, "--old-derivation", "adapter", "--new-derivation", "bridge", "--chain-id", testChainID, "--offline")
 	if err == nil || !strings.Contains(err.Error(), "deprecated bridge") {
 		t.Fatalf("got %v", err)
+	}
+}
+
+// The bridge validator registration signs its proof of possession through
+// SignProofOfPossession, over the bytes the bridge module checks.
+func TestBridgeValidatorProofOfPossession(t *testing.T) {
+	fx := newCLIFixture(t)
+	validator := fx.from.String()
+	sig, err := SignProofOfPossession(fx.home, "pq", testChainID, validator, fx.pqcPub)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !qpqc.MLDSA87.Verify(fx.pqcPub, bridgetypes.ValidatorKeyPoPSignBytes(testChainID, validator, fx.pqcPub), sig) {
+		t.Fatal("the bridge proof does not verify over the bridge sign bytes")
 	}
 }

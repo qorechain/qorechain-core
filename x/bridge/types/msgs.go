@@ -1,6 +1,8 @@
 package types
 
 import (
+	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
+
 	"encoding/binary"
 	"fmt"
 
@@ -210,4 +212,15 @@ func (msg MsgUpdateCircuitBreakerLimits) GetSigners() []sdk.AccAddress {
 		return nil
 	}
 	return []sdk.AccAddress{addr}
+}
+
+// ValidatorKeyPoPSignBytes is what a bridge validator's PQC key signs to
+// prove its operator holds the secret (bridge-validator-key-pop). It is the
+// x/pqc proof of possession format, algorithm 1 (ML-DSA-87), bound to the
+// chain, the validator address and the key. The statement is the same one an
+// account registration proves ("this address holds this key"), and every
+// message carrying it must be signed by that address, so one domain serves
+// both: a proof made for one chain, address or key proves nothing for another.
+func ValidatorKeyPoPSignBytes(chainID, validator string, pub []byte) []byte {
+	return pqctypes.ProofOfPossessionSignBytes(chainID, uint32(pqctypes.AlgorithmDilithium5), validator, pub)
 }
