@@ -61,6 +61,7 @@ func (m MsgUpdateParams) ToParams() Params {
 		ValidatorBonusBps:     m.ValidatorBonusBps,
 		MaxTotalAPYBps:        m.MaxTotalApyBps,
 		EarlyUnlockPenaltyBps: m.EarlyUnlockPenaltyBps,
+		MinLockAmount:         m.MinLockAmount,
 		Enabled:               m.Enabled,
 	}
 }

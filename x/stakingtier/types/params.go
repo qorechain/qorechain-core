@@ -1,9 +1,16 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+
+	"cosmossdk.io/math"
+)
 
 // BasisPoints is 100%.
 const BasisPoints = 10_000
+
+// DefaultMinLockAmount is 10 QOR in uqor.
+var DefaultMinLockAmount = math.NewInt(10_000_000)
 
 // AllowedLockMonths are the lock terms the module knows. Governance sets the
 // bonus of each through the lock tiers; a term absent from the tiers is not
@@ -37,6 +44,11 @@ type Params struct {
 	MaxTotalAPYBps uint32 `json:"max_total_apy_bps"`
 	// EarlyUnlockPenaltyBps (5%) of the locked stake is burned by UnlockEarly.
 	EarlyUnlockPenaltyBps uint32 `json:"early_unlock_penalty_bps"`
+	// MinLockAmount (10 QOR) is the smallest amount, in uqor, one lock may
+	// cover. Every open lock is read at each epoch settlement, so the minimum
+	// keeps a flood of dust locks from making that settlement expensive. Zero
+	// means no minimum.
+	MinLockAmount math.Int `json:"min_lock_amount"`
 	// Enabled turns new locks and bonus accrual on or off. Off, existing locks
 	// still bind until they expire or are unlocked early, and credited bonus
 	// can still be claimed.
@@ -55,6 +67,7 @@ func DefaultParams() Params {
 		ValidatorBonusBps:     300,
 		MaxTotalAPYBps:        2500,
 		EarlyUnlockPenaltyBps: 500,
+		MinLockAmount:         DefaultMinLockAmount,
 		Enabled:               true,
 	}
 }
@@ -66,6 +79,14 @@ func allowedMonths(m uint32) bool {
 		}
 	}
 	return false
+}
+
+// MinLock returns MinLockAmount, zero when unset.
+func (p Params) MinLock() math.Int {
+	if p.MinLockAmount.IsNil() {
+		return math.ZeroInt()
+	}
+	return p.MinLockAmount
 }
 
 // TierBonus returns the bonus of a lock term and whether the term is offered.
@@ -105,6 +126,9 @@ func (p Params) Validate() error {
 		if f.v > BasisPoints {
 			return fmt.Errorf("%s must be at most %d, got %d", f.name, BasisPoints, f.v)
 		}
+	}
+	if p.MinLockAmount.IsNil() || p.MinLockAmount.IsNegative() {
+		return fmt.Errorf("min_lock_amount must be set and non-negative")
 	}
 	if p.MaxTotalAPYBps == 0 || p.MaxTotalAPYBps > BasisPoints {
 		return fmt.Errorf("max_total_apy_bps must be in [1, %d], got %d", BasisPoints, p.MaxTotalAPYBps)

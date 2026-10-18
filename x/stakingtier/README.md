@@ -48,8 +48,9 @@ directly and no commission is taken from the bonus.
 `MsgLockDelegation{delegator, validator, amount, months}` commits `amount` of
 an existing delegation to `validator` until `months` calendar months later
 (3, 6 or 12; the block time plus the months, in UTC). While locked, that amount
-cannot be undelegated or redelegated. One delegator holds at most 16 open
-locks.
+cannot be undelegated or redelegated. A lock covers at least `min_lock_amount`
+(10 QOR by default), and one delegator holds at most 16 open locks; both bound
+the work of the epoch settlement, which reads every open lock.
 
 - **Enforcement.** The staking message server refuses a `MsgUndelegate` or
   `MsgBeginRedelegate` that would leave the delegation below its locked part.
@@ -102,7 +103,7 @@ It is also what makes "forfeits the unpaid bonus" well defined.
 Set only by governance (`MsgUpdateParams`, checked with `govauth.Assert`):
 `lock_tiers` (months to bps), `light_node_bonus_bps` (200),
 `validator_bonus_bps` (300), `max_total_apy_bps` (2500),
-`early_unlock_penalty_bps` (500), `enabled`. With `enabled` false no new lock is
+`early_unlock_penalty_bps` (500), `min_lock_amount` (10,000,000 uqor), `enabled`. With `enabled` false no new lock is
 made and no bonus accrues; existing locks still bind and credited bonus can
 still be claimed.
 

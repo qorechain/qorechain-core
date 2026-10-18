@@ -102,6 +102,12 @@ message MsgUpdateParams {
   uint32 early_unlock_penalty_bps = 6;
   // enabled turns new locks and bonus accrual on or off.
   bool enabled = 7;
+  // min_lock_amount is the smallest amount, in uqor, one lock may cover
+  // (default 10 QOR). Zero means no minimum.
+  string min_lock_amount = 8 [
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable) = false
+  ];
 }
 
 message MsgUpdateParamsResponse {}

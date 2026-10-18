@@ -37,6 +37,8 @@ message QueryParamsResponse {
   uint32 max_total_apy_bps = 4;
   uint32 early_unlock_penalty_bps = 5;
   bool enabled = 6;
+  // min_lock_amount is the smallest lock, in uqor.
+  string min_lock_amount = 7;
 }
 
 message QueryLocksRequest {

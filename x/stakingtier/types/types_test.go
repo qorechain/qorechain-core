@@ -30,7 +30,7 @@ func TestDefaultParamsAreTheDecidedValues(t *testing.T) {
 		t.Fatal("9 months is not a tier")
 	}
 	if p.LightNodeBonusBps != 200 || p.ValidatorBonusBps != 300 || p.MaxTotalAPYBps != 2500 ||
-		p.EarlyUnlockPenaltyBps != 500 || !p.Enabled {
+		p.EarlyUnlockPenaltyBps != 500 || !p.Enabled || !p.MinLock().Equal(math.NewInt(10_000_000)) {
 		t.Fatalf("defaults drifted: %+v", p)
 	}
 }
@@ -47,6 +47,8 @@ func TestParamsValidation(t *testing.T) {
 		"penalty > 100%":    func(p *Params) { p.EarlyUnlockPenaltyBps = 10_001 },
 		"zero ceiling":      func(p *Params) { p.MaxTotalAPYBps = 0 },
 		"ceiling > 100%":    func(p *Params) { p.MaxTotalAPYBps = 10_001 },
+		"negative min lock": func(p *Params) { p.MinLockAmount = math.NewInt(-1) },
+		"unset min lock":    func(p *Params) { p.MinLockAmount = math.Int{} },
 	}
 	for name, mutate := range cases {
 		p := DefaultParams()
@@ -309,10 +311,15 @@ func TestMsgValidateBasic(t *testing.T) {
 	}
 	up := MsgUpdateParams{Authority: del, LockTiers: []LockTierParam{{Months: 3, BonusBps: 150}},
 		LightNodeBonusBps: 200, ValidatorBonusBps: 300, MaxTotalApyBps: 2500, EarlyUnlockPenaltyBps: 500, Enabled: true}
+	// A proposal that omits min_lock_amount is refused, not read as zero.
+	if err := up.ValidateBasic(); err == nil {
+		t.Fatal("params without min_lock_amount accepted")
+	}
+	up.MinLockAmount = math.NewInt(10_000_000)
 	if err := up.ValidateBasic(); err != nil {
 		t.Fatal(err)
 	}
-	if p := up.ToParams(); p.MaxTotalAPYBps != 2500 || len(p.LockTiers) != 1 || !p.Enabled {
+	if p := up.ToParams(); p.MaxTotalAPYBps != 2500 || len(p.LockTiers) != 1 || !p.Enabled || !p.MinLock().Equal(math.NewInt(10_000_000)) {
 		t.Fatalf("ToParams: %+v", p)
 	}
 	up.MaxTotalApyBps = 0
