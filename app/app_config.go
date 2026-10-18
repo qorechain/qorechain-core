@@ -129,6 +129,12 @@ var (
 		// module account only holds coins debited from wallet accounts, so the
 		// total supply invariant is preserved (lamports are never minted).
 		{Account: "svm"},
+		// stakingtier (v3.2.4) holds the staking tier bonus x/inflation mints
+		// into it until holders claim it, and burns the early-unlock penalty
+		// itself when x/burn refuses it. The derived address has never held a
+		// coin on either network, so adding it, and blocking plain sends to
+		// it, changes no history.
+		{Account: "stakingtier", Permissions: []string{authtypes.Burner}},
 	}
 
 	// blockAccAddrs defines the module accounts that may NOT receive an ordinary
@@ -212,6 +218,9 @@ var (
 					"rdk",
 					"lightnode",
 					"license",
+					// Release the delegation locks whose end has come (a
+					// no-op below the v3.2.4 staking-tiers switch).
+					"stakingtier",
 					// Refill the fee conversion float at the prices x/amm has just
 					// recomputed (a no-op below the v3.2.2 fee conversion switch).
 					"gasabstraction",
@@ -280,6 +289,9 @@ var (
 					"rdk",
 					"lightnode",
 					"license",
+					// After staking, distribution, bank, lightnode and license,
+					// whose state the lock records refer to.
+					"stakingtier",
 					// genutil runs LAST: DeliverGenTxs executes the validator
 					// gentxs through the ante handler, which reads feemarket/evm
 					// params — so every module that initialises those params
@@ -337,6 +349,7 @@ var (
 					"rdk",
 					"lightnode",
 					"license",
+					"stakingtier",
 				},
 			}),
 		},

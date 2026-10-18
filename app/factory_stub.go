@@ -33,6 +33,7 @@ import (
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	rdkmod "github.com/qorechain/qorechain-core/x/rdk"
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
+	stakingtiermod "github.com/qorechain/qorechain-core/x/stakingtier"
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 	xqoremod "github.com/qorechain/qorechain-core/x/xqore"
 )
@@ -258,5 +259,17 @@ func init() {
 	}
 	NewAMMModuleBasic = func() module.AppModuleBasic {
 		return ammmod.AppModuleBasic{}
+	}
+
+	// StakingTier: stub factories
+	NewStakingTierKeeper = func(_ storetypes.StoreKey, _ bankkeeper.BaseKeeper, _ *stakingkeeper.Keeper,
+		_ lightnodemod.LightNodeKeeper, _ licensemod.LicenseKeeper, _ burnmod.BurnKeeper, logger log.Logger) stakingtiermod.StakingTierKeeper {
+		return stakingtiermod.NewStubKeeper(logger)
+	}
+	NewStakingTierAppModule = func(keeper stakingtiermod.StakingTierKeeper) module.AppModule {
+		return stakingtiermod.NewAppModule(keeper)
+	}
+	NewStakingTierModuleBasic = func() module.AppModuleBasic {
+		return stakingtiermod.AppModuleBasic{}
 	}
 }

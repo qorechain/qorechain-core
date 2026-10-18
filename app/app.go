@@ -148,6 +148,8 @@ import (
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	rlconsensustypes "github.com/qorechain/qorechain-core/x/rlconsensus/types"
 
+	stakingtiermod "github.com/qorechain/qorechain-core/x/stakingtier"
+
 	svmmod "github.com/qorechain/qorechain-core/x/svm"
 	svmtypes "github.com/qorechain/qorechain-core/x/svm/types"
 
@@ -257,6 +259,8 @@ type QoreChainApp struct {
 	LightNodeKeeper       lightnodemod.LightNodeKeeper // v1.15.0 — Light node registration + rewards
 	LicenseKeeper         licensemod.LicenseKeeper     // v1.4.0 — License-gated sidecar features
 	AMMKeeper             ammmod.AMMKeeper             // v3.0.0 — Native automated market maker
+	// StakingTierKeeper: v3.2.4 delegation locks with a bonus yield.
+	StakingTierKeeper stakingtiermod.StakingTierKeeper
 
 	// PQC client (interface type)
 	pqcClient pqcmod.PQCClient
@@ -796,6 +800,21 @@ func NewQoreChainApp(
 		logger,
 	)
 
+	// --- Initialize StakingTier module (via factory, v3.2.4: delegation locks
+	// with a bonus yield). No store of its own: it keeps its records in the
+	// x/inflation store under the "stakingtier/" prefix, because a store
+	// mounted by this binary would change the app hash of every block it
+	// replays below the v3.2.4 plan height (see stakingtiertypes.HostStoreKey).
+	app.StakingTierKeeper = NewStakingTierKeeper(
+		inflationStoreKey,
+		app.BankKeeper,
+		app.StakingKeeper,
+		app.LightNodeKeeper,
+		app.LicenseKeeper,
+		app.BurnKeeper,
+		logger,
+	)
+
 	// Fee conversion's float refill and float query read the bank and swap
 	// through x/amm (v3.2.2). Shared by every copy of the keeper.
 	app.GasAbstractionKeeper.SetConversionDeps(gasabstractiontypes.ConversionDeps{
@@ -869,6 +888,7 @@ func NewQoreChainApp(
 		NewLightNodeAppModule(app.LightNodeKeeper),
 		NewLicenseAppModule(app.LicenseKeeper),
 		NewAMMAppModule(app.AMMKeeper),
+		NewStakingTierAppModule(app.StakingTierKeeper),
 	); err != nil {
 		panic(err)
 	}

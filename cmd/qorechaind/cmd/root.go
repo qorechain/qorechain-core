@@ -149,6 +149,8 @@ func NewRootCmd() *cobra.Command {
 	moduleBasicManager[licenseBasic.Name()] = licenseBasic
 	ammBasic := app.NewAMMModuleBasic()
 	moduleBasicManager[ammBasic.Name()] = ammBasic
+	stakingtierBasic := app.NewStakingTierModuleBasic()
+	moduleBasicManager[stakingtierBasic.Name()] = stakingtierBasic
 
 	// The client context's InterfaceRegistry and amino codec are built by
 	// depinject from AppConfig, which only covers depinject-wired modules. The
