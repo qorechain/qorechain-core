@@ -2,6 +2,8 @@
 
 QoreChain extends the EVM runtime with 6 custom precompiled contracts that expose PQC cryptography, AI risk analysis, RL consensus parameters, and cross-VM communication to Solidity smart contracts.
 
+> **Status:** none of these precompiles is active on mainnet or testnet today. They are compiled into the full build only, and each one runs only after governance lists its address in the EVM parameter `active_static_precompiles`, which is empty on both networks. A call to any address below currently succeeds with empty return data. See [Availability](#availability-build-and-network-status) before using one.
+
 ## Precompile Address Table
 
 | Address | Name | Gas Cost | Category |
@@ -155,11 +157,14 @@ function executeCrossVMCall(uint8 targetVM, string targetContract, bytes payload
 
 **Gas:** 50,000 flat (actual execution gas varies)
 
-## Community vs Internal Build
+## Availability: build and network status
 
-In the **community build** (default), all 6 precompiles return descriptive errors indicating the feature is not available. The EVM itself functions normally with default geth precompiles.
+**None of these precompiles is active on qorechain-vladi (mainnet) or qorechain-diana (testnet), in any build.** On both networks the EVM module parameter `active_static_precompiles` is empty (check it with `GET /cosmos/evm/vm/v1/params`), so the chain dispatches no call to any of the addresses above.
 
-In the **internal build** (`-tags internal`), all 6 precompiles are fully functional and connected to the PQC, AI, and CrossVM keeper modules.
+- **Community build** (the default `go build`, no tag): `registerEVMPrecompiles` is a no-op (`app/precompiles_stub.go`), so none of the QoreChain precompiles exists in the binary. The EVM runs with the standard Ethereum precompiles only (ecrecover, sha256, ripemd160, identity, modexp, the bn256 pairing set and blake2f).
+- **Full build** (`-tags full`, what the network validators run): the implementations are compiled in and connected to the PQC, AI and CrossVM keepers, but a precompile only runs once governance adds its address to `active_static_precompiles`. Until then the full build behaves exactly like the community build for these addresses.
+
+**A call to an address that is not an active precompile succeeds and returns empty data.** That is ordinary EVM behaviour for a call to an address with no code, and it is the case for every address in the table today. A contract must therefore never read empty returndata as an answer: `abi.decode` of empty bytes reverts, but a hand-written decoder or a `success` check alone would read a call to `0x0A01` as a verification result it never was. Integrators should check that the address is listed in `active_static_precompiles` before relying on a precompile, and treat a call that returns no data as "not available".
 
 ## Solidity Interfaces
 
