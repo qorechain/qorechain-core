@@ -41,6 +41,13 @@ All standard Cosmos SDK REST and gRPC endpoints are available:
 | `/qorechain/pqc/v1/params` | GET | PQC module parameters |
 | `/qorechain/pqc/v1/account/{address}` | GET | PQC account info, including `possession_proven` (v3.2.4) |
 | `/qorechain/pqc/v1/stats` | GET | PQC verification statistics |
+| `/qorechain/pqc/v1/protocol_features` | GET | Every protocol feature this binary knows, with whether it is enabled at the current height (v3.2.4) |
+
+### Light Node Module
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/qorechain/lightnode/v1/reward_pool` | GET | Reward pool split; from v3.2.4 also `monthly_cap_active`, `last_distribution_time` and `last_distribution_height` |
 
 ### Reputation Module
 
@@ -133,6 +140,7 @@ All standard Cosmos SDK REST and gRPC endpoints are available:
 |----------|--------|-------------|
 | `/qorechain/abstractaccount/v1/account/{address}` | GET | Abstract account details |
 | `/qorechain/abstractaccount/v1/params` | GET | Module parameters |
+| `/qorechain/abstractaccount/v1/auth_nonce/{address}/{pubkey_hex}` | GET | Next sequence a linked authenticator key must sign for the account (v3.2.4) |
 
 ### FairBlock Module (v1.2.0)
 

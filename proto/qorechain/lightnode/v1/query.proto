@@ -106,4 +106,13 @@ message QueryRewardPoolResponse {
   // bound in force, prorated over block time; max_reward_per_block_per_node is
   // then informational only.
   string max_reward_per_month_per_node = 8;
+  // monthly_cap_active reports whether the lightnode-monthly-cap switch is on
+  // at this height, so max_reward_per_month_per_node is the bound in force.
+  bool monthly_cap_active = 9;
+  // last_distribution_time is the block time (unix seconds) of the previous
+  // settlement; 0 when none has been recorded with a time (every settlement
+  // before the monthly cap switch).
+  int64 last_distribution_time = 10;
+  // last_distribution_height is the height of the previous settlement.
+  int64 last_distribution_height = 11;
 }
