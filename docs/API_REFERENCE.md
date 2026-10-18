@@ -39,7 +39,7 @@ All standard Cosmos SDK REST and gRPC endpoints are available:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/qorechain/pqc/v1/params` | GET | PQC module parameters |
-| `/qorechain/pqc/v1/accounts/{address}` | GET | PQC account info |
+| `/qorechain/pqc/v1/account/{address}` | GET | PQC account info, including `possession_proven` (v3.2.4) |
 | `/qorechain/pqc/v1/stats` | GET | PQC verification statistics |
 
 ### Reputation Module

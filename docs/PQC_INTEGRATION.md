@@ -58,6 +58,26 @@ Key Types:
   - classical_only: ECDSA only (backward compatible)
 ```
 
+### Proof of possession and `possession_proven`
+
+`MsgRegisterPQCKeyV2` may carry `proof_of_possession`: the key's signature over
+`qorechain-pqc-pop-v1|<chain-id>|<algorithm id>|<account>|<hex public key>`.
+It is optional; when present it must verify.
+
+From v3.2.4 (`pqc-possession-flag`) the account record says whether its current
+key was proven: `possession_proven` in `GET /qorechain/pqc/v1/account/{address}`
+is true after a registration that carried a valid proof, or after a rotation or
+migration (both verify a signature by the new key over bytes naming the chain,
+the account and the key). It is false after a registration without a proof, so
+a key that changes without one clears it, and false for every record written
+before v3.2.4.
+
+A key registered without a proof may be a key whose secret the account does
+not hold. Anything that treats a registered key as the account's own should
+check `possession_proven`. In particular the `pqcKeyStatus` and `pqcVerify` EVM
+precompiles must not be activated for contracts unless the contracts check it
+(see [EVM_PRECOMPILES.md](EVM_PRECOMPILES.md)).
+
 ## Hybrid Signatures (v1.1.0)
 
 The hybrid signature system enables dual Ed25519 + ML-DSA-87 verification on every transaction without breaking classical wallet compatibility.

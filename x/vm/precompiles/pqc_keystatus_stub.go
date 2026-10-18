@@ -10,6 +10,11 @@ import (
 )
 
 // PQCKeyStatusPrecompile is the community build stub for PQC key status queries.
+//
+// SECURITY: a registered key is not proof that the account holds its secret.
+// From pqc-possession-flag the full build appends possession_proven to the
+// output; this precompile and pqcVerify must not be activated for contracts
+// unless they check it.
 // Returns an error indicating this feature requires the full build.
 type PQCKeyStatusPrecompile struct{}
 

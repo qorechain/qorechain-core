@@ -104,4 +104,10 @@ message PQCAccountView {
   // given at registration), "auth_account" (nothing was stored, so this is the
   // account's on-chain public key) or "none" (neither exists yet).
   string classical_key_source = 10;
+  // possession_proven is true when the current key was proven by a proof of
+  // possession: a registration carrying a valid proof_of_possession, or a
+  // rotation or migration (both verify a signature by the new key). False for
+  // a key registered without a proof, and for every record from before v3.2.4.
+  // A key without it may be one whose secret the account does not hold.
+  bool possession_proven = 11;
 }

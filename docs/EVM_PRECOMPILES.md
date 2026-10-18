@@ -51,8 +51,14 @@ Queries whether an address has a PQC key registered on-chain.
 
 **Solidity Signature:**
 ```solidity
-function pqcKeyStatus(address account) view returns (bool registered, uint8 algorithmId, bytes pubkey)
+function pqcKeyStatus(address account) view returns (bool registered, uint8 algorithmId, bytes pubkey, bool possessionProven)
 ```
+
+From v3.2.4 (`pqc-possession-flag`) the output carries a fourth value,
+`possessionProven`, appended after the dynamic `pubkey` field. The first three
+values keep their encoding, so a caller that decodes `(bool, uint8, bytes)`
+still reads them unchanged; below the switch the output is the three-value
+form.
 
 **Parameters:**
 - `account` (address): EVM address to query (converted to bech32 internally)
@@ -61,6 +67,9 @@ function pqcKeyStatus(address account) view returns (bool registered, uint8 algo
 - `registered`: Whether the address has a PQC key
 - `algorithmId`: Algorithm ID (1 = Dilithium-5, 2 = ML-KEM-1024)
 - `pubkey`: The registered PQC public key bytes
+- `possessionProven` (v3.2.4): Whether the current key was proven by a proof of possession (a registration with a valid `proof_of_possession`, or a rotation or migration)
+
+> **Security:** a registered key is not proof that the account holds its secret. A key registered without a proof of possession may have been copied from someone else. `pqcKeyStatus` and `pqcVerify` must not be activated for contracts unless those contracts check `possessionProven`; a contract must never accept a `pqcVerify` result as the account's signature for a key whose `possessionProven` is false.
 
 **Gas:** 2,500 flat
 
