@@ -33,11 +33,13 @@ message QueryParamsResponse {
   repeated TierView schedule = 1;
   int64 epoch_length = 2;
   bool enabled = 3;
-  // emission_mode is "schedule" or "fixed" (the effective mode).
+  // emission_mode is "schedule", "fixed" or "target_apy" (the effective mode).
   string emission_mode = 4;
   string fixed_epoch_emission = 5;
   // max_total_emission is the cap on cumulative minting; "0" means uncapped.
   string max_total_emission = 6;
+  // target_apy_bps is the target yield of "target_apy" mode; 0 when unset.
+  uint64 target_apy_bps = 7;
 }
 
 message QueryEpochInfoRequest {}
