@@ -63,6 +63,21 @@ type LightNodeInfo struct {
 	RegisteredAtTime int64 `json:"registered_at_time,omitempty"`
 }
 
+// UptimeFactor is the node's heartbeat uptime: TotalHeartbeats over
+// ExpectedHeartbeats, capped at 1, and 1 while nothing is expected yet. It is
+// the factor the reward distribution compares with min_uptime_for_rewards.
+func (n LightNodeInfo) UptimeFactor() math.LegacyDec {
+	if n.ExpectedHeartbeats == 0 {
+		return math.LegacyOneDec()
+	}
+	f := math.LegacyNewDecFromInt(math.NewIntFromUint64(n.TotalHeartbeats)).
+		Quo(math.LegacyNewDecFromInt(math.NewIntFromUint64(n.ExpectedHeartbeats)))
+	if f.GT(math.LegacyOneDec()) {
+		return math.LegacyOneDec()
+	}
+	return f
+}
+
 // LightNodeStats tracks aggregate statistics for the lightnode module.
 type LightNodeStats struct {
 	TotalRegistered  uint64   `json:"total_registered"`
