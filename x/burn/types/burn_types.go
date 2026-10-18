@@ -20,6 +20,10 @@ const (
 	BurnSourceRollupCreate    BurnSource = "rollup_create"
 	BurnSourceMilestone       BurnSource = "milestone"
 	BurnSourceAMM             BurnSource = "amm"
+	// BurnSourceStakingTierPenalty is the early-unlock penalty of x/stakingtier
+	// (v3.2.4): a share of a delegation lock taken out of the stake and burned
+	// when the holder ends the lock before it expires.
+	BurnSourceStakingTierPenalty BurnSource = "staking_tier_penalty"
 )
 
 // ValidBurnSources returns all valid burn sources.
@@ -29,6 +33,7 @@ func ValidBurnSources() []BurnSource {
 		BurnSourceBridgeFee, BurnSourceTreasuryBuyback, BurnSourceFailedTx,
 		BurnSourceXQOREPenalty, BurnSourceAutoBuyback, BurnSourceTGE,
 		BurnSourceRollupCreate, BurnSourceMilestone, BurnSourceAMM,
+		BurnSourceStakingTierPenalty,
 	}
 }
 
