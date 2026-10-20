@@ -13,6 +13,7 @@ import (
 // EVMWindowKeeper is the interface the EVM-lane window decorator needs.
 type EVMWindowKeeper interface {
 	HasPQCAccount(ctx sdk.Context, address string) bool
+	GetEVMWindow(ctx sdk.Context, addr sdk.AccAddress) (types.EVMAuthWindow, bool)
 	ConsumeEVMWindow(ctx sdk.Context, addr sdk.AccAddress, outflow sdkmath.Int) error
 	ConsumeEVMDelegationConsent(ctx sdk.Context, addr sdk.AccAddress, delegate common.Address) error
 	ProtocolFeatureEnabled(ctx sdk.Context, name string) bool

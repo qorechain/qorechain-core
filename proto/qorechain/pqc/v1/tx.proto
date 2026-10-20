@@ -76,6 +76,10 @@ message MsgRegisterPQCKeyV2 {
   uint32 algorithm_id = 3 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "AlgorithmID"];
   bytes ecdsa_pubkey = 4 [(gogoproto.customname) = "ECDSAPubkey"];
   string key_type = 5;
+  // Optional (v3.2.3): the key's signature over
+  // "qorechain-pqc-pop-v1|chainid|algo|account|hex(public_key)", proving the
+  // owner holds its secret. Verified when present; not required yet.
+  bytes proof_of_possession = 6;
 }
 message MsgRegisterPQCKeyV2Response {}
 
@@ -95,8 +99,10 @@ message MsgMigratePQCKeyResponse {}
 // MsgRotatePQCKey replaces an account's PQC key with a new key of the SAME
 // algorithm. Both signatures are over the domain-separated bytes
 // "qorechain-pqc-rotate-v1|chainid|algo|account|oldkey|newkey" (no block height —
-// the signer cannot predict it; replay is prevented because after the rotation
-// the old key no longer matches the registered key).
+// the signer cannot predict it). The bytes carry no nonce, so the old key no
+// longer matching is NOT enough once a key is reused (A->B->A makes the A->B
+// message valid again). From v3.2.3 the chain refuses any rotation or migration
+// to a key the account used before, which closes that replay.
 message MsgRotatePQCKey {
   option (cosmos.msg.v1.signer) = "sender";
 
@@ -150,6 +156,16 @@ message MsgOpenEVMWindow {
     (gogoproto.customtype) = "cosmossdk.io/math.Int",
     (gogoproto.nullable) = false
   ];
+  // native_only, when true, narrows the window to plain transfers of native
+  // QOR: it refuses calldata, contract creation, a recipient that carries
+  // code, and EIP-7702 authorizations. Optional; absent keeps the window's
+  // original scope. Honoured from the evm-pqc-window-targets feature on.
+  bool native_only = 5;
+  // allowed_targets, when non-empty, narrows the window to transactions whose
+  // recipient is one of these 0x-prefixed 20-byte addresses; contract
+  // creation is refused. Optional; absent keeps the window's original scope.
+  // Honoured from the evm-pqc-window-targets feature on.
+  repeated string allowed_targets = 6;
 }
 message MsgOpenEVMWindowResponse {
   uint64 expiry_height = 1;

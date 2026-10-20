@@ -1,5 +1,7 @@
 package types
 
+import "encoding/binary"
+
 const (
 	ModuleName = "abstractaccount"
 	StoreKey   = ModuleName
@@ -46,6 +48,48 @@ func SpendAccumIntKey(account string, scope []byte, denom string, dayUnix int64)
 	return append(key, legacy[len(SpendAccumPrefix):]...)
 }
 
+// SpendAccumFramedTag is the first byte of a daily-spend key suffix written in
+// the framed layout (SpendAccumKeyFramed). A legacy suffix starts with the
+// bech32 account, which is printable ASCII, so the two layouts cannot share a
+// key under the same prefix.
+const SpendAccumFramedTag = 0x00
+
+// SpendAccumKeyFramed builds the daily-spend key for (account, scope, denom,
+// UTC day) with every variable-length part length-prefixed (QSR-2026-0433):
+//
+//	prefix | 0x00 | uvarint(len account) | account | uvarint(len scope) | scope |
+//	uvarint(len denom) | denom | day(8)
+//
+// The legacy layout separated the parts with '/', which scope and denom may
+// themselves contain, so distinct (scope, denom) pairs could share a bucket
+// (scope "/abc" with denom "uqor" is the nil scope with denom "abc/uqor").
+// It is written from the abstractaccount-hardening protocol feature on. The
+// prefix and the trailing day are those of the legacy layout, so export,
+// import and pruning treat both alike.
+func SpendAccumKeyFramed(account string, scope []byte, denom string, dayUnix int64) []byte {
+	return spendAccumFramed(SpendAccumPrefix, account, scope, denom, dayUnix)
+}
+
+// SpendAccumIntKeyFramed is SpendAccumKeyFramed under SpendAccumIntPrefix.
+func SpendAccumIntKeyFramed(account string, scope []byte, denom string, dayUnix int64) []byte {
+	return spendAccumFramed(SpendAccumIntPrefix, account, scope, denom, dayUnix)
+}
+
+func spendAccumFramed(pfx []byte, account string, scope []byte, denom string, dayUnix int64) []byte {
+	key := make([]byte, 0, len(pfx)+1+3*binary.MaxVarintLen64+len(account)+len(scope)+len(denom)+8)
+	key = append(key, pfx...)
+	key = append(key, SpendAccumFramedTag)
+	key = binary.AppendUvarint(key, uint64(len(account)))
+	key = append(key, account...)
+	key = binary.AppendUvarint(key, uint64(len(scope)))
+	key = append(key, scope...)
+	key = binary.AppendUvarint(key, uint64(len(denom)))
+	key = append(key, denom...)
+	var d [8]byte
+	binary.BigEndian.PutUint64(d[:], uint64(dayUnix))
+	return append(key, d[:]...)
+}
+
 // AuthIndexKey builds the reverse-index key for a (scheme, pubkey) authenticator.
 func AuthIndexKey(scheme string, pubkey []byte) []byte {
 	key := append([]byte{}, AuthIndexPrefix...)
@@ -71,8 +115,9 @@ func SpendAccumKey(account string, scope []byte, denom string, dayUnix int64) []
 	key := append([]byte{}, SpendAccumPrefix...)
 	key = append(key, []byte(account)...)
 	key = append(key, '/')
-	// A nil scope is the account-wide bucket. It cannot collide with a key-scoped
-	// one, because a public key is never empty.
+	// A nil scope is the account-wide bucket. It was meant not to collide with a
+	// key-scoped one because a public key is never empty, but a scope starting
+	// with '/' (0x2f) does collide with it; SpendAccumKeyFramed is the fix.
 	key = append(key, scope...)
 	key = append(key, '/')
 	key = append(key, []byte(denom)...)

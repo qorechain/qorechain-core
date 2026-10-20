@@ -101,4 +101,9 @@ message QueryRewardPoolResponse {
   // the accounting being live (the licence batch tool) must treat the pool as
   // not ready.
   bool initialized = 7;
+  // max_reward_per_month_per_node is the monthly per-node bound in uqor
+  // (2,000 QOR by decision). From the lightnode-monthly-cap switch it is the
+  // bound in force, prorated over block time; max_reward_per_block_per_node is
+  // then informational only.
+  string max_reward_per_month_per_node = 8;
 }

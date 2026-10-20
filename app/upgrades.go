@@ -89,6 +89,10 @@ const UpgradeNameV3_2_0 = "v3.2.0"
 // (see ReleaseV3_2_2ProtocolFeatures). v3.2.1 was node-local and had no plan.
 const UpgradeNameV3_2_2 = "v3.2.2"
 
+// UpgradeNameV3_2_3 is the coordinated governance upgrade for the release that
+// enables ReleaseV3_2_3ProtocolFeatures.
+const UpgradeNameV3_2_3 = "v3.2.3"
+
 // relayerFriendlyTxPerMinute is the per-sender ceiling the release sets, in
 // transactions per 30-block window. The module ships a default of 10, which is
 // a wallet's ceiling, not a relayer's.
@@ -244,6 +248,7 @@ func (app *QoreChainApp) registerUpgradeHandlers() {
 	app.UpgradeKeeper.SetUpgradeHandler(UpgradeNameV3_2_0, releaseHandler)
 
 	app.UpgradeKeeper.SetUpgradeHandler(UpgradeNameV3_2_2, app.upgradeV3_2_2)
+	app.UpgradeKeeper.SetUpgradeHandler(UpgradeNameV3_2_3, app.upgradeV3_2_3)
 }
 
 // mergeMissingModuleVersions returns fromVM with an entry for every module in

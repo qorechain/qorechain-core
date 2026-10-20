@@ -67,6 +67,10 @@ message RollupView {
   int64 stake_amount = 10;
   string layer_id = 11;
   int64 created_height = 12;
+  // escrow_balance is what the rollup still holds in the pooled module
+  // escrow, in uqor: what its withdrawals can still pay and what stopping it
+  // refunds. It is read from the per-rollup escrow ledger (from v3.2.3).
+  uint64 escrow_balance = 13;
 }
 
 // BatchView is the query-facing view of a settlement batch.

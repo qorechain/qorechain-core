@@ -13,7 +13,11 @@ import (
 // module can tell that apart from what merely sits in its balance. Implemented
 // by the application over the SDK's distribution keeper.
 type DistributionLiability interface {
+	// TotalOwed is the v3.2.0 formula, which counts unwithdrawn commission
+	// twice (QSR-2026-0341). Kept unchanged for replay of that handler.
 	TotalOwed(ctx sdk.Context) math.Int
+	// ClaimsOwed is outstanding rewards plus the community pool only.
+	ClaimsOwed(ctx sdk.Context) math.Int
 }
 
 type BurnKeeper interface {

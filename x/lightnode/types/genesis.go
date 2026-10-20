@@ -1,6 +1,10 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+
+	"cosmossdk.io/math"
+)
 
 // GenesisState defines the lightnode module's genesis state.
 type GenesisState struct {
@@ -49,9 +53,34 @@ func (gs GenesisState) Validate() error {
 	if gs.Stats.TotalRewards.IsNegative() {
 		return fmt.Errorf("stats total_rewards must be non-negative")
 	}
+	// Every node's accumulated_rewards is a non-negative integer (empty reads
+	// as zero, as the keeper reads it), and their sum is what the pool owes.
+	credited := math.ZeroInt()
+	for i, node := range gs.LightNodes {
+		if node.AccumulatedRewards == "" {
+			continue
+		}
+		amt, ok := math.NewIntFromString(node.AccumulatedRewards)
+		if !ok {
+			return fmt.Errorf("light_nodes[%d]: accumulated_rewards %q is not an integer", i, node.AccumulatedRewards)
+		}
+		if amt.IsNegative() {
+			return fmt.Errorf("light_nodes[%d]: accumulated_rewards must be non-negative, got %s", i, amt)
+		}
+		credited = credited.Add(amt)
+	}
 	if gs.RewardPool != nil {
 		if err := gs.RewardPool.Validate(); err != nil {
 			return fmt.Errorf("invalid reward_pool: %w", err)
+		}
+		// QSR-2026-0496: Outstanding is by definition the sum of the nodes'
+		// accumulated rewards. A genesis that breaks this starts a chain whose
+		// claims are not all backed. An uninitialized record is recomputed
+		// from the nodes by the upgrade path, so only an initialized one is
+		// held to it.
+		if pool := gs.RewardPool.Normalized(); pool.Initialized && !pool.Outstanding.Equal(credited) {
+			return fmt.Errorf("invalid reward_pool: outstanding %s does not equal the sum of the nodes' accumulated_rewards %s",
+				pool.Outstanding, credited)
 		}
 	}
 	return nil

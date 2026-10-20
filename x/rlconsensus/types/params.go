@@ -115,6 +115,34 @@ func (rw RewardWeights) Validate() error {
 	return nil
 }
 
+// ValidateBounds checks that every weight lies in [0, 1] (QSR-2026-0435).
+// Validate alone accepted weights such as mev=-1.0 with throughput=2.0, which
+// still sum to 1. The governance handler applies it from
+// FeatureRLParamBounds; Validate stays as it was, because it also guards
+// historical messages replayed below that switch.
+func (rw RewardWeights) ValidateBounds() error {
+	if err := rw.Validate(); err != nil {
+		return err
+	}
+	one := math.LegacyOneDec()
+	for _, w := range []struct{ name, val string }{
+		{"throughput", rw.Throughput},
+		{"finality", rw.Finality},
+		{"decentralization", rw.Decentralization},
+		{"mev", rw.MEV},
+		{"failed_txs", rw.FailedTxs},
+	} {
+		d, err := math.LegacyNewDecFromStr(w.val)
+		if err != nil {
+			return fmt.Errorf("invalid %s weight: %w", w.name, err)
+		}
+		if d.IsNegative() || d.GT(one) {
+			return fmt.Errorf("%s weight must be between 0 and 1, got %s", w.name, d)
+		}
+	}
+	return nil
+}
+
 // Params defines the configurable parameters for the RL consensus module.
 type Params struct {
 	Enabled                 bool          `json:"enabled"`
@@ -164,11 +192,25 @@ func (p Params) Validate() error {
 	if p.CircuitBreakerWindow < 10 {
 		return fmt.Errorf("circuit breaker window must be >= 10, got %d", p.CircuitBreakerWindow)
 	}
-	if _, err := math.LegacyNewDecFromStr(p.CircuitBreakerThreshold); err != nil {
+	// Bounds on the three fields set only by genesis or an upgrade handler
+	// (QSR-2026-0436 c). No message writes them, the values stored on every
+	// network are the defaults, and those pass.
+	threshold, err := math.LegacyNewDecFromStr(p.CircuitBreakerThreshold)
+	if err != nil {
 		return fmt.Errorf("invalid circuit_breaker_threshold: %w", err)
 	}
-	if _, err := math.LegacyNewDecFromStr(p.DefaultBaseGasPrice); err != nil {
+	if threshold.IsNegative() || threshold.GT(math.LegacyOneDec()) {
+		return fmt.Errorf("circuit_breaker_threshold must be between 0 and 1, got %s", threshold)
+	}
+	gasPrice, err := math.LegacyNewDecFromStr(p.DefaultBaseGasPrice)
+	if err != nil {
 		return fmt.Errorf("invalid default_base_gas_price: %w", err)
+	}
+	if gasPrice.IsNegative() {
+		return fmt.Errorf("default_base_gas_price must not be negative, got %s", gasPrice)
+	}
+	if p.DefaultBlockTimeMs <= 0 {
+		return fmt.Errorf("default_block_time_ms must be positive, got %d", p.DefaultBlockTimeMs)
 	}
 	if err := p.RewardWeights.Validate(); err != nil {
 		return err

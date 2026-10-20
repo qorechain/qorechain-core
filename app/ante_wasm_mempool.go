@@ -11,11 +11,16 @@ import (
 )
 
 // wasmMempoolBlockedMsgs are the CosmWasm entry points that let an unprivileged
-// account put new code on the chain and bring it to life.
+// account put new code on the chain and bring it to life. The two combined
+// messages (store and instantiate, store and migrate) upload code too and were
+// missing (QSR-2026-0382 F1, 0396, 0558); code_upload_access=Nobody already
+// refuses them at execution, so this only keeps the mempool guard consistent.
 var wasmMempoolBlockedMsgs = map[string]struct{}{
-	sdk.MsgTypeURL(&wasmtypes.MsgStoreCode{}):            {},
-	sdk.MsgTypeURL(&wasmtypes.MsgInstantiateContract{}):  {},
-	sdk.MsgTypeURL(&wasmtypes.MsgInstantiateContract2{}): {},
+	sdk.MsgTypeURL(&wasmtypes.MsgStoreCode{}):                   {},
+	sdk.MsgTypeURL(&wasmtypes.MsgInstantiateContract{}):         {},
+	sdk.MsgTypeURL(&wasmtypes.MsgInstantiateContract2{}):        {},
+	sdk.MsgTypeURL(&wasmtypes.MsgStoreAndInstantiateContract{}): {},
+	sdk.MsgTypeURL(&wasmtypes.MsgStoreAndMigrateContract{}):     {},
 }
 
 // WasmMempoolGuardDecorator refuses to admit CosmWasm upload/instantiate

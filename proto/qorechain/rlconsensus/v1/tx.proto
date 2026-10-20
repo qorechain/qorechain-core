@@ -23,8 +23,11 @@ service Msg {
 message MsgSetAgentMode {
   option (cosmos.msg.v1.signer) = "authority";
   string authority = 1;
-  // mode cast to the named AgentMode (uint8) Go type.
-  uint32 mode = 2 [(gogoproto.casttype) = "AgentMode", (gogoproto.customname) = "Mode"];
+  // mode is one of the AgentMode values (0 shadow, 1 conservative,
+  // 2 autonomous, 3 paused). It stays a uint32 in Go: casting it to the uint8
+  // AgentMode at decode time wrapped 256 to 0 and 257 to 1 before any check
+  // could see the value that was sent (QSR-2026-0434).
+  uint32 mode = 2 [(gogoproto.customname) = "Mode"];
 }
 message MsgSetAgentModeResponse {}
 

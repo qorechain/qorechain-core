@@ -118,6 +118,15 @@ enable = {{ .SVMRPC.Enable }}
 address = "{{ .SVMRPC.Address }}"
 `
 
+// DefaultQueryGasLimit is the query-gas-limit written to a new app.toml.
+const DefaultQueryGasLimit uint64 = 50_000_000
+
+// DefaultJSONRPCAPIs are the JSON-RPC namespaces a new app.toml enables. txpool
+// is left out (QSR-2026-0079): it publishes this node's pending transactions,
+// and wallets and exchanges need only eth, net and web3. Operators who want it
+// add it to json-rpc.api.
+var DefaultJSONRPCAPIs = []string{"eth", "net", "web3"}
+
 // initAppConfig returns the app.toml template and defaults. chainID is the
 // --chain-id of the running command, when it has one (init does): for a public
 // network it sets the [evm] evm-chain-id default to that network's pinned EVM
@@ -126,6 +135,12 @@ address = "{{ .SVMRPC.Address }}"
 func initAppConfig(chainID string) (string, interface{}) {
 	srvCfg := serverconfig.DefaultConfig()
 	srvCfg.MinGasPrices = "0uqor" // base denom: uqor (10^6 = 1 QOR)
+	// Bound the gas one gRPC/REST query may use (QSR-2026-0419). The SDK default
+	// of 0 means unlimited, so an unpaginated list query walked its whole table.
+	// The value is far above any legitimate query, including eth_estimateGas,
+	// whose binary search re-reads EVM state on the same query gas meter.
+	// Node-local: queries are not part of consensus.
+	srvCfg.QueryGasLimit = DefaultQueryGasLimit
 
 	evmCfg := cosmosevmserverconfig.DefaultEVMConfig()
 	// Align the JSON-RPC backend's EIP-155 chain ID with the value the EVM keeper
@@ -148,7 +163,10 @@ func initAppConfig(chainID string) (string, interface{}) {
 	jsonrpcCfg := cosmosevmserverconfig.DefaultJSONRPCConfig()
 	// Enable JSON-RPC by default for QoreChain testnet
 	jsonrpcCfg.Enable = true
-	jsonrpcCfg.API = []string{"eth", "net", "web3", "txpool"}
+	jsonrpcCfg.API = DefaultJSONRPCAPIs
+	// No RPC caller may make the node sign with, list or write to its own
+	// keyring unless the operator opts in (QSR-2026-0486, QSR-2026-0562).
+	jsonrpcCfg.AllowInsecureUnlock = false
 	tlsCfg := cosmosevmserverconfig.DefaultTLSConfig()
 
 	qoreConfig := QoreChainConfig{
@@ -225,6 +243,8 @@ func initRootCmd(
 		appExport,
 		WireSidecarHooks,
 	)
+	// A community build refuses to start on a public network unless told to.
+	wireBuildFlavorGuard(rootCmd)
 
 	rootCmd.AddCommand(
 		server.StatusCommand(),

@@ -33,4 +33,11 @@ var (
 	ErrInvalidWithdrawalProof = errorsmod.Register(ModuleName, 29, "withdrawal proof does not match the batch withdrawals root")
 	ErrInvalidRollupID        = errorsmod.Register(ModuleName, 30, "invalid rollup id")
 	ErrAnchorFailed           = errorsmod.Register(ModuleName, 31, "the signed state anchor for this batch was refused")
+	// ErrInsufficientRollupEscrow is returned from v3.2.3 (FeatureRDKEscrowLedger)
+	// when a withdrawal asks for more than the rollup still holds in escrow.
+	// Before the switch the same shortfall was reported as ErrInvalidWithdrawalProof.
+	ErrInsufficientRollupEscrow = errorsmod.Register(ModuleName, 32, "rollup escrow does not cover the withdrawal")
+	// ErrInvalidWithdrawal is returned from v3.2.3 (FeatureRDKEscrowLedger) for a
+	// withdrawal message whose fields are malformed before any state is read.
+	ErrInvalidWithdrawal = errorsmod.Register(ModuleName, 33, "malformed withdrawal message")
 )

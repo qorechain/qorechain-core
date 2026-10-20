@@ -44,6 +44,12 @@ type RewardPool struct {
 	// LastDistributionHeight is the height of the previous settlement. Reward
 	// entitlements accrue per block elapsed since then.
 	LastDistributionHeight int64 `json:"last_distribution_height"`
+
+	// LastDistributionTime is the block time (unix seconds) of the previous
+	// settlement, written from the lightnode-monthly-cap switch on so the
+	// monthly bound can be prorated over wall-clock time. Zero (absent) on every
+	// record written before, so those records keep their bytes.
+	LastDistributionTime int64 `json:"last_distribution_time,omitempty"`
 }
 
 // DefaultRewardPool returns the pool state for a chain starting from genesis:

@@ -19,6 +19,11 @@ type LockMultiplierTier struct {
 	Multiplier  math.LegacyDec `json:"multiplier"`
 }
 
+// MaxGovernanceMultiplier is the largest voting-power multiplier xQORE may
+// grant (QSR-2026-0377). It was documented as 2.0x but never enforced, so a
+// params value of 100x would have validated.
+var MaxGovernanceMultiplier = math.LegacyNewDec(2)
+
 // Params defines the configurable parameters for the xQORE module.
 type Params struct {
 	GovernanceMultiplier   math.LegacyDec       `json:"governance_multiplier"` // max voting power multiplier (2.0x)
@@ -56,8 +61,17 @@ func DefaultParams() Params {
 
 // Validate checks param correctness.
 func (p Params) Validate() error {
-	if p.GovernanceMultiplier.IsNegative() {
+	if p.GovernanceMultiplier.IsNil() || p.GovernanceMultiplier.IsNegative() {
 		return fmt.Errorf("governance_multiplier must be non-negative")
+	}
+	// The multiplier is a voting-power multiplier: at least 1 (a lock never
+	// reduces a holder's weight) and at most MaxGovernanceMultiplier. Params
+	// are set only at genesis today, and the shipped values (1.0 to 2.0) pass;
+	// any later MsgUpdateParams inherits the cap from here.
+	one := math.LegacyOneDec()
+	if p.GovernanceMultiplier.LT(one) || p.GovernanceMultiplier.GT(MaxGovernanceMultiplier) {
+		return fmt.Errorf("governance_multiplier must be between 1 and %s, got %s",
+			MaxGovernanceMultiplier, p.GovernanceMultiplier)
 	}
 	if p.MinLockAmount.IsNegative() {
 		return fmt.Errorf("min_lock_amount must be non-negative")
@@ -78,8 +92,15 @@ func (p Params) Validate() error {
 	}
 	// Verify lock multiplier tiers
 	for i, tier := range p.LockMultiplierSchedule {
-		if tier.Multiplier.IsNegative() {
+		if tier.Multiplier.IsNil() || tier.Multiplier.IsNegative() {
 			return fmt.Errorf("lock_multiplier_schedule[%d]: multiplier must be non-negative", i)
+		}
+		if tier.Multiplier.LT(one) || tier.Multiplier.GT(p.GovernanceMultiplier) {
+			return fmt.Errorf("lock_multiplier_schedule[%d]: multiplier must be between 1 and governance_multiplier (%s), got %s",
+				i, p.GovernanceMultiplier, tier.Multiplier)
+		}
+		if i > 0 && tier.Multiplier.LT(p.LockMultiplierSchedule[i-1].Multiplier) {
+			return fmt.Errorf("lock_multiplier_schedule[%d]: multiplier must not decrease with lock duration", i)
 		}
 	}
 	for i := 1; i < len(p.LockMultiplierSchedule); i++ {

@@ -2,6 +2,7 @@ package types
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 
 	"github.com/cosmos/cosmos-sdk/types/bech32"
@@ -97,6 +98,9 @@ func SpendAccumKeyDay(suffix []byte) int64 {
 // end '/' followed by the eight-byte day. Scope and denom sit in between and
 // may contain any byte.
 func validateSpendAccumSuffix(suffix []byte) error {
+	if len(suffix) > 0 && suffix[0] == SpendAccumFramedTag {
+		return validateSpendAccumFramedSuffix(suffix)
+	}
 	i := bytes.IndexByte(suffix, '/')
 	if i <= 0 {
 		return fmt.Errorf("no account part")
@@ -109,6 +113,29 @@ func validateSpendAccumSuffix(suffix []byte) error {
 	rest := suffix[i+1:]
 	if len(rest) < 2+8 || rest[len(rest)-9] != '/' {
 		return fmt.Errorf("no scope/denom/day part")
+	}
+	return nil
+}
+
+// validateSpendAccumFramedSuffix checks a suffix written by
+// SpendAccumKeyFramed: the tag, three length-prefixed parts (a bech32 account,
+// the scope, the denom) and the eight-byte day, with nothing left over.
+func validateSpendAccumFramedSuffix(suffix []byte) error {
+	rest := suffix[1:]
+	var parts [3][]byte
+	for i := range parts {
+		n, w := binary.Uvarint(rest)
+		if w <= 0 || n > uint64(len(rest)-w) {
+			return fmt.Errorf("framed key: bad length of part %d", i)
+		}
+		parts[i] = rest[w : w+int(n)]
+		rest = rest[w+int(n):]
+	}
+	if len(rest) != 8 {
+		return fmt.Errorf("framed key: %d bytes after the denom, want the 8-byte day", len(rest))
+	}
+	if _, _, err := bech32.DecodeAndConvert(string(parts[0])); err != nil {
+		return fmt.Errorf("account %q: %w", parts[0], err)
 	}
 	return nil
 }

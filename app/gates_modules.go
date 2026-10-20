@@ -3,6 +3,7 @@ package app
 import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	licensemod "github.com/qorechain/qorechain-core/x/license"
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
 
@@ -14,5 +15,8 @@ import (
 func (app *QoreChainApp) wireModuleGates() {
 	GovProposerRewardCapEnabled = func(ctx sdk.Context) bool {
 		return app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureGovProposerRewardCap)
+	}
+	licensemod.AuthorityUpdateEnabled = func(ctx sdk.Context) bool {
+		return app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureLicenseAuthorityUpdate)
 	}
 }

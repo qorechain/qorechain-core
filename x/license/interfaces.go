@@ -25,6 +25,8 @@ type LicenseKeeper interface {
 
 	// Authority
 	GetAuthority() string
+	// SetAuthority persists a new licence grant authority.
+	SetAuthority(ctx sdk.Context, authority string)
 
 	// Genesis
 	InitGenesis(ctx sdk.Context, gs types.GenesisState)

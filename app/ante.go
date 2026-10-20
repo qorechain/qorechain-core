@@ -24,7 +24,6 @@ import (
 	cosmosevmante "github.com/cosmos/evm/ante"
 	cosmosante "github.com/cosmos/evm/ante/cosmos"
 	evmante "github.com/cosmos/evm/ante/evm"
-	antetypes "github.com/cosmos/evm/ante/types"
 	feemarkettypes "github.com/cosmos/evm/x/feemarket/types"
 	evmtypes "github.com/cosmos/evm/x/vm/types"
 
@@ -142,13 +141,15 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 		if ok {
 			opts := txWithExtensions.GetExtensionOptions()
 			if len(opts) > 0 {
+				// There is no case for the EVM dynamic-fee option
+				// (/cosmos.evm.ante.v1.ExtensionOptionDynamicFeeTx): the type is
+				// not registered as a TxExtensionOptionI in this app, so the tx
+				// decoder refuses it before ante runs, and a route for it was
+				// dead code (QSR-2026-0577).
 				switch typeURL := opts[0].GetTypeUrl(); typeURL {
 				case "/cosmos.evm.vm.v1.ExtensionOptionsEthereumTx":
 					// EVM transaction — route to mono decorator
 					return evmHandler(ctx, tx, sim)
-				case "/cosmos.evm.ante.v1.ExtensionOptionDynamicFeeTx":
-					// Cosmos SDK tx with dynamic fee — route to Cosmos SDK path
-					return cosmosHandler(ctx, tx, sim)
 				case pqctypes.HybridSigTypeURL:
 					// Cosmos SDK tx carrying a PQC hybrid signature — route to the
 					// Cosmos SDK path (the hybrid verify decorator runs there).
@@ -274,6 +275,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 			sdk.MsgTypeURL(&sdkvesting.MsgCreatePermanentLockedAccount{}),
 			sdk.MsgTypeURL(&sdkvesting.MsgCreatePeriodicVestingAccount{}),
 		),
+		// From v3.2.3 an account's own post-quantum key messages cannot be
+		// sent on its behalf through authz either (QSR-2026-0521, 0506).
+		pqcKeyAuthzLimiter(options.PQCKeeper),
 		ante.NewSetUpContextDecorator(),
 		// Mempool-only guard: refuse CosmWasm upload/instantiate into this
 		// node's mempool. CheckTx only, so block validity is unchanged and
@@ -403,6 +407,3 @@ func sigVerificationGasConsumerWithPQC(
 ) error {
 	return cosmosevmante.SigVerificationGasConsumer(meter, sig, params)
 }
-
-// Ensure antetypes import is used for extension option checking.
-var _ = antetypes.HasDynamicFeeExtensionOption

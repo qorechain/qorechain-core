@@ -45,6 +45,7 @@ func (AppModuleBasic) RegisterInterfaces(reg codectypes.InterfaceRegistry) {
 		&types.MsgRevokeLicense{},
 		&types.MsgSuspendLicense{},
 		&types.MsgResumeLicense{},
+		&types.MsgUpdateAuthority{},
 	)
 }
 func (AppModuleBasic) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {

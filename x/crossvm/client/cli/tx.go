@@ -52,10 +52,14 @@ func cmdCrossVMCall() *cobra.Command {
 			async, _ := cmd.Flags().GetBool("async")
 			// No source-vm argument: the chain derives the origin lane from the
 			// execution context, so asking the caller to name it would only invite a
-			// value the node discards.
+			// value the node discards. The field still gets a placeholder, because
+			// ValidateBasic (here and on every node) refuses an empty one
+			// (QSR-2026-0379).
+			targetVM := types.VMType(args[0])
 			msg := &types.MsgCrossVMCall{
 				Sender:         clientCtx.GetFromAddress().String(),
-				TargetVM:       types.VMType(args[0]),
+				SourceVM:       types.PlaceholderSourceVM(targetVM),
+				TargetVM:       targetVM,
 				TargetContract: args[1],
 				Payload:        payload,
 				Funds:          funds,

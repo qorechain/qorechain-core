@@ -153,12 +153,32 @@ var ReleaseV3_2_2ProtocolFeatures = []string{
 	FeatureAICosmosAnomaly,
 }
 
+// Released in v3.2.3.
+const (
+	// x/license: governance can replace the licence grant authority.
+	FeatureLicenseAuthorityUpdate = "license-authority-update"
+)
+
+// ReleaseV3_2_3ProtocolFeatures is what the v3.2.3 release handler enables at
+// its plan height.
+var ReleaseV3_2_3ProtocolFeatures = concatFeatures(
+	[]string{FeatureLicenseAuthorityUpdate},
+	V323PqcIntegrityFeatures,
+	V323EvmWindowFeatures,
+	V323RdkFeatures,
+	V323CrossvmPrecompileFeatures,
+	V323StakingVestingFeatures,
+	V323EconFeatures,
+	V323HardeningFeatures,
+	V323LightnodeFeatures,
+)
+
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain
 // enables all of them at genesis, and the release upgrade handler enables
 // them at the plan height. A feature that is not yet released is listed in
 // StagedProtocolFeatures instead: the code is in the binary, the switch stays
 // off on every chain, and a later release's handler turns it on.
-var AllProtocolFeatures = concatFeatures(ReleaseV3_2_0ProtocolFeatures, ReleaseV3_2_2ProtocolFeatures)
+var AllProtocolFeatures = concatFeatures(ReleaseV3_2_0ProtocolFeatures, ReleaseV3_2_2ProtocolFeatures, ReleaseV3_2_3ProtocolFeatures)
 
 // StagedProtocolFeatures are known to this binary and enabled by no path in
 // it. Moving one to AllProtocolFeatures is what releases it.

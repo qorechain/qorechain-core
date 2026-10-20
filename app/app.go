@@ -65,7 +65,6 @@ import (
 
 	// QoreChain EVM
 	evmante "github.com/cosmos/evm/ante/evm"
-	antetypes "github.com/cosmos/evm/ante/types"
 	evmcryptocodec "github.com/cosmos/evm/crypto/codec"
 	evmmempool "github.com/cosmos/evm/mempool"
 	srvflags "github.com/cosmos/evm/server/flags"
@@ -349,6 +348,9 @@ func NewQoreChainApp(
 	// QoreChain's unified qor1/0x/svm identity. Safe/consensus-neutral: it only
 	// teaches the codec a type; no state-machine or genesis change.
 	evmcryptocodec.RegisterInterfaces(app.interfaceRegistry)
+	// The same key types on the legacy amino codecs, which gas simulation and
+	// key export use (QSR-2026-0491). Node-local; see RegisterEthKeysOnLegacyAmino.
+	RegisterEthKeysOnLegacyAmino(app.legacyAmino)
 
 	app.App = appBuilder.Build(db, traceStore, baseAppOptions...)
 
@@ -915,6 +917,10 @@ func NewQoreChainApp(
 	// whatever the chain's initial height (see executingGenesis).
 	app.SetInitChainer(app.initChainerFlaggingGenesis)
 
+	// Every store is mounted by now: give the EVM keeper all of them, and
+	// refuse to start if one is missing (QSR-2026-0520).
+	app.completeEVMStoreKeys()
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
@@ -1004,12 +1010,15 @@ func (app *QoreChainApp) setAnteHandler(
 				SignModeHandler: txConfig.SignModeHandler(),
 				FeegrantKeeper:  app.FeeGrantKeeper,
 				SigGasConsumer:  sigVerificationGasConsumerWithPQC,
-				// Allow BOTH the EVM dynamic-fee extension and the PQC hybrid
-				// signature extension (/qorechain.pqc.v1.PQCHybridSignature).
-				// Without this the ExtensionOptionsDecorator would reject every
-				// PQC-signed tx before it reaches the hybrid verify decorator.
+				// Allow the PQC hybrid signature extension
+				// (/qorechain.pqc.v1.PQCHybridSignature). Without this the
+				// ExtensionOptionsDecorator would reject every PQC-signed tx
+				// before it reaches the hybrid verify decorator. The EVM
+				// dynamic-fee extension used to be allowed here too, but its
+				// type is not registered in this app, so no tx carrying it
+				// decodes (QSR-2026-0577); allowing it was dead code.
 				ExtensionOptionChecker: func(o *codectypes.Any) bool {
-					return antetypes.HasDynamicFeeExtensionOption(o) || o.GetTypeUrl() == pqctypes.HybridSigTypeURL
+					return o.GetTypeUrl() == pqctypes.HybridSigTypeURL
 				},
 				TxFeeChecker: evmante.NewDynamicFeeChecker(&fmDefaults),
 			},

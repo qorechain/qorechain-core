@@ -15,6 +15,10 @@ service Msg {
   rpc RevokeLicense(MsgRevokeLicense) returns (MsgRevokeLicenseResponse);
   rpc SuspendLicense(MsgSuspendLicense) returns (MsgSuspendLicenseResponse);
   rpc ResumeLicense(MsgResumeLicense) returns (MsgResumeLicenseResponse);
+
+  // UpdateAuthority replaces the account allowed to grant, revoke, suspend and
+  // resume licences. Only the governance module may call it.
+  rpc UpdateAuthority(MsgUpdateAuthority) returns (MsgUpdateAuthorityResponse);
 }
 
 message MsgGrantLicense {
@@ -50,3 +54,14 @@ message MsgResumeLicense {
   string feature_id = 3 [(gogoproto.customname) = "FeatureID"];
 }
 message MsgResumeLicenseResponse {}
+
+// MsgUpdateAuthority replaces the licence grant authority. Signed by the
+// governance module account, so it only ever executes from a passed proposal.
+message MsgUpdateAuthority {
+  option (cosmos.msg.v1.signer) = "authority";
+  // authority is the governance module account.
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // new_authority becomes the licence grant authority.
+  string new_authority = 2 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+message MsgUpdateAuthorityResponse {}

@@ -22,6 +22,8 @@ func TestWasmMempoolGuard_BlocksEachWasmEntryPoint(t *testing.T) {
 		&wasmtypes.MsgStoreCode{},
 		&wasmtypes.MsgInstantiateContract{},
 		&wasmtypes.MsgInstantiateContract2{},
+		&wasmtypes.MsgStoreAndInstantiateContract{},
+		&wasmtypes.MsgStoreAndMigrateContract{},
 	} {
 		if err := rejectBlockedWasmMsgs([]sdk.Msg{msg}, 0); err == nil {
 			t.Errorf("%s was admitted", sdk.MsgTypeURL(msg))
