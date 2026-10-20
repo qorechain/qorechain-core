@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.3] - 2026-10-20
+
+A coordinated governance upgrade (plan name `v3.2.3`, applied on mainnet at height 3,662,051). Every consensus change below is guarded by a protocol feature that the v3.2.3 upgrade handler turns on at the plan height (`ReleaseV3_2_3ProtocolFeatures`); below that height the binary replays history byte-identically.
+
+### Added
+- **Governance can replace the license grant authority** (`MsgUpdateAuthority`, x/license, governance only).
+- **Optional proof of possession** on `MsgRegisterPQCKeyV2` (field `proof_of_possession`): the key being registered signs `qorechain-pqc-pop-v1|<chain-id>|<algorithm>|<account>|<hex public key>`. It is verified when present and is not required.
+- **Scoped EVM authorization windows:** a window can be opened for native QOR transfers only (`native_only`) or for listed recipients only (`allowed_targets`). A window without a scope behaves as before.
+- **Light node reward bound per month:** `max_reward_per_month_per_node` (2,000 QOR) prorated over block time, so the bound no longer depends on the block cadence. The reward pool query reports it.
+
+### Changed
+- Post-quantum key maintenance from an account that already holds a key needs the hybrid signature; registration refuses weak or degenerate keys and a key the account used before; PQC key messages are refused inside authz; a transaction carries at most one hybrid extension; algorithm governance cannot remove the last active signature algorithm.
+- An account without a registered key can no longer attach a hybrid extension it cannot verify.
+- Vesting accounts can only be created for the signer itself.
+- Stake authorizations name canonical validator addresses.
+- Cross-VM queue processing is atomic per message, and the EVM precompile set is bounded and read-only where it should be.
+- RDK: escrow is ledgered per rollup and withdrawals are checked against it (denomination, positive amount, proof depth and sibling size).
+- Emission years are counted by epoch length, AMM end-block work is bounded, burn records are pruned, and reinforcement-learning consensus parameters are bounded.
+- Smart-account hardening on the EVM path (the signed digest binds the chain and the account).
+- The public build refuses to start on a public network (matched by chain-id and genesis time), so a node can only join mainnet or testnet with the release binary.
+
+### Notes
+- Upgrade handler: `v3.2.3`. Transaction signing for standard transactions is unchanged.
+
+---
+
 ## [3.2.2] - 2026-10-01
 
 A coordinated governance upgrade (plan name `v3.2.2`). Every consensus change below is guarded by a protocol feature that the v3.2.2 upgrade handler turns on at the plan height (26 features, listed in `ReleaseV3_2_2ProtocolFeatures`); below that height the binary replays history byte-identically.
