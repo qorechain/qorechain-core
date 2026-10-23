@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.4] - 2026-10-23
+
+A coordinated governance upgrade (plan name `v3.2.4`, applied on mainnet at height 3,742,566 by governance proposal 13). Every consensus change below is guarded by a protocol feature that the v3.2.4 upgrade handler turns on at the plan height (6 features, listed in `ReleaseV3_2_4ProtocolFeatures`); below that height the binary replays history byte-identically.
+
+### Added
+- **Staking tiers (`x/stakingtier`, feature `staking-tiers`).** A delegator can lock delegated stake (`MsgLockDelegation`) for 3, 6 or 12 months for extra yield on top of the base staking rate: +1.5, +3 or +5 percentage points. Running an active light node adds +2 and a validator's self-bond adds +3. The total is capped at 25% APY. Locked stake cannot be undelegated or redelegated until the lock ends; an early unlock (`MsgUnlockEarly`) is allowed and burns a penalty (5% by default). The bonus is settled every epoch and claimed with `MsgClaimBonus`. All values are governance parameters, including `min_lock_amount` (10 QOR).
+- **Target-APY emission mode (`x/inflation`, feature `inflation-target-apy`):** governance can set `target_apy_bps` so the epoch emission follows a target staking yield instead of a fixed amount, still within the total emission cap.
+- **Light node registration window (feature `lightnode-registration-window`):** rewards accrue from the block a light node registers, so a node no longer receives rewards for the period before it existed. `LightNodeInfo` reports an `UptimeFactor`.
+- **Post-quantum key possession flag (feature `pqc-possession-flag`):** an account record carries `possession_proven` when the key was registered with a proof of possession. The proof stays optional.
+- **Proof of possession for bridge validator keys (feature `bridge-validator-key-pop`)**, with a proof field and CLI support.
+- **RDK challenge window in block time (feature `rdk-challenge-window-time`):** the challenge window is measured from the batch submission time; batch and rollup views expose `submitted_time` and the challenge window inputs for watchtowers.
+- Queries for the enabled protocol features, the authenticator nonce, and the light node reward pool cap and timing.
+
+### Changed
+- Zero-height genesis export conserves the distribution books.
+- `x/reputation` validates its parameters on update.
+- The license grant batch treats a missing licence as no licence instead of an error.
+- `qorechain-pqc/go` v0.2.1 (exact-length ML-DSA-87 verification).
+- Documentation: the EVM precompiles are part of the full build only and are not active on any network.
+
+### Notes
+- Upgrade handler: `v3.2.4`. Transaction signing, addresses, decimals, memos and fees are unchanged. A node joining mainnet needs v3.2.4.
+
+---
+
 ## [3.2.3] - 2026-10-20
 
 A coordinated governance upgrade (plan name `v3.2.3`, applied on mainnet at height 3,662,051). Every consensus change below is guarded by a protocol feature that the v3.2.3 upgrade handler turns on at the plan height (`ReleaseV3_2_3ProtocolFeatures`); below that height the binary replays history byte-identically.
