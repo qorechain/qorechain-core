@@ -1,6 +1,8 @@
 package cli
 
 import (
+	pqccli "github.com/qorechain/qorechain-core/x/pqc/client/cli"
+
 	"encoding/hex"
 	"strings"
 
@@ -254,11 +256,23 @@ func cmdBridgeWithdraw() *cobra.Command {
 	return cmd
 }
 
+// flagBridgePQCKey names the local PQC key that signs the registration's
+// proof of possession.
+const flagBridgePQCKey = "pqc-key"
+
 func cmdRegisterBridgeValidator() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "register-validator [pqc-pubkey-hex] [supported-chains-csv]",
 		Short: "Register a validator for bridge attestation duty",
-		Args:  cobra.ExactArgs(2),
+		Long: `Register a validator for bridge attestation duty.
+
+With --pqc-key <name> (a key from "tx pqc gen-key" or "recover-key" whose public
+key is pqc-pubkey-hex) the command attaches a proof of possession: the key's
+signature over "qorechain-pqc-pop-v1|<chain-id>|1|<validator>|<hex pubkey>".
+From v3.2.4 (bridge-validator-key-pop) the chain requires it and refuses a key
+another bridge validator already uses.`,
+		Example: `  qorechaind tx bridge register-validator <pubkey-hex> ethereum,arbitrum --pqc-key bridge-mldsa --from operator --chain-id qorechain-vladi`,
+		Args:    cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
@@ -273,9 +287,17 @@ func cmdRegisterBridgeValidator() *cobra.Command {
 				PQCPubkey:        pubkey,
 				SupportedChains:  strings.Split(args[1], ","),
 			}
+			if keyName, _ := cmd.Flags().GetString(flagBridgePQCKey); keyName != "" {
+				pop, err := pqccli.SignProofOfPossession(clientCtx.HomeDir, keyName, clientCtx.ChainID, msg.ValidatorAddress, pubkey)
+				if err != nil {
+					return err
+				}
+				msg.ProofOfPossession = pop
+			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
+	cmd.Flags().String(flagBridgePQCKey, "", "name of the local PQC key (tx pqc gen-key / recover-key) to sign the proof of possession with")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }

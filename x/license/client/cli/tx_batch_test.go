@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/cosmos/cosmos-sdk/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -264,5 +267,21 @@ func TestConfirmationRequiresTheCountNotAYes(t *testing.T) {
 	}
 	if strings.TrimSpace(" 15 ") != "15" {
 		t.Fatal("surrounding whitespace must not defeat a correct answer")
+	}
+}
+
+func TestLicenceHeldTreatsNotFoundAsAbsent(t *testing.T) {
+	notFound := status.Errorf(codes.NotFound, "no license for qor1x/lightnode_operator")
+	if held, err := licenceHeld(nil, notFound); err != nil || held {
+		t.Fatalf("NotFound: held=%v err=%v, want false, nil", held, err)
+	}
+	if _, err := licenceHeld(nil, status.Error(codes.Unavailable, "node down")); err == nil {
+		t.Fatal("a transport error was swallowed")
+	}
+	if held, err := licenceHeld(&types.QueryCheckResponse{License: &types.LicenseView{}}, nil); err != nil || !held {
+		t.Fatalf("existing licence: held=%v err=%v, want true, nil", held, err)
+	}
+	if held, _ := licenceHeld(&types.QueryCheckResponse{}, nil); held {
+		t.Fatal("empty response read as held")
 	}
 }

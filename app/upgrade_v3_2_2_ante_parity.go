@@ -32,7 +32,9 @@ func (app *QoreChainApp) upgradeV3_2_2AnteParity(ctx sdk.Context) error {
 	repParams := app.ReputationKeeper.GetParams(ctx)
 	if repParams.EpochBlocks <= 0 {
 		repParams.EpochBlocks = reputationtypes.DefaultEpochBlocks
-		if err := app.ReputationKeeper.SetParams(ctx, repParams); err != nil {
+		// As stored: this handler must replay exactly as it ran (SetParams
+		// now validates, QSR-2026-0601).
+		if err := app.ReputationKeeper.SetParamsAsStored(ctx, repParams); err != nil {
 			return err
 		}
 	}

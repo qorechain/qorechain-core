@@ -71,6 +71,13 @@ message RollupView {
   // escrow, in uqor: what its withdrawals can still pay and what stopping it
   // refunds. It is read from the per-rollup escrow ledger (from v3.2.3).
   uint64 escrow_balance = 13;
+  // challenge_window_sec, challenge_bond and proof_system are the rollup's own
+  // proof configuration, so a watchtower can tell when a batch's challenge
+  // window closes and what a challenge costs without assuming the module
+  // default.
+  uint64 challenge_window_sec = 14;
+  int64 challenge_bond = 15;
+  string proof_system = 16;
 }
 
 // BatchView is the query-facing view of a settlement batch.
@@ -86,6 +93,13 @@ message BatchView {
   int64 submitted_at = 9;
   int64 finalized_at = 10;
   string withdrawals_root = 11;
+  // submitted_time is the block time (unix seconds) of the block that settled
+  // the batch, recorded from rdk-challenge-window-time (v3.2.4). Zero for a
+  // batch settled before the switch, whose challenge window still counts in
+  // blocks (submitted_at + challenge_window_sec / 6). A batch with a time
+  // closes when block time >= submitted_time + the rollup's
+  // challenge_window_sec.
+  int64 submitted_time = 12;
 }
 
 message QueryParamsRequest {}

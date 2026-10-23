@@ -21,6 +21,7 @@ func (m MsgUpdateParams) ToParams() Params {
 		EmissionMode:       m.EmissionMode,
 		FixedEpochEmission: OptionalInt(m.FixedEpochEmission),
 		MaxTotalEmission:   OptionalInt(m.MaxTotalEmission),
+		TargetAPYBps:       m.TargetApyBps,
 	}
 }
 

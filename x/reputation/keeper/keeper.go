@@ -83,7 +83,27 @@ func (k Keeper) GetParams(ctx sdk.Context) types.ReputationParams {
 	return params
 }
 
+// SetParams validates and stores the parameters. An invalid set is refused and
+// nothing is written (QSR-2026-0601). Its callers are InitGenesis, whose input
+// genesis validation already holds to the same rule, and any future governance
+// path.
 func (k Keeper) SetParams(ctx sdk.Context, params types.ReputationParams) error {
+	if err := params.Validate(); err != nil {
+		return err
+	}
+	return k.setParams(ctx, params)
+}
+
+// SetParamsAsStored writes params without validating them. It exists only for
+// the v3.2.2 upgrade handler, which rewrites the params already in the store
+// with the rescoring interval made explicit: a historical handler must replay
+// exactly as it ran, whatever the store held, so it must not start refusing
+// here. Nothing else may call it.
+func (k Keeper) SetParamsAsStored(ctx sdk.Context, params types.ReputationParams) error {
+	return k.setParams(ctx, params)
+}
+
+func (k Keeper) setParams(ctx sdk.Context, params types.ReputationParams) error {
 	store := ctx.KVStore(k.storeKey)
 	bz, err := json.Marshal(params)
 	if err != nil {

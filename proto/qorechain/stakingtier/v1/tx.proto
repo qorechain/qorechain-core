@@ -1,0 +1,113 @@
+syntax = "proto3";
+package qorechain.stakingtier.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/stakingtier/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+
+// Msg defines the stakingtier module's transaction service (v3.2.4, protocol
+// feature staking-tiers).
+//
+// A lock commits part of an existing delegation to its validator for 3, 6 or
+// 12 months. Locked stake earns a bonus yield on top of the ordinary staking
+// rewards, paid per inflation epoch from the module account and claimed with
+// ClaimBonus. See x/stakingtier/README.md for what each bonus applies to.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  // LockDelegation locks part of the signer's delegation to a validator.
+  rpc LockDelegation(MsgLockDelegation) returns (MsgLockDelegationResponse);
+  // UnlockEarly ends a lock before it expires: the lock's unpaid bonus is
+  // forfeited and early_unlock_penalty_bps of the locked stake is burned.
+  rpc UnlockEarly(MsgUnlockEarly) returns (MsgUnlockEarlyResponse);
+  // ClaimBonus pays the signer every bonus credited to them so far.
+  rpc ClaimBonus(MsgClaimBonus) returns (MsgClaimBonusResponse);
+  // UpdateParams replaces the module parameters. Governance-only.
+  rpc UpdateParams(MsgUpdateParams) returns (MsgUpdateParamsResponse);
+}
+
+message MsgLockDelegation {
+  option (cosmos.msg.v1.signer) = "delegator";
+
+  string delegator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string validator = 2 [(cosmos_proto.scalar) = "cosmos.ValidatorAddressString"];
+  // amount is the uqor of the existing delegation to lock.
+  string amount = 3 [
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable) = false
+  ];
+  // months is the lock term: 3, 6 or 12, as offered by the lock tiers.
+  uint32 months = 4;
+}
+
+message MsgLockDelegationResponse {
+  uint64 lock_id = 1;
+  // end_time is when the lock expires, in unix seconds.
+  int64 end_time = 2;
+}
+
+message MsgUnlockEarly {
+  option (cosmos.msg.v1.signer) = "delegator";
+
+  string delegator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint64 lock_id = 2;
+}
+
+message MsgUnlockEarlyResponse {
+  // penalty_burned is the uqor taken out of the stake and burned.
+  string penalty_burned = 1;
+  // bonus_forfeited is the unpaid bonus the lock had accrued.
+  string bonus_forfeited = 2;
+}
+
+message MsgClaimBonus {
+  option (cosmos.msg.v1.signer) = "holder";
+
+  string holder = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+
+message MsgClaimBonusResponse {
+  // amount is the uqor paid.
+  string amount = 1;
+}
+
+// LockTierParam is one lock term and the bonus it earns.
+message LockTierParam {
+  // months is 3, 6 or 12.
+  uint32 months = 1;
+  // bonus_bps is the yearly bonus in basis points of the locked stake.
+  uint32 bonus_bps = 2;
+}
+
+// MsgUpdateParams replaces the stakingtier parameters wholesale.
+message MsgUpdateParams {
+  option (cosmos.msg.v1.signer) = "authority";
+
+  // authority must be the governance module account.
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+
+  repeated LockTierParam lock_tiers = 2 [(gogoproto.nullable) = false];
+  // light_node_bonus_bps is added to a lock whose holder runs an active light
+  // node.
+  uint32 light_node_bonus_bps = 3;
+  // validator_bonus_bps is paid on a validator operator's own self-bond while
+  // the validator is bonded and not jailed.
+  uint32 validator_bonus_bps = 4;
+  // max_total_apy_bps is the ceiling on base yield plus bonus.
+  uint32 max_total_apy_bps = 5;
+  // early_unlock_penalty_bps is the share of the locked stake burned by
+  // UnlockEarly.
+  uint32 early_unlock_penalty_bps = 6;
+  // enabled turns new locks and bonus accrual on or off.
+  bool enabled = 7;
+  // min_lock_amount is the smallest amount, in uqor, one lock may cover
+  // (default 10 QOR). Zero means no minimum.
+  string min_lock_amount = 8 [
+    (gogoproto.customtype) = "cosmossdk.io/math.Int",
+    (gogoproto.nullable) = false
+  ];
+}
+
+message MsgUpdateParamsResponse {}
