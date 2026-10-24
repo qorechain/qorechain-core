@@ -32,3 +32,14 @@ type SVMExecutor interface {
 	// Close releases executor resources.
 	Close()
 }
+
+// MeteredExecutor is implemented by a runtime that can charge syscalls by the
+// bytes they touch (v3.2.5, svm-compute-gas). Once that feature is active the
+// keeper runs BPF programs only through it: without byte metering the compute
+// unit count does not bound the work a program does, so charging gas per unit
+// would not bound it either.
+type MeteredExecutor interface {
+	ExecuteV2Metered(program []byte, accounts []SVMAccount, metas []AccountMeta,
+		instructionData []byte, programID [32]byte, programs map[[32]byte][]byte,
+		computeBudget uint64, blockTime int64) (*ExecutionResult, error)
+}

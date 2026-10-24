@@ -63,6 +63,17 @@ int32_t qore_svm_execute_v2_with_programs(
     uint8_t* result_out, size_t result_cap,
     size_t* result_len);
 
+// Same as qore_svm_execute_v2_with_programs, with syscalls charged by the
+// bytes they touch (v3.2.5, svm-compute-gas).
+int32_t qore_svm_execute_v2_metered(
+    const uint8_t* elf_bytes, size_t elf_len,
+    uint8_t* input_data, size_t input_len,
+    const uint8_t* programs, size_t programs_len,
+    uint64_t compute_budget,
+    int64_t block_time,
+    uint8_t* result_out, size_t result_cap,
+    size_t* result_len);
+
 // Native program execution (no BPF)
 int32_t qore_svm_execute_native(
     const uint8_t* program_id,
