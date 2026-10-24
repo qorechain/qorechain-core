@@ -396,6 +396,12 @@ func newFeeRouter(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.A
 			}
 			return fee
 		},
+		// QSR-2026-0634: pool fee pricing only from constant_product pools,
+		// valued at no more than the pool's quote, and a per-transaction
+		// bound that fails closed.
+		PoolTypePricing: func(ctx sdk.Context) bool {
+			return options.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureGasAbstractionPoolTypePricing)
+		},
 	})
 }
 

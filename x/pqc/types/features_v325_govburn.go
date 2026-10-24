@@ -21,6 +21,17 @@ const (
 	// nothing for it; with the switch it records the uqor the conversion paid
 	// to the fee collector.
 	FeatureBurnFailedTxConvertedFee = "burn-failed-tx-converted-fee"
+
+	// FeatureGasAbstractionPoolTypePricing fixes how a fee paid in a foreign
+	// token is valued (QSR-2026-0634). Pool pricing read the pool's running
+	// average of its reserve ratio for every pool type, which is the wrong
+	// price for a StableSwap pool, and never looked at what the pool would
+	// really pay for the amount; the per-transaction bound was skipped when
+	// the minimum fee per gas was zero. With the switch an amm_twap token is
+	// priced only from a constant_product pool, the fee is valued at the lower
+	// of the average and the pool's own quote for the amount (less the
+	// premium), and the per-transaction bound refuses instead of skipping.
+	FeatureGasAbstractionPoolTypePricing = "gasabstraction-pool-type-pricing"
 )
 
 // V325GovBurnFeatures is this area's share of the v3.2.5 release set. Every
@@ -29,4 +40,5 @@ const (
 var V325GovBurnFeatures = []string{
 	FeatureGovExpeditedKeepsVotes,
 	FeatureBurnFailedTxConvertedFee,
+	FeatureGasAbstractionPoolTypePricing,
 }
