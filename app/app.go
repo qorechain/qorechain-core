@@ -941,6 +941,11 @@ func NewQoreChainApp(
 	// refuse to start if one is missing (QSR-2026-0520).
 	app.completeEVMStoreKeys()
 
+	// State-sync snapshots carry the contract code (see registerWasmSnapshotter).
+	if err := app.registerWasmSnapshotter(app.SnapshotManager()); err != nil {
+		panic(err)
+	}
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
