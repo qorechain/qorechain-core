@@ -27,7 +27,13 @@ jobs:
       - name: Build Indexer
         run: cd indexer && go build ./...
 
+      # The govauth handler sweep needs the proprietary handler tree, which this
+      # public build does not have; it fails in CI unless told outright that
+      # only the declarations half can run here. The full sweep runs in the
+      # proprietary tree's `make test`.
       - name: Run Tests
+        env:
+          QORE_AUTHORITY_SWEEP: declarations-only
         run: CGO_ENABLED=1 go test ./... -count=1 -timeout 300s
 
       - name: Run Sidecar Tests
