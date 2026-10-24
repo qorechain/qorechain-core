@@ -193,6 +193,15 @@ func DecodeCrossVMCallInput(input []byte) (uint8, string, []byte, error) {
 	return values[0].(uint8), values[1].(string), values[2].([]byte), nil
 }
 
+// EncodeCrossVMCallOutput encodes the answer of executeCrossVMCall -> (bytes),
+// the return value the published ABI (contracts/abi/IQoreCrossVM.json)
+// declares, so a Solidity caller can decode it with abi.decode(ret, (bytes)) or
+// call through the IQoreCrossVM interface.
+func EncodeCrossVMCallOutput(result []byte) ([]byte, error) {
+	bytesType, _ := abi.NewType("bytes", "", nil)
+	return abi.Arguments{{Type: bytesType}}.Pack(result)
+}
+
 // EncodeRLConsensusParamsOutput encodes (uint256 blockTime, uint256 baseGasPrice, uint256 validatorSetSize, uint256 epoch).
 func EncodeRLConsensusParamsOutput(blockTime, baseGasPrice, validatorSetSize, epoch *big.Int) ([]byte, error) {
 	uint256Type, _ := abi.NewType("uint256", "", nil)

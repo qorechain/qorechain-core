@@ -8,7 +8,7 @@ QoreChain extends the EVM runtime with 6 custom precompiled contracts that expos
 
 | Address | Name | Gas Cost | Category |
 |---------|------|----------|----------|
-| `0x0000...0901` | CrossVM Bridge | 50,000 flat | Cross-VM |
+| `0x0000...0901` | CrossVM Bridge | 50,000 + 4/byte + callee | Cross-VM |
 | `0x0000...0A01` | PQC Verify | 25,000 + 8/byte | PQC |
 | `0x0000...0A02` | PQC Key Status | 2,500 flat | PQC |
 | `0x0000...0B01` | AI Risk Score | 50,000 flat | AI |
@@ -150,21 +150,27 @@ function rlConsensusParams() view returns (uint256 blockTime, uint256 baseGasPri
 
 ### executeCrossVMCall (0x0901)
 
-Enables synchronous calls from EVM contracts to CosmWasm contracts.
+Enables synchronous calls from EVM contracts to CosmWasm contracts. Canonical ABI: `contracts/abi/IQoreCrossVM.json`; Solidity interface: `contracts/interfaces/IQoreCrossVM.sol`.
 
 **Solidity Signature:**
 ```solidity
 function executeCrossVMCall(uint8 targetVM, string targetContract, bytes payload) returns (bytes result)
 ```
 
+**Selector:** `0x3c11078c`. The two-argument form `executeCrossVMCall(string,bytes)` (`0x352ebc70`) is not this precompile's method and is refused.
+
 **Parameters:**
-- `targetVM` (uint8): Target VM type (0 = EVM, 1 = CosmWasm)
-- `targetContract` (string): Target contract address (bech32 for CosmWasm)
-- `payload` (bytes): ABI-encoded call data for the target contract
+- `targetVM` (uint8): must be `1` (CosmWasm). `0` (EVM) and `2` (SVM) are reserved and revert.
+- `targetContract` (string): the CosmWasm contract address (bech32, `qor1...`). It must be listed in the x/crossvm `bridge_allowed_targets` parameter as `cosmwasm:<address>`.
+- `payload` (bytes): the contract's JSON execute message, as UTF-8 bytes.
 
-**Returns:** Raw response bytes from the target contract
+**Returns:** the contract response's `data` field, ABI-encoded as `bytes` (empty if the contract set none). A refused or failed call reverts with an `Error(string)` reason.
 
-**Gas:** 50,000 flat (actual execution gas varies)
+**Rules:** plain `CALL` only (`STATICCALL`, `DELEGATECALL` and `CALLCODE` revert), no value, the caller of `0x0901` is the CosmWasm sender, and a call reached through the bridge cannot enter the EVM again. Bank transfers made by the CosmWasm contract are reflected in the calling EVM state.
+
+**Gas:** 50,000 + 4 per input byte, plus the CosmWasm execution, metered against the gas the calling frame has left.
+
+These rules apply from the v3.2.5 `crossvm-bridge-abi` switch. Before it the precompile ignored the selector and returned the raw response bytes; it was never active on any network in that form.
 
 ## Availability: build and network status
 
@@ -181,3 +187,4 @@ Solidity interface files are provided at:
 - `contracts/interfaces/IQorePQC.sol`
 - `contracts/interfaces/IQoreAI.sol`
 - `contracts/interfaces/IQoreConsensus.sol`
+- `contracts/interfaces/IQoreCrossVM.sol` (ABI: `contracts/abi/IQoreCrossVM.json`)
