@@ -75,11 +75,11 @@ form.
 
 ## AI Precompiles
 
-> **Determinism Note:** All AI precompiles use the on-chain deterministic heuristic engine (Z-score + isolation forest). They never call the QCAI Backend sidecar, which is non-deterministic and unsuitable for consensus-critical code paths.
+> **Determinism Note:** Both AI precompiles compute their answer on-chain from fixed rules, with the same result on every node. They never call the QCAI Backend sidecar, which is non-deterministic and unsuitable for consensus-critical code paths. Neither one writes any state, whether it is reached by `CALL` or `STATICCALL`.
 
 ### aiRiskScore (0x0B01)
 
-Analyzes contract bytecode or transaction data for security risks using deterministic heuristics.
+A minimal, length-only heuristic. It is not a security analysis of the bytes it is given, and a contract must not treat its answer as one.
 
 **Solidity Signature:**
 ```solidity
@@ -87,11 +87,19 @@ function aiRiskScore(bytes txData) view returns (uint256 score, uint8 level)
 ```
 
 **Parameters:**
-- `txData` (bytes): Contract bytecode or transaction data to analyze
+- `txData` (bytes): any bytes. Only their length is used. The precompile does not look at opcodes, selectors or patterns, does not read chain state, and does not resolve an address to its deployed code.
 
-**Returns:**
-- `score`: Risk score in basis points (0 = safe, 10000 = critical)
-- `level`: Severity enum: 0=SAFE, 1=LOW, 2=MEDIUM, 3=HIGH, 4=CRITICAL
+**What it returns (this is the whole rule set):**
+
+| Input | `score` | `level` |
+|-------|---------|---------|
+| empty bytes | 8000 | 3 (HIGH) |
+| more than 500,000 bytes | 5000 | 2 (MEDIUM) |
+| any other length | 0 | 1 (LOW) |
+| calldata that does not ABI-decode as `(bytes)` | 10000 | 4 (CRITICAL, fail closed) |
+
+- `score`: basis points (0 to 10000).
+- `level`: 0=SAFE, 1=LOW, 2=MEDIUM, 3=HIGH, 4=CRITICAL. Level 0 is never returned, and level 4 only for undecodable calldata.
 
 **Gas:** 50,000 flat
 
@@ -100,15 +108,15 @@ function aiRiskScore(bytes txData) view returns (uint256 score, uint8 level)
 address constant AI_RISK = address(0x0000000000000000000000000000000000000B01);
 
 (bool success, bytes memory result) = AI_RISK.staticcall(
-    abi.encodeWithSignature("aiRiskScore(bytes)", contractBytecode)
+    abi.encodeWithSignature("aiRiskScore(bytes)", data)
 );
+require(success && result.length == 64, "aiRiskScore not available");
 (uint256 score, uint8 level) = abi.decode(result, (uint256, uint8));
-require(level < 3, "Contract risk too high");
 ```
 
 ### aiAnomalyCheck (0x0B02)
 
-Checks whether a transaction pattern is anomalous based on historical behavior.
+Returns the verdict the chain's transaction screening (x/ai) would give a transfer of `amount` from `sender` in the current block.
 
 **Solidity Signature:**
 ```solidity
@@ -116,14 +124,21 @@ function aiAnomalyCheck(address sender, uint256 amount) view returns (uint256 an
 ```
 
 **Parameters:**
-- `sender` (address): The transaction sender
-- `amount` (uint256): The transaction amount in base denomination
+- `sender` (address): the account to check (the same account as its `qor1` form).
+- `amount` (uint256): the amount in `uqor` (6 decimals). Values above 2^64-1 are clamped to 2^64-1.
+
+**How it is computed (from v3.2.5):** the same deterministic rules the ante handler applies to every transaction, over the account's stored screening state, read-only:
+- the account's last 32 screened transactions and its transaction count in the 30-block rate window (plus this one);
+- the EVM-lane rate limit (`max_evm_tx_per_minute`, or `max_tx_per_minute` when that is 0);
+- rules: half the rate limit or more in the window scores 0.6; an amount more than three standard deviations from the account's mean (at least three earlier amounts) scores deviation/5, at most 1.0; a transfer above 1,000 QOR from an account with fewer than three screened transactions scores 0.5. The highest rule wins. The rapid-repeat-receiver rule never fires here, since the call names no receiver.
 
 **Returns:**
-- `anomalyScore`: Anomaly score in basis points (0 = normal, 10000 = highly anomalous)
-- `flagged`: Whether the transaction is flagged as anomalous
+- `anomalyScore`: the score in basis points (0 = normal, 10000 = highly anomalous).
+- `flagged`: true when the score is above 0.5 (5000).
 
-**Gas:** 40,000 flat
+Malformed calldata returns `(10000, true)` (fail closed). Before v3.2.5 the precompile asked an older heuristic with no history.
+
+**Gas:** 40,000 flat (the bounded reads are not metered separately).
 
 ## Consensus Precompile
 

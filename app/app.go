@@ -892,6 +892,9 @@ func NewQoreChainApp(
 	); err != nil {
 		panic(err)
 	}
+	// Every module's Msg response types, so simulate and tx results render
+	// through the gateway (node-local; see RegisterMsgResponseTypes).
+	RegisterMsgResponseTypes(app.interfaceRegistry)
 
 	// The upgrade module took its initial version map from the modules the
 	// dependency-injection container knew about, which is none of the ones

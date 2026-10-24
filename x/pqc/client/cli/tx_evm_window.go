@@ -43,6 +43,19 @@ like every other Cosmos-lane message.
   max-value  the total it admits, counting transferred value AND the maximum fee
              each transaction could pay. Accepts uqor or qor, e.g. 1000qor.
 
+The arguments are optional; omitted ones take the defaults below, sized for one
+contract deployment session from Hardhat or Foundry (a deploy, its
+initialisation calls, a retry or two):
+
+  blocks     3600 (about an hour on the testnet, three on mainnet)
+  max-txs    10
+  max-value  25qor. The fee bound of a transaction is its gas limit
+             times its fee cap. With the current base fee (0.1 uqor per gas)
+             and the fee cap wallets set (twice the base fee plus the tip), a
+             3,000,000 gas deploy counts about 0.64 QOR; 25 QOR leaves room for
+             several large deploys or a base fee several times higher. Add the
+             value of any QOR the deployment transfers.
+
 The value bound counts native QOR only. A token transfer, an approval or any
 other contract call carries value zero and is not counted against it. To bound
 those too, narrow the window's scope (from the evm-pqc-window-targets feature on):
@@ -54,13 +67,17 @@ those too, narrow the window's scope (from the evm-pqc-window-targets feature on
 
 Opening replaces any existing window. Close one early with close-evm-window.`,
 		Example: `  qorechaind tx pqc open-evm-window 7200 20 1000qor --from me --generate-only > w.json
-  qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id qorechain-vladi`,
-		Args: cobra.ExactArgs(3),
+  qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id qorechain-vladi
+
+  # a deploy session with the default bounds (3600 blocks, 10 txs, 25qor)
+  qorechaind tx pqc open-evm-window --from me --generate-only > w.json`,
+		Args: cobra.RangeArgs(0, 3),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
+			args = append(args, defaultEVMWindowArgs[len(args):]...)
 			blocks, err := strconv.ParseUint(args[0], 10, 64)
 			if err != nil {
 				return fmt.Errorf("blocks: %w", err)
@@ -104,6 +121,10 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
+
+// defaultEVMWindowArgs are the bounds open-evm-window uses for arguments left
+// out: blocks, max-txs, max-value. See the command's help for the sizing.
+var defaultEVMWindowArgs = []string{"3600", "10", "25qor"}
 
 const (
 	flagNativeOnly     = "native-only"
