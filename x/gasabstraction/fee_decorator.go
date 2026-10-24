@@ -265,5 +265,21 @@ func (d conversionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 			sdk.NewAttribute(types.AttributeKeySource, token.PriceSource),
 		),
 	})
-	return next(ctx.WithPriority(priority), tx, simulate)
+	// The decorators after this one see the transaction with its original,
+	// non-native fee (signature verification needs the real transaction), so
+	// the native amount that reached the fee collector travels in the context
+	// for those that account for it (the failed_tx burn channel).
+	return next(ctx.WithPriority(priority).WithValue(convertedFeeKey{}, payout), tx, simulate)
+}
+
+// convertedFeeKey carries, from the conversion decorator to the rest of the
+// same transaction's ante chain, the native amount the float paid to the fee
+// collector for it.
+type convertedFeeKey struct{}
+
+// ConvertedFee is the native amount paid to the fee collector for this
+// transaction by fee conversion, when its fee was converted.
+func ConvertedFee(ctx sdk.Context) (math.Int, bool) {
+	v, ok := ctx.Value(convertedFeeKey{}).(math.Int)
+	return v, ok
 }

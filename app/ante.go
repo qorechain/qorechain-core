@@ -336,7 +336,12 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// failed_tx burn channel, ante half (after DeductFee): records the fee;
 		// the post handler takes it back out when the messages succeed.
 		// It records what DeductFee charged, so it runs the same fee checker.
-		burnmod.NewBurnFailedFeeDecorator(options.BurnKeeper, evmante.NewDynamicFeeChecker(fmParams)),
+		// A converted fee is recorded as the uqor the conversion paid, from
+		// the converted-fee switch (QSR-2026-0624 F-1).
+		burnmod.NewBurnFailedFeeDecorator(options.BurnKeeper, evmante.NewDynamicFeeChecker(fmParams)).
+			WithConvertedFee(gasabstractionmod.ConvertedFee, func(ctx sdk.Context) bool {
+				return options.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureBurnFailedTxConvertedFee)
+			}),
 		// IBC redundant relay check — prevents relayers from wasting fees
 		ibcante.NewRedundantRelayDecorator(options.IBCKeeper),
 		// Track cumulative gas wanted for EIP-1559 base fee calculation
