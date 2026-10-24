@@ -1,7 +1,7 @@
 package types
 
 // Released in v3.2.5: what it takes for a cross-VM call to be usable on a live
-// network. Below the v3.2.5 plan height all three are off, so history replays
+// network. Below the v3.2.5 plan height all of them are off, so history replays
 // byte-identically.
 const (
 	// x/crossvm: MsgUpdateParams, signed by the governance module account,
@@ -20,6 +20,14 @@ const (
 	// MsgExecuteProgram), and an async call prepays a fixed execution budget
 	// that bounds what the end-of-block queue may spend on it.
 	FeatureCrossVMLaneBounds = "crossvm-lane-bounds"
+	// x/crossvm: a queued (async) call runs under its own call frame, as a
+	// synchronous call does, so a hop that comes back into the queued target
+	// is refused as re-entry and the depth bound counts the queued call too.
+	FeatureCrossVMAsyncCallFrame = "crossvm-async-call-frame"
+	// x/crossvm: no crossvm/processed marker is written for an executed call
+	// (message IDs come from a monotonic counter and cannot repeat), and the
+	// markers already stored are deleted, at most 200 per EndBlock.
+	FeatureCrossVMProcessedPrune = "crossvm-processed-prune"
 )
 
 // V325CrossVMFeatures is this area's share of the v3.2.5 release set. Every
@@ -29,4 +37,6 @@ var V325CrossVMFeatures = []string{
 	FeatureCrossVMParamsUpdate,
 	FeatureCrossVMBridgeABI,
 	FeatureCrossVMLaneBounds,
+	FeatureCrossVMAsyncCallFrame,
+	FeatureCrossVMProcessedPrune,
 }

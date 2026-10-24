@@ -32,6 +32,23 @@ const (
 	// FeatureRDKParamsRoute serves MsgUpdateParams for x/rdk, governance only.
 	// Before it the module had no way to change its parameters.
 	FeatureRDKParamsRoute = "rdk-params-route"
+
+	// FeatureRDKWithdrawalsBinding binds a batch's withdrawals root, and the
+	// chain id, into what settles the batch, for batches submitted from the
+	// switch (SettlementBatch.WithdrawalsBound):
+	//   - the optimistic transition binding becomes
+	//     H("qorechain-rdk-transition/v2", chain id, rollup id, prev root,
+	//     data hash, tx count, withdrawals root), length-prefixed, so a batch
+	//     that publishes the honest root for one withdrawals list and commits
+	//     another is provably fraudulent;
+	//   - a SNARK proof takes the withdrawals root as its fourth public input,
+	//     and a STARK proof's transcript label carries it, so a validity proof
+	//     cannot be reused with another withdrawals list;
+	//   - a withdrawal leaf starts with the chain id, so a withdrawal proved on
+	//     one network cannot be executed on another, and replay protection
+	//     checks the leaf in both forms;
+	//   - a withdrawals root is either empty or exactly 32 bytes.
+	FeatureRDKWithdrawalsBinding = "rdk-withdrawals-binding"
 )
 
 // V325RDKFeatures is this area's share of the v3.2.5 release set. Every
@@ -41,4 +58,5 @@ var V325RDKFeatures = []string{
 	FeatureRDKChallengeSettlement,
 	FeatureRDKRollupParams,
 	FeatureRDKParamsRoute,
+	FeatureRDKWithdrawalsBinding,
 }
