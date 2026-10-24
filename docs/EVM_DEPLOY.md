@@ -197,6 +197,10 @@ Scripts work the same way: `forge script script/Counter.s.sol --broadcast
   window and use none of it.
 - Each admitted transaction adds its value plus gas limit times fee cap to the used
   value, rounded up to whole uqor.
+- QOR the transaction moves beyond its value (through a precompile, for example)
+  is charged after execution. From v3.2.5 the staking, distribution, ics20 and gov
+  precompiles are reachable only through a window that lists them in
+  `--allowed-targets`. The full policy is in [EVM_WINDOW.md](./EVM_WINDOW.md).
 
 ## Errors
 
@@ -216,5 +220,5 @@ import the same key, and send as usual while the window is live.
 `@qorechain/wallet-adapter` emits the right EIP-3085 parameters with
 `qoreEvmChainParams` and `addQoreEvmToWallet`.
 
-See also [EVM.md](./EVM.md) for the runtime and [EVM_PRECOMPILES.md](./EVM_PRECOMPILES.md)
-for the QoreChain precompiles.
+See also [EVM.md](./EVM.md) for the runtime, [EVM_WINDOW.md](./EVM_WINDOW.md) for the window
+policy and [EVM_PRECOMPILES.md](./EVM_PRECOMPILES.md) for the precompiles.

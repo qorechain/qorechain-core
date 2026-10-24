@@ -65,6 +65,11 @@ those too, narrow the window's scope (from the evm-pqc-window-targets feature on
   --allowed-targets    admit only these recipients (comma-separated 0x addresses);
                        contract creation is refused
 
+From v3.2.5 (evm-precompile-window-scope) the precompiles that move or commit
+the account's funds (staking 0x...0800, distribution 0x...0801, ics20 0x...0802,
+gov 0x...0805) are reachable only through a window whose --allowed-targets
+lists them; the QOR they move is charged to the window's value.
+
 Opening replaces any existing window. Close one early with close-evm-window.`,
 		Example: `  qorechaind tx pqc open-evm-window 7200 20 1000qor --from me --generate-only > w.json
   qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id qorechain-vladi
