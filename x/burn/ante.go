@@ -58,9 +58,19 @@ type failedFeeKey struct{}
 // failed_tx_burn_rate of every other transaction's fees in fee_collector. So
 // the decorator is given the same fee checker DeductFee runs and records its
 // result. The checker is pure (no store access, no gas).
+//
+// A fee paid in a non-native denom is converted before DeductFee would run, and
+// the transaction the later decorators see still carries the foreign fee, for
+// which the checker errors or finds no uqor. Re-deriving the fee from the
+// transaction then records nothing (QSR-2026-0624 F-1, QSR-2026-0633). From
+// the converted-fee switch the decorator records the uqor the conversion paid
+// to the fee collector, which the conversion step hands over in the context.
 type BurnFailedFeeDecorator struct {
 	keeper     BurnKeeper
 	feeChecker ante.TxFeeChecker
+
+	convertedFee        func(ctx sdk.Context) (math.Int, bool)
+	convertedFeeEnabled func(ctx sdk.Context) bool
 }
 
 // NewBurnFailedFeeDecorator creates the ante half of the failed_tx channel.
@@ -70,8 +80,25 @@ func NewBurnFailedFeeDecorator(keeper BurnKeeper, feeChecker ante.TxFeeChecker) 
 	return BurnFailedFeeDecorator{keeper: keeper, feeChecker: feeChecker}
 }
 
-// deductedFee is the uqor fee DeductFee took from the transaction.
+// WithConvertedFee makes the decorator record, for a transaction whose fee was
+// converted, the native amount source reports, once enabled answers true.
+// enabled is read only for converted transactions and must not touch the gas
+// meter. Without it (or below the switch) the fee is re-derived from the
+// transaction as before.
+func (d BurnFailedFeeDecorator) WithConvertedFee(source func(ctx sdk.Context) (math.Int, bool), enabled func(ctx sdk.Context) bool) BurnFailedFeeDecorator {
+	d.convertedFee = source
+	d.convertedFeeEnabled = enabled
+	return d
+}
+
+// deductedFee is the uqor fee DeductFee took from the transaction, or, for a
+// converted fee from the switch on, the uqor the conversion paid.
 func (d BurnFailedFeeDecorator) deductedFee(ctx sdk.Context, tx sdk.Tx) (math.Int, bool) {
+	if d.convertedFee != nil && d.convertedFeeEnabled != nil {
+		if paid, ok := d.convertedFee(ctx); ok && d.convertedFeeEnabled(ctx) {
+			return paid, true
+		}
+	}
 	feeTx, ok := tx.(sdk.FeeTx)
 	if !ok {
 		return math.Int{}, false

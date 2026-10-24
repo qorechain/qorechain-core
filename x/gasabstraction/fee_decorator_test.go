@@ -275,6 +275,22 @@ func TestConversionStaticRate(t *testing.T) {
 	if !sawTx || !sawConv {
 		t.Fatal("fee events missing")
 	}
+	// The uqor paid to the fee collector travels on to the failed_tx burn
+	// channel (QSR-2026-0624 F-1).
+	if paid, ok := ConvertedFee(ctx); !ok || !paid.Equal(math.NewInt(19_400)) {
+		t.Fatalf("converted fee in the context %v %v, want 19400", paid, ok)
+	}
+}
+
+func TestNativePathCarriesNoConvertedFee(t *testing.T) {
+	f := newFixture()
+	ctx, err := f.run(feeTx{fee: sdk.NewCoins(sdk.NewInt64Coin("uqor", 5)), gas: 1, payer: payer}, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := ConvertedFee(ctx); ok {
+		t.Fatal("a native fee must not be reported as converted")
+	}
 }
 
 func TestConversionRefusals(t *testing.T) {
