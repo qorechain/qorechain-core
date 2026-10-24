@@ -42,6 +42,20 @@ func DefaultAbstractAccountConfig() AbstractAccountConfig {
 	}
 }
 
+// Validate applies the bounds genesis applies to the configuration.
+func (c AbstractAccountConfig) Validate() error {
+	if c.MaxSessionKeys <= 0 {
+		return fmt.Errorf("max session keys must be positive")
+	}
+	if c.MaxSpendingRules <= 0 {
+		return fmt.Errorf("max spending rules must be positive")
+	}
+	if c.DefaultSessionTTL <= 0 {
+		return fmt.Errorf("default session TTL must be positive")
+	}
+	return nil
+}
+
 // AbstractAccount represents a smart-contract backed account.
 type AbstractAccount struct {
 	Address         string          `json:"address"`

@@ -2,18 +2,29 @@ syntax = "proto3";
 package qorechain.abstractaccount.v1;
 
 import "google/api/annotations.proto";
+import "gogoproto/gogo.proto";
+import "qorechain/abstractaccount/v1/tx.proto";
 
 option go_package = "github.com/qorechain/qorechain-core/x/abstractaccount/types";
 
 // Query defines the gRPC query service for the abstractaccount module.
 service Query {
   // Config returns the module config.
+  // "/params" is served too: the module has no params, and the API reference
+  // listed that path for it.
   rpc Config(QueryConfigRequest) returns (QueryConfigResponse) {
-    option (google.api.http).get = "/qorechain/abstractaccount/v1/config";
+    option (google.api.http) = {
+      get: "/qorechain/abstractaccount/v1/config"
+      additional_bindings {get: "/qorechain/abstractaccount/v1/params"}
+    };
   }
-  // Account returns a single abstract account by address.
+  // Account returns a single abstract account by address. The singular
+  // "/account/{address}" path, which the API reference listed, is an alias.
   rpc Account(QueryAccountRequest) returns (QueryAccountResponse) {
-    option (google.api.http).get = "/qorechain/abstractaccount/v1/accounts/{address}";
+    option (google.api.http) = {
+      get: "/qorechain/abstractaccount/v1/accounts/{address}"
+      additional_bindings {get: "/qorechain/abstractaccount/v1/account/{address}"}
+    };
   }
   // Accounts lists all abstract accounts.
   rpc Accounts(QueryAccountsRequest) returns (QueryAccountsResponse) {
@@ -31,6 +42,62 @@ service Query {
   rpc AuthNonce(QueryAuthNonceRequest) returns (QueryAuthNonceResponse) {
     option (google.api.http).get = "/qorechain/abstractaccount/v1/auth_nonce/{address}/{pubkey_hex}";
   }
+  // SpendingRules returns the spending rules stored for an account: the
+  // account-wide rules and the rule of every linked key that carries its own.
+  // The account view only counts them, so an owner could not read back what
+  // MsgUpdateSpendingRules saved.
+  rpc SpendingRules(QuerySpendingRulesRequest) returns (QuerySpendingRulesResponse) {
+    option (google.api.http).get = "/qorechain/abstractaccount/v1/accounts/{address}/spending_rules";
+  }
+  // Authenticators returns the keys linked to an account, revoked ones
+  // included, with their permissions and expiry.
+  rpc Authenticators(QueryAuthenticatorsRequest) returns (QueryAuthenticatorsResponse) {
+    option (google.api.http).get = "/qorechain/abstractaccount/v1/accounts/{address}/authenticators";
+  }
+}
+
+message QuerySpendingRulesRequest {
+  // address is the account's bech32 address.
+  string address = 1;
+}
+
+message QuerySpendingRulesResponse {
+  // rules are the account-wide rules in stored order; the first enabled one
+  // bounds every linked key without a rule of its own.
+  repeated SpendingRule rules = 1 [(gogoproto.nullable) = false];
+  // authenticator_rules are the per-key rules.
+  repeated AuthenticatorRule authenticator_rules = 2 [(gogoproto.nullable) = false];
+}
+
+// AuthenticatorRule is the rule a linked key carries itself.
+message AuthenticatorRule {
+  string scheme = 1;
+  // pubkey_hex is the key, hex encoded.
+  string pubkey_hex = 2;
+  SpendingRule rule = 3 [(gogoproto.nullable) = false];
+}
+
+message QueryAuthenticatorsRequest {
+  // address is the account's bech32 address.
+  string address = 1;
+}
+
+message QueryAuthenticatorsResponse {
+  repeated AuthenticatorView authenticators = 1 [(gogoproto.nullable) = false];
+}
+
+message AuthenticatorView {
+  string scheme = 1;
+  // pubkey_hex is the key, hex encoded.
+  string pubkey_hex = 2;
+  repeated string permissions = 3;
+  // expiry_unix and created_at_unix are unix seconds.
+  int64 expiry_unix = 4;
+  string label = 5;
+  int64 created_at_unix = 6;
+  bool revoked = 7;
+  // has_spend_rule reports a rule of the key's own (see SpendingRules).
+  bool has_spend_rule = 8;
 }
 
 message QueryAuthNonceRequest {
@@ -63,6 +130,9 @@ message AccountView {
   uint32 session_keys_count = 5;
   int64 created_at = 6;
   string owner = 7;
+  // authenticators_count is the number of linked keys that are not revoked.
+  // session_keys_count counts the legacy session keys only.
+  uint32 authenticators_count = 8;
 }
 
 message QueryConfigRequest {}

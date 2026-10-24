@@ -138,8 +138,12 @@ All standard Cosmos SDK REST and gRPC endpoints are available:
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/qorechain/abstractaccount/v1/account/{address}` | GET | Abstract account details |
-| `/qorechain/abstractaccount/v1/params` | GET | Module parameters |
+| `/qorechain/abstractaccount/v1/config` | GET | Module configuration (`enabled`, limits). `/params` is an alias from v3.2.5 (`501` on an older node) |
+| `/qorechain/abstractaccount/v1/accounts` | GET | All abstract accounts (summary view) |
+| `/qorechain/abstractaccount/v1/accounts/{address}` | GET | One abstract account (summary view; `authenticators_count` from v3.2.5). `/account/{address}` is an alias from v3.2.5 |
+| `/qorechain/abstractaccount/v1/accounts/{address}/spending_rules` | GET | Stored spending rules of the account and of its linked keys (v3.2.5) |
+| `/qorechain/abstractaccount/v1/accounts/{address}/authenticators` | GET | Linked keys with permissions, expiry and revocation (v3.2.5) |
+| `/qorechain/abstractaccount/v1/permission_schema` | GET | Authenticator permission taxonomy |
 | `/qorechain/abstractaccount/v1/auth_nonce/{address}/{pubkey_hex}` | GET | Next sequence a linked authenticator key must sign for the account (v3.2.4) |
 
 ### FairBlock Module (v1.2.0)
