@@ -1,6 +1,10 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+
+	"cosmossdk.io/math"
+)
 
 // Params holds module-level parameters for the RDK module.
 type Params struct {
@@ -24,6 +28,49 @@ func DefaultParams() Params {
 		BlobRetentionBlocks:    432000,      // ~30 days at 6s blocks
 		MaxBatchesPerBlock:     10,
 	}
+}
+
+// Bounds on a governance parameter update (ValidateUpdate). They keep a
+// proposal from switching the module off by accident; they are not policy.
+const (
+	// MinChallengeWindowSec is the shortest default challenge window: one
+	// minute, so a watcher always has at least a few blocks to challenge.
+	MinChallengeWindowSec uint64 = 60
+	// MaxChallengeWindowSec is the longest: 30 days.
+	MaxChallengeWindowSec uint64 = 30 * 24 * 3600
+	// MaxDABlobSizeLimit caps max_da_blob_size at 8 MiB, under any block size
+	// the chain runs with.
+	MaxDABlobSizeLimit uint64 = 8 << 20
+)
+
+// ValidateUpdate checks a parameter set proposed through MsgUpdateParams
+// (from v3.2.5, FeatureRDKParamsRoute). It is stricter than the genesis check,
+// which existing genesis files must keep passing.
+func (p Params) ValidateUpdate() error {
+	if p.MaxRollups == 0 {
+		return ErrInvalidParams.Wrap("max_rollups must be positive")
+	}
+	if p.MinStakeForRollup <= 0 {
+		return ErrInvalidParams.Wrap("min_stake_for_rollup must be positive")
+	}
+	rate, err := math.LegacyNewDecFromStr(p.RollupCreationBurnRate)
+	if err != nil || rate.IsNegative() || rate.GTE(math.LegacyOneDec()) {
+		return ErrInvalidParams.Wrapf("rollup_creation_burn_rate must be a decimal in [0, 1), got %q", p.RollupCreationBurnRate)
+	}
+	if p.DefaultChallengeWindow < MinChallengeWindowSec || p.DefaultChallengeWindow > MaxChallengeWindowSec {
+		return ErrInvalidParams.Wrapf("default_challenge_window must be %d..%d seconds, got %d",
+			MinChallengeWindowSec, MaxChallengeWindowSec, p.DefaultChallengeWindow)
+	}
+	if p.MaxDABlobSize == 0 || p.MaxDABlobSize > MaxDABlobSizeLimit {
+		return ErrInvalidParams.Wrapf("max_da_blob_size must be 1..%d bytes, got %d", MaxDABlobSizeLimit, p.MaxDABlobSize)
+	}
+	if p.BlobRetentionBlocks == 0 {
+		return ErrInvalidParams.Wrap("blob_retention_blocks must be positive")
+	}
+	if p.MaxBatchesPerBlock == 0 {
+		return ErrInvalidParams.Wrap("max_batches_per_block must be positive")
+	}
+	return nil
 }
 
 // GenesisState defines the rdk module genesis state.

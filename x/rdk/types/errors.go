@@ -40,4 +40,12 @@ var (
 	// ErrInvalidWithdrawal is returned from v3.2.3 (FeatureRDKEscrowLedger) for a
 	// withdrawal message whose fields are malformed before any state is read.
 	ErrInvalidWithdrawal = errorsmod.Register(ModuleName, 33, "malformed withdrawal message")
+	// ErrParamsUpdateNotEnabled is returned for MsgUpdateParams below v3.2.5
+	// (FeatureRDKParamsRoute), when the module could not change its parameters.
+	ErrParamsUpdateNotEnabled = errorsmod.Register(ModuleName, 34, "rdk parameter updates are not enabled at this height")
+	// ErrInvalidParams is returned for a parameter set that fails validation.
+	ErrInvalidParams = errorsmod.Register(ModuleName, 35, "invalid rdk parameters")
+	// ErrSettlementPending is returned from v3.2.5 (FeatureRDKChallengeSettlement)
+	// for a stop while a batch of the rollup is still submitted or challenged.
+	ErrSettlementPending = errorsmod.Register(ModuleName, 36, "rollup has a batch that is not settled yet")
 )

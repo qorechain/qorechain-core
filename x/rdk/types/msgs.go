@@ -132,3 +132,25 @@ func (m *MsgExecuteWithdrawal) ValidateWithdrawal() error {
 	}
 	return nil
 }
+
+// ValidateBasic checks the authority address; the parameter values are checked
+// by Params.ValidateUpdate in the message server.
+func (m *MsgUpdateParams) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
+		return fmt.Errorf("invalid authority address: %w", err)
+	}
+	return nil
+}
+
+// ToParams returns the parameter set the message carries.
+func (m *MsgUpdateParams) ToParams() Params {
+	return Params{
+		MaxRollups:             m.MaxRollups,
+		MinStakeForRollup:      m.MinStakeForRollup,
+		RollupCreationBurnRate: m.RollupCreationBurnRate,
+		DefaultChallengeWindow: m.DefaultChallengeWindow,
+		MaxDABlobSize:          m.MaxDaBlobSize,
+		BlobRetentionBlocks:    m.BlobRetentionBlocks,
+		MaxBatchesPerBlock:     m.MaxBatchesPerBlock,
+	}
+}

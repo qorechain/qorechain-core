@@ -25,7 +25,16 @@ var (
 	// RollupEscrowPrefix records how much of the pooled module balance belongs
 	// to one rollup, so a batch on one rollup can never spend another's funds.
 	RollupEscrowPrefix = []byte("rdk/escrow/")
+	// FinalizeCursorPrefix records, per rollup, the index of the oldest batch
+	// that is not final yet (from v3.2.5, FeatureRDKChallengeSettlement), so
+	// auto-finalization does not read every batch a rollup ever settled.
+	FinalizeCursorPrefix = []byte("rdk/fcursor/")
 )
+
+// FinalizeCursorKey returns the per-rollup finalization cursor key.
+func FinalizeCursorKey(rollupID string) []byte {
+	return append(append([]byte{}, FinalizeCursorPrefix...), []byte(rollupID)...)
+}
 
 // WithdrawalLeafDoneKey returns the replay-protection key for an executed
 // withdrawal, identified by its canonical leaf digest.
