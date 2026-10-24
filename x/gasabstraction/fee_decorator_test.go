@@ -143,6 +143,10 @@ type fixture struct {
 	seenFee  sdk.Coins
 	checker  func(sdk.Context, sdk.Tx) (sdk.Coins, int64, error)
 	minPerGs math.LegacyDec
+	// pricing is the pool-type pricing switch; quoter, when set, is the pool
+	// reader (with quotes) instead of pools.
+	pricing bool
+	quoter  *memQuoter
 }
 
 func newFixture() *fixture {
@@ -177,16 +181,24 @@ func (f *fixture) router() FeeRouterDecorator {
 			recorder{name: "native-size", log: &f.log},
 			recorder{name: "native-deduct", log: &f.log},
 		},
-		Keeper:         f.keeper,
-		BankKeeper:     f.bank,
-		AccountKeeper:  memAccounts{payer.String(): true, granter.String(): true},
-		FeegrantKeeper: f.grants,
-		Pools:          f.pools,
-		TxSizeGas:      recorder{name: "conv-size", log: &f.log},
-		MinGasPrice:    recorder{name: "conv-mgp", log: &f.log, fee: &f.seenFee},
-		FeeChecker:     func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) { return f.checker(ctx, tx) },
-		MinFeePerGas:   func(sdk.Context) math.LegacyDec { return f.minPerGs },
+		Keeper:          f.keeper,
+		BankKeeper:      f.bank,
+		AccountKeeper:   memAccounts{payer.String(): true, granter.String(): true},
+		FeegrantKeeper:  f.grants,
+		Pools:           f.poolReader(),
+		TxSizeGas:       recorder{name: "conv-size", log: &f.log},
+		MinGasPrice:     recorder{name: "conv-mgp", log: &f.log, fee: &f.seenFee},
+		FeeChecker:      func(ctx sdk.Context, tx sdk.Tx) (sdk.Coins, int64, error) { return f.checker(ctx, tx) },
+		MinFeePerGas:    func(sdk.Context) math.LegacyDec { return f.minPerGs },
+		PoolTypePricing: func(sdk.Context) bool { return f.pricing },
 	})
+}
+
+func (f *fixture) poolReader() PoolReader {
+	if f.quoter != nil {
+		return f.quoter
+	}
+	return f.pools
 }
 
 func ctxAt(h int64) sdk.Context {
