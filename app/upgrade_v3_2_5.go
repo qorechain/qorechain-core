@@ -23,6 +23,7 @@ func (app *QoreChainApp) upgradeV3_2_5(ctx context.Context, _ upgradetypes.Plan,
 		app.upgradeV3_2_5CrossVM,
 		app.upgradeV3_2_5RDK,
 		app.upgradeV3_2_5Wasm,
+		app.upgradeV3_2_5SVM,
 	}
 	for _, step := range steps {
 		if err := step(sdkCtx); err != nil {

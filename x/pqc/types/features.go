@@ -193,6 +193,7 @@ var ReleaseV3_2_5ProtocolFeatures = concatFeatures(
 	V325CrossVMFeatures,
 	V325RDKFeatures,
 	V325WasmFeatures,
+	V325SVMFeatures,
 )
 
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain
