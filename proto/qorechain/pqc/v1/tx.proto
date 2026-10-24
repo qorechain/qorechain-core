@@ -53,6 +53,17 @@ service Msg {
   // ClearEVMDelegation removes the sender's EIP-7702 delegation directly, on
   // the Cosmos lane, without an EVM transaction, a window or the classical key.
   rpc ClearEVMDelegation(MsgClearEVMDelegation) returns (MsgClearEVMDelegationResponse);
+
+  // RegisterKEMKey publishes the sender's ML-KEM (FIPS 203) encapsulation
+  // key, so anyone can encrypt to the account. It is not an authentication
+  // key: the account keeps signing with its signature key. Sending it again
+  // replaces the published key. Needs the account's hybrid signature
+  // (v3.2.5, pqc-kem-registry).
+  rpc RegisterKEMKey(MsgRegisterKEMKey) returns (MsgRegisterKEMKeyResponse);
+
+  // RemoveKEMKey withdraws the sender's published KEM key (v3.2.5,
+  // pqc-kem-registry).
+  rpc RemoveKEMKey(MsgRemoveKEMKey) returns (MsgRemoveKEMKeyResponse);
 }
 
 // MsgRegisterPQCKey registers a PQC keypair for an account.
@@ -201,3 +212,29 @@ message MsgClearEVMDelegation {
   string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
 }
 message MsgClearEVMDelegationResponse {}
+
+// MsgRegisterKEMKey publishes the sender's key-encapsulation public key. The
+// sender must already hold a post-quantum signature key; the message is
+// authenticated by its hybrid signature, like the other key maintenance.
+message MsgRegisterKEMKey {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // algorithm_id names a key-encapsulation algorithm of the on-chain
+  // registry (ML-KEM-1024 is 2).
+  uint32 algorithm_id = 2 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "AlgorithmID"];
+  // public_key is the encapsulation key exactly as FIPS 203 encodes it
+  // (1568 bytes for ML-KEM-1024).
+  bytes public_key = 3;
+}
+message MsgRegisterKEMKeyResponse {
+  // replaced reports whether a previously published key was replaced.
+  bool replaced = 1;
+}
+
+// MsgRemoveKEMKey withdraws the sender's published KEM key.
+message MsgRemoveKEMKey {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+}
+message MsgRemoveKEMKeyResponse {}

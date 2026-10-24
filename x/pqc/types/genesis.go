@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 
+	"cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
@@ -29,6 +30,10 @@ type GenesisState struct {
 	// open must not silently revoke it on import.
 	EVMWindows            []GenesisEVMWindow            `json:"evm_windows,omitempty"`
 	EVMDelegationConsents []GenesisEVMDelegationConsent `json:"evm_delegation_consents,omitempty"`
+
+	// KEMKeys are the published KEM keys (v3.2.5). Omitted when there are
+	// none, so an export from before the registry existed is unchanged.
+	KEMKeys []KEMKeyInfo `json:"kem_keys,omitempty"`
 }
 
 // GenesisEVMWindow is one account's window in a genesis file.
@@ -138,5 +143,36 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
+	return validateGenesisKEMKeys(gs.KEMKeys, gs.Algorithms)
+}
+
+// validateGenesisKEMKeys checks each published KEM key the way registration
+// does: one per account, a key-encapsulation algorithm of the genesis
+// registry, that algorithm's key size, and the stateless key rule.
+func validateGenesisKEMKeys(keys []KEMKeyInfo, algos []AlgorithmInfo) error {
+	byID := make(map[AlgorithmID]AlgorithmInfo, len(algos))
+	for _, a := range algos {
+		byID[a.ID] = a
+	}
+	seen := map[string]bool{}
+	for _, k := range keys {
+		if _, err := sdk.AccAddressFromBech32(k.Address); err != nil {
+			return ErrInvalidKEMKey.Wrapf("genesis KEM key address %q: %v", k.Address, err)
+		}
+		if seen[k.Address] {
+			return ErrInvalidKEMKey.Wrapf("duplicate genesis KEM key for %s", k.Address)
+		}
+		seen[k.Address] = true
+		algo, ok := byID[k.AlgorithmID]
+		if !ok || algo.Category != CategoryKEM {
+			return ErrInvalidAlgorithm.Wrapf("genesis KEM key for %s names %s, not a key-encapsulation algorithm of the genesis registry", k.Address, k.AlgorithmID)
+		}
+		if uint32(len(k.PublicKey)) != algo.PublicKeySize {
+			return ErrInvalidKEMKey.Wrapf("genesis KEM key for %s is %d bytes, %s uses %d", k.Address, len(k.PublicKey), algo.Name, algo.PublicKeySize)
+		}
+		if err := ValidateKEMPublicKey(k.AlgorithmID, k.PublicKey); err != nil {
+			return errors.Wrapf(err, "genesis KEM key for %s", k.Address)
+		}
+	}
 	return nil
 }

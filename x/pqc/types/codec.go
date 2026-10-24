@@ -25,6 +25,9 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		// EIP-7702 delegation consent and direct clear (v3.2.2).
 		&MsgAuthorizeEVMDelegation{},
 		&MsgClearEVMDelegation{},
+		// Native KEM key registry (v3.2.5).
+		&MsgRegisterKEMKey{},
+		&MsgRemoveKEMKey{},
 	)
 
 	// PQCHybridSignature is a TX extension option carried in
@@ -52,5 +55,7 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgCloseEVMWindow{}, "pqc/MsgCloseEVMWindow", nil)
 	cdc.RegisterConcrete(&MsgAuthorizeEVMDelegation{}, "pqc/MsgAuthorizeEVMDelegation", nil)
 	cdc.RegisterConcrete(&MsgClearEVMDelegation{}, "pqc/MsgClearEVMDelegation", nil)
+	cdc.RegisterConcrete(&MsgRegisterKEMKey{}, "pqc/MsgRegisterKEMKey", nil)
+	cdc.RegisterConcrete(&MsgRemoveKEMKey{}, "pqc/MsgRemoveKEMKey", nil)
 	cdc.RegisterConcrete(&PQCHybridSignature{}, "pqc/PQCHybridSignature", nil)
 }
