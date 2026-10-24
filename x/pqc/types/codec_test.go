@@ -34,6 +34,8 @@ func TestEveryHandledMessageIsRegistered(t *testing.T) {
 		&types.MsgCloseEVMWindow{},
 		&types.MsgAuthorizeEVMDelegation{},
 		&types.MsgClearEVMDelegation{},
+		&types.MsgRegisterKEMKey{},
+		&types.MsgRemoveKEMKey{},
 	}
 
 	for _, msg := range handled {

@@ -107,14 +107,18 @@ func (a *PQCAccountInfo) RetireKey(pub []byte) {
 }
 
 // PQCKeyManagementMsgTypeURLs are the messages that manage an account's own
-// post-quantum key. None of them may be sent on an account's behalf through
-// authz (FeaturePQCRotationReplayGuard).
+// post-quantum keys. None of them may be sent on an account's behalf through
+// authz (FeaturePQCRotationReplayGuard). The KEM key messages (v3.2.5) are
+// listed too: no historical transaction can carry them, so listing them
+// changes nothing below the v3.2.5 plan height.
 func PQCKeyManagementMsgTypeURLs() []string {
 	return []string{
 		sdk.MsgTypeURL(&MsgRegisterPQCKey{}),
 		sdk.MsgTypeURL(&MsgRegisterPQCKeyV2{}),
 		sdk.MsgTypeURL(&MsgRotatePQCKey{}),
 		sdk.MsgTypeURL(&MsgMigratePQCKey{}),
+		sdk.MsgTypeURL(&MsgRegisterKEMKey{}),
+		sdk.MsgTypeURL(&MsgRemoveKEMKey{}),
 	}
 }
 
