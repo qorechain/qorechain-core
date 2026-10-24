@@ -281,9 +281,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		ante.NewSetUpContextDecorator(),
 		// Mempool-only guard: refuse CosmWasm upload/instantiate into this
 		// node's mempool. CheckTx only, so block validity is unchanged and
-		// this can be rolled out per-node. Remove once governance has set
-		// code_upload_access to Nobody.
-		NewWasmMempoolGuardDecorator(),
+		// this can be rolled out per-node. From v3.2.5 instantiation is
+		// admitted and only upload stays refused (FeatureWasmGovernedDeploy).
+		NewWasmMempoolGuardDecorator(wasmGovernedDeployFeature(options.PQCKeeper)),
 		// Runs here, near the front, because the decorator that expands a multisig
 		// signature into event bytes sits much further down (SetPubKey) and the
 		// expansion is exponential in nesting depth. A guard placed after it would
