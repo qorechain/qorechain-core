@@ -219,8 +219,9 @@ in cosmos/evm). They are compiled into the full build and inactive on both netwo
 directly, a contract, or an EIP-7702 delegated account whose code calls it). Amounts are in `uqor`
 (6 decimals), not in the 18-decimal unit of `msg.value`.
 
-They execute Cosmos messages by calling the module message servers directly, past the Cosmos ante
-handler. From v3.2.5 two protocol features close what that bypassed:
+They execute Cosmos messages by calling the module message servers directly, past the ante handler
+and the message router where the circuit breaker is checked. From v3.2.5 two protocol features close
+what that bypassed:
 
 - **`evm-precompile-circuit`:** every transaction method refuses, with a revert reason, while the
   circuit-breaker entry of the Cosmos message it executes is tripped (`delegate` honours
