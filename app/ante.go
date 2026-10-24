@@ -292,7 +292,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		NewMultisigDepthGuardDecorator(multisigBoundFeature(options.PQCKeeper)),
 		// CosmWasm decorators — limit simulation gas and track tx position
 		wasmkeeper.NewLimitSimulationGasDecorator(options.WasmConfig.SimulationGasLimit),
-		wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService),
+		// The counter is written in delivery only; a simulation is charged
+		// its gas on a discarded branch (node-local, ante_simulate_gas.go).
+		simulateChargedDecorator{wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService)},
 		wasmkeeper.NewGasRegisterDecorator(options.WasmKeeper.GetGasRegister()),
 		wasmkeeper.NewTxContractsDecorator(),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
@@ -367,6 +369,9 @@ func newFeeRouter(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.A
 			// Gas abstraction: refuses a non-native fee this path cannot take.
 			NewGasAbstractionDecorator(options.GasAbstractionKeeper),
 			ante.NewDeductFeeDecorator(options.AccountKeeper, options.BankKeeper, options.FeegrantKeeper, feeChecker),
+			// Simulation only: a fee-less estimate pays for the fee transfer
+			// (node-local, ante_simulate_gas.go).
+			simulatedFeeDeduction{accountKeeper: options.AccountKeeper, bankKeeper: options.BankKeeper, denom: BaseDenom},
 		},
 		Keeper:         options.GasAbstractionKeeper,
 		BankKeeper:     options.BankKeeper.(gasabstractionmod.ConversionBankKeeper),

@@ -22,6 +22,12 @@ func NewBurnTxCountDecorator(keeper BurnKeeper) BurnTxCountDecorator {
 func (d BurnTxCountDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
 	if !simulate {
 		d.keeper.IncrementBlockTxCount(ctx)
+	} else {
+		// A simulation is charged the counter's gas on a branch that is never
+		// written, so the estimate matches what delivery uses. Simulation
+		// never runs in a block, so no block's gas changes.
+		branch, _ := ctx.CacheContext()
+		d.keeper.IncrementBlockTxCount(branch)
 	}
 	return next(ctx, tx, simulate)
 }
