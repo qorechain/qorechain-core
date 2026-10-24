@@ -70,6 +70,11 @@ service Msg {
   rpc RevokeAuthenticator(MsgRevokeAuthenticator) returns (MsgRevokeAuthenticatorResponse);
   rpc ExecuteEVM(MsgExecuteEVM) returns (MsgExecuteEVMResponse);
   rpc ExecuteCosmos(MsgExecuteCosmos) returns (MsgExecuteCosmosResponse);
+  // UpdateConfig replaces the module configuration. Governance-only, routed
+  // from v3.2.5 (abstractaccount-config-governance). It is how the enabled
+  // flag that gates account creation, authenticator registration and both
+  // execute lanes is switched on or off.
+  rpc UpdateConfig(MsgUpdateConfig) returns (MsgUpdateConfigResponse);
 }
 
 message MsgCreateAbstractAccount {
@@ -173,3 +178,21 @@ message MsgExecuteCosmos {
 message MsgExecuteCosmosResponse {
   bool success = 1;
 }
+
+// MsgUpdateConfig replaces the abstractaccount configuration wholesale (v3.2.5).
+// A proposal copies the current values from /qorechain/abstractaccount/v1/config
+// and changes only what it means to change.
+message MsgUpdateConfig {
+  option (cosmos.msg.v1.signer) = "authority";
+  // authority must be the governance module account.
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  // enabled gates CreateAbstractAccount, RegisterAuthenticator, ExecuteEVM and
+  // ExecuteCosmos.
+  bool enabled = 2;
+  // max_session_keys, max_spending_rules and default_session_ttl (seconds)
+  // must be positive, as in genesis.
+  int32 max_session_keys = 3;
+  int32 max_spending_rules = 4;
+  int64 default_session_ttl = 5;
+}
+message MsgUpdateConfigResponse {}

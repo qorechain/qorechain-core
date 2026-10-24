@@ -21,6 +21,8 @@ func GetQueryCmd() *cobra.Command {
 		CmdQueryConfig(),
 		CmdQueryAccount(),
 		CmdQueryAccounts(),
+		CmdQuerySpendingRules(),
+		CmdQueryAuthenticators(),
 		CmdQueryPermissionSchema(),
 		CmdAuthKeygen(),
 		CmdAuthSignCosmos(),
@@ -85,6 +87,50 @@ func CmdQueryAccounts() *cobra.Command {
 				return err
 			}
 			res, err := types.NewQueryClient(clientCtx).Accounts(cmd.Context(), &types.QueryAccountsRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
+		},
+	}
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+// CmdQuerySpendingRules queries the stored spending rules of an account.
+func CmdQuerySpendingRules() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "spending-rules [address]",
+		Short: "Query the spending rules of an abstract account and of its linked keys",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			res, err := types.NewQueryClient(clientCtx).SpendingRules(cmd.Context(), &types.QuerySpendingRulesRequest{Address: args[0]})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
+		},
+	}
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+// CmdQueryAuthenticators queries the keys linked to an account.
+func CmdQueryAuthenticators() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "authenticators [address]",
+		Short: "Query the keys linked to an abstract account",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			res, err := types.NewQueryClient(clientCtx).Authenticators(cmd.Context(), &types.QueryAuthenticatorsRequest{Address: args[0]})
 			if err != nil {
 				return err
 			}
