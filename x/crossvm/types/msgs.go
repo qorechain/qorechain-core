@@ -58,3 +58,21 @@ func (m *MsgProcessQueue) ValidateBasic() error {
 	}
 	return nil
 }
+
+func (m *MsgUpdateParams) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
+		return errorsmod.Wrapf(ErrInvalidMessage, "invalid authority address: %s", err)
+	}
+	return m.Params().ValidateUpdate()
+}
+
+// Params returns the parameter set the message installs.
+func (m *MsgUpdateParams) Params() Params {
+	return Params{
+		MaxMessageSize:       m.MaxMessageSize,
+		MaxQueueSize:         m.MaxQueueSize,
+		QueueTimeoutBlocks:   m.QueueTimeoutBlocks,
+		Enabled:              m.Enabled,
+		BridgeAllowedTargets: m.BridgeAllowedTargets,
+	}
+}

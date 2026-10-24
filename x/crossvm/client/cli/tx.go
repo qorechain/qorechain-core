@@ -71,7 +71,7 @@ func cmdCrossVMCall() *cobra.Command {
 	cmd.Flags().String("payload", "", "hex-encoded call payload")
 	cmd.Flags().String("funds", "", "coins to attach, e.g. 100uqor (CosmWasm targets only)")
 	cmd.Flags().Bool("async", false, "queue the call instead of executing it now; "+
-		"the queue is dispatched by governance, so the result is not returned")
+		"it runs at the end of the block (from v3.2.5 on a prepaid budget of 1,000,000 gas) and the result is not returned")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }

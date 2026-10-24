@@ -11,6 +11,7 @@ func RegisterInterfaces(reg codectypes.InterfaceRegistry) {
 	reg.RegisterImplementations((*sdk.Msg)(nil),
 		&MsgCrossVMCall{},
 		&MsgProcessQueue{},
+		&MsgUpdateParams{},
 	)
 }
 
@@ -18,4 +19,5 @@ func RegisterInterfaces(reg codectypes.InterfaceRegistry) {
 func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgCrossVMCall{}, "crossvm/MsgCrossVMCall", nil)
 	cdc.RegisterConcrete(&MsgProcessQueue{}, "crossvm/MsgProcessQueue", nil)
+	cdc.RegisterConcrete(&MsgUpdateParams{}, "crossvm/MsgUpdateParams", nil)
 }

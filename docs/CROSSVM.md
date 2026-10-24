@@ -28,33 +28,46 @@ The `x/crossvm` module enables communication between the EVM and CosmWasm virtua
 
 ### Synchronous: EVM → CosmWasm (Precompile)
 
-Solidity contracts call a precompile at address `0x0000000000000000000000000000000000000901` to invoke CosmWasm contracts synchronously within the same transaction:
+Solidity contracts call the precompile at `0x0000000000000000000000000000000000000901` to execute a CosmWasm contract within the same transaction. The canonical ABI is published as [`contracts/abi/IQoreCrossVM.json`](../contracts/abi/IQoreCrossVM.json) with the Solidity interface [`contracts/interfaces/IQoreCrossVM.sol`](../contracts/interfaces/IQoreCrossVM.sol):
 
 ```solidity
-// Solidity example
-address constant CROSSVM = 0x0000000000000000000000000000000000000901;
+function executeCrossVMCall(uint8 targetVM, string targetContract, bytes payload)
+    external returns (bytes result);   // selector 0x3c11078c
+```
 
-(bool success, bytes memory result) = CROSSVM.call(
-    abi.encode(
-        cosmwasmContractAddr,  // bech32 address of CosmWasm contract
-        executeMsg,            // JSON-encoded CosmWasm execute message
-        funds                  // coins to send
-    )
+```solidity
+import {IQoreCrossVM} from "./interfaces/IQoreCrossVM.sol";
+
+IQoreCrossVM constant CROSSVM = IQoreCrossVM(0x0000000000000000000000000000000000000901);
+
+// targetVM 1 = CosmWasm; payload is the contract's JSON execute message.
+bytes memory result = CROSSVM.executeCrossVMCall(
+    1,
+    "qor1...",                                   // allowlisted CosmWasm contract
+    bytes('{"transfer":{"recipient":"qor1...","amount":"1"}}')
 );
 ```
 
-The precompile:
-1. Decodes the ABI-encoded call
-2. Calls the CosmWasm contract via `wasm.PermissionedKeeper.Execute()`
-3. Returns the result ABI-encoded back to the EVM caller
+The precompile (from the v3.2.5 `crossvm-bridge-abi` switch):
+1. Accepts only the selector above, a plain `CALL` with no value, and `targetVM = 1`; `STATICCALL`, `DELEGATECALL` and `CALLCODE` revert, and so do `targetVM` 0 (EVM) and 2 (SVM).
+2. Refuses any target not listed in the `bridge_allowed_targets` parameter, and every call while `MsgCrossVMCall` is tripped on the circuit breaker.
+3. Executes the contract with the precompile's caller (the contract or account that called `0x0901`, as its `qor1` address) as the CosmWasm sender, on the gas the calling frame has left.
+4. Returns the contract's response `data`, ABI-encoded as `bytes`. A refused or failed call reverts with an `Error(string)` reason, and a revert anywhere in the EVM transaction undoes the CosmWasm execution too.
+5. Keeps the calling EVM state in step with any bank transfer the contract makes, and refuses every attempt to enter the EVM again from inside the call.
 
-### Asynchronous: CosmWasm → EVM (Event Queue)
+The precompile is reachable only once governance has (a) added `0x...0901` to the x/vm `active_static_precompiles` list and (b) allowlisted at least one target with `MsgUpdateParams` (see Governance below).
 
-CosmWasm contracts can trigger EVM calls by submitting cross-VM messages to the queue:
+### Synchronous: Native or CosmWasm → EVM / SVM / CosmWasm (MsgCrossVMCall)
 
-1. A `MsgCrossVMCall` transaction is submitted with the target EVM contract and payload
+An account (or a CosmWasm contract, by dispatching the message) sends `MsgCrossVMCall` with `async = false` (the default). The call executes inside the transaction, on the transaction's own gas, and its answer is returned in `MsgCrossVMCallResponse.data`; a failure reverts the whole transaction. The caller's lane is derived by the chain (a CosmWasm contract or a native account), never taken from `source_vm`. From the v3.2.5 `crossvm-lane-bounds` switch a call into a lane is refused while that lane's own entry message is tripped on the circuit breaker (`MsgEthereumTx` for the EVM, `MsgExecuteContract` for CosmWasm, `MsgExecuteProgram` for the SVM).
+
+### Asynchronous (queue)
+
+A `MsgCrossVMCall` with `async = true` is queued instead of executed:
+
+1. A `MsgCrossVMCall` transaction is submitted with the target contract, payload and `async = true`. From the v3.2.5 `crossvm-lane-bounds` switch it prepays a fixed execution budget of 1,000,000 gas
 2. The message is stored with `pending` status and added to the processing queue
-3. The module's `EndBlocker` processes the queue:
+3. The module's `EndBlocker` processes the queue (from `crossvm-lane-bounds`: each call runs on exactly its prepaid budget, at most 50 calls per block, the rest wait for the next block):
    - Timed-out messages (exceeded `QueueTimeoutBlocks`) are marked `timed_out`
    - Pending messages are executed against the target VM
    - Results are emitted as `crossvm_response` events
@@ -109,9 +122,28 @@ Each message transitions through these states:
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `max_message_size` | uint64 | 65,536 | Maximum payload size in bytes |
-| `max_queue_size` | uint64 | 1,000 | Maximum pending messages in queue |
+| `max_queue_size` | uint32 | 1,000 | Maximum pending messages in queue |
 | `queue_timeout_blocks` | int64 | 100 | Blocks before a message times out |
 | `enabled` | bool | true | Module enable/disable switch |
+| `bridge_allowed_targets` | string[] | empty | Targets the EVM bridge precompile may call, each `cosmwasm:<qor1 contract address>`. Empty keeps the bridge shut. |
+
+### Governance
+
+From the v3.2.5 `crossvm-params-update` switch, `MsgUpdateParams` (signed by the governance module account, so it runs only from a passed proposal) replaces all parameters at once. It is refused unless every value is within bounds: `max_message_size` at most 1 MiB, `max_queue_size` at most 10,000, `queue_timeout_blocks` at most 100,000, and at most 64 distinct `bridge_allowed_targets`, each a valid CosmWasm contract address. Every field must be set, because a field left out becomes zero.
+
+```json
+{
+  "@type": "/qorechain.crossvm.v1.MsgUpdateParams",
+  "authority": "<gov module address>",
+  "max_message_size": "65536",
+  "max_queue_size": 1000,
+  "queue_timeout_blocks": "100",
+  "enabled": true,
+  "bridge_allowed_targets": ["cosmwasm:qor1..."]
+}
+```
+
+Allowlist only contracts that have been reviewed: a contract reached through the bridge acts with the EVM caller's identity as sender and runs inside an EVM transaction.
 
 ## CLI Commands
 
@@ -139,8 +171,10 @@ qorechaind query crossvm message <message-id>
 # List pending messages
 qorechaind query crossvm pending
 
-# Query module params
+# Query module params (including the bridge allowlist)
 qorechaind query crossvm params
+# or over REST
+curl https://<api>/qorechain/crossvm/v1/params
 ```
 
 ## JSON-RPC Integration
@@ -193,7 +227,7 @@ The cross-VM module follows QoreChain's open-core pattern:
 ## Security
 
 - Cross-VM messages are validated before queue insertion (valid VMs, non-empty payload, size limits)
-- The precompile path runs within the EVM gas context — gas metering applies to CosmWasm execution
+- The precompile path runs within the EVM gas context - gas metering applies to CosmWasm execution
 - Queue timeout prevents message accumulation from stalled VMs
 - The module can be disabled via the `enabled` parameter without chain restart
 - PQC signing is available for cross-VM attestations via the `x/pqc` module integration
