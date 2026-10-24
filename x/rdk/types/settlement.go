@@ -38,6 +38,13 @@ type SettlementBatch struct {
 	// the rollup's sequencing policy before the batch is stored, and kept so
 	// the record says who committed the state it is trusted for.
 	Submitter string `json:"submitter,omitempty"`
+	// WithdrawalsBound is set on a batch submitted from rdk-withdrawals-binding:
+	// its withdrawals root (and the chain id) is part of what the fraud proof's
+	// transition binding, the SNARK public inputs and the STARK transcript
+	// cover, and its withdrawal leaves name the chain. False and omitted for
+	// every batch submitted before, so their records keep their bytes and are
+	// judged by the rule they were settled under.
+	WithdrawalsBound bool `json:"withdrawals_bound,omitempty"`
 
 	// AnchorSignature and ValidatorSetHash carry MsgSubmitBatch's optional
 	// anchor fields to the x/multilayer anchor written for the batch (from

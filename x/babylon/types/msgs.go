@@ -1,66 +1,17 @@
 package types
 
-import (
-	"fmt"
-
-	sdk "github.com/cosmos/cosmos-sdk/types"
-)
-
-// MsgSubmitBTCCheckpoint submits a BTC checkpoint to the chain.
-type MsgSubmitBTCCheckpoint struct {
-	Submitter      string `json:"submitter"`
-	EpochNum       uint64 `json:"epoch_num"`
-	BTCBlockHash   string `json:"btc_block_hash"`
-	BTCBlockHeight int64  `json:"btc_block_height"`
-	StateRoot      string `json:"state_root"`
-}
-
-func (msg MsgSubmitBTCCheckpoint) ValidateBasic() error {
-	if _, err := sdk.AccAddressFromBech32(msg.Submitter); err != nil {
-		return fmt.Errorf("invalid submitter address: %w", err)
-	}
-	if msg.BTCBlockHash == "" {
-		return fmt.Errorf("BTC block hash cannot be empty")
-	}
-	if msg.StateRoot == "" {
-		return fmt.Errorf("state root cannot be empty")
-	}
-	return nil
-}
-
-func (msg MsgSubmitBTCCheckpoint) GetSigners() []sdk.AccAddress {
-	addr, err := sdk.AccAddressFromBech32(msg.Submitter)
-	if err != nil {
-		return nil
-	}
-	return []sdk.AccAddress{addr}
-}
-
-// MsgBTCRestake initiates a BTC restaking position.
-type MsgBTCRestake struct {
-	Staker         string `json:"staker"`
-	BTCTxHash      string `json:"btc_tx_hash"`
-	AmountSatoshis int64  `json:"amount_satoshis"`
-	ValidatorAddr  string `json:"validator_addr"`
-}
-
-func (msg MsgBTCRestake) ValidateBasic() error {
-	if _, err := sdk.AccAddressFromBech32(msg.Staker); err != nil {
-		return fmt.Errorf("invalid staker address: %w", err)
-	}
-	if msg.BTCTxHash == "" {
-		return fmt.Errorf("BTC tx hash cannot be empty")
-	}
-	if msg.AmountSatoshis <= 0 {
-		return fmt.Errorf("amount must be positive")
-	}
-	return nil
-}
-
-func (msg MsgBTCRestake) GetSigners() []sdk.AccAddress {
-	addr, err := sdk.AccAddressFromBech32(msg.Staker)
-	if err != nil {
-		return nil
-	}
-	return []sdk.AccAddress{addr}
-}
+// x/babylon has no transaction messages.
+//
+// MsgSubmitBTCCheckpoint and MsgBTCRestake used to be declared here as plain Go
+// structs. They were never routable: they are not protobuf messages, the module
+// registers no interfaces and no Msg service (module.go), so no transaction
+// could carry them and no block ever executed one. They were removed in v3.2.5
+// (audit 2026-10-25, BAB-01) so that nobody wires them by mistake: a restake
+// message in that shape carries no proof of the Bitcoin transaction it names,
+// and routing it would credit restaking positions on an unverified claim.
+//
+// A future restaking message must be a protobuf Msg with a deliberate Msg
+// service, and must verify an SPV proof of the Bitcoin transaction (block
+// header chain with work, Merkle inclusion, confirmations) before it records a
+// position. Until then positions and checkpoints exist only as genesis puts
+// them there.

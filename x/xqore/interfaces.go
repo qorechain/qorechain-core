@@ -21,7 +21,12 @@ type XQOREKeeper interface {
 	// Satisfies rlconsensus.TokenomicsKeeper interface.
 	GetXQOREBalance(ctx sdk.Context, addr sdk.AccAddress) math.Int
 
-	// Position management
+	// Position management. Lock and Unlock have no caller (audit 2026-10-25,
+	// XQR-01): the module registers no message and no other module calls
+	// them, so positions exist only as genesis puts them there. They are
+	// keeper-level operations without authentication of their own; a message
+	// or hook that wires them must take `owner` from the transaction's
+	// verified signer, never from a field the caller fills in.
 	Lock(ctx sdk.Context, owner sdk.AccAddress, amount math.Int) error
 	Unlock(ctx sdk.Context, owner sdk.AccAddress, amount math.Int) error
 	GetPosition(ctx sdk.Context, owner sdk.AccAddress) (types.XQOREPosition, bool)
