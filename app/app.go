@@ -7,6 +7,8 @@ import (
 
 	"github.com/spf13/cast"
 
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
+
 	dbm "github.com/cosmos/cosmos-db"
 
 	clienthelpers "cosmossdk.io/client/v2/helpers"
@@ -64,6 +66,16 @@ import (
 	ibcexported "github.com/cosmos/ibc-go/v10/modules/core/exported"
 	ibckeeper "github.com/cosmos/ibc-go/v10/modules/core/keeper"
 	ibctm "github.com/cosmos/ibc-go/v10/modules/light-clients/07-tendermint"
+
+	// IBC applications (v3.2.6, see ibc_apps.go)
+	packetforward "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v10/packetforward"
+	packetforwardkeeper "github.com/cosmos/ibc-apps/middleware/packet-forward-middleware/v10/packetforward/keeper"
+	ratelimit "github.com/cosmos/ibc-apps/modules/rate-limiting/v10"
+	ratelimitkeeper "github.com/cosmos/ibc-apps/modules/rate-limiting/v10/keeper"
+	ratelimitv2 "github.com/cosmos/ibc-apps/modules/rate-limiting/v10/v2"
+	ibcwasm "github.com/cosmos/ibc-go/modules/light-clients/08-wasm/v10"
+	ibcwasmkeeper "github.com/cosmos/ibc-go/modules/light-clients/08-wasm/v10/keeper"
+	ibcwasmtypes "github.com/cosmos/ibc-go/modules/light-clients/08-wasm/v10/types"
 
 	// QoreChain EVM
 	evmante "github.com/cosmos/evm/ante/evm"
@@ -223,6 +235,12 @@ type QoreChainApp struct {
 	// IBC keepers
 	IBCKeeper      *ibckeeper.Keeper
 	TransferKeeper ibctransferkeeper.Keeper
+	// v3.2.6 IBC applications. Their state lives in the transfer store (see
+	// ibc_apps.go); each is switched on by its own protocol feature.
+	RateLimitKeeper     *ratelimitkeeper.Keeper
+	PacketForwardKeeper *packetforwardkeeper.Keeper
+	WasmClientKeeper    ibcwasmkeeper.Keeper
+	rateLimitStore      hostedStoreService
 
 	// EVM keepers (QoreChain EVM)
 	FeeMarketKeeper   feemarketkeeper.Keeper
@@ -448,18 +466,51 @@ func NewQoreChainApp(
 		&app.TransferKeeper, // forward reference — assigned below
 	)
 
+	// v3.2.6: the rate limiter and Packet Forward Middleware sit below the
+	// transfer keeper on the send side. Outgoing ICS-20 packets go
+	//   transfer -> PFM -> rate limiter -> channel
+	// each hop behind its own switch, so a forwarded hop is charged to the
+	// outgoing channel's quota like any other send. The keepers keep their
+	// records in the transfer store (see ibc_apps.go).
+	rateLimitOn := app.featureSwitch(pqctypes.FeatureIBCRateLimit)
+	packetForwardOn := app.featureSwitch(pqctypes.FeatureIBCPacketForward)
+	app.rateLimitStore = hostedStoreService{key: transferStoreKey, prefix: rateLimitHostPrefix}
+	app.RateLimitKeeper = ratelimitkeeper.NewKeeper(
+		app.appCodec,
+		app.rateLimitStore,
+		paramstypes.Subspace{}, // never written: see rateLimitAppModule.InitGenesis
+		authAddr,               // limits are managed by governance only
+		app.BankKeeper,
+		app.IBCKeeper.ChannelKeeper,
+		app.IBCKeeper.ClientKeeper,
+		app.IBCKeeper.ChannelKeeper, // ics4Wrapper
+	)
+	rateLimitICS4 := gatedICS4Wrapper{on: rateLimitOn, with: app.RateLimitKeeper, without: app.IBCKeeper.ChannelKeeper}
+	app.PacketForwardKeeper = packetforwardkeeper.NewKeeper(
+		app.appCodec,
+		hostedStoreService{key: transferStoreKey, prefix: packetForwardHostPrefix},
+		nil, // transfer keeper, set below once it exists
+		app.IBCKeeper.ChannelKeeper,
+		app.BankKeeper,
+		rateLimitICS4,
+		authAddr,
+	)
+
 	// Step 5: Standard IBC TransferKeeper (EVM transfer wrapper removed in v0.6.0)
 	app.TransferKeeper = ibctransferkeeper.NewKeeper(
 		app.appCodec,
 		runtime.NewKVStoreService(transferStoreKey),
 		paramstypes.Subspace{},      // legacy param subspace (not needed for fresh chains)
-		app.IBCKeeper.ChannelKeeper, // ics4Wrapper
+		app.IBCKeeper.ChannelKeeper, // ics4Wrapper, replaced just below
 		app.IBCKeeper.ChannelKeeper, // channelKeeper
 		app.MsgServiceRouter(),
 		app.AccountKeeper,
 		app.BankKeeper,
 		authAddr,
 	)
+	// Before any copy of the keeper is taken (the transfer modules, PFM).
+	app.TransferKeeper.WithICS4Wrapper(gatedICS4Wrapper{on: packetForwardOn, with: app.PacketForwardKeeper, without: rateLimitICS4})
+	app.PacketForwardKeeper.SetTransferKeeper(app.TransferKeeper)
 
 	// ==========================================================================
 	// CosmWasm (x/wasm)
@@ -828,15 +879,46 @@ func NewQoreChainApp(
 	// IBC Router Setup (transfer stack with ERC-20 middleware)
 	// ==========================================================================
 
-	// IBC v1 transfer stack: channel → erc20 middleware → transfer
+	// IBC v1 transfer stack, from the channel down:
+	//   channel -> rate limiter -> PFM -> erc20 middleware -> transfer
+	// The rate limiter is outermost so every packet, forwarded or not, is
+	// charged against its channel's quota before anything else runs, and an
+	// acknowledgement or timeout is settled against the quota first. PFM wraps
+	// the erc20 middleware, never the reverse: a forwarded packet answers with
+	// no acknowledgement until its next hop does, which the erc20 middleware
+	// cannot take, and every packet PFM hands down (its own intermediate
+	// receive included) still goes through the erc20 conversion. Refunds of
+	// packets sent from here reach the erc20 middleware too, which converts a
+	// refunded native ERC-20 back; a forwarded hop that fails is settled by PFM
+	// against escrow and answered to the previous chain, which refunds there.
+	// Below each layer's switch the packet skips that layer, which leaves the
+	// v3.2.5 stack (erc20 -> transfer) exactly.
 	var transferStack porttypes.IBCModule
 	transferStack = ibctransfer.NewIBCModule(app.TransferKeeper)
 	transferStack = evmerc20.NewIBCMiddleware(app.Erc20Keeper, transferStack)
+	transferStack = gatedIBCModule{
+		on:      packetForwardOn,
+		with:    packetforward.NewIBCMiddleware(transferStack, app.PacketForwardKeeper, 0, packetForwardTimeout),
+		without: transferStack,
+	}
+	transferStack = gatedIBCModule{
+		on:      rateLimitOn,
+		with:    ratelimit.NewIBCMiddleware(*app.RateLimitKeeper, transferStack),
+		without: transferStack,
+	}
 
-	// IBC v2 transfer stack
+	// IBC v2 transfer stack: channel -> rate limiter -> erc20 middleware ->
+	// transfer. PFM has no IBC v2 middleware in this release line, so a v2
+	// packet is never forwarded; limits on v2 paths are keyed by client ID.
 	var transferStackV2 ibcapi.IBCModule
 	transferStackV2 = ibctransferv2.NewIBCModule(app.TransferKeeper)
 	transferStackV2 = erc20v2.NewIBCMiddleware(transferStackV2, app.Erc20Keeper)
+	transferStackV2 = gatedIBCModuleV2{
+		on: rateLimitOn,
+		with: ratelimitv2.NewIBCMiddlewareWithAsyncAcknowledgements(*app.RateLimitKeeper, transferStackV2,
+			app.IBCKeeper.ChannelKeeperV2, app.IBCKeeper.ChannelKeeperV2),
+		without: transferStackV2,
+	}
 
 	// Create IBC routers, add transfer route, set and seal
 	ibcRouter := porttypes.NewRouter()
@@ -852,6 +934,14 @@ func NewQoreChainApp(
 	tmLightClientModule := ibctm.NewLightClientModule(app.appCodec, storeProvider)
 	app.IBCKeeper.ClientKeeper.AddRoute(ibctm.ModuleName, &tmLightClientModule)
 
+	// v3.2.6: the 08-wasm light client, for light clients shipped as wasm code
+	// (the Ethereum one, for example). The route is there, but no wasm client
+	// can be created until governance stores its code and adds "08-wasm" to the
+	// allowed_clients parameter; neither happens by itself.
+	app.WasmClientKeeper = app.newWasmClientKeeper(appOpts, transferStoreKey, authAddr)
+	wasmLightClientModule := ibcwasm.NewLightClientModule(app.WasmClientKeeper, storeProvider)
+	app.IBCKeeper.ClientKeeper.AddRoute(ibcwasmtypes.ModuleName, &wasmLightClientModule)
+
 	// ==========================================================================
 	// Module Registration
 	// ==========================================================================
@@ -862,6 +952,9 @@ func NewQoreChainApp(
 		ibc.NewAppModule(app.IBCKeeper),
 		ibctransfer.NewAppModule(app.TransferKeeper),
 		ibctm.NewAppModule(tmLightClientModule),
+		newRateLimitAppModule(app.appCodec, *app.RateLimitKeeper, app.rateLimitStore, rateLimitOn),
+		packetForwardAppModule{AppModule: packetforward.NewAppModule(app.PacketForwardKeeper, nil)},
+		wasmClientAppModule{AppModule: ibcwasm.NewAppModule(app.WasmClientKeeper), on: app.featureSwitch(pqctypes.FeatureIBCWasmLightClient)},
 		// EVM modules
 		evmvm.NewAppModule(app.EVMKeeper, app.AccountKeeper, app.BankKeeper, app.AccountKeeper.AddressCodec()),
 		evmfeemarket.NewAppModule(app.FeeMarketKeeper),
@@ -950,9 +1043,21 @@ func NewQoreChainApp(
 	if err := app.registerWasmSnapshotter(app.SnapshotManager()); err != nil {
 		panic(err)
 	}
+	if err := app.registerWasmClientSnapshotter(app.SnapshotManager()); err != nil {
+		panic(err)
+	}
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
+	}
+
+	// Load the light client code governance has stored into the 08-wasm VM's
+	// pinned cache (node-local; nothing is stored before v3.2.6).
+	if loadLatest {
+		ctx := app.NewUncachedContext(true, cmtproto.Header{})
+		if err := app.WasmClientKeeper.InitializePinnedCodes(ctx); err != nil {
+			panic(fmt.Sprintf("08-wasm: initialize pinned codes: %s", err))
+		}
 	}
 
 	return app
