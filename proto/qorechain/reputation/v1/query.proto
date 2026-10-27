@@ -3,10 +3,23 @@ package qorechain.reputation.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/reputation/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the reputation module's gRPC query service.
 service Query {
   // Params returns the reputation formula weights (R_i = α·S_i + β·P_i + γ·C_i + δ·T_i).
-  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/reputation/v1/params";
+  }
+  // Reputation returns one validator's reputation record. validator_address
+  // may be the operator (qorvaloper...) or the consensus (qorvalcons...) address.
+  rpc Reputation(QueryReputationRequest) returns (QueryReputationResponse) {
+    option (google.api.http).get = "/qorechain/reputation/v1/validator/{validator_address}";
+  }
+  // Reputations returns every stored reputation record, ordered by consensus address.
+  rpc Reputations(QueryReputationsRequest) returns (QueryReputationsResponse) {
+    option (google.api.http).get = "/qorechain/reputation/v1/validators";
+  }
 }
 
 message QueryParamsRequest {}
@@ -17,4 +30,40 @@ message QueryParamsResponse {
   string delta = 4;
   string lambda = 5;
   string min_score = 6;
+}
+
+// ReputationRecord mirrors the stored record (x/reputation/types.ValidatorReputation),
+// plus the operator address resolved through x/staking.
+message ReputationRecord {
+  // consensus_address is the record key (qorvalcons...).
+  string consensus_address = 1;
+  // operator_address is the qorvaloper... address; empty when x/staking no longer knows the validator.
+  string operator_address = 2;
+  string stake_score = 3;
+  string performance_score = 4;
+  string contribution_score = 5;
+  string time_score = 6;
+  // composite_score is R_i (LegacyDec string).
+  string composite_score = 7;
+  int64 last_updated_height = 8;
+  uint64 uptime_blocks = 9;
+  uint64 proposed_blocks = 10;
+  uint64 missed_blocks = 11;
+  uint64 slashing_events = 12;
+  int64 community_votes = 13;
+  int64 joined_at_height = 14;
+  string gov_participation = 15;
+  int64 inactive_since = 16;
+}
+
+message QueryReputationRequest {
+  string validator_address = 1;
+}
+message QueryReputationResponse {
+  ReputationRecord reputation = 1;
+}
+
+message QueryReputationsRequest {}
+message QueryReputationsResponse {
+  repeated ReputationRecord reputations = 1;
 }
