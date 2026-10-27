@@ -1246,6 +1246,7 @@ func (app *QoreChainApp) SimulationManager() *module.SimulationManager {
 // RegisterAPIRoutes registers all application module routes with the provided API server.
 func (app *QoreChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
+	apiSvr.Router.Use(dropBinaryTrailers)
 	registerIBCClientV2Gateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
 		panic(err)
