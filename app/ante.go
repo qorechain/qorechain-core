@@ -61,6 +61,9 @@ type HandlerOptions struct {
 	BurnKeeper           burnmod.BurnKeeper
 	LicenseKeeper        licensemod.LicenseKeeper
 	StakingKeeper        *stakingkeeper.Keeper
+	// StakingLockMempoolCheck refuses, in CheckTx only, an undelegation or
+	// redelegation of locked stake (StakingLockMempoolDecorator). Nil is off.
+	StakingLockMempoolCheck func(sdk.Context, sdk.Msg) error
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
 	// exempts them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
@@ -284,6 +287,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// this can be rolled out per-node. From v3.2.5 instantiation is
 		// admitted and only upload stays refused (FeatureWasmGovernedDeploy).
 		NewWasmMempoolGuardDecorator(wasmGovernedDeployFeature(options.PQCKeeper)),
+		// Mempool-only: refuse an undelegation or redelegation of locked stake,
+		// which execution refuses with stakingtier code 13 after the fee is
+		// paid. CheckTx only, no consensus change.
+		NewStakingLockMempoolDecorator(options.StakingLockMempoolCheck),
 		// Runs here, near the front, because the decorator that expands a multisig
 		// signature into event bytes sits much further down (SetPubKey) and the
 		// expansion is exponential in nesting depth. A guard placed after it would

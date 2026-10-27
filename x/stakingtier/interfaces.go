@@ -21,6 +21,11 @@ type StakingTierKeeper interface {
 	// it for every such message, whatever dispatched it.
 	CheckStakingMsg(ctx sdk.Context, msg sdk.Msg) error
 
+	// MempoolCheckStakingMsg is the same rule as the mempool applies it (CheckTx
+	// only, node-local): it refuses a message certain to fail with
+	// ErrLockedStake and never one execution would admit from the same state.
+	MempoolCheckStakingMsg(ctx sdk.Context, msg sdk.Msg) error
+
 	// SettleEpochBonus is called by x/inflation once per epoch, after the base
 	// emission. It computes the bonus owed since the previous settlement,
 	// spends the module's surplus first and mints the rest through mint, at

@@ -35,10 +35,12 @@ import (
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
+	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	"github.com/cosmos/cosmos-sdk/x/auth"
 	"github.com/cosmos/cosmos-sdk/x/auth/ante"
 	authkeeper "github.com/cosmos/cosmos-sdk/x/auth/keeper"
 	authsims "github.com/cosmos/cosmos-sdk/x/auth/simulation"
+	authtx "github.com/cosmos/cosmos-sdk/x/auth/tx"
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
@@ -1050,27 +1052,28 @@ func (app *QoreChainApp) setAnteHandler(
 				},
 				TxFeeChecker: evmante.NewDynamicFeeChecker(&fmDefaults),
 			},
-			CircuitKeeper:         &app.CircuitKeeper,
-			PQCKeeper:             app.PQCKeeper,
-			StakingKeeper:         app.StakingKeeper,
-			PQCClient:             app.pqcClient,
-			AIKeeper:              app.AIKeeper,
-			SVMKeeper:             app.SVMKeeper,
-			SVMBankKeeper:         app.BankKeeper,
-			EVMAccountKeeper:      app.AccountKeeper,
-			FeeMarketKeeper:       app.FeeMarketKeeper,
-			EvmKeeper:             app.EVMKeeper,
-			IBCKeeper:             app.IBCKeeper,
-			MaxTxGasWanted:        maxTxGasWanted,
-			WasmKeeper:            &app.WasmKeeper,
-			WasmConfig:            &wasmNodeConfig,
-			TXCounterStoreService: runtime.NewKVStoreService(wasmStoreKey),
-			FairBlockKeeper:       app.FairBlockKeeper,
-			GasAbstractionKeeper:  app.GasAbstractionKeeper,
-			AMMKeeper:             app.AMMKeeper,
-			BurnKeeper:            app.BurnKeeper,
-			LicenseKeeper:         app.LicenseKeeper,
-			ExecutingGenesis:      app.executingGenesis,
+			CircuitKeeper:           &app.CircuitKeeper,
+			PQCKeeper:               app.PQCKeeper,
+			StakingKeeper:           app.StakingKeeper,
+			StakingLockMempoolCheck: app.stakingTierMempoolGate,
+			PQCClient:               app.pqcClient,
+			AIKeeper:                app.AIKeeper,
+			SVMKeeper:               app.SVMKeeper,
+			SVMBankKeeper:           app.BankKeeper,
+			EVMAccountKeeper:        app.AccountKeeper,
+			FeeMarketKeeper:         app.FeeMarketKeeper,
+			EvmKeeper:               app.EVMKeeper,
+			IBCKeeper:               app.IBCKeeper,
+			MaxTxGasWanted:          maxTxGasWanted,
+			WasmKeeper:              &app.WasmKeeper,
+			WasmConfig:              &wasmNodeConfig,
+			TXCounterStoreService:   runtime.NewKVStoreService(wasmStoreKey),
+			FairBlockKeeper:         app.FairBlockKeeper,
+			GasAbstractionKeeper:    app.GasAbstractionKeeper,
+			AMMKeeper:               app.AMMKeeper,
+			BurnKeeper:              app.BurnKeeper,
+			LicenseKeeper:           app.LicenseKeeper,
+			ExecutingGenesis:        app.executingGenesis,
 		},
 	)
 	if err != nil {
@@ -1138,6 +1141,7 @@ func (app *QoreChainApp) SimulationManager() *module.SimulationManager {
 // RegisterAPIRoutes registers all application module routes with the provided API server.
 func (app *QoreChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
+	registerIBCClientV2Gateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
 		panic(err)
 	}
@@ -1172,8 +1176,16 @@ func (app *QoreChainApp) SetClientCtx(clientCtx client.Context) {
 // RegisterTxService registers the tx service and hands the EVM mempool's
 // broadcaster the client context, which from here on carries the in-process
 // node client (the server calls this after starting the node).
+//
+// The tx service is the SDK's, with Simulate wrapped so a refused simulation
+// keeps its codespace and code (simulate_refusal.go).
 func (app *QoreChainApp) RegisterTxService(clientCtx client.Context) {
-	app.App.RegisterTxService(clientCtx)
+	txtypes.RegisterServiceServer(app.GRPCQueryRouter(), simulateRefusalServer{
+		ServiceServer: authtx.NewTxServer(clientCtx, app.Simulate, app.interfaceRegistry),
+		clientCtx:     clientCtx,
+		simulate:      app.Simulate,
+		registry:      app.interfaceRegistry,
+	})
 	if app.evmBroadcaster != nil {
 		app.evmBroadcaster.setClientCtx(clientCtx)
 	}
