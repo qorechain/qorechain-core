@@ -14,6 +14,9 @@ import (
 // on every node and enables the release's switches.
 func (app *QoreChainApp) upgradeV3_2_6(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
+	if err := app.upgradeV3_2_6IBC(sdkCtx); err != nil {
+		return fromVM, err
+	}
 	for _, f := range pqctypes.ReleaseV3_2_6ProtocolFeatures {
 		if err := app.PQCKeeper.EnableProtocolFeature(sdkCtx, f); err != nil {
 			return fromVM, err
