@@ -24,6 +24,8 @@ func GetQueryCmd() *cobra.Command {
 		GetCmdQueryReward(),
 		GetCmdQueryParams(),
 		GetCmdQueryPolicy(),
+		GetCmdQueryAppliedParams(),
+		GetCmdQueryLastAction(),
 	)
 
 	return cmd
@@ -143,6 +145,56 @@ func GetCmdQueryPolicy() *cobra.Command {
 			}
 			queryClient := types.NewQueryClient(clientCtx)
 			res, err := queryClient.Policy(cmd.Context(), &types.QueryPolicyRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+// GetCmdQueryAppliedParams returns the command to query the agent's applied values.
+func GetCmdQueryAppliedParams() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "applied-params",
+		Short: "Query the values the RL agent holds as applied",
+		Long:  "Query the block time and gas price floor targets and the pool weights the RL agent holds as applied (the values the rlConsensusParams precompile reports).",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.AppliedParams(cmd.Context(), &types.QueryAppliedParamsRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+// GetCmdQueryLastAction returns the command to query the agent's last proposed action.
+func GetCmdQueryLastAction() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "last-action",
+		Short: "Query the action the RL agent proposed at its last step",
+		Long:  "Query the action vector the RL agent proposed at its last step, in any mode including shadow, and whether it was applied.",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			queryClient := types.NewQueryClient(clientCtx)
+			res, err := queryClient.LastAction(cmd.Context(), &types.QueryLastActionRequest{})
 			if err != nil {
 				return err
 			}

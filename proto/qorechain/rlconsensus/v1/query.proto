@@ -4,19 +4,42 @@ package qorechain.rlconsensus.v1;
 option go_package = "github.com/qorechain/qorechain-core/x/rlconsensus/types";
 
 import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
 
 // Query defines the rlconsensus module's gRPC query service.
 service Query {
   // AgentStatus returns the live RL agent status (epoch, steps, mode).
-  rpc AgentStatus(QueryAgentStatusRequest) returns (QueryAgentStatusResponse);
+  rpc AgentStatus(QueryAgentStatusRequest) returns (QueryAgentStatusResponse) {
+    option (google.api.http).get = "/qorechain/rlconsensus/v1/agent";
+  }
   // Params returns the rlconsensus module parameters.
-  rpc Params(QueryParamsRequest) returns (QueryParamsResponse);
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/rlconsensus/v1/params";
+  }
   // Observation returns the latest 25-dim observation vector captured by the agent.
-  rpc Observation(QueryObservationRequest) returns (QueryObservationResponse);
+  rpc Observation(QueryObservationRequest) returns (QueryObservationResponse) {
+    option (google.api.http).get = "/qorechain/rlconsensus/v1/observation";
+  }
   // Reward returns the latest reward signal (total + per-component deltas).
-  rpc Reward(QueryRewardRequest) returns (QueryRewardResponse);
+  rpc Reward(QueryRewardRequest) returns (QueryRewardResponse) {
+    option (google.api.http).get = "/qorechain/rlconsensus/v1/reward";
+  }
   // Policy returns the current policy network summary (epoch, params, update height).
-  rpc Policy(QueryPolicyRequest) returns (QueryPolicyResponse);
+  rpc Policy(QueryPolicyRequest) returns (QueryPolicyResponse) {
+    option (google.api.http).get = "/qorechain/rlconsensus/v1/policy";
+  }
+  // AppliedParams returns the values the agent holds as applied: the block
+  // time and gas price floor targets and the two pool weights. They are the
+  // values the rlConsensusParams precompile reports; no other module reads
+  // them.
+  rpc AppliedParams(QueryAppliedParamsRequest) returns (QueryAppliedParamsResponse) {
+    option (google.api.http).get = "/qorechain/rlconsensus/v1/applied_params";
+  }
+  // LastAction returns the action vector the agent proposed at its last step,
+  // in every mode including shadow, and whether it was applied.
+  rpc LastAction(QueryLastActionRequest) returns (QueryLastActionResponse) {
+    option (google.api.http).get = "/qorechain/rlconsensus/v1/last_action";
+  }
 }
 
 message QueryObservationRequest {}
@@ -73,4 +96,28 @@ message QueryParamsResponse {
   int64 default_block_time_ms = 13;
   string default_base_gas_price = 14;
   uint64 default_validator_set_size = 15;
+}
+
+message QueryAppliedParamsRequest {}
+message QueryAppliedParamsResponse {
+  int64 block_time_ms = 1;
+  int64 gas_limit = 2;
+  string gas_price_floor = 3;
+  string pool_weight_rpos = 4 [(gogoproto.customname) = "PoolWeightRPoS"];
+  string pool_weight_dpos = 5 [(gogoproto.customname) = "PoolWeightDPoS"];
+}
+
+message QueryLastActionRequest {}
+message QueryLastActionResponse {
+  // height is the block of the step; 0 when no action has been recorded.
+  int64 height = 1;
+  // mode is the agent mode at that step.
+  string mode = 2;
+  // values are the five raw action outputs, in the order block_time_delta,
+  // gas_price_delta, validator_set_size_delta, pool_weight_rpos_delta,
+  // pool_weight_dpos_delta, before the mode's clamp.
+  repeated string values = 3;
+  // applied is true when the step changed the applied values (conservative
+  // or autonomous mode, circuit breaker clear).
+  bool applied = 4;
 }
