@@ -43,7 +43,6 @@ var V326Features = []string{
 	FeatureIBCRateLimit,
 	FeatureIBCPacketForward,
 	FeatureIBCWasmLightClient,
-
 	FeatureRLAgentObservable,
 	FeatureRLCircuitBreakerPerBlock,
 	FeatureRLHistoryRetention,
