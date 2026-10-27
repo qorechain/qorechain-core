@@ -21,7 +21,7 @@ P-256).
 | `0x0000000000000000000000000000000000000a02` | pqcKeyStatus | 2,500 flat | QoreChain |
 | `0x0000000000000000000000000000000000000B01` | aiRiskScore | 50,000 flat | QoreChain |
 | `0x0000000000000000000000000000000000000B02` | aiAnomalyCheck | 40,000 flat | QoreChain |
-| `0x0000000000000000000000000000000000000C01` | rlConsensusParams | 1,500 flat | QoreChain |
+| `0x0000000000000000000000000000000000000C01` | rlConsensusParams | 1,500 flat (+ store reads from v3.2.6) | QoreChain |
 | `0x0000000000000000000000000000000000000800` | staking | cosmos/evm | standard, moves funds |
 | `0x0000000000000000000000000000000000000801` | distribution | cosmos/evm | standard, moves funds |
 | `0x0000000000000000000000000000000000000802` | ics20 (IBC transfer) | cosmos/evm | standard, moves funds |
@@ -187,10 +187,27 @@ function aiAnomalyCheck(address sender, uint256 amount) view returns (uint256 an
 function rlConsensusParams() view returns (uint256 blockTimeMs, uint256 baseGasPrice, uint256 validatorSetSize, uint256 epoch)
 ```
 
-Today the full build wires the static provider, so the answer is fixed: `(5000, 100, 100, 0)`
-whatever the chain's real block time, gas price and validator set. It is a placeholder for the RL
-module's tuned values and must not be used as a measurement of the network. **Gas:** 1,500 flat
-(a transaction straight to it: about 22,600).
+Before the v3.2.6 upgrade the answer is fixed: `(5000, 100, 100, 0)` whatever the chain holds
+(the static genesis defaults).
+
+From the v3.2.6 upgrade (protocol feature `rl-params-precompile-live`) it returns the values
+x/rlconsensus holds at the current block:
+
+- `blockTimeMs`: the applied block time target, or the module's `default_block_time_ms` when none
+  has been applied;
+- `baseGasPrice`: the applied gas price floor, truncated to an integer (the module default is 100);
+- `validatorSetSize`: the module's `default_validator_set_size` parameter (not a count of the
+  bonded validators);
+- `epoch`: the RL agent's current epoch.
+
+These are the module's parameters and its agent's last applied values; they are not measurements
+of the network (the agent runs in shadow mode unless governance changes its mode). Read-only: the
+precompile never writes state.
+
+**Gas:** 1,500 flat on both sides of the upgrade. From the upgrade the four store reads are charged
+on top at the store's own read cost (1,000 gas per read plus 3 gas per byte read, typically 4,000
+to 8,000 in total); a call without that gas fails out of gas. Below the upgrade: a transaction
+straight to it costs about 22,600.
 
 ## CrossVM bridge (0x0901)
 
