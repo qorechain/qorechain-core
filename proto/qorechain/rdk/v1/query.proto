@@ -100,6 +100,11 @@ message BatchView {
   // closes when block time >= submitted_time + the rollup's
   // challenge_window_sec.
   int64 submitted_time = 12;
+  // withdrawals_bound marks a batch settled from rdk-withdrawals-binding
+  // (v3.2.5): its transition binding and proofs commit the withdrawals root
+  // and the chain id, and its withdrawal leaves start with the chain id. False
+  // for a batch settled before the switch, whose leaves are the v1 form.
+  bool withdrawals_bound = 13;
 }
 
 message QueryParamsRequest {}
