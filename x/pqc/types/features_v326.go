@@ -16,4 +16,7 @@ const (
 // replays byte-identically.
 var V326Features = []string{
 	FeatureRLParamsPrecompileLive,
+	FeatureRLAgentObservable,
+	FeatureRLCircuitBreakerPerBlock,
+	FeatureRLHistoryRetention,
 }
