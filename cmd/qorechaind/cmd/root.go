@@ -163,6 +163,9 @@ func NewRootCmd() *cobra.Command {
 	// rejects the re-registration of concretes already supplied by depinject,
 	// and the proto-JSON path used by the CLI relies only on the registry.)
 	moduleBasicManager.RegisterInterfaces(clientCtx.InterfaceRegistry)
+	// The REST gateway renders simulate and tx results with this registry; the
+	// custom modules' Msg response types must resolve on it too.
+	app.RegisterMsgResponseTypes(clientCtx.InterfaceRegistry)
 
 	// Register the cosmos/evm eth_secp256k1 key types on the client codec too, so
 	// the CLI can encode/decode Cosmos-lane txs signed by an eth-native account

@@ -14,6 +14,14 @@ type PoolReader interface {
 	GetPool(ctx sdk.Context, id uint64) (ammtypes.Pool, bool)
 }
 
+// PoolQuoter is a PoolReader that also quotes a swap without making it
+// (x/amm QuoteExactIn: amount out and fee paid). Fee pricing uses it from the
+// gasabstraction-pool-type-pricing switch.
+type PoolQuoter interface {
+	PoolReader
+	QuoteExactIn(ctx sdk.Context, poolID uint64, denomIn string, amountIn math.Int) (math.Int, math.Int, error)
+}
+
 // ConversionBankKeeper is what fee conversion needs from x/bank.
 type ConversionBankKeeper interface {
 	GetBalance(ctx context.Context, addr sdk.AccAddress, denom string) sdk.Coin

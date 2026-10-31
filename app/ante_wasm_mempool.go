@@ -8,6 +8,8 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
 	"github.com/cosmos/cosmos-sdk/x/authz"
+
+	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
 
 // wasmMempoolBlockedMsgs are the CosmWasm entry points that let an unprivileged
@@ -21,6 +23,17 @@ var wasmMempoolBlockedMsgs = map[string]struct{}{
 	sdk.MsgTypeURL(&wasmtypes.MsgInstantiateContract2{}):        {},
 	sdk.MsgTypeURL(&wasmtypes.MsgStoreAndInstantiateContract{}): {},
 	sdk.MsgTypeURL(&wasmtypes.MsgStoreAndMigrateContract{}):     {},
+}
+
+// wasmMempoolInstantiateMsgs are the members of wasmMempoolBlockedMsgs that
+// only instantiate code already on the chain. From FeatureWasmGovernedDeploy
+// they are admitted: the code they can reach was stored by governance, and
+// whether they run is decided in block execution by instantiate permissions and
+// the circuit breaker. The upload messages stay refused, since the governance
+// path that stores code never passes through a mempool.
+var wasmMempoolInstantiateMsgs = map[string]struct{}{
+	sdk.MsgTypeURL(&wasmtypes.MsgInstantiateContract{}):  {},
+	sdk.MsgTypeURL(&wasmtypes.MsgInstantiateContract2{}): {},
 }
 
 // WasmMempoolGuardDecorator refuses to admit CosmWasm upload/instantiate
@@ -39,10 +52,29 @@ var wasmMempoolBlockedMsgs = map[string]struct{}{
 // unpatched proposer joins, it is not. It exists to cover the window between
 // discovering permissionless wasm upload and a governance proposal setting
 // code_upload_access to Nobody, and should be removed once that has executed.
-type WasmMempoolGuardDecorator struct{}
+//
+// governedDeploy reports whether FeatureWasmGovernedDeploy is on; when it is,
+// instantiation is admitted and only the upload messages are refused. A nil
+// switch is off.
+type WasmMempoolGuardDecorator struct {
+	governedDeploy func(sdk.Context) bool
+}
 
-func NewWasmMempoolGuardDecorator() WasmMempoolGuardDecorator {
-	return WasmMempoolGuardDecorator{}
+func NewWasmMempoolGuardDecorator(governedDeploy func(sdk.Context) bool) WasmMempoolGuardDecorator {
+	return WasmMempoolGuardDecorator{governedDeploy: governedDeploy}
+}
+
+// wasmGovernedDeployFeature reads FeatureWasmGovernedDeploy from the x/pqc
+// feature store.
+func wasmGovernedDeployFeature(k interface {
+	ProtocolFeatureEnabled(ctx sdk.Context, name string) bool
+}) func(sdk.Context) bool {
+	if k == nil {
+		return nil
+	}
+	return func(ctx sdk.Context) bool {
+		return k.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmGovernedDeploy)
+	}
 }
 
 func (d WasmMempoolGuardDecorator) AnteHandle(
@@ -53,24 +85,40 @@ func (d WasmMempoolGuardDecorator) AnteHandle(
 	if !ctx.IsCheckTx() || simulate {
 		return next(ctx, tx, simulate)
 	}
-	if err := rejectBlockedWasmMsgs(tx.GetMsgs(), 0); err != nil {
+	allowInstantiate := d.governedDeploy != nil && d.governedDeploy(ctx)
+	if err := rejectWasmMsgs(tx.GetMsgs(), 0, allowInstantiate); err != nil {
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
 }
 
-// rejectBlockedWasmMsgs walks the message tree, descending into authz MsgExec
-// so the guard cannot be sidestepped by wrapping the payload in a grant. depth
-// bounds the recursion; authz nesting beyond a couple of levels is not
-// legitimate traffic.
+// rejectBlockedWasmMsgs is the guard as it stands before
+// FeatureWasmGovernedDeploy: upload and instantiation are both refused.
 func rejectBlockedWasmMsgs(msgs []sdk.Msg, depth int) error {
+	return rejectWasmMsgs(msgs, depth, false)
+}
+
+// rejectWasmMsgs walks the message tree, descending into authz MsgExec so the
+// guard cannot be sidestepped by wrapping the payload in a grant. depth bounds
+// the recursion; authz nesting beyond a couple of levels is not legitimate
+// traffic. allowInstantiate admits the instantiate-only messages.
+func rejectWasmMsgs(msgs []sdk.Msg, depth int, allowInstantiate bool) error {
 	if depth > 4 {
 		return errorsmod.Wrap(errortypes.ErrUnauthorized,
 			"authz nesting too deep to inspect for CosmWasm upload messages")
 	}
 	for _, msg := range msgs {
 		url := sdk.MsgTypeURL(msg)
-		if _, blocked := wasmMempoolBlockedMsgs[url]; blocked {
+		_, blocked := wasmMempoolBlockedMsgs[url]
+		if _, inst := wasmMempoolInstantiateMsgs[url]; inst && allowInstantiate {
+			blocked = false
+		}
+		if blocked {
+			if allowInstantiate {
+				return errorsmod.Wrapf(errortypes.ErrUnauthorized,
+					"%s is not accepted by this node: CosmWasm code is stored "+
+						"only through governance", url)
+			}
 			return errorsmod.Wrapf(errortypes.ErrUnauthorized,
 				"%s is not accepted by this node: CosmWasm code upload and "+
 					"instantiation are suspended pending a security fix", url)
@@ -83,7 +131,7 @@ func rejectBlockedWasmMsgs(msgs []sdk.Msg, depth int) error {
 				return errorsmod.Wrap(errortypes.ErrUnauthorized,
 					"authz payload could not be unpacked for inspection")
 			}
-			if err := rejectBlockedWasmMsgs(inner, depth+1); err != nil {
+			if err := rejectWasmMsgs(inner, depth+1, allowInstantiate); err != nil {
 				return err
 			}
 		}

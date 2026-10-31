@@ -31,6 +31,35 @@ service Query {
   rpc ProtocolFeatures(QueryProtocolFeaturesRequest) returns (QueryProtocolFeaturesResponse) {
     option (google.api.http).get = "/qorechain/pqc/v1/protocol_features";
   }
+
+  // KEMKey returns the key-encapsulation public key an address published, if
+  // any, so a sender can encrypt to it.
+  rpc KEMKey(QueryKEMKeyRequest) returns (QueryKEMKeyResponse) {
+    option (google.api.http).get = "/qorechain/pqc/v1/kem/{address}";
+  }
+}
+
+message QueryKEMKeyRequest {
+  // address is bech32 or 0x-prefixed hex.
+  string address = 1;
+}
+
+message QueryKEMKeyResponse {
+  // found reports whether the address has published a KEM key.
+  bool found = 1;
+  KEMKeyView key = 2;
+}
+
+// KEMKeyView is the query-facing view of a published KEM key.
+message KEMKeyView {
+  // address is the bech32 account address that published the key.
+  string address = 1;
+  uint32 algorithm_id = 2;
+  string algorithm_name = 3;
+  bytes public_key = 4;
+  // registered_height is the height of the registration that published this
+  // key (a replacement resets it).
+  int64 registered_height = 5;
 }
 
 message QueryProtocolFeaturesRequest {}

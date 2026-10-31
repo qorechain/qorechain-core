@@ -892,6 +892,9 @@ func NewQoreChainApp(
 	); err != nil {
 		panic(err)
 	}
+	// Every module's Msg response types, so simulate and tx results render
+	// through the gateway (node-local; see RegisterMsgResponseTypes).
+	RegisterMsgResponseTypes(app.interfaceRegistry)
 
 	// The upgrade module took its initial version map from the modules the
 	// dependency-injection container knew about, which is none of the ones
@@ -940,6 +943,11 @@ func NewQoreChainApp(
 	// Every store is mounted by now: give the EVM keeper all of them, and
 	// refuse to start if one is missing (QSR-2026-0520).
 	app.completeEVMStoreKeys()
+
+	// State-sync snapshots carry the contract code (see registerWasmSnapshotter).
+	if err := app.registerWasmSnapshotter(app.SnapshotManager()); err != nil {
+		panic(err)
+	}
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)

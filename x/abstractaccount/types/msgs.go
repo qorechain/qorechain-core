@@ -126,3 +126,22 @@ func (msg MsgRevokeAuthenticator) GetSigners() []sdk.AccAddress {
 	}
 	return []sdk.AccAddress{addr}
 }
+
+// ValidateBasic checks MsgUpdateConfig (v3.2.5). The authority itself is
+// checked against the governance account by the handler.
+func (msg MsgUpdateConfig) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(msg.Authority); err != nil {
+		return fmt.Errorf("invalid authority address: %w", err)
+	}
+	return msg.ToConfig().Validate()
+}
+
+// ToConfig is the configuration the message stores.
+func (msg MsgUpdateConfig) ToConfig() AbstractAccountConfig {
+	return AbstractAccountConfig{
+		Enabled:           msg.Enabled,
+		MaxSessionKeys:    int(msg.MaxSessionKeys),
+		MaxSpendingRules:  int(msg.MaxSpendingRules),
+		DefaultSessionTTL: msg.DefaultSessionTtl,
+	}
+}

@@ -105,10 +105,13 @@ func (d GasAbstractionDecorator) refuseUnconvertibleInSimulation(ctx sdk.Context
 		return nil
 	}
 	fees := feeTx.GetFee()
+	config := d.keeper.GetConfig(ctx)
 	if fees.IsZero() {
+		// The usual fee-less estimate. Delivery, with its fee, reads the
+		// config above, so the read stays on the meter here too and the
+		// estimate carries its gas (simulation only, never in a block).
 		return nil
 	}
-	config := d.keeper.GetConfig(ctx)
 	if fees[0].Denom == config.NativeDenom {
 		return nil
 	}

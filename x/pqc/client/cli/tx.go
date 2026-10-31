@@ -31,6 +31,9 @@ func GetTxCmd() *cobra.Command {
 		GetCmdCloseEVMWindow(),
 		GetCmdAuthorizeEVMDelegation(),
 		GetCmdClearEVMDelegation(),
+		GetCmdGenKEMKey(),
+		GetCmdRegisterKEMKey(),
+		GetCmdRemoveKEMKey(),
 	)
 	// Client-side hybrid signer (gen-key, cosign) — real in the full build,
 	// placeholders in the community build.

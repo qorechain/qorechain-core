@@ -21,12 +21,18 @@ interface IQorePQC {
 
     /// @notice Check PQC key registration status for an address.
     /// @dev Calls the precompile at address 0x0000000000000000000000000000000000000A02.
-    /// Gas cost: 2,500 flat.
+    /// Gas cost: 2,500 flat. possessionProven is returned from v3.2.4
+    /// (pqc-possession-flag, on on both networks); it is appended after the
+    /// dynamic pubkey, so decoding the first three values only still works.
+    /// SECURITY: a key can be registered without proving possession of its
+    /// secret. A contract that verifies an account's signature against the
+    /// returned pubkey must require possessionProven.
     /// @param account The address to check (EVM format, converted to bech32 internally).
     /// @return registered True if the address has a PQC key registered.
-    /// @return algorithmId The PQC algorithm ID (1 = Dilithium-5, 2 = ML-KEM-1024).
+    /// @return algorithmId The PQC signature algorithm ID (1 = ML-DSA-87).
     /// @return pubkey The registered PQC public key bytes.
+    /// @return possessionProven True if the current key was proven by a proof of possession.
     function pqcKeyStatus(
         address account
-    ) external view returns (bool registered, uint8 algorithmId, bytes memory pubkey);
+    ) external view returns (bool registered, uint8 algorithmId, bytes memory pubkey, bool possessionProven);
 }

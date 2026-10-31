@@ -39,6 +39,13 @@ import (
 //
 // A fee in the native denom, or in several denoms, takes the native path,
 // unchanged. Below the switch everything takes the native path.
+//
+// From the gasabstraction-pool-type-pricing switch (v3.2.5, QSR-2026-0634) a
+// pool price comes only from a constant_product pool (the average of the
+// reserve ratio is not a StableSwap pool's price), the fee is valued at no
+// more than the pool's own quote for the amount paid, and the
+// per-transaction bound refuses a conversion when there is no minimum fee to
+// scale instead of letting it through unbounded.
 
 // ConversionBankKeeper is an alias of types.ConversionBankKeeper.
 type ConversionBankKeeper = types.ConversionBankKeeper
@@ -81,6 +88,13 @@ type FeeRouterOptions struct {
 	// height (the larger of the base fee and the minimum gas price), for the
 	// per-transaction bound.
 	MinFeePerGas func(ctx sdk.Context) math.LegacyDec
+	// PoolTypePricing is the gasabstraction-pool-type-pricing switch
+	// (QSR-2026-0634), read per transaction. With it an amm_twap token is
+	// priced only from a constant_product pool, the fee is valued at no more
+	// than the pool's own quote for the amount paid, and the per-transaction
+	// bound refuses a conversion it cannot compute instead of skipping it.
+	// Nil means off.
+	PoolTypePricing func(ctx sdk.Context) bool
 }
 
 // FeeRouterDecorator sends each transaction down the native fee path or the
@@ -171,11 +185,23 @@ func (d conversionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 	if paid.Amount.BigInt().BitLen() > maxFeeBits {
 		return ctx, types.ErrConversionFailed.Wrap("fee amount too large")
 	}
-	rate, err := ResolveRate(ctx, cfg, token, d.o.Pools)
-	if err != nil {
-		return ctx, err
+	strict := d.o.PoolTypePricing != nil && d.o.PoolTypePricing(ctx)
+	var rate math.LegacyDec
+	var value math.Int
+	var err error
+	if strict {
+		if rate, err = types.ResolveFeeRate(ctx, cfg, token, d.o.Pools); err != nil {
+			return ctx, err
+		}
+		if value, err = types.FeeValue(ctx, cfg, token, paid.Amount, rate, d.o.Pools); err != nil {
+			return ctx, err
+		}
+	} else {
+		if rate, err = ResolveRate(ctx, cfg, token, d.o.Pools); err != nil {
+			return ctx, err
+		}
+		value = NativeValue(paid.Amount, rate, cfg.PremiumBps)
 	}
-	value := NativeValue(paid.Amount, rate, cfg.PremiumBps)
 	if !value.IsPositive() {
 		return ctx, types.ErrInsufficientFee.Wrapf("%s is worth nothing in %s at the current rate", paid, cfg.NativeDenom)
 	}
@@ -205,10 +231,20 @@ func (d conversionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 		paidCharged = math.LegacyNewDecFromInt(paid.Amount).MulInt(payout).QuoInt(value).Ceil().TruncateInt()
 	}
 
-	// Bounds on what the float pays.
-	if cfg.MaxTipMultiplier > 0 && d.o.MinFeePerGas != nil {
-		ceiling := d.o.MinFeePerGas(ctx).MulInt64(int64(cfg.MaxTipMultiplier)).
-			MulInt(math.NewIntFromUint64(feeTx.GetGas())).Ceil().TruncateInt()
+	// Bounds on what the float pays. Below the pool-type pricing switch the
+	// per-transaction bound is skipped when there is no minimum fee to scale
+	// (a zero minimum fee per gas, or zero gas); from it such a conversion is
+	// refused, since nothing would then bound what one transaction draws.
+	if cfg.MaxTipMultiplier > 0 && (d.o.MinFeePerGas != nil || strict) {
+		ceiling := math.ZeroInt()
+		if d.o.MinFeePerGas != nil {
+			ceiling = d.o.MinFeePerGas(ctx).MulInt64(int64(cfg.MaxTipMultiplier)).
+				MulInt(math.NewIntFromUint64(feeTx.GetGas())).Ceil().TruncateInt()
+		}
+		if strict && !ceiling.IsPositive() {
+			return ctx, types.ErrConversionFailed.Wrapf(
+				"no minimum fee for this gas bounds the conversion; pay fees in %s", cfg.NativeDenom)
+		}
 		if ceiling.IsPositive() && payout.GT(ceiling) {
 			return ctx, types.ErrConversionFailed.Wrapf(
 				"converted fee %s%s is above %dx the minimum fee for this gas (%s%s); lower the fee",
@@ -265,5 +301,21 @@ func (d conversionDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate boo
 			sdk.NewAttribute(types.AttributeKeySource, token.PriceSource),
 		),
 	})
-	return next(ctx.WithPriority(priority), tx, simulate)
+	// The decorators after this one see the transaction with its original,
+	// non-native fee (signature verification needs the real transaction), so
+	// the native amount that reached the fee collector travels in the context
+	// for those that account for it (the failed_tx burn channel).
+	return next(ctx.WithPriority(priority).WithValue(convertedFeeKey{}, payout), tx, simulate)
+}
+
+// convertedFeeKey carries, from the conversion decorator to the rest of the
+// same transaction's ante chain, the native amount the float paid to the fee
+// collector for it.
+type convertedFeeKey struct{}
+
+// ConvertedFee is the native amount paid to the fee collector for this
+// transaction by fee conversion, when its fee was converted.
+func ConvertedFee(ctx sdk.Context) (math.Int, bool) {
+	v, ok := ctx.Value(convertedFeeKey{}).(math.Int)
+	return v, ok
 }

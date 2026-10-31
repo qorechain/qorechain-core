@@ -47,7 +47,9 @@ type AMMKeeper interface {
 	// Cross-VM hook — invoked by x/crossvm to route EVM/SVM swap calls into
 	// the AMM. The implementation handles the bank movement on `from`'s
 	// behalf (it's already authenticated by the caller's authz / precompile
-	// gas check).
+	// gas check). Not wired to any caller yet; whoever wires it must take
+	// `from` from the EVM call frame (the precompile's caller), never from
+	// calldata, because the keeper does not check a signature itself.
 	SwapFromEVM(ctx sdk.Context, from sdk.AccAddress, denomIn string, amountIn math.Int, denomOut string, minOut math.Int) (amountOut math.Int, err error)
 
 	// AI advisory route hint. May return an empty suggestion if the

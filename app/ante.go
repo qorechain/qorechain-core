@@ -281,9 +281,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		ante.NewSetUpContextDecorator(),
 		// Mempool-only guard: refuse CosmWasm upload/instantiate into this
 		// node's mempool. CheckTx only, so block validity is unchanged and
-		// this can be rolled out per-node. Remove once governance has set
-		// code_upload_access to Nobody.
-		NewWasmMempoolGuardDecorator(),
+		// this can be rolled out per-node. From v3.2.5 instantiation is
+		// admitted and only upload stays refused (FeatureWasmGovernedDeploy).
+		NewWasmMempoolGuardDecorator(wasmGovernedDeployFeature(options.PQCKeeper)),
 		// Runs here, near the front, because the decorator that expands a multisig
 		// signature into event bytes sits much further down (SetPubKey) and the
 		// expansion is exponential in nesting depth. A guard placed after it would
@@ -292,7 +292,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		NewMultisigDepthGuardDecorator(multisigBoundFeature(options.PQCKeeper)),
 		// CosmWasm decorators — limit simulation gas and track tx position
 		wasmkeeper.NewLimitSimulationGasDecorator(options.WasmConfig.SimulationGasLimit),
-		wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService),
+		// The counter is written in delivery only; a simulation is charged
+		// its gas on a discarded branch (node-local, ante_simulate_gas.go).
+		simulateChargedDecorator{wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService)},
 		wasmkeeper.NewGasRegisterDecorator(options.WasmKeeper.GetGasRegister()),
 		wasmkeeper.NewTxContractsDecorator(),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
@@ -336,7 +338,12 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// failed_tx burn channel, ante half (after DeductFee): records the fee;
 		// the post handler takes it back out when the messages succeed.
 		// It records what DeductFee charged, so it runs the same fee checker.
-		burnmod.NewBurnFailedFeeDecorator(options.BurnKeeper, evmante.NewDynamicFeeChecker(fmParams)),
+		// A converted fee is recorded as the uqor the conversion paid, from
+		// the converted-fee switch (QSR-2026-0624 F-1).
+		burnmod.NewBurnFailedFeeDecorator(options.BurnKeeper, evmante.NewDynamicFeeChecker(fmParams)).
+			WithConvertedFee(gasabstractionmod.ConvertedFee, func(ctx sdk.Context) bool {
+				return options.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureBurnFailedTxConvertedFee)
+			}),
 		// IBC redundant relay check — prevents relayers from wasting fees
 		ibcante.NewRedundantRelayDecorator(options.IBCKeeper),
 		// Track cumulative gas wanted for EIP-1559 base fee calculation
@@ -367,6 +374,9 @@ func newFeeRouter(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.A
 			// Gas abstraction: refuses a non-native fee this path cannot take.
 			NewGasAbstractionDecorator(options.GasAbstractionKeeper),
 			ante.NewDeductFeeDecorator(options.AccountKeeper, options.BankKeeper, options.FeegrantKeeper, feeChecker),
+			// Simulation only: a fee-less estimate pays for the fee transfer
+			// (node-local, ante_simulate_gas.go).
+			simulatedFeeDeduction{accountKeeper: options.AccountKeeper, bankKeeper: options.BankKeeper, denom: BaseDenom},
 		},
 		Keeper:         options.GasAbstractionKeeper,
 		BankKeeper:     options.BankKeeper.(gasabstractionmod.ConversionBankKeeper),
@@ -385,6 +395,12 @@ func newFeeRouter(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.A
 				fee = base
 			}
 			return fee
+		},
+		// QSR-2026-0634: pool fee pricing only from constant_product pools,
+		// valued at no more than the pool's quote, and a per-transaction
+		// bound that fails closed.
+		PoolTypePricing: func(ctx sdk.Context) bool {
+			return options.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureGasAbstractionPoolTypePricing)
 		},
 	})
 }

@@ -1,0 +1,149 @@
+# The EVM authorisation window
+
+QoreChain requires an ML-DSA-87 (post-quantum) signature on every Cosmos-lane transaction. An
+Ethereum transaction cannot carry one: MetaMask and every EVM tool sign secp256k1 only. So the
+post-quantum authorisation travels ahead of the transactions instead. The account opens a bounded
+**window** with a Cosmos-lane message, signed with its post-quantum key, and the EVM lane then admits
+the account's transactions only while the window covers them. A stolen classical (secp256k1) key is
+worth only what an open window admits.
+
+This page is the policy: what a window bounds, what it counts, how to narrow it, and what is outside
+it. The step-by-step for deploying contracts is in [EVM_DEPLOY.md](./EVM_DEPLOY.md).
+
+## Opening, closing, reading
+
+| Action | Message | CLI |
+|---|---|---|
+| open (replaces any open window) | `/qorechain.pqc.v1.MsgOpenEVMWindow` | `qorechaind tx pqc open-evm-window [blocks] [max-txs] [max-value]` |
+| close at once | `/qorechain.pqc.v1.MsgCloseEVMWindow` | `qorechaind tx pqc close-evm-window` |
+| read | `GET /qorechain/pqc/v1/evm_window/{address}` | `qorechaind q pqc evm-window <address>` |
+
+Both messages are Cosmos-lane transactions and need the account's hybrid (classical plus ML-DSA-87)
+signature. The account must hold a registered post-quantum key to open a window. Closing a window
+also withdraws a pending EIP-7702 delegation consent.
+
+## What a window bounds
+
+Every bound must be given (the CLI fills defaults for a deploy session: 3,600 blocks, 10
+transactions, 25 QOR):
+
+| Bound | Limit | |
+|---|---|---|
+| `blocks` | at most 17,280 | the window admits nothing after `opened height + blocks` |
+| `max_txs` | at most 1,000 | how many EVM transactions it admits |
+| `max_value` | positive | total uqor its transactions may take out of the account (below) |
+
+Any bound running out ends the window in practice.
+
+## What the window counts
+
+**At admission** (the EVM-lane ante handler, before the transaction runs), each transaction uses one
+of `max_txs` and adds to the used value:
+
+- the value it transfers, plus
+- its maximum fee: gas limit times fee cap (the gas price of a legacy transaction),
+
+converted from the 18-decimal EVM unit to uqor and rounded up. The fee is counted at its maximum
+because whoever holds the classical key chooses the gas price. A transaction that is admitted and
+then reverts has still used its share: the authorisation was given.
+
+**After execution** (from v3.2.2, `evm-delegated-actor-settlement`), before anything is committed:
+
+- if the sender's native balance fell by more than the value it declared, the difference is charged
+  to the sender's window, and the execution fails when the window does not cover it. This is how QOR
+  moved by a precompile (a staking delegation, a governance deposit, an IBC transfer of uqor), which
+  carries a transaction value of zero, still counts against the value bound;
+- an EIP-7702 delegated account whose code acts in the transaction (calls code or a stateful
+  precompile, creates a contract, or loses value) needs its own live window, which is charged one
+  transaction and its outflow.
+
+**Not counted:** `eth_call`, `eth_estimateGas` and simulation run no window check and use none of it.
+Tokens are not counted at all: an ERC-20 transfer or approval carries value zero and a token cannot be
+priced in uqor. Bound those with a scope.
+
+## Narrowing the scope (from v3.2.3, `evm-pqc-window-targets`)
+
+| Option | Admits | Refuses |
+|---|---|---|
+| no scope | any transaction within the bounds, except a value-moving precompile (below) | |
+| `--native-only` | plain QOR transfers | calldata, contract creation, a recipient carrying code, EIP-7702 authorizations |
+| `--allowed-targets a,b,...` (at most 16) | transactions to the listed addresses | any other recipient, contract creation |
+
+A scope is the only bound on what a contract call does with tokens: a window listing one token
+contract can move that token and nothing else.
+
+## Value-moving precompiles
+
+From v3.2.5 (`evm-precompile-window-scope`). The standard precompiles below act on their caller's
+funds through the Cosmos modules with a transaction value of zero, and several of their actions move
+no native balance at all: an undelegation, a redelegation, a new withdraw address that diverts every
+future reward, a deposit or transfer in a denomination other than uqor. The value bound cannot price
+those, so they are bounded by where the account may go:
+
+| Precompile | Address |
+|---|---|
+| staking | `0x0000000000000000000000000000000000000800` |
+| distribution | `0x0000000000000000000000000000000000000801` |
+| ics20 (IBC transfer) | `0x0000000000000000000000000000000000000802` |
+| gov | `0x0000000000000000000000000000000000000805` |
+
+The rule:
+
+- A transaction method of one of them runs for an account the window authorises only when that
+  account's window lists the precompile in `allowed_targets` (and is not `--native-only`). An
+  unscoped window cannot reach them.
+- That account is the sender of the EVM transaction when it calls the precompile itself or through
+  its own EIP-7702 code, and any EIP-7702 delegated account whose code calls the precompile in
+  someone else's transaction (its own window must list it).
+- A transaction addressed straight to one of them from a window that does not list it is refused
+  before it enters a block. A call reached through a contract is refused by the precompile, as a
+  revert with a reason.
+- The QOR they move is still charged to the window's value by the settlement above, so a listing
+  window bounds both where the account goes and how much it spends there.
+- A contract that calls them acts with its own funds (the precompiles act for `msg.sender`), like any
+  other contract call the window admits.
+- Queries are never affected, and the bank precompile (read-only) and slashing (unjail only) need no
+  listing.
+
+Separately, from v3.2.5 (`evm-precompile-circuit`), every transaction method of every standard
+precompile refuses while the circuit-breaker entry of the Cosmos message it executes is tripped.
+
+Example: delegate from MetaMask through the staking precompile, with a window that allows it and
+nothing else:
+
+```bash
+qorechaind tx pqc open-evm-window 600 5 100qor \
+  --allowed-targets 0x0000000000000000000000000000000000000800 \
+  --from me --generate-only > w.json
+qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id $QCHAIN --node $QNODE
+```
+
+The standard precompiles are inactive on both networks until governance activates them.
+
+## What is outside the window
+
+The window governs the EVM lane only, that is transactions signed with the classical key alone. These
+are not window-governed, because each is a Cosmos-lane transaction carrying its own post-quantum
+signature, or is started by a module for an account that such a transaction authorised:
+
+- **`MsgCrossVMCall` from the native lane into the EVM.** The EVM call runs as the signer's own
+  `0x` address, and the transaction carries the signer's hybrid signature, so the window is neither
+  needed nor charged. The same holds for a CosmWasm contract dispatching `MsgCrossVMCall`.
+- abstract-account executions (`MsgExecuteEVM`, authorised by the account's authenticators);
+- ERC-20 conversions and IBC callbacks run by the modules;
+- every Cosmos-lane message (bank sends, staking, governance) sent directly.
+
+EIP-7702 delegations need a separate consent from the authority's own post-quantum key
+(`authorize-evm-delegation`); the sender's window pays for the transaction, it does not speak for the
+authorities.
+
+## Refusals
+
+| Message | Code (`pqc`) | Cause |
+|---|---|---|
+| `no open EVM authorisation window` | 26 | no window, no registered key, or the window expired |
+| `EVM authorisation window exhausted` | 27 | a bound is used up, or the transaction is outside the window's scope, including a value-moving precompile the window does not list |
+| `invalid EVM authorisation window` | 28 | an open request outside the limits |
+| `delegated account has no window covering this action` | 62 | the settlement refused: the sender moved more than its window covers, or a delegated account acted without a window |
+| `<method> is disabled: the circuit breaker has tripped <message>` | revert | a standard precompile method whose message is tripped |
+| `<method>: account ... has no open EVM authorisation window that lists 0x...` | revert | a value-moving precompile reached through code, for an account whose window does not list it |
