@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.5] - 2026-10-29
+
+A coordinated governance upgrade (plan name `v3.2.5`, applied on mainnet at height 3,906,833 by governance proposal 14). Every consensus change below is guarded by a protocol feature that the v3.2.5 upgrade handler turns on at the plan height (listed in `ReleaseV3_2_5ProtocolFeatures`); below that height the binary replays history byte-identically.
+
+### Added
+- **Native KEM key registry (`x/pqc`):** an account can publish an ML-KEM-1024 encryption key, queryable at `/qorechain/pqc/v1/kem/{address}`, so dApps can encrypt data to a QoreChain account. Key rotation checks the new key size.
+- **Cross-VM call groundwork (`x/crossvm`):** governance `MsgUpdateParams`, REST routes for the queries and a published bridge ABI. The call stays governed by parameters and the circuit breaker; it is not active on mainnet until governance turns it on.
+- **Abstract accounts:** a governance config message, queries for stored spending rules and linked keys, and save-time bounds for spending rules.
+- **RDK:** settlement order for batches, rollup parameters with a governance params route, and withdrawals bound to the rollup and batch they belong to.
+- **CosmWasm:** state-sync snapshots carry contract code; code upload is governance-only while instantiation stays open to everyone.
+- **EVM tooling:** deploy-sized authorisation window defaults in the CLI and an EVM deploy guide.
+
+### Changed
+- **Exact gas simulation:** a simulated transaction is charged the same gas as its delivery, so clients no longer need a fixed margin for hybrid post-quantum transactions.
+- Post-quantum signatures are judged once per signer; value-moving precompiles require an authorisation window that lists them.
+- Gas abstraction prices pool fees only from constant-product pools, at no more than the pool's own quote.
+- The REST gateway renders every module's Msg response types (simulate no longer fails on custom responses).
+- Converted fees of failed transactions are recorded in the `failed_tx` burn channel.
+- SVM: hardening switches, instruction bounds and a gas schedule. SVM remains disabled on mainnet.
+- Governance-authority checks cover every signer of a message.
+
+### Notes
+- Upgrade handler: `v3.2.5`. Transaction signing (sign-bytes v2), addresses, decimals, memos and fees are unchanged. A node joining mainnet needs v3.2.5.
+
+---
+
 ## [3.2.4] - 2026-10-23
 
 A coordinated governance upgrade (plan name `v3.2.4`, applied on mainnet at height 3,742,566 by governance proposal 13). Every consensus change below is guarded by a protocol feature that the v3.2.4 upgrade handler turns on at the plan height (6 features, listed in `ReleaseV3_2_4ProtocolFeatures`); below that height the binary replays history byte-identically.
