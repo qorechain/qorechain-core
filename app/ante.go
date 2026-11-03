@@ -64,6 +64,9 @@ type HandlerOptions struct {
 	// StakingLockMempoolCheck refuses, in CheckTx only, an undelegation or
 	// redelegation of locked stake (StakingLockMempoolDecorator). Nil is off.
 	StakingLockMempoolCheck func(sdk.Context, sdk.Msg) error
+	// RDKMempoolCheck refuses, in CheckTx only, a zk rollup batch that
+	// execution refuses after the fee (RDKZKBatchMempoolDecorator). Nil is off.
+	RDKMempoolCheck func(sdk.Context, sdk.Msg) error
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
 	// exempts them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
@@ -291,6 +294,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// which execution refuses with stakingtier code 13 after the fee is
 		// paid. CheckTx only, no consensus change.
 		NewStakingLockMempoolDecorator(options.StakingLockMempoolCheck),
+		// Mempool-only: from v3.2.7 refuse a zk rollup batch whose rollup has no
+		// usable verification key, which execution refuses with rdk code 21
+		// after the fee is paid. CheckTx only.
+		NewRDKZKBatchMempoolDecorator(options.RDKMempoolCheck),
 		// Runs here, near the front, because the decorator that expands a multisig
 		// signature into event bytes sits much further down (SetPubKey) and the
 		// expansion is exponential in nesting depth. A guard placed after it would

@@ -142,6 +142,51 @@ func (m *MsgUpdateParams) ValidateBasic() error {
 	return nil
 }
 
+// MaxVerificationKeySize bounds the verification key a message may carry. A
+// Groth16 BLS12-381 key for four public inputs in gnark's encoding is a few
+// hundred bytes and a QSTK key is 16; the bound only keeps a key from being
+// used to store arbitrary data.
+const MaxVerificationKeySize = 16 * 1024
+
+// validateVerificationKeyFields is the stateless part of a verification key
+// message. Whether the key decodes for the rollup's proof system is checked by
+// the keeper, which knows the rollup.
+func validateVerificationKeyFields(rollupID string, vk []byte, system string) error {
+	if rollupID == "" {
+		return fmt.Errorf("rollup_id cannot be empty")
+	}
+	if len(vk) == 0 {
+		return ErrInvalidVerificationKey.Wrap("verification_key cannot be empty")
+	}
+	if len(vk) > MaxVerificationKeySize {
+		return ErrInvalidVerificationKey.Wrapf("verification_key is %d bytes, at most %d", len(vk), MaxVerificationKeySize)
+	}
+	switch ProofSystem(system) {
+	case "", ProofSystemSNARK, ProofSystemSTARK:
+	default:
+		return ErrInvalidProofSystem.Wrapf("proof_system %q: want snark, stark or empty", system)
+	}
+	return nil
+}
+
+// ValidateBasic checks the creator and the shape of the key. These messages
+// are new in v3.2.7, so no historical block holds one that decoded.
+func (m *MsgSetVerificationKey) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Creator); err != nil {
+		return fmt.Errorf("invalid creator address: %w", err)
+	}
+	return validateVerificationKeyFields(m.RollupID, m.VerificationKey, m.ProofSystem)
+}
+
+// ValidateBasic checks the authority address and the shape of the key; the
+// handler checks that the authority is governance.
+func (m *MsgUpdateVerificationKey) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
+		return fmt.Errorf("invalid authority address: %w", err)
+	}
+	return validateVerificationKeyFields(m.RollupID, m.VerificationKey, m.ProofSystem)
+}
+
 // ToParams returns the parameter set the message carries.
 func (m *MsgUpdateParams) ToParams() Params {
 	return Params{
