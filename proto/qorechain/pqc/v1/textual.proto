@@ -1,0 +1,72 @@
+syntax = "proto3";
+package qorechain.pqc.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/pqc/types";
+
+import "google/api/annotations.proto";
+import "google/protobuf/any.proto";
+
+// Textual renders SIGN_MODE_TEXTUAL sign documents for wallets that have no
+// ADR-050 renderer of their own (CosmJS, Keplr). It is a pure query: it reads
+// denom metadata and writes nothing. A hardware wallet shows the returned
+// screens and signs the returned bytes; the signature verifies only if they
+// are exactly what the chain recomputes, so a node that lies can only make
+// the device show the user what it then signs.
+service Textual {
+  // TextualSignDoc returns the screens and the exact sign bytes the chain
+  // verifies for one signer of an unsigned transaction.
+  rpc TextualSignDoc(QueryTextualSignDocRequest) returns (QueryTextualSignDocResponse) {
+    option (google.api.http) = {
+      post: "/qorechain/pqc/v1/textual_sign_doc"
+      body: "*"
+    };
+  }
+}
+
+// QueryTextualSignDocRequest carries the transaction exactly as it will be
+// broadcast, minus the signatures: its auth info must already name the
+// signer with SIGN_MODE_TEXTUAL, and a PQC hybrid extension, if any, must
+// already be in the body (textual covers it).
+message QueryTextualSignDocRequest {
+  // tx_bytes is the protobuf TxRaw (or Tx) of the transaction. One of
+  // tx_bytes and tx_json is set.
+  bytes tx_bytes = 1;
+  // tx_json is the proto JSON of the transaction, as `--generate-only`
+  // prints it.
+  string tx_json = 2;
+  // signer_address is the signer's bech32 account address. Optional: it is
+  // derived from public_key when empty, and must match it when set.
+  string signer_address = 3;
+  // public_key is the signer's public key (e.g. /cosmos.crypto.secp256k1.PubKey).
+  google.protobuf.Any public_key = 4;
+  uint64 account_number = 5;
+  uint64 sequence = 6;
+}
+
+// TextualScreen is one ADR-050 screen.
+message TextualScreen {
+  string title = 1;
+  string content = 2;
+  uint32 indent = 3;
+  bool expert = 4;
+}
+
+message QueryTextualSignDocResponse {
+  // sign_bytes is the CBOR sign document: the bytes the device signs and the
+  // chain verifies.
+  bytes sign_bytes = 1;
+  repeated TextualScreen screens = 2;
+  // chain_id is the chain the bytes are rendered for (the node's).
+  string chain_id = 3;
+  // ledger_compatible reports whether the document fits the Ledger Cosmos
+  // app (at most 127 screens, titles up to 40 and contents up to 550 bytes,
+  // a 16384-byte document, no empty content); ledger_issue says why not.
+  bool ledger_compatible = 4;
+  string ledger_issue = 5;
+  // body_bytes and auth_info_bytes are the transaction bytes the document
+  // covers (its "Hash of raw bytes" screen). Broadcast exactly these, in a
+  // TxRaw with the signature; a body re-encoded by another library may differ
+  // by a byte and the signature would not verify.
+  bytes body_bytes = 6;
+  bytes auth_info_bytes = 7;
+}
