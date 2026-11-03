@@ -63,27 +63,40 @@ priced in uqor. Bound those with a scope.
 
 ## Usage event (from v3.2.7, `evm-window-used-event`)
 
-Each EVM transaction the ante handler admits against a window emits one `pqc_evm_window_used` event
-in its result, so a wallet can show what the transaction took without querying the window before
-and after. The event is part of the result whether the transaction then succeeds or reverts, the
-same as the consumption itself. A refused transaction, `eth_call`, `eth_estimateGas` and simulation
-emit none.
+Every charge to a window emits one `pqc_evm_window_used` event in the transaction's result, so a
+wallet can show what a transaction took without querying the window before and after. There are two
+kinds of charge, told apart by `source`:
+
+- `ante`: the EVM-lane ante handler admitted the transaction against the sender's window. This event
+  is in the result whether the transaction then succeeds or reverts, the same as the charge.
+- `settlement`: after a successful execution, the delegated-actor settlement (above) charged a
+  window: the sender's for value it lost beyond what it declared, or a delegated account's that
+  acted. One event per window charged. It is in the result only when the execution's state is
+  committed, again the same as the charge.
+
+A transaction can therefore carry an `ante` event and one or more `settlement` events, possibly for
+the same account. A refused transaction, `eth_call`, `eth_estimateGas` and simulation emit none.
 
 | Attribute | Value |
 |---|---|
 | `address` | the account in `qor1...` form, the form the window is queried by |
 | `evm_address` | the same account in `0x` form (checksummed) |
 | `window_open_height` | the height the window was opened at |
-| `used_txs` | transactions the window has admitted, this one included |
-| `used_value` | uqor the window has counted, this transaction included (decimal string) |
-| `tx_value` | uqor this transaction counted: its value plus its maximum fee, rounded up (decimal string) |
+| `used_txs` | transactions the window has admitted, after this charge |
+| `used_value` | uqor the window has counted, after this charge (decimal string) |
+| `tx_value` | uqor this charge added to `used_value` (decimal string) |
+| `source` | `ante` or `settlement` |
 
-`tx_value` is the difference in `used_value` before and after the transaction, not the bare value
-it transfers: the fee is counted at its maximum (above). A post-execution charge of the
-delegated-actor settlement (above) is recorded in the window but is not in this event; read the
-window for it. The other window events are `pqc_evm_window_opened` (`address`, `expiry_height`,
-`max_txs`, `max_value`, and `native_only` / `allowed_targets` when set) and
-`pqc_evm_window_closed` (`address`).
+`tx_value` is always the difference in `used_value` before and after the charge. For `ante` it is
+the transaction's value plus its maximum fee, rounded up, not the bare value it transfers: the fee is
+counted at its maximum (above). For `settlement` it is the value the account lost, beyond the
+declared value for the sender, rounded up; it can be 0 for a delegated account that acted without
+losing value, which still uses one transaction. A settlement charge to the sender leaves `used_txs`
+unchanged, because the ante handler already counted the transaction.
+
+The other window events are `pqc_evm_window_opened` (`address`, `expiry_height`, `max_txs`,
+`max_value`, and `native_only` / `allowed_targets` when set) and `pqc_evm_window_closed`
+(`address`).
 
 ## Narrowing the scope (from v3.2.3, `evm-pqc-window-targets`)
 
