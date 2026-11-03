@@ -1156,8 +1156,10 @@ func (app *QoreChainApp) setAnteHandler(
 				// dynamic-fee extension used to be allowed here too, but its
 				// type is not registered in this app, so no tx carrying it
 				// decodes (QSR-2026-0577); allowing it was dead code.
+				// The multisig extension (v3.2.7) is admitted here too; the
+				// ante refuses it below its switch (ante_pqc_multisig.go).
 				ExtensionOptionChecker: func(o *codectypes.Any) bool {
-					return o.GetTypeUrl() == pqctypes.HybridSigTypeURL
+					return o.GetTypeUrl() == pqctypes.HybridSigTypeURL || o.GetTypeUrl() == pqctypes.MultisigSigTypeURL
 				},
 				TxFeeChecker: evmante.NewDynamicFeeChecker(&fmDefaults),
 			},

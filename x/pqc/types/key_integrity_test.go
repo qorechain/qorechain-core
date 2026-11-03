@@ -135,6 +135,7 @@ func TestPQCKeyManagementMsgTypeURLs(t *testing.T) {
 		"/qorechain.pqc.v1.MsgMigratePQCKey",
 		"/qorechain.pqc.v1.MsgRegisterKEMKey",
 		"/qorechain.pqc.v1.MsgRemoveKEMKey",
+		"/qorechain.pqc.v1.MsgRegisterPQCMultisig",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("got %v", got)

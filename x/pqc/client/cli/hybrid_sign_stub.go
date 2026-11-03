@@ -26,6 +26,12 @@ func pqcSignerCommands() []*cobra.Command {
 	return []*cobra.Command{
 		mk("gen-key [name]", "Generate and store a Dilithium-5 key"),
 		mk("cosign [unsigned-tx.json]", "PQC+classical sign a tx and broadcast"),
+		mk("multisig-member-proof [multisig-address]", "Prove a post-quantum multisig member key"),
+		mk("multisig-register [member-proof.json]...", "Register a multisig account's post-quantum member set"),
+		mk("multisig-sign [unsigned-tx.json]", "Sign a multisig transaction as one post-quantum member"),
+		mk("multisig-combine [unsigned-tx.json] [member-signature.json]...", "Combine post-quantum member signatures"),
+		mk("multisig-classical-sign [combined-tx.json]", "Sign a combined multisig transaction as one classical member"),
+		mk("multisig-assemble [combined-tx.json] [classical-signature.json]...", "Assemble and broadcast a multisig transaction"),
 	}
 }
 
