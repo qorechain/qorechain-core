@@ -33,6 +33,8 @@ var (
 	ErrMultisigSigRequired     = errors.Register(ModuleName, 325, "PQC multisig signature required")
 	ErrMultisigNotMultisigAcct = errors.Register(ModuleName, 326, "only a classical multisig account may register a PQC multisig member set")
 	ErrMultisigConflict        = errors.Register(ModuleName, 327, "account holds the other kind of PQC registration")
+	ErrMultisigMembersMismatch = errors.Register(ModuleName, 328, "PQC multisig member set does not match the classical multisig")
+	ErrMultisigMemberKey       = errors.Register(ModuleName, 329, "PQC multisig member has no usable registered key")
 )
 
 // MultisigSigTypeURL is the type URL of the PQCMultisigSignature extension.
@@ -72,24 +74,51 @@ func MultisigKey(addr []byte) []byte {
 // PQCMultisigInfo is a multisig account's registered member set as stored.
 // It is a new record under a new prefix, so no historical bytes depend on its
 // JSON shape.
+//
+// The set is tied to the classical multisig: Members[i] is the account of
+// the multisig's classical member i and Threshold is the classical
+// threshold. No member key is stored: a member's signature is verified
+// against the single-signer key its own account holds at that moment, so a
+// member's rotation takes effect at once and its old key stops counting the
+// moment it is replaced.
 type PQCMultisigInfo struct {
 	Address         string      `json:"address"`
 	AlgorithmID     AlgorithmID `json:"algorithm_id"`
 	Threshold       uint32      `json:"threshold"`
-	PublicKeys      [][]byte    `json:"public_keys"`
+	Members         []string    `json:"members"`
 	CreatedAtHeight int64       `json:"created_at_height"`
 	UpdatedAtHeight int64       `json:"updated_at_height"`
 	// Version is 1 for the first registration and grows with every
-	// replacement.
+	// re-registration.
 	Version uint64 `json:"version"`
 }
 
-// Validate checks a record's shape: the rules a registration enforces.
+// Validate checks a record's shape.
 func (m PQCMultisigInfo) Validate() error {
 	if _, err := sdk.AccAddressFromBech32(m.Address); err != nil {
 		return ErrInvalidMultisig.Wrapf("address: %v", err)
 	}
-	return ValidateMultisigSet(m.AlgorithmID, m.Threshold, m.PublicKeys)
+	if m.AlgorithmID != MultisigAlgorithm {
+		return ErrInvalidMultisig.Wrapf("member keys must be %s, got %s", MultisigAlgorithm, m.AlgorithmID)
+	}
+	n := len(m.Members)
+	if n == 0 || n > MaxPQCMultisigMembers {
+		return ErrInvalidMultisig.Wrapf("a member set has 1 to %d members, got %d", MaxPQCMultisigMembers, n)
+	}
+	if m.Threshold == 0 || int(m.Threshold) > n {
+		return ErrInvalidMultisig.Wrapf("threshold must be between 1 and the %d members, got %d", n, m.Threshold)
+	}
+	seen := map[string]bool{}
+	for i, a := range m.Members {
+		if _, err := sdk.AccAddressFromBech32(a); err != nil {
+			return ErrInvalidMultisig.Wrapf("member %d: %v", i, err)
+		}
+		if seen[a] {
+			return ErrInvalidMultisig.Wrapf("member %s listed twice", a)
+		}
+		seen[a] = true
+	}
+	return nil
 }
 
 // ValidateMultisigSet is the stateless rule for a member set: the multisig
@@ -139,7 +168,9 @@ func (msg *MsgRegisterPQCMultisig) ValidateBasic() error {
 			len(msg.PublicKeys), len(msg.ProofsOfPossession))
 	}
 	for i, p := range msg.ProofsOfPossession {
-		if len(p) != mldsa87SignatureSize {
+		// Empty: the member's registered key was proven already (checked
+		// by the keeper against the member's record).
+		if len(p) != 0 && len(p) != mldsa87SignatureSize {
 			return ErrInvalidProofOfPossession.Wrapf("member %d: an ML-DSA-87 signature is %d bytes, got %d",
 				i, mldsa87SignatureSize, len(p))
 		}

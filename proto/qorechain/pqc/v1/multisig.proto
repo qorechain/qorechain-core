@@ -10,8 +10,10 @@ import "google/api/annotations.proto";
 
 // k-of-n hybrid post-quantum multisig (v3.2.7, protocol feature pqc-multisig).
 //
-// A classical multisig account (LegacyAminoPubKey) registers a set of n
-// ML-DSA-87 member keys and a threshold k. From then on every transaction it
+// A classical multisig account (LegacyAminoPubKey) registers its post-quantum
+// member set: its own n classical members and threshold k, each member
+// represented by the single-signer ML-DSA-87 key registered to that member's
+// own account. From then on every transaction it
 // signs carries, next to its classical multisig signature, a
 // PQCMultisigSignature extension holding at least k member signatures over
 // the multisig sign-bytes (types.MultisigSignBytes). Design:
@@ -53,10 +55,16 @@ message MsgRegisterPQCMultisig {
   uint32 algorithm_id = 2 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "AlgorithmID"];
   // threshold is k, the number of member signatures a transaction needs.
   uint32 threshold = 3;
-  // public_keys are the n member public keys, in member order. No two equal.
+  // public_keys are the n member public keys, in the classical member order:
+  // public_keys[i] must be the single-signer PQC key currently registered to
+  // the account of the multisig's classical member i. No two equal. They are
+  // stated, not looked up, so the classical members sign exactly the keys
+  // they consent to.
   repeated bytes public_keys = 4;
-  // proofs_of_possession holds one signature per member key, in the same
-  // order, over types.MultisigMemberPossessionSignBytes.
+  // proofs_of_possession has one entry per member, in the same order. An
+  // entry may be empty when that member's registered key was already proven
+  // (its record's possession_proven); otherwise it is a signature by the key
+  // over types.MultisigMemberPossessionSignBytes.
   repeated bytes proofs_of_possession = 5;
 }
 
@@ -91,9 +99,14 @@ message PQCMultisigView {
   uint32 algorithm_id = 2;
   string algorithm_name = 3;
   uint32 threshold = 4;
-  // public_keys are the member keys in member order (the bitmap order).
+  // public_keys are the members' CURRENT single-signer PQC keys, in member
+  // order (the bitmap order). A member's signature is verified against its
+  // current key, so a member's own rotation takes effect at once; empty for a
+  // member that holds no usable key.
   repeated bytes public_keys = 5;
   int64 created_at_height = 6;
   int64 updated_at_height = 7;
   uint64 version = 8;
+  // members are the classical members' account addresses, in member order.
+  repeated string members = 9;
 }

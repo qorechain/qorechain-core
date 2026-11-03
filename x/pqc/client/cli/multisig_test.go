@@ -112,8 +112,17 @@ func TestMultisigCLIWorkflow(t *testing.T) {
 		"--pubkey", hex.EncodeToString(f.pqcPubs[1]), "--chain-id", testChainID); err == nil {
 		t.Fatal("a proof for the wrong public key was printed")
 	}
-	if _, err := f.run(getCmdMultisigRegister(), "", append(append([]string{"2"}, proofs...),
-		"--from", f.msAddr.String(), "--generate-only", "--offline", "--account-number", "7", "--sequence", "0")...); err != nil {
+	hexKeys := []string{}
+	for _, k := range f.pqcPubs {
+		hexKeys = append(hexKeys, hex.EncodeToString(k))
+	}
+	membersJSON, _ := json.Marshal(hexKeys)
+	members := f.write(t, "members.json", membersJSON)
+	regArgs := []string{"--multisig", "ms", "--members-file", members, "--from", f.msAddr.String(),
+		"--generate-only", "--offline", "--account-number", "7", "--sequence", "0"}
+	// Every member proven: no proof file needed; member 1's proof may still
+	// be attached.
+	if _, err := f.run(getCmdMultisigRegister(), "", append([]string{proofs[1]}, regArgs...)...); err != nil {
 		t.Fatal(err)
 	}
 	regTx, err := f.ctx.TxConfig.TxJSONDecoder()(bytes.TrimSpace(f.out.Bytes()))
@@ -121,11 +130,24 @@ func TestMultisigCLIWorkflow(t *testing.T) {
 		t.Fatalf("%v\n%s", err, f.out.String())
 	}
 	reg, ok := regTx.GetMsgs()[0].(*types.MsgRegisterPQCMultisig)
-	if !ok || reg.Threshold != 2 || len(reg.PublicKeys) != 3 || !bytes.Equal(reg.PublicKeys[2], f.pqcPubs[2]) {
+	if !ok || reg.Threshold != 2 || len(reg.PublicKeys) != 3 || !bytes.Equal(reg.PublicKeys[2], f.pqcPubs[2]) ||
+		len(reg.ProofsOfPossession[0]) != 0 || len(reg.ProofsOfPossession[1]) == 0 {
 		t.Fatalf("registration %+v", regTx.GetMsgs())
 	}
 	if err := reg.ValidateBasic(); err != nil {
 		t.Fatal(err)
+	}
+	// The threshold and the member order come from the multisig key; the
+	// members file must list one key per classical member.
+	short, _ := json.Marshal(hexKeys[:2])
+	if _, err := f.run(getCmdMultisigRegister(), "", "--multisig", "ms", "--members-file", f.write(t, "short.json", short),
+		"--from", f.msAddr.String(), "--generate-only", "--offline", "--account-number", "7", "--sequence", "0"); err == nil {
+		t.Fatal("a members file with fewer keys than classical members was accepted")
+	}
+	// Sent from anyone but the multisig: refused.
+	if _, err := f.run(getCmdMultisigRegister(), "", "--multisig", "ms", "--members-file", members,
+		"--from", f.from.String(), "--generate-only", "--offline", "--account-number", "7", "--sequence", "0"); err == nil {
+		t.Fatal("a registration from another account was built")
 	}
 
 	// Post-quantum members 0 and 2 sign.
@@ -138,13 +160,6 @@ func TestMultisigCLIWorkflow(t *testing.T) {
 		}
 		pqcFiles = append(pqcFiles, f.write(t, "pqc"+string(rune('0'+i))+".json", []byte(out)))
 	}
-	hexKeys := []string{}
-	for _, k := range f.pqcPubs {
-		hexKeys = append(hexKeys, hex.EncodeToString(k))
-	}
-	membersJSON, _ := json.Marshal(hexKeys)
-	members := f.write(t, "members.json", membersJSON)
-
 	out, err := f.run(getCmdMultisigCombine(), "", append(append([]string{f.unsigned}, pqcFiles...),
 		"--multisig", f.msAddr.String(), "--members-file", members, "--chain-id", testChainID, "--offline")...)
 	if err != nil {

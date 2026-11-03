@@ -215,3 +215,32 @@ func TestMultisigRouteIsInTheGateway(t *testing.T) {
 		t.Fatal("no gateway registration for the multisig query service")
 	}
 }
+
+func TestPQCMultisigInfoValidate(t *testing.T) {
+	a := func(b byte) string { return sdk.AccAddress(bytes.Repeat([]byte{b}, 20)).String() }
+	ok := PQCMultisigInfo{Address: a(1), AlgorithmID: AlgorithmDilithium5, Threshold: 2, Members: []string{a(2), a(3), a(4)}}
+	if err := ok.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, m := range map[string]PQCMultisigInfo{
+		"threshold above n": {Address: a(1), AlgorithmID: AlgorithmDilithium5, Threshold: 4, Members: ok.Members},
+		"no members":        {Address: a(1), AlgorithmID: AlgorithmDilithium5, Threshold: 1},
+		"member twice":      {Address: a(1), AlgorithmID: AlgorithmDilithium5, Threshold: 1, Members: []string{a(2), a(2)}},
+		"bad member":        {Address: a(1), AlgorithmID: AlgorithmDilithium5, Threshold: 1, Members: []string{"x"}},
+		"KEM algorithm":     {Address: a(1), AlgorithmID: AlgorithmMLKEM1024, Threshold: 1, Members: []string{a(2)}},
+	} {
+		if err := m.Validate(); !ErrInvalidMultisig.Is(err) {
+			t.Errorf("%s: got %v", name, err)
+		}
+	}
+}
+
+// A proven member's proof entry may be empty.
+func TestMsgRegisterPQCMultisigEmptyProof(t *testing.T) {
+	addr := sdk.AccAddress(bytes.Repeat([]byte{1}, 20)).String()
+	m := &MsgRegisterPQCMultisig{Sender: addr, AlgorithmID: AlgorithmDilithium5, Threshold: 2,
+		PublicKeys: msKeys(3), ProofsOfPossession: [][]byte{nil, msSig(2), {}}}
+	if err := m.ValidateBasic(); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -31,10 +32,14 @@ import (
 // step except the last works offline, and every file passed between members
 // holds public data only (public keys and signatures).
 //
-// Once, to register the member set:
+// Once, to register the member set (the set IS the classical multisig: its
+// threshold and, for each classical member in order, the single-signer PQC key
+// that member registered to its own account):
 //
-//	each PQC member:  tx pqc multisig-member-proof <multisig-addr> --pqc-key <name> --chain-id <id> > proof-i.json
-//	anyone:           tx pqc multisig-register <k> proof-1.json ... --from <multisig> --generate-only > reg.json
+//	each classical member: register its own key (register-key-v2 with a proof)
+//	a member registered without a proof:
+//	                  tx pqc multisig-member-proof <multisig-addr> --pqc-key <name> --pubkey <hex> > proof-i.json
+//	anyone:           tx pqc multisig-register [proof-i.json] --multisig <key> --from <multisig> --generate-only > reg.json
 //	classical members sign reg.json as any multisig transaction (`tx sign --multisig`, `tx multisign`):
 //	it carries no extension, so the usual amino-json flow works, and the chain admits it on the
 //	classical multisig signature alone (it is the bootstrap).
@@ -209,38 +214,51 @@ The proof names the chain and the multisig account, so it is valid for nothing e
 
 func getCmdMultisigRegister() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "multisig-register [threshold] [member-proof.json]...",
-		Short: "Register (or replace) the post-quantum member set of a multisig account",
-		Long: `Build MsgRegisterPQCMultisig from the members' proof files, in member order:
-the order of the files is the member order of the bitmap in every later
-transaction. Use --from <multisig> --generate-only and have the classical
-members sign it: the first registration is admitted on the classical multisig
-signature alone; a replacement must carry k-of-n signatures of the CURRENT set
-(multisig-sign / multisig-combine / multisig-classical-sign / multisig-assemble).`,
-		Args: cobra.MinimumNArgs(2),
+		Use:   "multisig-register [member-proof.json]...",
+		Short: "Register (or re-register) the post-quantum member set of a multisig account",
+		Long: `Build MsgRegisterPQCMultisig for the classical multisig key --multisig (a
+keyring record made with ` + "`keys add --multisig`" + `). The set is the
+multisig itself: its threshold, and for each classical member, in member order,
+the single-signer PQC key registered to that member's own account. The keys are
+read from the chain, or from --members-file offline (a JSON array of hex keys in
+member order). A member whose key was registered without a proof of possession
+also needs its multisig-member-proof file among the arguments; a proven member
+needs none.
+
+Send it from the multisig (--from <multisig>, --generate-only, then the
+classical members sign it): the first registration is admitted on the classical
+multisig signature alone; a re-registration must carry k-of-n signatures of the
+current set (multisig-sign / multisig-combine / multisig-classical-sign /
+multisig-assemble).`,
+		Args: cobra.ArbitraryArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
 			if err != nil {
 				return err
 			}
-			k, err := strconv.ParseUint(args[0], 10, 32)
+			pub, err := multisigPubKey(clientCtx, cmd)
 			if err != nil {
-				return fmt.Errorf("threshold: %w", err)
+				return err
 			}
-			sender := clientCtx.GetFromAddress().String()
-			msg := &types.MsgRegisterPQCMultisig{Sender: sender, AlgorithmID: types.AlgorithmDilithium5, Threshold: uint32(k)}
-			for _, path := range args[1:] {
+			msAddr := sdk.AccAddress(pub.Address())
+			if !clientCtx.GetFromAddress().Equals(msAddr) {
+				return fmt.Errorf("--from must be the multisig %s, got %s", msAddr, clientCtx.GetFromAddress())
+			}
+			keys, proven, err := classicalMemberKeys(cmd, clientCtx, pub)
+			if err != nil {
+				return err
+			}
+			msg := &types.MsgRegisterPQCMultisig{Sender: msAddr.String(), AlgorithmID: types.AlgorithmDilithium5,
+				Threshold: uint32(pub.Threshold), PublicKeys: keys, ProofsOfPossession: make([][]byte, len(keys))}
+			for _, path := range args {
 				var p MemberProofFile
 				if err := readJSONFile(path, &p); err != nil {
 					return err
 				}
-				if p.Multisig != sender {
-					return fmt.Errorf("%s is a proof for %s, not for %s", path, p.Multisig, sender)
+				if p.Multisig != msAddr.String() {
+					return fmt.Errorf("%s is a proof for %s, not for %s", path, p.Multisig, msAddr)
 				}
-				if clientCtx.ChainID != "" && p.ChainID != clientCtx.ChainID {
-					return fmt.Errorf("%s is a proof for chain %s, not %s", path, p.ChainID, clientCtx.ChainID)
-				}
-				pub, err := decodeHexField("public_key", p.PublicKey)
+				pk, err := decodeHexField("public_key", p.PublicKey)
 				if err != nil {
 					return err
 				}
@@ -248,12 +266,26 @@ signature alone; a replacement must carry k-of-n signatures of the CURRENT set
 				if err != nil {
 					return err
 				}
-				if !qpqc.MLDSA87.Verify(pub, types.MultisigMemberPossessionSignBytes(p.ChainID,
-					uint32(types.AlgorithmDilithium5), sender, pub), proof) {
+				if !qpqc.MLDSA87.Verify(pk, types.MultisigMemberPossessionSignBytes(p.ChainID,
+					uint32(types.AlgorithmDilithium5), msAddr.String(), pk), proof) {
 					return fmt.Errorf("%s: the proof does not verify", path)
 				}
-				msg.PublicKeys = append(msg.PublicKeys, pub)
-				msg.ProofsOfPossession = append(msg.ProofsOfPossession, proof)
+				slot := -1
+				for i, k := range keys {
+					if bytes.Equal(k, pk) {
+						slot = i
+					}
+				}
+				if slot < 0 {
+					return fmt.Errorf("%s proves a key that is not registered to any classical member", path)
+				}
+				msg.ProofsOfPossession[slot] = proof
+			}
+			for i := range keys {
+				if !proven[i] && len(msg.ProofsOfPossession[i]) == 0 {
+					return fmt.Errorf("classical member %d registered its key without a proof of possession; "+
+						"pass its multisig-member-proof file", i)
+				}
 			}
 			if err := msg.ValidateBasic(); err != nil {
 				return err
@@ -261,8 +293,56 @@ signature alone; a replacement must carry k-of-n signatures of the CURRENT set
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
+	cmd.Flags().String(flagMultisig, "", "keyring name of the multisig key (`keys add --multisig`)")
+	cmd.Flags().String(flagMembersFile, "", "offline: JSON array of the members' registered keys in hex, in member order (treated as proven)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
+}
+
+// classicalMemberKeys returns, in member order, the single-signer PQC key
+// registered to each classical member's account and whether it was proven:
+// from --members-file offline (all treated as proven; the chain checks), else
+// from the chain.
+func classicalMemberKeys(cmd *cobra.Command, clientCtx client.Context, pub *kmultisig.LegacyAminoPubKey) ([][]byte, []bool, error) {
+	n := len(pub.GetPubKeys())
+	if path, _ := cmd.Flags().GetString(flagMembersFile); path != "" {
+		var hexKeys []string
+		if err := readJSONFile(path, &hexKeys); err != nil {
+			return nil, nil, err
+		}
+		if len(hexKeys) != n {
+			return nil, nil, fmt.Errorf("%s lists %d keys; the multisig has %d classical members", path, len(hexKeys), n)
+		}
+		keys := make([][]byte, n)
+		proven := make([]bool, n)
+		for i, h := range hexKeys {
+			k, err := decodeHexField(fmt.Sprintf("member %d", i), h)
+			if err != nil {
+				return nil, nil, err
+			}
+			keys[i], proven[i] = k, true
+		}
+		return keys, proven, nil
+	}
+	if clientCtx.Offline {
+		return nil, nil, fmt.Errorf("the members' keys are read from the chain, which --%s forbids; pass --%s",
+			flags.FlagOffline, flagMembersFile)
+	}
+	q := types.NewQueryClient(clientCtx)
+	keys := make([][]byte, n)
+	proven := make([]bool, n)
+	for i, mpk := range pub.GetPubKeys() {
+		member := sdk.AccAddress(mpk.Address()).String()
+		res, err := q.Account(cmd.Context(), &types.QueryAccountRequest{Address: member})
+		if err != nil {
+			return nil, nil, fmt.Errorf("classical member %d (%s): %w", i, member, err)
+		}
+		if !res.Found || len(res.Account.PublicKey) == 0 {
+			return nil, nil, fmt.Errorf("classical member %d (%s) has no registered PQC key; it registers its own first (register-key-v2)", i, member)
+		}
+		keys[i], proven[i] = res.Account.PublicKey, res.Account.PossessionProven
+	}
+	return keys, proven, nil
 }
 
 func getCmdMultisigSign() *cobra.Command {
