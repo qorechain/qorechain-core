@@ -35,6 +35,7 @@ func GetQueryCmd() *cobra.Command {
 		GetCmdQueryProgram(),
 		GetCmdQueryParams(),
 		GetCmdQuerySlot(),
+		GetCmdQueryClusterInfo(),
 	)
 
 	return cmd
@@ -135,6 +136,33 @@ func GetCmdQuerySlot() *cobra.Command {
 				return err
 			}
 			res, err := qc.Slot(cmd.Context(), &types.QuerySlotRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
+		},
+	}
+
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+// GetCmdQueryClusterInfo returns the command to query the SVM cluster identity
+// (genesis hash and Wallet Standard chain string).
+func GetCmdQueryClusterInfo() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "cluster-info",
+		Short: "Query the SVM genesis hash and Wallet Standard chain id",
+		Long: "Query the SVM cluster identity: the base58 genesis hash the Solana-compatible " +
+			"getGenesisHash method returns and the \"solana:<first 32 chars>\" chain string " +
+			"Solana Wallet Standard wallets use. Both are derived from the chain id and never change.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, qc, err := svmQueryClient(cmd)
+			if err != nil {
+				return err
+			}
+			res, err := qc.ClusterInfo(cmd.Context(), &types.QueryClusterInfoRequest{})
 			if err != nil {
 				return err
 			}
