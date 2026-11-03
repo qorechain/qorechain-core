@@ -115,6 +115,20 @@ still be claimed.
   plus what the holder can claim.
 - `/qorechain/stakingtier/v1/pool`: balance, outstanding, surplus, totals and
   the last settlement.
+- `/qorechain/stakingtier/v1/apr[?validator=qorvaloper...]`: the base APR the
+  latest settlement measured (`last_base_apy_bps`, gross, with its height and
+  time and whether it comes from emission or the yield is from fees only), the
+  settlement's funding ratio, and each lock term's bonus after the
+  `max_total_apy_bps` ceiling. With `validator`, the base is net of its
+  commission.
+- `/qorechain/stakingtier/v1/apr/{delegator}[?validator=qorvaloper...]`: per
+  delegation, each open lock and the unlocked rest with its base (net of
+  commission, gross on an operator's own self-bond), lock bonus (term plus
+  light node, after the ceiling), validator bonus, effective APR, the same
+  scaled by the last funding ratio, and the reason; plus the amount-weighted
+  APR of every delegation and of the whole stake. The rates come from the same
+  functions the settlement uses (`keeper/rates.go`), so they are what the next
+  settlement credits at the last measured base. Fees are not included.
 
 ## Storage
 

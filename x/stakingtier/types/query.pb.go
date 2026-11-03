@@ -677,6 +677,805 @@ func (m *QueryPoolResponse) GetLockCount() uint64 {
 	return 0
 }
 
+// AprBase is the base yield the module measured at its latest settlement, and
+// how that settlement was funded. Every rate is a decimal string in basis
+// points a year.
+type AprBase struct {
+	// gross_base_apr_bps is the pool's last_base_apy_bps: the yield the epoch's
+	// base emission gives the bonded stake through the fee split
+	// (validator_share + staker_share), before commission. It leaves out fees
+	// and is measured once per settlement, not live.
+	GrossBaseAprBps string `protobuf:"bytes,1,opt,name=gross_base_apr_bps,json=grossBaseAprBps,proto3" json:"gross_base_apr_bps,omitempty"`
+	// computed_height and computed_time (unix seconds) are the settlement that
+	// measured it.
+	ComputedHeight int64 `protobuf:"varint,2,opt,name=computed_height,json=computedHeight,proto3" json:"computed_height,omitempty"`
+	ComputedTime   int64 `protobuf:"varint,3,opt,name=computed_time,json=computedTime,proto3" json:"computed_time,omitempty"`
+	// source is "emission" when the base emission is paying a yield,
+	// "fees_only" when the latest settlement measured none (the emission cap is
+	// reached or the target is zero: stakers earn fees only), and
+	// "not_settled" before the first settlement.
+	Source string `protobuf:"bytes,4,opt,name=source,proto3" json:"source,omitempty"`
+	// last_owed and last_funded (uqor) are the bonus the latest settlement owed
+	// and what it could fund.
+	LastOwed   string `protobuf:"bytes,5,opt,name=last_owed,json=lastOwed,proto3" json:"last_owed,omitempty"`
+	LastFunded string `protobuf:"bytes,6,opt,name=last_funded,json=lastFunded,proto3" json:"last_funded,omitempty"`
+	// bonus_funding_ratio is last_funded / last_owed, 1 when nothing was owed.
+	// Below 1, every bonus was paid pro rata by this factor.
+	BonusFundingRatio string `protobuf:"bytes,7,opt,name=bonus_funding_ratio,json=bonusFundingRatio,proto3" json:"bonus_funding_ratio,omitempty"`
+	// bonus_enabled is false when the protocol feature or the enabled param is
+	// off: no bonus accrues.
+	BonusEnabled   bool   `protobuf:"varint,8,opt,name=bonus_enabled,json=bonusEnabled,proto3" json:"bonus_enabled,omitempty"`
+	MaxTotalApyBps uint32 `protobuf:"varint,9,opt,name=max_total_apy_bps,json=maxTotalApyBps,proto3" json:"max_total_apy_bps,omitempty"`
+}
+
+func (m *AprBase) Reset()         { *m = AprBase{} }
+func (m *AprBase) String() string { return proto.CompactTextString(m) }
+func (*AprBase) ProtoMessage()    {}
+func (*AprBase) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fcd9b97147f5beaa, []int{8}
+}
+func (m *AprBase) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AprBase) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AprBase.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AprBase) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AprBase.Merge(m, src)
+}
+func (m *AprBase) XXX_Size() int {
+	return m.Size()
+}
+func (m *AprBase) XXX_DiscardUnknown() {
+	xxx_messageInfo_AprBase.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AprBase proto.InternalMessageInfo
+
+func (m *AprBase) GetGrossBaseAprBps() string {
+	if m != nil {
+		return m.GrossBaseAprBps
+	}
+	return ""
+}
+
+func (m *AprBase) GetComputedHeight() int64 {
+	if m != nil {
+		return m.ComputedHeight
+	}
+	return 0
+}
+
+func (m *AprBase) GetComputedTime() int64 {
+	if m != nil {
+		return m.ComputedTime
+	}
+	return 0
+}
+
+func (m *AprBase) GetSource() string {
+	if m != nil {
+		return m.Source
+	}
+	return ""
+}
+
+func (m *AprBase) GetLastOwed() string {
+	if m != nil {
+		return m.LastOwed
+	}
+	return ""
+}
+
+func (m *AprBase) GetLastFunded() string {
+	if m != nil {
+		return m.LastFunded
+	}
+	return ""
+}
+
+func (m *AprBase) GetBonusFundingRatio() string {
+	if m != nil {
+		return m.BonusFundingRatio
+	}
+	return ""
+}
+
+func (m *AprBase) GetBonusEnabled() bool {
+	if m != nil {
+		return m.BonusEnabled
+	}
+	return false
+}
+
+func (m *AprBase) GetMaxTotalApyBps() uint32 {
+	if m != nil {
+		return m.MaxTotalApyBps
+	}
+	return 0
+}
+
+type QueryAprRequest struct {
+	// validator (optional, qorvaloper) states the base net of its commission.
+	Validator string `protobuf:"bytes,1,opt,name=validator,proto3" json:"validator,omitempty"`
+}
+
+func (m *QueryAprRequest) Reset()         { *m = QueryAprRequest{} }
+func (m *QueryAprRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryAprRequest) ProtoMessage()    {}
+func (*QueryAprRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fcd9b97147f5beaa, []int{9}
+}
+func (m *QueryAprRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAprRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAprRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAprRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAprRequest.Merge(m, src)
+}
+func (m *QueryAprRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAprRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAprRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAprRequest proto.InternalMessageInfo
+
+func (m *QueryAprRequest) GetValidator() string {
+	if m != nil {
+		return m.Validator
+	}
+	return ""
+}
+
+// TierAprView is one lock term as a new lock on the queried base would earn.
+type TierAprView struct {
+	Months uint32 `protobuf:"varint,1,opt,name=months,proto3" json:"months,omitempty"`
+	// bonus_bps is the term's bonus as configured.
+	BonusBps uint32 `protobuf:"varint,2,opt,name=bonus_bps,json=bonusBps,proto3" json:"bonus_bps,omitempty"`
+	// effective_bonus_bps is bonus_bps cut to the room left under
+	// max_total_apy_bps above the base; zero when the bonus is disabled.
+	EffectiveBonusBps string `protobuf:"bytes,3,opt,name=effective_bonus_bps,json=effectiveBonusBps,proto3" json:"effective_bonus_bps,omitempty"`
+	// effective_apr_bps is the base plus effective_bonus_bps.
+	EffectiveAprBps string `protobuf:"bytes,4,opt,name=effective_apr_bps,json=effectiveAprBps,proto3" json:"effective_apr_bps,omitempty"`
+}
+
+func (m *TierAprView) Reset()         { *m = TierAprView{} }
+func (m *TierAprView) String() string { return proto.CompactTextString(m) }
+func (*TierAprView) ProtoMessage()    {}
+func (*TierAprView) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fcd9b97147f5beaa, []int{10}
+}
+func (m *TierAprView) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *TierAprView) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_TierAprView.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *TierAprView) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TierAprView.Merge(m, src)
+}
+func (m *TierAprView) XXX_Size() int {
+	return m.Size()
+}
+func (m *TierAprView) XXX_DiscardUnknown() {
+	xxx_messageInfo_TierAprView.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_TierAprView proto.InternalMessageInfo
+
+func (m *TierAprView) GetMonths() uint32 {
+	if m != nil {
+		return m.Months
+	}
+	return 0
+}
+
+func (m *TierAprView) GetBonusBps() uint32 {
+	if m != nil {
+		return m.BonusBps
+	}
+	return 0
+}
+
+func (m *TierAprView) GetEffectiveBonusBps() string {
+	if m != nil {
+		return m.EffectiveBonusBps
+	}
+	return ""
+}
+
+func (m *TierAprView) GetEffectiveAprBps() string {
+	if m != nil {
+		return m.EffectiveAprBps
+	}
+	return ""
+}
+
+type QueryAprResponse struct {
+	Base *AprBase `protobuf:"bytes,1,opt,name=base,proto3" json:"base,omitempty"`
+	// validator and commission echo the request; commission is empty without
+	// one.
+	Validator  string `protobuf:"bytes,2,opt,name=validator,proto3" json:"validator,omitempty"`
+	Commission string `protobuf:"bytes,3,opt,name=commission,proto3" json:"commission,omitempty"`
+	// base_apr_bps is the base the tiers are stated against: the gross base,
+	// or the validator's delegators' base net of commission.
+	BaseAprBps string         `protobuf:"bytes,4,opt,name=base_apr_bps,json=baseAprBps,proto3" json:"base_apr_bps,omitempty"`
+	Tiers      []*TierAprView `protobuf:"bytes,5,rep,name=tiers,proto3" json:"tiers,omitempty"`
+	// light_node_bonus_bps is added to the locks of a holder that runs an
+	// active light node, before the ceiling.
+	LightNodeBonusBps uint32 `protobuf:"varint,6,opt,name=light_node_bonus_bps,json=lightNodeBonusBps,proto3" json:"light_node_bonus_bps,omitempty"`
+	// validator_bonus_bps is paid on an active validator's whole self-bond;
+	// validator_effective_bonus_bps is what it pays after the ceiling over the
+	// gross base (a self-bond's base is gross).
+	ValidatorBonusBps          uint32 `protobuf:"varint,7,opt,name=validator_bonus_bps,json=validatorBonusBps,proto3" json:"validator_bonus_bps,omitempty"`
+	ValidatorEffectiveBonusBps string `protobuf:"bytes,8,opt,name=validator_effective_bonus_bps,json=validatorEffectiveBonusBps,proto3" json:"validator_effective_bonus_bps,omitempty"`
+}
+
+func (m *QueryAprResponse) Reset()         { *m = QueryAprResponse{} }
+func (m *QueryAprResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryAprResponse) ProtoMessage()    {}
+func (*QueryAprResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fcd9b97147f5beaa, []int{11}
+}
+func (m *QueryAprResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryAprResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryAprResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryAprResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryAprResponse.Merge(m, src)
+}
+func (m *QueryAprResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryAprResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryAprResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryAprResponse proto.InternalMessageInfo
+
+func (m *QueryAprResponse) GetBase() *AprBase {
+	if m != nil {
+		return m.Base
+	}
+	return nil
+}
+
+func (m *QueryAprResponse) GetValidator() string {
+	if m != nil {
+		return m.Validator
+	}
+	return ""
+}
+
+func (m *QueryAprResponse) GetCommission() string {
+	if m != nil {
+		return m.Commission
+	}
+	return ""
+}
+
+func (m *QueryAprResponse) GetBaseAprBps() string {
+	if m != nil {
+		return m.BaseAprBps
+	}
+	return ""
+}
+
+func (m *QueryAprResponse) GetTiers() []*TierAprView {
+	if m != nil {
+		return m.Tiers
+	}
+	return nil
+}
+
+func (m *QueryAprResponse) GetLightNodeBonusBps() uint32 {
+	if m != nil {
+		return m.LightNodeBonusBps
+	}
+	return 0
+}
+
+func (m *QueryAprResponse) GetValidatorBonusBps() uint32 {
+	if m != nil {
+		return m.ValidatorBonusBps
+	}
+	return 0
+}
+
+func (m *QueryAprResponse) GetValidatorEffectiveBonusBps() string {
+	if m != nil {
+		return m.ValidatorEffectiveBonusBps
+	}
+	return ""
+}
+
+type QueryDelegatorAprRequest struct {
+	Delegator string `protobuf:"bytes,1,opt,name=delegator,proto3" json:"delegator,omitempty"`
+	// validator (optional, qorvaloper) limits the answer to that delegation.
+	Validator string `protobuf:"bytes,2,opt,name=validator,proto3" json:"validator,omitempty"`
+}
+
+func (m *QueryDelegatorAprRequest) Reset()         { *m = QueryDelegatorAprRequest{} }
+func (m *QueryDelegatorAprRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryDelegatorAprRequest) ProtoMessage()    {}
+func (*QueryDelegatorAprRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fcd9b97147f5beaa, []int{12}
+}
+func (m *QueryDelegatorAprRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDelegatorAprRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDelegatorAprRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDelegatorAprRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDelegatorAprRequest.Merge(m, src)
+}
+func (m *QueryDelegatorAprRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDelegatorAprRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDelegatorAprRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDelegatorAprRequest proto.InternalMessageInfo
+
+func (m *QueryDelegatorAprRequest) GetDelegator() string {
+	if m != nil {
+		return m.Delegator
+	}
+	return ""
+}
+
+func (m *QueryDelegatorAprRequest) GetValidator() string {
+	if m != nil {
+		return m.Validator
+	}
+	return ""
+}
+
+// AprPosition is one part of a delegation and the yield it earns going
+// forward, as the next settlement would pay it.
+type AprPosition struct {
+	// kind is "lock" (an open lock) or "unlocked" (the rest of the delegation,
+	// expired locks included).
+	Kind    string `protobuf:"bytes,1,opt,name=kind,proto3" json:"kind,omitempty"`
+	LockId  uint64 `protobuf:"varint,2,opt,name=lock_id,json=lockId,proto3" json:"lock_id,omitempty"`
+	Months  uint32 `protobuf:"varint,3,opt,name=months,proto3" json:"months,omitempty"`
+	EndTime int64  `protobuf:"varint,4,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// amount (uqor) is what the position covers today.
+	Amount string `protobuf:"bytes,5,opt,name=amount,proto3" json:"amount,omitempty"`
+	// base_apr_bps is the position's base: net of commission for a delegator,
+	// gross on a validator's own self-bond.
+	BaseAprBps string `protobuf:"bytes,6,opt,name=base_apr_bps,json=baseAprBps,proto3" json:"base_apr_bps,omitempty"`
+	// tier_bonus_bps is the lock term's bonus fixed when the lock was made.
+	TierBonusBps uint32 `protobuf:"varint,7,opt,name=tier_bonus_bps,json=tierBonusBps,proto3" json:"tier_bonus_bps,omitempty"`
+	// light_node_bonus_bps is the light node bonus added to this lock, zero
+	// when the holder does not qualify or the position is unlocked.
+	LightNodeBonusBps uint32 `protobuf:"varint,8,opt,name=light_node_bonus_bps,json=lightNodeBonusBps,proto3" json:"light_node_bonus_bps,omitempty"`
+	// lock_bonus_bps is tier plus light node bonus after the ceiling.
+	LockBonusBps string `protobuf:"bytes,9,opt,name=lock_bonus_bps,json=lockBonusBps,proto3" json:"lock_bonus_bps,omitempty"`
+	// validator_bonus_bps is the validator bonus after the ceiling, on an
+	// active validator's own self-bond.
+	ValidatorBonusBps string `protobuf:"bytes,10,opt,name=validator_bonus_bps,json=validatorBonusBps,proto3" json:"validator_bonus_bps,omitempty"`
+	// bonus_bps is lock_bonus_bps plus validator_bonus_bps.
+	BonusBps string `protobuf:"bytes,11,opt,name=bonus_bps,json=bonusBps,proto3" json:"bonus_bps,omitempty"`
+	// effective_apr_bps is base_apr_bps plus bonus_bps.
+	EffectiveAprBps string `protobuf:"bytes,12,opt,name=effective_apr_bps,json=effectiveAprBps,proto3" json:"effective_apr_bps,omitempty"`
+	// effective_apr_at_last_funding_bps scales the bonus by the latest
+	// settlement's bonus_funding_ratio.
+	EffectiveAprAtLastFundingBps string `protobuf:"bytes,13,opt,name=effective_apr_at_last_funding_bps,json=effectiveAprAtLastFundingBps,proto3" json:"effective_apr_at_last_funding_bps,omitempty"`
+	// capped is true when the ceiling cut the bonus.
+	Capped bool `protobuf:"varint,14,opt,name=capped,proto3" json:"capped,omitempty"`
+	// reason says in words which bonuses apply and why.
+	Reason string `protobuf:"bytes,15,opt,name=reason,proto3" json:"reason,omitempty"`
+}
+
+func (m *AprPosition) Reset()         { *m = AprPosition{} }
+func (m *AprPosition) String() string { return proto.CompactTextString(m) }
+func (*AprPosition) ProtoMessage()    {}
+func (*AprPosition) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fcd9b97147f5beaa, []int{13}
+}
+func (m *AprPosition) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AprPosition) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AprPosition.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AprPosition) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AprPosition.Merge(m, src)
+}
+func (m *AprPosition) XXX_Size() int {
+	return m.Size()
+}
+func (m *AprPosition) XXX_DiscardUnknown() {
+	xxx_messageInfo_AprPosition.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AprPosition proto.InternalMessageInfo
+
+func (m *AprPosition) GetKind() string {
+	if m != nil {
+		return m.Kind
+	}
+	return ""
+}
+
+func (m *AprPosition) GetLockId() uint64 {
+	if m != nil {
+		return m.LockId
+	}
+	return 0
+}
+
+func (m *AprPosition) GetMonths() uint32 {
+	if m != nil {
+		return m.Months
+	}
+	return 0
+}
+
+func (m *AprPosition) GetEndTime() int64 {
+	if m != nil {
+		return m.EndTime
+	}
+	return 0
+}
+
+func (m *AprPosition) GetAmount() string {
+	if m != nil {
+		return m.Amount
+	}
+	return ""
+}
+
+func (m *AprPosition) GetBaseAprBps() string {
+	if m != nil {
+		return m.BaseAprBps
+	}
+	return ""
+}
+
+func (m *AprPosition) GetTierBonusBps() uint32 {
+	if m != nil {
+		return m.TierBonusBps
+	}
+	return 0
+}
+
+func (m *AprPosition) GetLightNodeBonusBps() uint32 {
+	if m != nil {
+		return m.LightNodeBonusBps
+	}
+	return 0
+}
+
+func (m *AprPosition) GetLockBonusBps() string {
+	if m != nil {
+		return m.LockBonusBps
+	}
+	return ""
+}
+
+func (m *AprPosition) GetValidatorBonusBps() string {
+	if m != nil {
+		return m.ValidatorBonusBps
+	}
+	return ""
+}
+
+func (m *AprPosition) GetBonusBps() string {
+	if m != nil {
+		return m.BonusBps
+	}
+	return ""
+}
+
+func (m *AprPosition) GetEffectiveAprBps() string {
+	if m != nil {
+		return m.EffectiveAprBps
+	}
+	return ""
+}
+
+func (m *AprPosition) GetEffectiveAprAtLastFundingBps() string {
+	if m != nil {
+		return m.EffectiveAprAtLastFundingBps
+	}
+	return ""
+}
+
+func (m *AprPosition) GetCapped() bool {
+	if m != nil {
+		return m.Capped
+	}
+	return false
+}
+
+func (m *AprPosition) GetReason() string {
+	if m != nil {
+		return m.Reason
+	}
+	return ""
+}
+
+type DelegationApr struct {
+	Validator  string `protobuf:"bytes,1,opt,name=validator,proto3" json:"validator,omitempty"`
+	Commission string `protobuf:"bytes,2,opt,name=commission,proto3" json:"commission,omitempty"`
+	// validator_active is bonded and not jailed: the validator bonus condition.
+	ValidatorActive bool `protobuf:"varint,3,opt,name=validator_active,json=validatorActive,proto3" json:"validator_active,omitempty"`
+	// self_bond is true when the delegator is the validator's operator.
+	SelfBond        bool   `protobuf:"varint,4,opt,name=self_bond,json=selfBond,proto3" json:"self_bond,omitempty"`
+	DelegatedAmount string `protobuf:"bytes,5,opt,name=delegated_amount,json=delegatedAmount,proto3" json:"delegated_amount,omitempty"`
+	// locked_amount is what the open locks cover.
+	LockedAmount string `protobuf:"bytes,6,opt,name=locked_amount,json=lockedAmount,proto3" json:"locked_amount,omitempty"`
+	// effective_apr_bps and effective_apr_at_last_funding_bps are the
+	// positions' rates weighted by amount.
+	EffectiveAprBps              string         `protobuf:"bytes,7,opt,name=effective_apr_bps,json=effectiveAprBps,proto3" json:"effective_apr_bps,omitempty"`
+	EffectiveAprAtLastFundingBps string         `protobuf:"bytes,8,opt,name=effective_apr_at_last_funding_bps,json=effectiveAprAtLastFundingBps,proto3" json:"effective_apr_at_last_funding_bps,omitempty"`
+	Positions                    []*AprPosition `protobuf:"bytes,9,rep,name=positions,proto3" json:"positions,omitempty"`
+}
+
+func (m *DelegationApr) Reset()         { *m = DelegationApr{} }
+func (m *DelegationApr) String() string { return proto.CompactTextString(m) }
+func (*DelegationApr) ProtoMessage()    {}
+func (*DelegationApr) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fcd9b97147f5beaa, []int{14}
+}
+func (m *DelegationApr) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *DelegationApr) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_DelegationApr.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *DelegationApr) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DelegationApr.Merge(m, src)
+}
+func (m *DelegationApr) XXX_Size() int {
+	return m.Size()
+}
+func (m *DelegationApr) XXX_DiscardUnknown() {
+	xxx_messageInfo_DelegationApr.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DelegationApr proto.InternalMessageInfo
+
+func (m *DelegationApr) GetValidator() string {
+	if m != nil {
+		return m.Validator
+	}
+	return ""
+}
+
+func (m *DelegationApr) GetCommission() string {
+	if m != nil {
+		return m.Commission
+	}
+	return ""
+}
+
+func (m *DelegationApr) GetValidatorActive() bool {
+	if m != nil {
+		return m.ValidatorActive
+	}
+	return false
+}
+
+func (m *DelegationApr) GetSelfBond() bool {
+	if m != nil {
+		return m.SelfBond
+	}
+	return false
+}
+
+func (m *DelegationApr) GetDelegatedAmount() string {
+	if m != nil {
+		return m.DelegatedAmount
+	}
+	return ""
+}
+
+func (m *DelegationApr) GetLockedAmount() string {
+	if m != nil {
+		return m.LockedAmount
+	}
+	return ""
+}
+
+func (m *DelegationApr) GetEffectiveAprBps() string {
+	if m != nil {
+		return m.EffectiveAprBps
+	}
+	return ""
+}
+
+func (m *DelegationApr) GetEffectiveAprAtLastFundingBps() string {
+	if m != nil {
+		return m.EffectiveAprAtLastFundingBps
+	}
+	return ""
+}
+
+func (m *DelegationApr) GetPositions() []*AprPosition {
+	if m != nil {
+		return m.Positions
+	}
+	return nil
+}
+
+type QueryDelegatorAprResponse struct {
+	Delegator string   `protobuf:"bytes,1,opt,name=delegator,proto3" json:"delegator,omitempty"`
+	Base      *AprBase `protobuf:"bytes,2,opt,name=base,proto3" json:"base,omitempty"`
+	// light_node_bonus is true when the delegator qualifies for the light node
+	// bonus on their locks; light_node_reason says why or why not.
+	LightNodeBonus  bool             `protobuf:"varint,3,opt,name=light_node_bonus,json=lightNodeBonus,proto3" json:"light_node_bonus,omitempty"`
+	LightNodeReason string           `protobuf:"bytes,4,opt,name=light_node_reason,json=lightNodeReason,proto3" json:"light_node_reason,omitempty"`
+	Delegations     []*DelegationApr `protobuf:"bytes,5,rep,name=delegations,proto3" json:"delegations,omitempty"`
+	TotalDelegated  string           `protobuf:"bytes,6,opt,name=total_delegated,json=totalDelegated,proto3" json:"total_delegated,omitempty"`
+	// effective_apr_bps and effective_apr_at_last_funding_bps are weighted by
+	// amount over every delegation listed.
+	EffectiveAprBps              string `protobuf:"bytes,7,opt,name=effective_apr_bps,json=effectiveAprBps,proto3" json:"effective_apr_bps,omitempty"`
+	EffectiveAprAtLastFundingBps string `protobuf:"bytes,8,opt,name=effective_apr_at_last_funding_bps,json=effectiveAprAtLastFundingBps,proto3" json:"effective_apr_at_last_funding_bps,omitempty"`
+}
+
+func (m *QueryDelegatorAprResponse) Reset()         { *m = QueryDelegatorAprResponse{} }
+func (m *QueryDelegatorAprResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryDelegatorAprResponse) ProtoMessage()    {}
+func (*QueryDelegatorAprResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fcd9b97147f5beaa, []int{15}
+}
+func (m *QueryDelegatorAprResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryDelegatorAprResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryDelegatorAprResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryDelegatorAprResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryDelegatorAprResponse.Merge(m, src)
+}
+func (m *QueryDelegatorAprResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryDelegatorAprResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryDelegatorAprResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryDelegatorAprResponse proto.InternalMessageInfo
+
+func (m *QueryDelegatorAprResponse) GetDelegator() string {
+	if m != nil {
+		return m.Delegator
+	}
+	return ""
+}
+
+func (m *QueryDelegatorAprResponse) GetBase() *AprBase {
+	if m != nil {
+		return m.Base
+	}
+	return nil
+}
+
+func (m *QueryDelegatorAprResponse) GetLightNodeBonus() bool {
+	if m != nil {
+		return m.LightNodeBonus
+	}
+	return false
+}
+
+func (m *QueryDelegatorAprResponse) GetLightNodeReason() string {
+	if m != nil {
+		return m.LightNodeReason
+	}
+	return ""
+}
+
+func (m *QueryDelegatorAprResponse) GetDelegations() []*DelegationApr {
+	if m != nil {
+		return m.Delegations
+	}
+	return nil
+}
+
+func (m *QueryDelegatorAprResponse) GetTotalDelegated() string {
+	if m != nil {
+		return m.TotalDelegated
+	}
+	return ""
+}
+
+func (m *QueryDelegatorAprResponse) GetEffectiveAprBps() string {
+	if m != nil {
+		return m.EffectiveAprBps
+	}
+	return ""
+}
+
+func (m *QueryDelegatorAprResponse) GetEffectiveAprAtLastFundingBps() string {
+	if m != nil {
+		return m.EffectiveAprAtLastFundingBps
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*QueryParamsRequest)(nil), "qorechain.stakingtier.v1.QueryParamsRequest")
 	proto.RegisterType((*LockTierView)(nil), "qorechain.stakingtier.v1.LockTierView")
@@ -686,6 +1485,14 @@ func init() {
 	proto.RegisterType((*QueryLocksResponse)(nil), "qorechain.stakingtier.v1.QueryLocksResponse")
 	proto.RegisterType((*QueryPoolRequest)(nil), "qorechain.stakingtier.v1.QueryPoolRequest")
 	proto.RegisterType((*QueryPoolResponse)(nil), "qorechain.stakingtier.v1.QueryPoolResponse")
+	proto.RegisterType((*AprBase)(nil), "qorechain.stakingtier.v1.AprBase")
+	proto.RegisterType((*QueryAprRequest)(nil), "qorechain.stakingtier.v1.QueryAprRequest")
+	proto.RegisterType((*TierAprView)(nil), "qorechain.stakingtier.v1.TierAprView")
+	proto.RegisterType((*QueryAprResponse)(nil), "qorechain.stakingtier.v1.QueryAprResponse")
+	proto.RegisterType((*QueryDelegatorAprRequest)(nil), "qorechain.stakingtier.v1.QueryDelegatorAprRequest")
+	proto.RegisterType((*AprPosition)(nil), "qorechain.stakingtier.v1.AprPosition")
+	proto.RegisterType((*DelegationApr)(nil), "qorechain.stakingtier.v1.DelegationApr")
+	proto.RegisterType((*QueryDelegatorAprResponse)(nil), "qorechain.stakingtier.v1.QueryDelegatorAprResponse")
 }
 
 func init() {
@@ -693,73 +1500,117 @@ func init() {
 }
 
 var fileDescriptor_fcd9b97147f5beaa = []byte{
-	// 1048 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x56, 0xcb, 0x72, 0x1b, 0x45,
-	0x14, 0x8d, 0xfc, 0xd4, 0x5c, 0x3d, 0x6c, 0xb7, 0x4d, 0x6a, 0xe2, 0x24, 0x42, 0x28, 0x29, 0xa3,
-	0xc4, 0x8e, 0x94, 0x84, 0x45, 0x60, 0x19, 0xbb, 0x92, 0x62, 0xc1, 0xc3, 0x51, 0x0c, 0x0b, 0x36,
-	0xaa, 0x96, 0xa6, 0x2d, 0x35, 0x9e, 0xe9, 0x1e, 0x4f, 0xf7, 0xd8, 0x56, 0x51, 0x6c, 0xd8, 0x64,
-	0x09, 0x55, 0xc0, 0x4f, 0xf0, 0x09, 0x7c, 0x01, 0xcb, 0x54, 0xb1, 0x61, 0x49, 0xd9, 0x7c, 0x08,
-	0xd5, 0xb7, 0x7b, 0x46, 0xe3, 0x50, 0x4a, 0xcc, 0xce, 0x7d, 0xee, 0xe9, 0xf6, 0x99, 0xbe, 0xe7,
-	0xdc, 0x16, 0xdc, 0x3d, 0x96, 0x09, 0x1b, 0x8e, 0x29, 0x17, 0x5d, 0xa5, 0xe9, 0x11, 0x17, 0x23,
-	0xcd, 0x59, 0xd2, 0x3d, 0x79, 0xd4, 0x3d, 0x4e, 0x59, 0x32, 0xe9, 0xc4, 0x89, 0xd4, 0x92, 0xf8,
-	0x39, 0xab, 0x53, 0x60, 0x75, 0x4e, 0x1e, 0x6d, 0xde, 0x1a, 0x49, 0x39, 0x0a, 0x59, 0x97, 0xc6,
-	0xbc, 0x4b, 0x85, 0x90, 0x9a, 0x6a, 0x2e, 0x85, 0xb2, 0xfb, 0x5a, 0x1b, 0x40, 0x5e, 0x98, 0x63,
-	0xf6, 0x69, 0x42, 0x23, 0xd5, 0x63, 0xc7, 0x29, 0x53, 0xba, 0xb5, 0x07, 0xd5, 0xcf, 0xe4, 0xf0,
-	0xe8, 0x80, 0xb3, 0xe4, 0x6b, 0xce, 0x4e, 0xc9, 0x75, 0x58, 0x8a, 0xa4, 0xd0, 0x63, 0xe5, 0x97,
-	0x9a, 0xa5, 0x76, 0xad, 0xe7, 0x56, 0xe4, 0x26, 0x78, 0x03, 0x29, 0x52, 0xd5, 0x1f, 0xc4, 0xca,
-	0x9f, 0xc3, 0x52, 0x19, 0x81, 0xdd, 0x58, 0xb5, 0x2e, 0xe6, 0x60, 0xfd, 0xd2, 0xd9, 0x2a, 0x96,
-	0x42, 0x31, 0xf2, 0x0c, 0x20, 0x94, 0xc3, 0xa3, 0xbe, 0x11, 0x68, 0x0e, 0x9c, 0x6f, 0x57, 0x1e,
-	0x6f, 0x75, 0x66, 0xe9, 0xef, 0x14, 0x85, 0xf4, 0xbc, 0xd0, 0xad, 0x14, 0xe9, 0xc2, 0x46, 0xc8,
-	0x47, 0x63, 0xdd, 0x17, 0x32, 0x60, 0xfd, 0x37, 0x65, 0xac, 0x61, 0xed, 0x0b, 0x19, 0xb0, 0x5d,
-	0xa7, 0x87, 0x74, 0x60, 0xfd, 0x84, 0x86, 0x3c, 0xa0, 0x5a, 0x26, 0x05, 0xfe, 0xbc, 0xe5, 0xe7,
-	0xa5, 0x9c, 0x7f, 0x0f, 0xd6, 0x22, 0x7a, 0xd6, 0xd7, 0x52, 0xd3, 0xb0, 0x4f, 0xe3, 0x09, 0xb2,
-	0x17, 0x90, 0x5d, 0x8f, 0xe8, 0xd9, 0x81, 0xc1, 0x9f, 0xc6, 0x13, 0x43, 0x7d, 0x02, 0x3e, 0xa3,
-	0x49, 0x38, 0xe9, 0xa7, 0x02, 0x3f, 0x2d, 0x66, 0x82, 0x86, 0xda, 0xee, 0x58, 0xc4, 0x1d, 0xef,
-	0x61, 0xfd, 0x2b, 0x2c, 0xef, 0xdb, 0xaa, 0xd9, 0xe8, 0xc3, 0x32, 0x13, 0x74, 0x10, 0xb2, 0xc0,
-	0x5f, 0x6a, 0x96, 0xda, 0xe5, 0x5e, 0xb6, 0x24, 0x5b, 0xb0, 0x12, 0x71, 0xd1, 0xc7, 0xe3, 0x68,
-	0x24, 0x53, 0xa1, 0xfd, 0xe5, 0x66, 0xa9, 0xed, 0xf5, 0x6a, 0x11, 0x17, 0xe6, 0x4e, 0x9e, 0x22,
-	0xd8, 0xda, 0x86, 0x35, 0xbc, 0x64, 0x03, 0x65, 0xfd, 0x33, 0xfd, 0x1a, 0xcb, 0x30, 0x60, 0x09,
-	0xf6, 0xcb, 0xeb, 0xb9, 0x55, 0xeb, 0xb7, 0x05, 0x28, 0x1b, 0x22, 0x36, 0xb5, 0x0e, 0x73, 0x3c,
-	0x40, 0xc2, 0x42, 0x6f, 0x8e, 0x07, 0xe4, 0x16, 0x78, 0xf9, 0x25, 0xe0, 0x2d, 0x7a, 0xbd, 0x29,
-	0x40, 0xee, 0x40, 0xcd, 0x68, 0x61, 0x41, 0xa6, 0x66, 0x1e, 0x19, 0x55, 0x0b, 0x5a, 0x31, 0x05,
-	0x92, 0x1a, 0xd3, 0x84, 0xd9, 0xeb, 0xca, 0x49, 0x2f, 0x11, 0x2b, 0x98, 0x69, 0xf1, 0x92, 0x99,
-	0xee, 0x42, 0xdd, 0xf4, 0xbc, 0xd0, 0x9a, 0x25, 0xac, 0x57, 0x0d, 0x9a, 0x77, 0xe5, 0x03, 0xa8,
-	0x2a, 0x4d, 0x13, 0xdd, 0x1f, 0x33, 0xd3, 0x61, 0xbc, 0x94, 0xf9, 0x5e, 0x05, 0xb1, 0x4f, 0x11,
-	0x22, 0xb7, 0x01, 0x2c, 0x45, 0xf3, 0x88, 0xf9, 0x65, 0x24, 0x78, 0x88, 0x1c, 0xf0, 0x88, 0x91,
-	0x1b, 0x50, 0x66, 0x22, 0xb0, 0x45, 0x0f, 0x8b, 0xcb, 0x4c, 0x04, 0x58, 0xba, 0x03, 0x35, 0x3a,
-	0x1c, 0x26, 0x29, 0x0b, 0xac, 0x0a, 0x1f, 0xac, 0x7e, 0x07, 0xa2, 0x08, 0xb2, 0x09, 0xe5, 0x84,
-	0x85, 0x8c, 0x2a, 0x16, 0xf8, 0x15, 0x6c, 0x5a, 0xbe, 0x9e, 0x69, 0xca, 0xea, 0xff, 0x34, 0x65,
-	0x6d, 0x96, 0x29, 0x3b, 0xb0, 0x1e, 0x27, 0xf2, 0x5b, 0x36, 0xd4, 0x99, 0x46, 0xe4, 0xd7, 0x51,
-	0xe7, 0x5a, 0x5e, 0xca, 0xf9, 0x9f, 0xc0, 0x8d, 0x37, 0xf9, 0x5a, 0xf6, 0xd9, 0x59, 0xcc, 0x93,
-	0x89, 0xbf, 0x82, 0xbb, 0xae, 0x5f, 0xde, 0x75, 0x20, 0x9f, 0x61, 0xb5, 0xf5, 0x6b, 0xc9, 0xcd,
-	0x06, 0x67, 0x2d, 0x17, 0xdf, 0x8f, 0x61, 0xd1, 0xb4, 0x33, 0x4b, 0x6e, 0xeb, 0xed, 0xc9, 0xc5,
-	0xd4, 0xda, 0x0d, 0xc6, 0x60, 0xc3, 0x90, 0xf2, 0xc8, 0x18, 0x3c, 0x33, 0x58, 0x0e, 0x90, 0x0f,
-	0x61, 0xc5, 0x46, 0x6d, 0xca, 0xb1, 0x16, 0xab, 0x23, 0xbc, 0x97, 0xa1, 0x2d, 0x02, 0xab, 0x76,
-	0xac, 0x48, 0x19, 0x66, 0x03, 0xeb, 0xd5, 0x82, 0x8b, 0x81, 0x05, 0x9d, 0x54, 0x1f, 0x96, 0x07,
-	0x34, 0xa4, 0x62, 0xc8, 0x5c, 0x0e, 0xb2, 0x25, 0x69, 0x42, 0x45, 0xa6, 0x5a, 0x69, 0x2a, 0x02,
-	0x2e, 0x46, 0x4e, 0x4c, 0x11, 0x32, 0x7b, 0x55, 0x9a, 0xc4, 0x61, 0xaa, 0x9c, 0x8c, 0x6c, 0x69,
-	0x1c, 0x68, 0x85, 0x46, 0x5c, 0x68, 0x16, 0x38, 0x8f, 0x57, 0x10, 0xfb, 0x1c, 0x21, 0xe3, 0x40,
-	0x4b, 0x89, 0x29, 0x0f, 0xd0, 0xe6, 0x5e, 0xcf, 0x43, 0x64, 0x9f, 0xf2, 0x60, 0xfa, 0xa9, 0x87,
-	0x32, 0x39, 0x64, 0x5c, 0xbb, 0xf4, 0x67, 0x9f, 0xfa, 0x3c, 0x43, 0xc9, 0x43, 0xd8, 0x70, 0xe7,
-	0x64, 0x03, 0x25, 0x4d, 0x04, 0x0b, 0xdc, 0x24, 0x20, 0xf6, 0x44, 0x37, 0x4d, 0xb0, 0x42, 0xda,
-	0xb0, 0x1a, 0x52, 0xa5, 0xfb, 0x8a, 0x69, 0x1d, 0xb2, 0x62, 0x02, 0xea, 0x06, 0x7f, 0x89, 0x30,
-	0x7a, 0x7d, 0x07, 0x48, 0x91, 0xe9, 0xe2, 0x64, 0x03, 0xb1, 0x3a, 0xe5, 0xba, 0x4c, 0xdd, 0x04,
-	0x0f, 0xd9, 0xf2, 0x94, 0x05, 0x2e, 0x15, 0x65, 0x03, 0x7c, 0x79, 0xca, 0x02, 0xf2, 0x3e, 0x54,
-	0xb0, 0x78, 0x98, 0x8a, 0xc0, 0x85, 0xc2, 0xeb, 0x81, 0x81, 0x9e, 0x23, 0x92, 0x13, 0xdc, 0x8d,
-	0x55, 0xa7, 0x04, 0x77, 0x61, 0xf7, 0x60, 0x0d, 0x09, 0x03, 0xaa, 0x58, 0x3e, 0x6b, 0x6b, 0xf6,
-	0x4e, 0x4c, 0x61, 0x97, 0x2a, 0xe6, 0x66, 0xed, 0x6d, 0xf7, 0x7c, 0x0c, 0x71, 0x0a, 0xd5, 0x71,
-	0x7c, 0xe1, 0xb3, 0xb0, 0x67, 0x80, 0xc7, 0xbf, 0xcf, 0xc3, 0x22, 0x3a, 0x81, 0xfc, 0x58, 0x82,
-	0x25, 0xfb, 0xf4, 0x90, 0x9d, 0xd9, 0x26, 0xfd, 0xef, 0xeb, 0xb7, 0xf9, 0xe0, 0x8a, 0x6c, 0xeb,
-	0xb2, 0x56, 0xfb, 0x87, 0x3f, 0xff, 0xf9, 0x79, 0xae, 0x45, 0x9a, 0xdd, 0x99, 0x2f, 0x75, 0x6c,
-	0x65, 0xfc, 0x52, 0x82, 0x45, 0x0c, 0x13, 0xd9, 0x7e, 0xc7, 0xbf, 0x28, 0x4e, 0xf3, 0xcd, 0x9d,
-	0xab, 0x91, 0x9d, 0x9c, 0x87, 0x28, 0xe7, 0x3e, 0x69, 0xcf, 0x96, 0x83, 0x71, 0xec, 0x7e, 0x67,
-	0x1f, 0x85, 0xef, 0xc9, 0xab, 0x12, 0x2c, 0x98, 0xdc, 0x90, 0xfb, 0xef, 0xfa, 0xf0, 0x69, 0xe2,
-	0x36, 0xb7, 0xaf, 0xc4, 0x75, 0x9a, 0xb6, 0x50, 0x53, 0x93, 0x34, 0xde, 0x72, 0x45, 0x52, 0x86,
-	0xbb, 0x2f, 0xfe, 0x38, 0x6f, 0x94, 0x5e, 0x9f, 0x37, 0x4a, 0x7f, 0x9f, 0x37, 0x4a, 0x3f, 0x5d,
-	0x34, 0xae, 0xbd, 0xbe, 0x68, 0x5c, 0xfb, 0xeb, 0xa2, 0x71, 0xed, 0x9b, 0x27, 0x23, 0xae, 0xc7,
-	0xe9, 0xa0, 0x33, 0x94, 0x51, 0xe1, 0x8c, 0xfc, 0xaf, 0x07, 0x43, 0x99, 0xb0, 0xee, 0xd9, 0xa5,
-	0x43, 0xf5, 0x24, 0x66, 0x6a, 0xb0, 0x84, 0xbf, 0x73, 0x3e, 0xfa, 0x37, 0x00, 0x00, 0xff, 0xff,
-	0x62, 0xc6, 0x69, 0x17, 0x47, 0x09, 0x00, 0x00,
+	// 1751 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xc4, 0x58, 0xcb, 0x73, 0x23, 0x47,
+	0x19, 0x5f, 0xbd, 0x35, 0x9f, 0x5e, 0x76, 0x7b, 0x31, 0x5a, 0x65, 0xad, 0x78, 0x67, 0x37, 0xbb,
+	0x7e, 0x6c, 0xa4, 0xac, 0x53, 0x54, 0xa0, 0x38, 0xc9, 0x8e, 0x17, 0x52, 0x15, 0xc0, 0x99, 0x98,
+	0x1c, 0xb8, 0xa8, 0x5a, 0x33, 0x6d, 0xb9, 0xf1, 0x68, 0x7a, 0x76, 0x66, 0xe4, 0xb5, 0x2b, 0x95,
+	0x0b, 0x1c, 0x52, 0xc5, 0x05, 0xaa, 0x78, 0x1c, 0xe1, 0x9e, 0x0b, 0xff, 0x06, 0xc7, 0xad, 0xe2,
+	0x42, 0x71, 0xa2, 0xd6, 0x5c, 0xf9, 0x1f, 0xa8, 0xfe, 0xba, 0xe7, 0x21, 0x5b, 0xf2, 0x03, 0x0e,
+	0xb9, 0xb9, 0x7f, 0xdf, 0xaf, 0xdb, 0xbf, 0xfe, 0x9e, 0x3d, 0x82, 0x27, 0xaf, 0x44, 0xc0, 0xec,
+	0x63, 0xca, 0xbd, 0x7e, 0x18, 0xd1, 0x13, 0xee, 0x8d, 0x23, 0xce, 0x82, 0xfe, 0xe9, 0x8b, 0xfe,
+	0xab, 0x29, 0x0b, 0xce, 0x7b, 0x7e, 0x20, 0x22, 0x41, 0xda, 0x09, 0xab, 0x97, 0x61, 0xf5, 0x4e,
+	0x5f, 0x74, 0x1e, 0x8e, 0x85, 0x18, 0xbb, 0xac, 0x4f, 0x7d, 0xde, 0xa7, 0x9e, 0x27, 0x22, 0x1a,
+	0x71, 0xe1, 0x85, 0x6a, 0x9f, 0x79, 0x1f, 0xc8, 0x67, 0xf2, 0x98, 0x03, 0x1a, 0xd0, 0x49, 0x68,
+	0xb1, 0x57, 0x53, 0x16, 0x46, 0xe6, 0x1e, 0xd4, 0x3f, 0x15, 0xf6, 0xc9, 0x21, 0x67, 0xc1, 0x17,
+	0x9c, 0xbd, 0x26, 0xab, 0x50, 0x9e, 0x08, 0x2f, 0x3a, 0x0e, 0xdb, 0xb9, 0xf5, 0xdc, 0x46, 0xc3,
+	0xd2, 0x2b, 0xf2, 0x0e, 0x18, 0x23, 0xe1, 0x4d, 0xc3, 0xe1, 0xc8, 0x0f, 0xdb, 0x79, 0x34, 0x55,
+	0x11, 0xd8, 0xf5, 0x43, 0xf3, 0x22, 0x0f, 0x2b, 0x33, 0x67, 0x87, 0xbe, 0xf0, 0x42, 0x46, 0xf6,
+	0x01, 0x5c, 0x61, 0x9f, 0x0c, 0xa5, 0x40, 0x79, 0x60, 0x61, 0xa3, 0xb6, 0xf3, 0xb4, 0xb7, 0x48,
+	0x7f, 0x2f, 0x2b, 0xc4, 0x32, 0x5c, 0xbd, 0x0a, 0x49, 0x1f, 0xee, 0xbb, 0x7c, 0x7c, 0x1c, 0x0d,
+	0x3d, 0xe1, 0xb0, 0xe1, 0x65, 0x19, 0xcb, 0x68, 0xfb, 0xa9, 0x70, 0xd8, 0xae, 0xd6, 0x43, 0x7a,
+	0xb0, 0x72, 0x4a, 0x5d, 0xee, 0xd0, 0x48, 0x04, 0x19, 0x7e, 0x41, 0xf1, 0x13, 0x53, 0xc2, 0xdf,
+	0x84, 0xe5, 0x09, 0x3d, 0x1b, 0x46, 0x22, 0xa2, 0xee, 0x90, 0xfa, 0xe7, 0xc8, 0x2e, 0x22, 0xbb,
+	0x39, 0xa1, 0x67, 0x87, 0x12, 0x1f, 0xf8, 0xe7, 0x92, 0xfa, 0x11, 0xb4, 0x19, 0x0d, 0xdc, 0xf3,
+	0xe1, 0xd4, 0xc3, 0xab, 0xf9, 0xcc, 0xa3, 0x6e, 0xa4, 0x76, 0x94, 0x70, 0xc7, 0x77, 0xd0, 0xfe,
+	0x73, 0x34, 0x1f, 0x28, 0xab, 0xdc, 0xd8, 0x86, 0x0a, 0xf3, 0xe8, 0xc8, 0x65, 0x4e, 0xbb, 0xbc,
+	0x9e, 0xdb, 0xa8, 0x5a, 0xf1, 0x92, 0x3c, 0x85, 0xd6, 0x84, 0x7b, 0x43, 0x3c, 0x8e, 0x4e, 0xc4,
+	0xd4, 0x8b, 0xda, 0x95, 0xf5, 0xdc, 0x86, 0x61, 0x35, 0x26, 0xdc, 0x93, 0x3e, 0x19, 0x20, 0x68,
+	0x6e, 0xc3, 0x32, 0x3a, 0x59, 0x42, 0x71, 0xfc, 0x64, 0xbc, 0x8e, 0x85, 0xeb, 0xb0, 0x00, 0xe3,
+	0x65, 0x58, 0x7a, 0x65, 0x7e, 0x53, 0x84, 0xaa, 0x24, 0x62, 0x50, 0x9b, 0x90, 0xe7, 0x0e, 0x12,
+	0x8a, 0x56, 0x9e, 0x3b, 0xe4, 0x21, 0x18, 0x89, 0x13, 0xd0, 0x8b, 0x86, 0x95, 0x02, 0xe4, 0x31,
+	0x34, 0xa4, 0x16, 0xe6, 0xc4, 0x6a, 0x0a, 0xc8, 0xa8, 0x2b, 0x50, 0x89, 0xc9, 0x90, 0xc2, 0x63,
+	0x1a, 0x30, 0xe5, 0xae, 0x84, 0xf4, 0x39, 0x62, 0x99, 0x64, 0x2a, 0xcd, 0x24, 0xd3, 0x13, 0x68,
+	0xca, 0x98, 0x67, 0x42, 0x53, 0x46, 0x7b, 0x5d, 0xa2, 0x49, 0x54, 0x1e, 0x41, 0x3d, 0x8c, 0x68,
+	0x10, 0x0d, 0x8f, 0x99, 0x8c, 0x30, 0x3a, 0xa5, 0x60, 0xd5, 0x10, 0xfb, 0x31, 0x42, 0x64, 0x0d,
+	0x40, 0x51, 0x22, 0x3e, 0x61, 0xed, 0x2a, 0x12, 0x0c, 0x44, 0x0e, 0xf9, 0x84, 0x91, 0x07, 0x50,
+	0x65, 0x9e, 0xa3, 0x8c, 0x06, 0x1a, 0x2b, 0xcc, 0x73, 0xd0, 0xf4, 0x18, 0x1a, 0xd4, 0xb6, 0x83,
+	0x29, 0x73, 0x94, 0x8a, 0x36, 0x28, 0xfd, 0x1a, 0x44, 0x11, 0xa4, 0x03, 0xd5, 0x80, 0xb9, 0x8c,
+	0x86, 0xcc, 0x69, 0xd7, 0x30, 0x68, 0xc9, 0x7a, 0x61, 0x52, 0xd6, 0xef, 0x98, 0x94, 0x8d, 0x45,
+	0x49, 0xd9, 0x83, 0x15, 0x3f, 0x10, 0xbf, 0x64, 0x76, 0x14, 0x6b, 0x44, 0x7e, 0x13, 0x75, 0x2e,
+	0x27, 0xa6, 0x84, 0xff, 0x03, 0x78, 0x70, 0x99, 0x1f, 0x89, 0x21, 0x3b, 0xf3, 0x79, 0x70, 0xde,
+	0x6e, 0xe1, 0xae, 0xd5, 0xd9, 0x5d, 0x87, 0x62, 0x1f, 0xad, 0xe6, 0x1f, 0x73, 0xba, 0x37, 0xe8,
+	0xd4, 0xd2, 0xe5, 0xfb, 0x7d, 0x28, 0xc9, 0x70, 0xc6, 0x95, 0x6b, 0x5e, 0x5f, 0xb9, 0x58, 0xb5,
+	0x6a, 0x83, 0x4c, 0x30, 0xdb, 0xa5, 0x7c, 0x22, 0x13, 0x3c, 0x4e, 0xb0, 0x04, 0x20, 0xcf, 0xa0,
+	0xa5, 0x4a, 0x2d, 0xe5, 0xa8, 0x14, 0x6b, 0x22, 0xbc, 0x17, 0xa3, 0x26, 0x81, 0x25, 0xd5, 0x56,
+	0x84, 0x70, 0xe3, 0x86, 0xf5, 0x75, 0x51, 0x97, 0x81, 0x02, 0xb5, 0xd4, 0x36, 0x54, 0x46, 0xd4,
+	0xa5, 0x9e, 0xcd, 0x74, 0x1d, 0xc4, 0x4b, 0xb2, 0x0e, 0x35, 0x31, 0x8d, 0xc2, 0x88, 0x7a, 0x0e,
+	0xf7, 0xc6, 0x5a, 0x4c, 0x16, 0x92, 0x7b, 0xc3, 0x69, 0xe0, 0xbb, 0xd3, 0x50, 0xcb, 0x88, 0x97,
+	0x32, 0x03, 0x95, 0xd0, 0x09, 0xf7, 0x22, 0xe6, 0xe8, 0x1c, 0xaf, 0x21, 0xf6, 0x13, 0x84, 0x64,
+	0x06, 0x2a, 0x8a, 0x4f, 0xb9, 0x83, 0x69, 0x6e, 0x58, 0x06, 0x22, 0x07, 0x94, 0x3b, 0xe9, 0x55,
+	0x8f, 0x44, 0x70, 0xc4, 0x78, 0xa4, 0xab, 0x3f, 0xbe, 0xea, 0xcb, 0x18, 0x25, 0x1f, 0xc0, 0x7d,
+	0x7d, 0x4e, 0xdc, 0x50, 0xa6, 0x81, 0xc7, 0x1c, 0xdd, 0x09, 0x88, 0x3a, 0x51, 0x77, 0x13, 0xb4,
+	0x90, 0x0d, 0x58, 0x72, 0x69, 0x18, 0x0d, 0x43, 0x16, 0x45, 0x2e, 0xcb, 0x56, 0x40, 0x53, 0xe2,
+	0x9f, 0x23, 0x8c, 0xb9, 0xfe, 0x1c, 0x48, 0x96, 0xa9, 0xcb, 0x49, 0x15, 0xc4, 0x52, 0xca, 0xd5,
+	0x35, 0xf5, 0x0e, 0x18, 0xc8, 0x16, 0xaf, 0x99, 0xa3, 0xab, 0xa2, 0x2a, 0x81, 0x9f, 0xbd, 0x66,
+	0x0e, 0x79, 0x17, 0x6a, 0x68, 0x3c, 0x9a, 0x7a, 0x8e, 0x2e, 0x0a, 0xc3, 0x02, 0x09, 0xbd, 0x44,
+	0x24, 0x21, 0x68, 0x8f, 0xd5, 0x53, 0x82, 0x76, 0xd8, 0x26, 0x2c, 0x23, 0x61, 0x44, 0x43, 0x96,
+	0xf4, 0xda, 0x86, 0xf2, 0x89, 0x34, 0xec, 0xd2, 0x90, 0xe9, 0x5e, 0xbb, 0xa6, 0xc7, 0x87, 0x8d,
+	0x5d, 0xa8, 0x89, 0xed, 0x0b, 0xc7, 0xc2, 0x1e, 0xf6, 0xc3, 0x7f, 0xe6, 0xa1, 0x32, 0xf0, 0x03,
+	0xb9, 0x81, 0x6c, 0x03, 0x19, 0x07, 0x22, 0x0c, 0xe3, 0x63, 0x03, 0x3c, 0x56, 0xa5, 0x42, 0x0b,
+	0x2d, 0xea, 0xdc, 0x40, 0x9e, 0xfb, 0x0c, 0x5a, 0xb6, 0x98, 0xf8, 0x53, 0x59, 0x28, 0xda, 0x19,
+	0x79, 0xe5, 0xb8, 0x18, 0xd6, 0xae, 0x78, 0x0c, 0x8d, 0x84, 0x88, 0xfe, 0x2d, 0x20, 0xad, 0x1e,
+	0x83, 0xe8, 0xdd, 0x55, 0x28, 0x87, 0x62, 0x1a, 0xd8, 0x4c, 0xa7, 0x87, 0x5e, 0xcd, 0xfa, 0xb1,
+	0x74, 0xbd, 0x1f, 0xcb, 0x57, 0xfc, 0xd8, 0x83, 0x15, 0x55, 0xc3, 0x92, 0xc1, 0xbd, 0xf1, 0x30,
+	0x90, 0xc3, 0x5c, 0xa7, 0xc3, 0x32, 0x9a, 0x5e, 0x2a, 0x8b, 0x25, 0x0d, 0x52, 0xaa, 0xe2, 0xc7,
+	0x43, 0xa6, 0x8a, 0xfd, 0xaa, 0x8e, 0xe0, 0xbe, 0x9e, 0x34, 0x73, 0xe7, 0x9c, 0x31, 0x6f, 0xce,
+	0x99, 0x7d, 0x68, 0x61, 0x95, 0x0d, 0xfc, 0x20, 0x1e, 0x35, 0x33, 0x53, 0x23, 0x77, 0x69, 0x6a,
+	0x98, 0x7f, 0xce, 0x41, 0x4d, 0x8e, 0xeb, 0x81, 0xff, 0xbf, 0x3f, 0x24, 0xe4, 0xad, 0xd9, 0xd1,
+	0x11, 0xb3, 0x23, 0x7e, 0xca, 0x2e, 0x0d, 0x6e, 0xc3, 0x5a, 0x4e, 0x4c, 0x49, 0xcf, 0xdb, 0x82,
+	0x14, 0x4c, 0xa2, 0xae, 0xc2, 0xd0, 0x4a, 0x0c, 0x2a, 0xea, 0xe6, 0x6f, 0x0a, 0xba, 0x9b, 0xe0,
+	0x95, 0x74, 0xdf, 0xf8, 0x1e, 0x14, 0x65, 0xc6, 0xa0, 0xc6, 0xda, 0xce, 0xa3, 0xc5, 0x1d, 0x4e,
+	0x27, 0x9a, 0x85, 0xf4, 0x1b, 0x06, 0x68, 0x17, 0xc0, 0x16, 0x93, 0x09, 0x0f, 0x43, 0x2e, 0x3c,
+	0x2d, 0x3e, 0x83, 0x90, 0x75, 0xa8, 0xcf, 0xa4, 0xa9, 0x12, 0x0c, 0xa3, 0x34, 0x43, 0x7f, 0x08,
+	0x25, 0xf5, 0x66, 0x2a, 0x61, 0xe7, 0x7d, 0x6f, 0xb1, 0xae, 0x8c, 0xcb, 0x2d, 0xb5, 0x67, 0xe1,
+	0x64, 0x2a, 0xdf, 0x71, 0x32, 0x55, 0x16, 0x4d, 0xa6, 0x01, 0xac, 0xa5, 0xfc, 0x79, 0xf1, 0xaa,
+	0xe2, 0x85, 0x3a, 0x09, 0x69, 0xff, 0x72, 0xe0, 0xcc, 0x2f, 0xa0, 0x8d, 0xb1, 0xf8, 0x98, 0xb9,
+	0x6c, 0x2c, 0x29, 0xb3, 0x79, 0xe6, 0xc4, 0x70, 0x9c, 0x67, 0x09, 0x70, 0xbd, 0xeb, 0xcd, 0x3f,
+	0x15, 0xa1, 0x36, 0xf0, 0x83, 0x03, 0x11, 0x72, 0xf9, 0xf6, 0x25, 0x04, 0x8a, 0x27, 0xdc, 0x73,
+	0xf4, 0x31, 0xf8, 0x37, 0xf9, 0x2e, 0x54, 0xb0, 0xad, 0x70, 0x07, 0xf7, 0x17, 0xad, 0xb2, 0x5c,
+	0x7e, 0xe2, 0x64, 0x52, 0xb6, 0x30, 0x93, 0xb2, 0xd9, 0x67, 0x44, 0x71, 0xf6, 0x19, 0xb1, 0x0a,
+	0x65, 0xfd, 0x48, 0x52, 0x15, 0xae, 0x57, 0x57, 0x42, 0x5c, 0xbe, 0x12, 0xe2, 0xab, 0x6f, 0xa0,
+	0xca, 0x9c, 0x37, 0xd0, 0xa2, 0x58, 0x56, 0x17, 0xc5, 0xf2, 0x09, 0x34, 0xf1, 0x72, 0x29, 0xd5,
+	0x48, 0x1f, 0x66, 0x37, 0x45, 0x5c, 0x75, 0xfb, 0x39, 0x11, 0x9f, 0x29, 0x5a, 0xd5, 0xf4, 0xd3,
+	0xa2, 0x9d, 0x5b, 0x84, 0xf5, 0xb9, 0x45, 0x48, 0x7e, 0x04, 0x8f, 0x66, 0xb9, 0x34, 0x1a, 0x26,
+	0x8d, 0x50, 0xb6, 0xb9, 0x74, 0x1a, 0x3c, 0xcc, 0xee, 0x1d, 0x44, 0x9f, 0xea, 0xde, 0xc8, 0xbd,
+	0xb1, 0x3c, 0x68, 0x15, 0xca, 0x36, 0xf5, 0x7d, 0xe6, 0xe0, 0x5c, 0xa8, 0x5a, 0x7a, 0x25, 0xf1,
+	0x80, 0xd1, 0x50, 0x78, 0xfa, 0xc9, 0xa3, 0x57, 0xe6, 0x5f, 0x0a, 0xd0, 0xd0, 0xc9, 0xc6, 0x85,
+	0x37, 0xf0, 0x83, 0xeb, 0xdb, 0xd9, 0xa5, 0x1a, 0xce, 0x5f, 0xa9, 0xe1, 0x4d, 0x58, 0x4a, 0x3d,
+	0x48, 0x51, 0x26, 0x66, 0x4d, 0xd5, 0x6a, 0x25, 0xf8, 0x00, 0x61, 0xe9, 0xbc, 0x90, 0xb9, 0x47,
+	0xd2, 0xcf, 0xea, 0x09, 0x51, 0xb5, 0xaa, 0x12, 0xd8, 0x15, 0x9e, 0x6c, 0xc9, 0x4b, 0x3a, 0xb7,
+	0xd3, 0xf7, 0xb6, 0x4a, 0xa5, 0x56, 0x82, 0x5f, 0x79, 0x72, 0x6b, 0x5e, 0x79, 0xce, 0xbb, 0x7c,
+	0x6e, 0x30, 0x2a, 0xff, 0x47, 0x30, 0xaa, 0xb7, 0x08, 0xc6, 0x1e, 0x18, 0xbe, 0xae, 0x38, 0x99,
+	0x6f, 0x37, 0xb4, 0xac, 0x4c, 0x7d, 0x5a, 0xe9, 0x3e, 0xf3, 0xaf, 0x05, 0x78, 0x30, 0xa7, 0x27,
+	0xe8, 0x46, 0x7d, 0x7d, 0x53, 0x88, 0xdb, 0x78, 0xfe, 0x6e, 0x6d, 0x5c, 0x3e, 0xa1, 0x2e, 0x55,
+	0x97, 0x0e, 0x62, 0x73, 0xb6, 0xb2, 0xa4, 0x5b, 0x33, 0x4c, 0x9d, 0x61, 0x7a, 0xd0, 0x24, 0x54,
+	0x0b, 0x61, 0xf2, 0x09, 0xd4, 0x9c, 0x24, 0xd3, 0xe2, 0x16, 0xfe, 0x6c, 0xb1, 0xa6, 0x99, 0xb4,
+	0xb4, 0xb2, 0x7b, 0xd3, 0xe7, 0x63, 0x92, 0x0b, 0x33, 0xcf, 0xc7, 0x8f, 0x63, 0xf4, 0x5b, 0x09,
+	0xfb, 0xce, 0x7f, 0x4a, 0x50, 0xc2, 0x88, 0x91, 0xdf, 0xe6, 0xa0, 0xac, 0xbe, 0xfd, 0xc9, 0xf3,
+	0xc5, 0x17, 0xbd, 0xfa, 0xf3, 0x43, 0xe7, 0xfd, 0x5b, 0xb2, 0x55, 0x16, 0x98, 0x1b, 0xbf, 0xfa,
+	0xfb, 0xbf, 0x7f, 0x9f, 0x37, 0xc9, 0x7a, 0x7f, 0xe1, 0x4f, 0x25, 0xbe, 0x92, 0xf1, 0x87, 0x1c,
+	0x94, 0xf0, 0x6b, 0x86, 0x6c, 0xdf, 0xf0, 0x2f, 0xb2, 0x9f, 0xd3, 0x9d, 0xe7, 0xb7, 0x23, 0x6b,
+	0x39, 0x1f, 0xa0, 0x9c, 0x2d, 0xb2, 0xb1, 0x58, 0x0e, 0x7e, 0x0f, 0xf5, 0xbf, 0x54, 0x5f, 0xe5,
+	0x5f, 0x91, 0xaf, 0x73, 0x50, 0x94, 0x1f, 0x2e, 0x64, 0xeb, 0xa6, 0x8b, 0xa7, 0x9f, 0x3c, 0x9d,
+	0xed, 0x5b, 0x71, 0xb5, 0xa6, 0xa7, 0xa8, 0x69, 0x9d, 0x74, 0xaf, 0x71, 0x91, 0x14, 0xf0, 0xeb,
+	0x1c, 0x14, 0x64, 0x1b, 0xdc, 0xbc, 0xe1, 0xf0, 0x74, 0x30, 0x77, 0xb6, 0x6e, 0x43, 0xd5, 0x32,
+	0xde, 0x43, 0x19, 0xef, 0x92, 0xb5, 0xc5, 0x32, 0xa8, 0x1f, 0x90, 0x6f, 0x72, 0x50, 0xcf, 0xd6,
+	0x3b, 0xd9, 0xb9, 0xe1, 0x7f, 0xcc, 0x79, 0x30, 0x74, 0x3e, 0xbc, 0xd3, 0x1e, 0x2d, 0xf0, 0x05,
+	0x0a, 0xdc, 0x26, 0x9b, 0xd7, 0x0a, 0xec, 0x7f, 0x99, 0x34, 0x99, 0xaf, 0x76, 0x3f, 0xfb, 0xdb,
+	0xdb, 0x6e, 0xee, 0xcd, 0xdb, 0x6e, 0xee, 0x5f, 0x6f, 0xbb, 0xb9, 0xdf, 0x5d, 0x74, 0xef, 0xbd,
+	0xb9, 0xe8, 0xde, 0xfb, 0xc7, 0x45, 0xf7, 0xde, 0x2f, 0x3e, 0x1a, 0xf3, 0xe8, 0x78, 0x3a, 0xea,
+	0xd9, 0x62, 0x92, 0x39, 0x2e, 0xf9, 0xeb, 0x7d, 0x5b, 0x04, 0xac, 0x7f, 0x36, 0x73, 0x7e, 0x74,
+	0xee, 0xb3, 0x70, 0x54, 0xc6, 0xdf, 0xe6, 0x3e, 0xfc, 0x6f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xa9,
+	0x5b, 0xd4, 0x4a, 0xfb, 0x13, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -781,6 +1632,15 @@ type QueryClient interface {
 	Locks(ctx context.Context, in *QueryLocksRequest, opts ...grpc.CallOption) (*QueryLocksResponse, error)
 	// Pool returns the module account's funding and settlement state.
 	Pool(ctx context.Context, in *QueryPoolRequest, opts ...grpc.CallOption) (*QueryPoolResponse, error)
+	// Apr returns the network base APR the module last measured and the bonus
+	// schedule: each lock term's bonus, and what it adds after the
+	// max_total_apy_bps ceiling. With validator set, the base is that
+	// validator's delegators' base (net of its commission).
+	Apr(ctx context.Context, in *QueryAprRequest, opts ...grpc.CallOption) (*QueryAprResponse, error)
+	// DelegatorApr returns a delegator's effective APR per delegation and per
+	// position (each open lock, and the unlocked rest of the delegation): the
+	// base plus the bonus the settlement pays that position, with the reason.
+	DelegatorApr(ctx context.Context, in *QueryDelegatorAprRequest, opts ...grpc.CallOption) (*QueryDelegatorAprResponse, error)
 }
 
 type queryClient struct {
@@ -818,6 +1678,24 @@ func (c *queryClient) Pool(ctx context.Context, in *QueryPoolRequest, opts ...gr
 	return out, nil
 }
 
+func (c *queryClient) Apr(ctx context.Context, in *QueryAprRequest, opts ...grpc.CallOption) (*QueryAprResponse, error) {
+	out := new(QueryAprResponse)
+	err := c.cc.Invoke(ctx, "/qorechain.stakingtier.v1.Query/Apr", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) DelegatorApr(ctx context.Context, in *QueryDelegatorAprRequest, opts ...grpc.CallOption) (*QueryDelegatorAprResponse, error) {
+	out := new(QueryDelegatorAprResponse)
+	err := c.cc.Invoke(ctx, "/qorechain.stakingtier.v1.Query/DelegatorApr", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Params returns the module parameters.
@@ -827,6 +1705,15 @@ type QueryServer interface {
 	Locks(context.Context, *QueryLocksRequest) (*QueryLocksResponse, error)
 	// Pool returns the module account's funding and settlement state.
 	Pool(context.Context, *QueryPoolRequest) (*QueryPoolResponse, error)
+	// Apr returns the network base APR the module last measured and the bonus
+	// schedule: each lock term's bonus, and what it adds after the
+	// max_total_apy_bps ceiling. With validator set, the base is that
+	// validator's delegators' base (net of its commission).
+	Apr(context.Context, *QueryAprRequest) (*QueryAprResponse, error)
+	// DelegatorApr returns a delegator's effective APR per delegation and per
+	// position (each open lock, and the unlocked rest of the delegation): the
+	// base plus the bonus the settlement pays that position, with the reason.
+	DelegatorApr(context.Context, *QueryDelegatorAprRequest) (*QueryDelegatorAprResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -841,6 +1728,12 @@ func (*UnimplementedQueryServer) Locks(ctx context.Context, req *QueryLocksReque
 }
 func (*UnimplementedQueryServer) Pool(ctx context.Context, req *QueryPoolRequest) (*QueryPoolResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Pool not implemented")
+}
+func (*UnimplementedQueryServer) Apr(ctx context.Context, req *QueryAprRequest) (*QueryAprResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Apr not implemented")
+}
+func (*UnimplementedQueryServer) DelegatorApr(ctx context.Context, req *QueryDelegatorAprRequest) (*QueryDelegatorAprResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DelegatorApr not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -901,6 +1794,42 @@ func _Query_Pool_Handler(srv interface{}, ctx context.Context, dec func(interfac
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_Apr_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryAprRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).Apr(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qorechain.stakingtier.v1.Query/Apr",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).Apr(ctx, req.(*QueryAprRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_DelegatorApr_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryDelegatorAprRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).DelegatorApr(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qorechain.stakingtier.v1.Query/DelegatorApr",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).DelegatorApr(ctx, req.(*QueryDelegatorAprRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "qorechain.stakingtier.v1.Query",
@@ -917,6 +1846,14 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Pool",
 			Handler:    _Query_Pool_Handler,
+		},
+		{
+			MethodName: "Apr",
+			Handler:    _Query_Apr_Handler,
+		},
+		{
+			MethodName: "DelegatorApr",
+			Handler:    _Query_DelegatorApr_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -1387,6 +2324,604 @@ func (m *QueryPoolResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *AprBase) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AprBase) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AprBase) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.MaxTotalApyBps != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.MaxTotalApyBps))
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.BonusEnabled {
+		i--
+		if m.BonusEnabled {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x40
+	}
+	if len(m.BonusFundingRatio) > 0 {
+		i -= len(m.BonusFundingRatio)
+		copy(dAtA[i:], m.BonusFundingRatio)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.BonusFundingRatio)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if len(m.LastFunded) > 0 {
+		i -= len(m.LastFunded)
+		copy(dAtA[i:], m.LastFunded)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.LastFunded)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if len(m.LastOwed) > 0 {
+		i -= len(m.LastOwed)
+		copy(dAtA[i:], m.LastOwed)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.LastOwed)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if len(m.Source) > 0 {
+		i -= len(m.Source)
+		copy(dAtA[i:], m.Source)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Source)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if m.ComputedTime != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.ComputedTime))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.ComputedHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.ComputedHeight))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.GrossBaseAprBps) > 0 {
+		i -= len(m.GrossBaseAprBps)
+		copy(dAtA[i:], m.GrossBaseAprBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.GrossBaseAprBps)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAprRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAprRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAprRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Validator) > 0 {
+		i -= len(m.Validator)
+		copy(dAtA[i:], m.Validator)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Validator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *TierAprView) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *TierAprView) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *TierAprView) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.EffectiveAprBps) > 0 {
+		i -= len(m.EffectiveAprBps)
+		copy(dAtA[i:], m.EffectiveAprBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.EffectiveAprBps)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.EffectiveBonusBps) > 0 {
+		i -= len(m.EffectiveBonusBps)
+		copy(dAtA[i:], m.EffectiveBonusBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.EffectiveBonusBps)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.BonusBps != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.BonusBps))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.Months != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Months))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryAprResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryAprResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryAprResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.ValidatorEffectiveBonusBps) > 0 {
+		i -= len(m.ValidatorEffectiveBonusBps)
+		copy(dAtA[i:], m.ValidatorEffectiveBonusBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ValidatorEffectiveBonusBps)))
+		i--
+		dAtA[i] = 0x42
+	}
+	if m.ValidatorBonusBps != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.ValidatorBonusBps))
+		i--
+		dAtA[i] = 0x38
+	}
+	if m.LightNodeBonusBps != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.LightNodeBonusBps))
+		i--
+		dAtA[i] = 0x30
+	}
+	if len(m.Tiers) > 0 {
+		for iNdEx := len(m.Tiers) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Tiers[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if len(m.BaseAprBps) > 0 {
+		i -= len(m.BaseAprBps)
+		copy(dAtA[i:], m.BaseAprBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.BaseAprBps)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.Commission) > 0 {
+		i -= len(m.Commission)
+		copy(dAtA[i:], m.Commission)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Commission)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.Validator) > 0 {
+		i -= len(m.Validator)
+		copy(dAtA[i:], m.Validator)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Validator)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if m.Base != nil {
+		{
+			size, err := m.Base.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDelegatorAprRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDelegatorAprRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDelegatorAprRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Validator) > 0 {
+		i -= len(m.Validator)
+		copy(dAtA[i:], m.Validator)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Validator)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Delegator) > 0 {
+		i -= len(m.Delegator)
+		copy(dAtA[i:], m.Delegator)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Delegator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *AprPosition) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AprPosition) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *AprPosition) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Reason) > 0 {
+		i -= len(m.Reason)
+		copy(dAtA[i:], m.Reason)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Reason)))
+		i--
+		dAtA[i] = 0x7a
+	}
+	if m.Capped {
+		i--
+		if m.Capped {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x70
+	}
+	if len(m.EffectiveAprAtLastFundingBps) > 0 {
+		i -= len(m.EffectiveAprAtLastFundingBps)
+		copy(dAtA[i:], m.EffectiveAprAtLastFundingBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.EffectiveAprAtLastFundingBps)))
+		i--
+		dAtA[i] = 0x6a
+	}
+	if len(m.EffectiveAprBps) > 0 {
+		i -= len(m.EffectiveAprBps)
+		copy(dAtA[i:], m.EffectiveAprBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.EffectiveAprBps)))
+		i--
+		dAtA[i] = 0x62
+	}
+	if len(m.BonusBps) > 0 {
+		i -= len(m.BonusBps)
+		copy(dAtA[i:], m.BonusBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.BonusBps)))
+		i--
+		dAtA[i] = 0x5a
+	}
+	if len(m.ValidatorBonusBps) > 0 {
+		i -= len(m.ValidatorBonusBps)
+		copy(dAtA[i:], m.ValidatorBonusBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ValidatorBonusBps)))
+		i--
+		dAtA[i] = 0x52
+	}
+	if len(m.LockBonusBps) > 0 {
+		i -= len(m.LockBonusBps)
+		copy(dAtA[i:], m.LockBonusBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.LockBonusBps)))
+		i--
+		dAtA[i] = 0x4a
+	}
+	if m.LightNodeBonusBps != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.LightNodeBonusBps))
+		i--
+		dAtA[i] = 0x40
+	}
+	if m.TierBonusBps != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.TierBonusBps))
+		i--
+		dAtA[i] = 0x38
+	}
+	if len(m.BaseAprBps) > 0 {
+		i -= len(m.BaseAprBps)
+		copy(dAtA[i:], m.BaseAprBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.BaseAprBps)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if len(m.Amount) > 0 {
+		i -= len(m.Amount)
+		copy(dAtA[i:], m.Amount)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Amount)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if m.EndTime != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.EndTime))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.Months != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Months))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.LockId != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.LockId))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Kind) > 0 {
+		i -= len(m.Kind)
+		copy(dAtA[i:], m.Kind)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Kind)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *DelegationApr) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *DelegationApr) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *DelegationApr) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Positions) > 0 {
+		for iNdEx := len(m.Positions) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Positions[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x4a
+		}
+	}
+	if len(m.EffectiveAprAtLastFundingBps) > 0 {
+		i -= len(m.EffectiveAprAtLastFundingBps)
+		copy(dAtA[i:], m.EffectiveAprAtLastFundingBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.EffectiveAprAtLastFundingBps)))
+		i--
+		dAtA[i] = 0x42
+	}
+	if len(m.EffectiveAprBps) > 0 {
+		i -= len(m.EffectiveAprBps)
+		copy(dAtA[i:], m.EffectiveAprBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.EffectiveAprBps)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if len(m.LockedAmount) > 0 {
+		i -= len(m.LockedAmount)
+		copy(dAtA[i:], m.LockedAmount)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.LockedAmount)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if len(m.DelegatedAmount) > 0 {
+		i -= len(m.DelegatedAmount)
+		copy(dAtA[i:], m.DelegatedAmount)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.DelegatedAmount)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if m.SelfBond {
+		i--
+		if m.SelfBond {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.ValidatorActive {
+		i--
+		if m.ValidatorActive {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.Commission) > 0 {
+		i -= len(m.Commission)
+		copy(dAtA[i:], m.Commission)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Commission)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Validator) > 0 {
+		i -= len(m.Validator)
+		copy(dAtA[i:], m.Validator)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Validator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryDelegatorAprResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryDelegatorAprResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryDelegatorAprResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.EffectiveAprAtLastFundingBps) > 0 {
+		i -= len(m.EffectiveAprAtLastFundingBps)
+		copy(dAtA[i:], m.EffectiveAprAtLastFundingBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.EffectiveAprAtLastFundingBps)))
+		i--
+		dAtA[i] = 0x42
+	}
+	if len(m.EffectiveAprBps) > 0 {
+		i -= len(m.EffectiveAprBps)
+		copy(dAtA[i:], m.EffectiveAprBps)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.EffectiveAprBps)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if len(m.TotalDelegated) > 0 {
+		i -= len(m.TotalDelegated)
+		copy(dAtA[i:], m.TotalDelegated)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.TotalDelegated)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if len(m.Delegations) > 0 {
+		for iNdEx := len(m.Delegations) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.Delegations[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintQuery(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x2a
+		}
+	}
+	if len(m.LightNodeReason) > 0 {
+		i -= len(m.LightNodeReason)
+		copy(dAtA[i:], m.LightNodeReason)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.LightNodeReason)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if m.LightNodeBonus {
+		i--
+		if m.LightNodeBonus {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.Base != nil {
+		{
+			size, err := m.Base.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.Delegator) > 0 {
+		i -= len(m.Delegator)
+		copy(dAtA[i:], m.Delegator)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Delegator)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -1619,6 +3154,291 @@ func (m *QueryPoolResponse) Size() (n int) {
 	}
 	if m.LockCount != 0 {
 		n += 1 + sovQuery(uint64(m.LockCount))
+	}
+	return n
+}
+
+func (m *AprBase) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.GrossBaseAprBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.ComputedHeight != 0 {
+		n += 1 + sovQuery(uint64(m.ComputedHeight))
+	}
+	if m.ComputedTime != 0 {
+		n += 1 + sovQuery(uint64(m.ComputedTime))
+	}
+	l = len(m.Source)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.LastOwed)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.LastFunded)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.BonusFundingRatio)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.BonusEnabled {
+		n += 2
+	}
+	if m.MaxTotalApyBps != 0 {
+		n += 1 + sovQuery(uint64(m.MaxTotalApyBps))
+	}
+	return n
+}
+
+func (m *QueryAprRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Validator)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *TierAprView) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Months != 0 {
+		n += 1 + sovQuery(uint64(m.Months))
+	}
+	if m.BonusBps != 0 {
+		n += 1 + sovQuery(uint64(m.BonusBps))
+	}
+	l = len(m.EffectiveBonusBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.EffectiveAprBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryAprResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Base != nil {
+		l = m.Base.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Validator)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Commission)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.BaseAprBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if len(m.Tiers) > 0 {
+		for _, e := range m.Tiers {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	if m.LightNodeBonusBps != 0 {
+		n += 1 + sovQuery(uint64(m.LightNodeBonusBps))
+	}
+	if m.ValidatorBonusBps != 0 {
+		n += 1 + sovQuery(uint64(m.ValidatorBonusBps))
+	}
+	l = len(m.ValidatorEffectiveBonusBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryDelegatorAprRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Delegator)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Validator)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *AprPosition) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Kind)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.LockId != 0 {
+		n += 1 + sovQuery(uint64(m.LockId))
+	}
+	if m.Months != 0 {
+		n += 1 + sovQuery(uint64(m.Months))
+	}
+	if m.EndTime != 0 {
+		n += 1 + sovQuery(uint64(m.EndTime))
+	}
+	l = len(m.Amount)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.BaseAprBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.TierBonusBps != 0 {
+		n += 1 + sovQuery(uint64(m.TierBonusBps))
+	}
+	if m.LightNodeBonusBps != 0 {
+		n += 1 + sovQuery(uint64(m.LightNodeBonusBps))
+	}
+	l = len(m.LockBonusBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.ValidatorBonusBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.BonusBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.EffectiveAprBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.EffectiveAprAtLastFundingBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.Capped {
+		n += 2
+	}
+	l = len(m.Reason)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *DelegationApr) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Validator)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Commission)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.ValidatorActive {
+		n += 2
+	}
+	if m.SelfBond {
+		n += 2
+	}
+	l = len(m.DelegatedAmount)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.LockedAmount)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.EffectiveAprBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.EffectiveAprAtLastFundingBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if len(m.Positions) > 0 {
+		for _, e := range m.Positions {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *QueryDelegatorAprResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Delegator)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.Base != nil {
+		l = m.Base.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.LightNodeBonus {
+		n += 2
+	}
+	l = len(m.LightNodeReason)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if len(m.Delegations) > 0 {
+		for _, e := range m.Delegations {
+			l = e.Size()
+			n += 1 + l + sovQuery(uint64(l))
+		}
+	}
+	l = len(m.TotalDelegated)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.EffectiveAprBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.EffectiveAprAtLastFundingBps)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
 	}
 	return n
 }
@@ -3111,6 +4931,1996 @@ func (m *QueryPoolResponse) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AprBase) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AprBase: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AprBase: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GrossBaseAprBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.GrossBaseAprBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ComputedHeight", wireType)
+			}
+			m.ComputedHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ComputedHeight |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ComputedTime", wireType)
+			}
+			m.ComputedTime = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ComputedTime |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Source", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Source = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastOwed", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LastOwed = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastFunded", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LastFunded = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BonusFundingRatio", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.BonusFundingRatio = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BonusEnabled", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.BonusEnabled = bool(v != 0)
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxTotalApyBps", wireType)
+			}
+			m.MaxTotalApyBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxTotalApyBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAprRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAprRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAprRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Validator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Validator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *TierAprView) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: TierAprView: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: TierAprView: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Months", wireType)
+			}
+			m.Months = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Months |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BonusBps", wireType)
+			}
+			m.BonusBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.BonusBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveBonusBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EffectiveBonusBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveAprBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EffectiveAprBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryAprResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryAprResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryAprResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Base", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Base == nil {
+				m.Base = &AprBase{}
+			}
+			if err := m.Base.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Validator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Validator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Commission", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Commission = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BaseAprBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.BaseAprBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Tiers", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Tiers = append(m.Tiers, &TierAprView{})
+			if err := m.Tiers[len(m.Tiers)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LightNodeBonusBps", wireType)
+			}
+			m.LightNodeBonusBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LightNodeBonusBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorBonusBps", wireType)
+			}
+			m.ValidatorBonusBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ValidatorBonusBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorEffectiveBonusBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorEffectiveBonusBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDelegatorAprRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDelegatorAprRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDelegatorAprRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Delegator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Delegator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Validator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Validator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AprPosition) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AprPosition: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AprPosition: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Kind", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Kind = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LockId", wireType)
+			}
+			m.LockId = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LockId |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Months", wireType)
+			}
+			m.Months = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Months |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EndTime", wireType)
+			}
+			m.EndTime = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.EndTime |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Amount", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Amount = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BaseAprBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.BaseAprBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TierBonusBps", wireType)
+			}
+			m.TierBonusBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.TierBonusBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LightNodeBonusBps", wireType)
+			}
+			m.LightNodeBonusBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LightNodeBonusBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LockBonusBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LockBonusBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 10:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorBonusBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ValidatorBonusBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 11:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BonusBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.BonusBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 12:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveAprBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EffectiveAprBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 13:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveAprAtLastFundingBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EffectiveAprAtLastFundingBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Capped", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.Capped = bool(v != 0)
+		case 15:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Reason", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Reason = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *DelegationApr) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: DelegationApr: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: DelegationApr: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Validator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Validator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Commission", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Commission = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ValidatorActive", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ValidatorActive = bool(v != 0)
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field SelfBond", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.SelfBond = bool(v != 0)
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DelegatedAmount", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DelegatedAmount = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LockedAmount", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LockedAmount = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveAprBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EffectiveAprBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveAprAtLastFundingBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EffectiveAprAtLastFundingBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 9:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Positions", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Positions = append(m.Positions, &AprPosition{})
+			if err := m.Positions[len(m.Positions)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryDelegatorAprResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryDelegatorAprResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryDelegatorAprResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Delegator", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Delegator = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Base", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Base == nil {
+				m.Base = &AprBase{}
+			}
+			if err := m.Base.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LightNodeBonus", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.LightNodeBonus = bool(v != 0)
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LightNodeReason", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.LightNodeReason = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Delegations", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Delegations = append(m.Delegations, &DelegationApr{})
+			if err := m.Delegations[len(m.Delegations)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field TotalDelegated", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.TotalDelegated = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveAprBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EffectiveAprBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field EffectiveAprAtLastFundingBps", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.EffectiveAprAtLastFundingBps = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQuery(dAtA[iNdEx:])
