@@ -97,6 +97,7 @@ var userRoleMessages = map[string]string{
 	"rdk/MsgPauseRollup":                       "creator of the rollup; the keeper checks it",
 	"rdk/MsgResumeRollup":                      "creator of the rollup; the keeper checks it",
 	"rdk/MsgStopRollup":                        "creator of the rollup; the keeper checks it",
+	"rdk/MsgSetVerificationKey":                "creator of the rollup, before its first batch; the keeper checks it",
 	"rdk/MsgSubmitBatch":                       "sequencer of the rollup; the keeper checks it",
 	"rdk/MsgChallengeBatch":                    "any account challenges with its own bond",
 	"rdk/MsgResolveChallenge":                  "the outcome is computed from the stored proof; anyone may trigger it from rdk-challenge-settlement",

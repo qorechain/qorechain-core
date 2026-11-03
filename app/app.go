@@ -1161,6 +1161,7 @@ func (app *QoreChainApp) setAnteHandler(
 			PQCKeeper:               app.PQCKeeper,
 			StakingKeeper:           app.StakingKeeper,
 			StakingLockMempoolCheck: app.stakingTierMempoolGate,
+			RDKMempoolCheck:         app.rdkMempoolGate,
 			PQCClient:               app.pqcClient,
 			AIKeeper:                app.AIKeeper,
 			SVMKeeper:               app.SVMKeeper,
