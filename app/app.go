@@ -1025,6 +1025,10 @@ func NewQoreChainApp(
 	}
 	app.setAnteHandler(app.txConfig, maxGasWanted, wasmNodeConfig, wasmStoreKey)
 
+	// SIGN_MODE_TEXTUAL sign documents for wallets without a renderer
+	// (textual_query.go). A node-local query.
+	pqctypes.RegisterTextualServer(app.GRPCQueryRouter(), newTextualQueryServer(app))
+
 	// Wire the experimental EVM mempool after the ante handler is set. This
 	// enables the EVM JSON-RPC transaction pool (and nonce-gap support). It is
 	// guarded by the EVM chain config, which x/vm's keeper installs at
@@ -1249,6 +1253,7 @@ func (app *QoreChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
 	apiSvr.Router.Use(dropBinaryTrailers)
 	registerIBCClientV2Gateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
+	registerTextualGateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
 		panic(err)
 	}
