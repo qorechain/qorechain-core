@@ -34,6 +34,7 @@ func GetQueryCmd() *cobra.Command {
 		GetCmdQueryEVMWindow(),
 		GetCmdQueryEVMDelegationConsent(),
 		GetCmdQueryKEMKey(),
+		GetCmdQueryMultisig(),
 	)
 
 	return cmd

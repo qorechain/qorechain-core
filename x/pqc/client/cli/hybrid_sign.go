@@ -33,7 +33,8 @@ import (
 // (gen-key, cosign). These require the FFI library and so are only present in
 // the full (validator) build; the community build provides stubs.
 func pqcSignerCommands() []*cobra.Command {
-	return []*cobra.Command{getCmdGenPQCKey(), getCmdCosign(), getCmdRecoverPQCKey(), getCmdRotatePQCKey()}
+	return append([]*cobra.Command{getCmdGenPQCKey(), getCmdCosign(), getCmdRecoverPQCKey(), getCmdRotatePQCKey()},
+		multisigCommands()...)
 }
 
 // deriveDilithiumSeed returns the FIPS-204 seed for a derivation name. "adapter"

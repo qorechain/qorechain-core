@@ -34,6 +34,11 @@ type GenesisState struct {
 	// KEMKeys are the published KEM keys (v3.2.5). Omitted when there are
 	// none, so an export from before the registry existed is unchanged.
 	KEMKeys []KEMKeyInfo `json:"kem_keys,omitempty"`
+
+	// Multisigs are the registered post-quantum multisig member sets
+	// (v3.2.7). Omitted when there are none, so an export from before the
+	// registry existed is unchanged.
+	Multisigs []PQCMultisigInfo `json:"multisigs,omitempty"`
 }
 
 // GenesisEVMWindow is one account's window in a genesis file.
@@ -143,7 +148,33 @@ func (gs GenesisState) Validate() error {
 		}
 	}
 
-	return validateGenesisKEMKeys(gs.KEMKeys, gs.Algorithms)
+	if err := validateGenesisKEMKeys(gs.KEMKeys, gs.Algorithms); err != nil {
+		return err
+	}
+	return validateGenesisMultisigs(gs.Multisigs, gs.Accounts)
+}
+
+// validateGenesisMultisigs checks each member set the way registration does,
+// one per account, and that no account holds both a set and a single key.
+func validateGenesisMultisigs(sets []PQCMultisigInfo, accounts []PQCAccountInfo) error {
+	keyed := make(map[string]bool, len(accounts))
+	for _, a := range accounts {
+		keyed[a.Address] = true
+	}
+	seen := map[string]bool{}
+	for _, m := range sets {
+		if err := m.Validate(); err != nil {
+			return errors.Wrapf(err, "genesis multisig %s", m.Address)
+		}
+		if seen[m.Address] {
+			return ErrInvalidMultisig.Wrapf("duplicate genesis multisig for %s", m.Address)
+		}
+		seen[m.Address] = true
+		if keyed[m.Address] {
+			return ErrMultisigConflict.Wrapf("genesis account %s holds both a PQC key and a multisig member set", m.Address)
+		}
+	}
+	return nil
 }
 
 // validateGenesisKEMKeys checks each published KEM key the way registration

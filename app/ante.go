@@ -157,6 +157,17 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 					// Cosmos SDK tx carrying a PQC hybrid signature — route to the
 					// Cosmos SDK path (the hybrid verify decorator runs there).
 					return cosmosHandler(ctx, tx, sim)
+				case pqctypes.MultisigSigTypeURL:
+					// The post-quantum multisig extension (v3.2.7) routes to
+					// the Cosmos SDK path from its switch; below it, it is
+					// refused exactly as any unsupported first option was.
+					if multisigExtensionEnabled(ctx, options.PQCKeeper) {
+						return cosmosHandler(ctx, tx, sim)
+					}
+					return ctx, errorsmod.Wrapf(
+						errortypes.ErrUnknownExtensionOptions,
+						"rejecting tx with unsupported extension option: %s", typeURL,
+					)
 				default:
 					return ctx, errorsmod.Wrapf(
 						errortypes.ErrUnknownExtensionOptions,
@@ -306,6 +317,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		wasmkeeper.NewTxContractsDecorator(),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
 		// Cheap validators — reject malformed txs before expensive PQC/AI work
+		// The checker admits the multisig extension; below FeaturePQCMultisig
+		// the gate in front of it refuses that extension with the error the
+		// checker gave it before (ante_pqc_multisig.go).
+		multisigExtensionGateDecorator{keeper: options.PQCKeeper},
 		ante.NewExtensionOptionsDecorator(options.ExtensionOptionChecker),
 		ante.NewValidateBasicDecorator(),
 		ante.NewTxTimeoutHeightDecorator(),
