@@ -210,6 +210,7 @@ var ReleaseV3_2_7ProtocolFeatures = concatFeatures(
 	V327MultisigFeatures,
 	V327SVMClusterFeatures,
 	V327SVMAddrFeatures,
+	V327EVMSecFeatures,
 )
 
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain
