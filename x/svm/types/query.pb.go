@@ -8,6 +8,7 @@ import (
 	fmt "fmt"
 	grpc1 "github.com/cosmos/gogoproto/grpc"
 	proto "github.com/cosmos/gogoproto/proto"
+	_ "google.golang.org/genproto/googleapis/api/annotations"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
 	status "google.golang.org/grpc/status"
@@ -455,6 +456,126 @@ func (m *ProgramInfo) GetDataAccount() string {
 	return ""
 }
 
+type QueryClusterInfoRequest struct {
+}
+
+func (m *QueryClusterInfoRequest) Reset()         { *m = QueryClusterInfoRequest{} }
+func (m *QueryClusterInfoRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryClusterInfoRequest) ProtoMessage()    {}
+func (*QueryClusterInfoRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_45c638440127111d, []int{8}
+}
+func (m *QueryClusterInfoRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryClusterInfoRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryClusterInfoRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryClusterInfoRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryClusterInfoRequest.Merge(m, src)
+}
+func (m *QueryClusterInfoRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryClusterInfoRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryClusterInfoRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryClusterInfoRequest proto.InternalMessageInfo
+
+type QueryClusterInfoResponse struct {
+	// chain_id is the network's chain id the identity is derived from.
+	ChainId string `protobuf:"bytes,1,opt,name=chain_id,json=chainId,proto3" json:"chain_id,omitempty"`
+	// genesis_hash is base58 of SHA-256(domain || chain_id), 32 bytes, as the
+	// SVM JSON-RPC method getGenesisHash returns it.
+	GenesisHash string `protobuf:"bytes,2,opt,name=genesis_hash,json=genesisHash,proto3" json:"genesis_hash,omitempty"`
+	// caip2_chain_id is "solana:" plus the first 32 characters of genesis_hash,
+	// the chain string Solana Wallet Standard wallets use.
+	Caip2ChainId string `protobuf:"bytes,3,opt,name=caip2_chain_id,json=caip2ChainId,proto3" json:"caip2_chain_id,omitempty"`
+	// derivation describes how genesis_hash is computed.
+	Derivation string `protobuf:"bytes,4,opt,name=derivation,proto3" json:"derivation,omitempty"`
+	// execution_enabled reports whether SVM execution is enabled on this
+	// network. It is false while the SVM lane is disabled.
+	ExecutionEnabled bool `protobuf:"varint,5,opt,name=execution_enabled,json=executionEnabled,proto3" json:"execution_enabled,omitempty"`
+}
+
+func (m *QueryClusterInfoResponse) Reset()         { *m = QueryClusterInfoResponse{} }
+func (m *QueryClusterInfoResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryClusterInfoResponse) ProtoMessage()    {}
+func (*QueryClusterInfoResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_45c638440127111d, []int{9}
+}
+func (m *QueryClusterInfoResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryClusterInfoResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryClusterInfoResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryClusterInfoResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryClusterInfoResponse.Merge(m, src)
+}
+func (m *QueryClusterInfoResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryClusterInfoResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryClusterInfoResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryClusterInfoResponse proto.InternalMessageInfo
+
+func (m *QueryClusterInfoResponse) GetChainId() string {
+	if m != nil {
+		return m.ChainId
+	}
+	return ""
+}
+
+func (m *QueryClusterInfoResponse) GetGenesisHash() string {
+	if m != nil {
+		return m.GenesisHash
+	}
+	return ""
+}
+
+func (m *QueryClusterInfoResponse) GetCaip2ChainId() string {
+	if m != nil {
+		return m.Caip2ChainId
+	}
+	return ""
+}
+
+func (m *QueryClusterInfoResponse) GetDerivation() string {
+	if m != nil {
+		return m.Derivation
+	}
+	return ""
+}
+
+func (m *QueryClusterInfoResponse) GetExecutionEnabled() bool {
+	if m != nil {
+		return m.ExecutionEnabled
+	}
+	return false
+}
+
 func init() {
 	proto.RegisterType((*QuerySlotRequest)(nil), "qorechain.svm.v1.QuerySlotRequest")
 	proto.RegisterType((*QuerySlotResponse)(nil), "qorechain.svm.v1.QuerySlotResponse")
@@ -464,46 +585,58 @@ func init() {
 	proto.RegisterType((*QueryProgramResponse)(nil), "qorechain.svm.v1.QueryProgramResponse")
 	proto.RegisterType((*SVMAccountInfo)(nil), "qorechain.svm.v1.SVMAccountInfo")
 	proto.RegisterType((*ProgramInfo)(nil), "qorechain.svm.v1.ProgramInfo")
+	proto.RegisterType((*QueryClusterInfoRequest)(nil), "qorechain.svm.v1.QueryClusterInfoRequest")
+	proto.RegisterType((*QueryClusterInfoResponse)(nil), "qorechain.svm.v1.QueryClusterInfoResponse")
 }
 
 func init() { proto.RegisterFile("qorechain/svm/v1/query.proto", fileDescriptor_45c638440127111d) }
 
 var fileDescriptor_45c638440127111d = []byte{
-	// 538 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x54, 0x4f, 0x6f, 0xd3, 0x30,
-	0x1c, 0x6d, 0x46, 0xbb, 0xb4, 0xbf, 0x4e, 0xa5, 0x33, 0x3b, 0x84, 0x8a, 0x85, 0x12, 0x04, 0xab,
-	0x84, 0x48, 0xb4, 0x71, 0x40, 0xe2, 0x56, 0x04, 0x87, 0x49, 0xa0, 0x41, 0x26, 0x21, 0xc4, 0x25,
-	0x72, 0x13, 0xd3, 0x56, 0x4a, 0xe2, 0xd4, 0x76, 0xca, 0xfa, 0x1d, 0x38, 0xf0, 0xb1, 0x10, 0xa7,
-	0x71, 0xe3, 0x88, 0xda, 0x2f, 0x82, 0xe2, 0x38, 0x69, 0xd3, 0xa9, 0xec, 0x66, 0x3f, 0xbf, 0xe7,
-	0xdf, 0xfb, 0xfd, 0xb1, 0xe1, 0xc1, 0x8c, 0x32, 0xe2, 0x4f, 0xf0, 0x34, 0x76, 0xf8, 0x3c, 0x72,
-	0xe6, 0xa7, 0xce, 0x2c, 0x25, 0x6c, 0x61, 0x27, 0x8c, 0x0a, 0x8a, 0xba, 0xe5, 0xa9, 0xcd, 0xe7,
-	0x91, 0x3d, 0x3f, 0xb5, 0x10, 0x74, 0x3f, 0x66, 0x84, 0xcb, 0x90, 0x0a, 0x97, 0xcc, 0x52, 0xc2,
-	0x85, 0x75, 0x02, 0x87, 0x1b, 0x18, 0x4f, 0x68, 0xcc, 0x09, 0x42, 0x50, 0xe7, 0x21, 0x15, 0x86,
-	0xd6, 0xd7, 0x06, 0x75, 0x57, 0xae, 0x2d, 0x07, 0xee, 0x49, 0xe2, 0xd0, 0xf7, 0x69, 0x1a, 0x17,
-	0x7a, 0x64, 0x80, 0x8e, 0x83, 0x80, 0x11, 0xce, 0x25, 0xbb, 0xe5, 0x16, 0x5b, 0xcb, 0x85, 0xa3,
-	0xaa, 0x40, 0x5d, 0xfe, 0x0a, 0x74, 0x9c, 0x43, 0x52, 0xd1, 0x3e, 0xeb, 0xdb, 0xdb, 0x4e, 0xed,
-	0xcb, 0x4f, 0xef, 0x95, 0xec, 0x3c, 0xfe, 0x4a, 0xdd, 0x42, 0x50, 0x9a, 0xf8, 0xc0, 0xe8, 0x98,
-	0xe1, 0xe8, 0x76, 0x13, 0x17, 0xca, 0x44, 0x29, 0x50, 0x26, 0x5e, 0x82, 0x9e, 0xe4, 0x90, 0x32,
-	0x71, 0x7c, 0xd3, 0x84, 0xd2, 0xe4, 0x0e, 0x14, 0xdb, 0xfa, 0xa5, 0x41, 0xa7, 0xea, 0x6e, 0x77,
-	0x74, 0xd4, 0x83, 0x66, 0x88, 0xa3, 0x84, 0x32, 0xc1, 0x8d, 0x3d, 0x59, 0xcb, 0x72, 0x8f, 0xee,
-	0x43, 0x33, 0xc0, 0x02, 0x7b, 0x21, 0x89, 0x8d, 0x3b, 0xf2, 0x4c, 0xcf, 0xf6, 0xef, 0x48, 0x9c,
-	0x95, 0x3f, 0x5b, 0x1a, 0xf5, 0xbe, 0x36, 0x38, 0x70, 0xe5, 0x1a, 0x1d, 0x41, 0x83, 0x7e, 0x8b,
-	0x09, 0x33, 0x1a, 0x32, 0x44, 0xbe, 0x41, 0x26, 0x00, 0xb9, 0x22, 0x7e, 0x2a, 0xf0, 0x28, 0x24,
-	0xc6, 0x7e, 0x5f, 0x1b, 0x34, 0xdd, 0x0d, 0x04, 0x1d, 0x03, 0x30, 0x12, 0x0b, 0x8f, 0x24, 0xd4,
-	0x9f, 0x18, 0xba, 0x0c, 0xd3, 0xca, 0x90, 0xb7, 0x19, 0x60, 0xfd, 0xd6, 0xa0, 0xbd, 0x91, 0x25,
-	0x3a, 0x81, 0xbb, 0x2a, 0x4f, 0xaf, 0x9a, 0x51, 0x47, 0xc1, 0x43, 0x95, 0xd8, 0x33, 0x38, 0x4c,
-	0x93, 0x31, 0xc3, 0x01, 0xf1, 0x70, 0x2a, 0x26, 0x94, 0x4d, 0xc5, 0x42, 0x66, 0xd8, 0x72, 0xbb,
-	0xea, 0x60, 0x58, 0xe0, 0xe8, 0x21, 0xb4, 0x03, 0x92, 0x84, 0x74, 0xe1, 0xc9, 0xa1, 0xca, 0x93,
-	0x85, 0x1c, 0xca, 0xc6, 0x0e, 0x0d, 0xa0, 0x1b, 0x62, 0x2e, 0xbc, 0x4d, 0x56, 0x5d, 0xb2, 0x3a,
-	0x19, 0xfe, 0x66, 0xcd, 0x7c, 0x04, 0x07, 0xb2, 0x68, 0xc5, 0x00, 0xe5, 0xc5, 0x68, 0x67, 0x98,
-	0xea, 0xc8, 0xd9, 0xf7, 0x3d, 0x68, 0xc8, 0x96, 0xa3, 0x0b, 0xa8, 0x4b, 0x91, 0x75, 0xb3, 0xb5,
-	0xdb, 0xcf, 0xa0, 0xf7, 0xf8, 0xbf, 0x1c, 0x35, 0x34, 0x9f, 0x41, 0x57, 0x51, 0xd0, 0x93, 0x1d,
-	0xfc, 0xea, 0xeb, 0xe8, 0x3d, 0xbd, 0x8d, 0xb6, 0xbe, 0x59, 0xf5, 0x61, 0xe7, 0xcd, 0xd5, 0x91,
-	0xdf, 0x79, 0xf3, 0xd6, 0xa0, 0xbf, 0x3e, 0xff, 0xb9, 0x34, 0xb5, 0xeb, 0xa5, 0xa9, 0xfd, 0x5d,
-	0x9a, 0xda, 0x8f, 0x95, 0x59, 0xbb, 0x5e, 0x99, 0xb5, 0x3f, 0x2b, 0xb3, 0xf6, 0xc5, 0x19, 0x4f,
-	0xc5, 0x24, 0x1d, 0xd9, 0x3e, 0x8d, 0x9c, 0xf5, 0x47, 0x52, 0xae, 0x9e, 0xfb, 0x94, 0x11, 0xe7,
-	0x4a, 0xfe, 0x2c, 0x62, 0x91, 0x10, 0x3e, 0xda, 0x97, 0xff, 0xca, 0x8b, 0x7f, 0x01, 0x00, 0x00,
-	0xff, 0xff, 0x70, 0xb4, 0xc3, 0xf1, 0x77, 0x04, 0x00, 0x00,
+	// 702 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0xcf, 0x4f, 0x13, 0x41,
+	0x14, 0x66, 0xa1, 0xd0, 0xf6, 0x95, 0xd4, 0x32, 0x92, 0xb8, 0x34, 0xb0, 0xd6, 0x55, 0xa1, 0x6a,
+	0xec, 0x06, 0x3c, 0x98, 0x78, 0x43, 0x24, 0x91, 0x44, 0x83, 0x2e, 0x89, 0x31, 0x5e, 0x36, 0xc3,
+	0xee, 0xd0, 0x6e, 0xb2, 0x9d, 0x59, 0x66, 0x66, 0x2b, 0xbd, 0x7a, 0xf6, 0x60, 0xe2, 0xd1, 0x7f,
+	0xc8, 0xe8, 0x05, 0xe3, 0xc5, 0xa3, 0x01, 0xff, 0x10, 0xb3, 0xb3, 0xd3, 0x65, 0x4b, 0x53, 0xf1,
+	0x36, 0xf3, 0xbd, 0xef, 0xfd, 0xf8, 0xde, 0x7b, 0x33, 0xb0, 0x7a, 0xcc, 0x38, 0xf1, 0x7b, 0x38,
+	0xa4, 0x8e, 0x18, 0xf4, 0x9d, 0xc1, 0xa6, 0x73, 0x9c, 0x10, 0x3e, 0xec, 0xc4, 0x9c, 0x49, 0x86,
+	0x1a, 0xb9, 0xb5, 0x23, 0x06, 0xfd, 0xce, 0x60, 0xb3, 0xb9, 0xda, 0x65, 0xac, 0x1b, 0x11, 0x07,
+	0xc7, 0xa1, 0x83, 0x29, 0x65, 0x12, 0xcb, 0x90, 0x51, 0x91, 0xf1, 0x6d, 0x04, 0x8d, 0xd7, 0xa9,
+	0xfb, 0x41, 0xc4, 0xa4, 0x4b, 0x8e, 0x13, 0x22, 0xa4, 0xbd, 0x01, 0x4b, 0x05, 0x4c, 0xc4, 0x8c,
+	0x0a, 0x82, 0x10, 0x94, 0x44, 0xc4, 0xa4, 0x69, 0xb4, 0x8c, 0x76, 0xc9, 0x55, 0x67, 0xdb, 0x81,
+	0xeb, 0x8a, 0xb8, 0xed, 0xfb, 0x2c, 0xa1, 0x23, 0x7f, 0x64, 0x42, 0x19, 0x07, 0x01, 0x27, 0x42,
+	0x28, 0x76, 0xd5, 0x1d, 0x5d, 0x6d, 0x17, 0x96, 0xc7, 0x1d, 0x74, 0xf0, 0x27, 0x50, 0xc6, 0x19,
+	0xa4, 0x3c, 0x6a, 0x5b, 0xad, 0xce, 0x65, 0x1d, 0x9d, 0x83, 0x37, 0x2f, 0xb5, 0xdb, 0x1e, 0x3d,
+	0x62, 0xee, 0xc8, 0x21, 0x2f, 0xe2, 0x15, 0x67, 0x5d, 0x8e, 0xfb, 0x57, 0x17, 0xb1, 0xaf, 0x8b,
+	0xc8, 0x1d, 0x74, 0x11, 0x8f, 0xa1, 0x1c, 0x67, 0x90, 0x2e, 0x62, 0x6d, 0xb2, 0x08, 0xed, 0x93,
+	0x55, 0xa0, 0xd9, 0xf6, 0x37, 0x03, 0xea, 0xe3, 0xd5, 0x4d, 0xcf, 0x8e, 0x9a, 0x50, 0x89, 0x70,
+	0x3f, 0x66, 0x5c, 0x0a, 0x73, 0x56, 0xf5, 0x32, 0xbf, 0xa3, 0x15, 0xa8, 0x04, 0x58, 0x62, 0x2f,
+	0x22, 0xd4, 0x9c, 0x53, 0xb6, 0x72, 0x7a, 0x7f, 0x41, 0x68, 0xda, 0xfe, 0xf4, 0x68, 0x96, 0x5a,
+	0x46, 0x7b, 0xd1, 0x55, 0x67, 0xb4, 0x0c, 0xf3, 0xec, 0x3d, 0x25, 0xdc, 0x9c, 0x57, 0x29, 0xb2,
+	0x0b, 0xb2, 0x00, 0xc8, 0x09, 0xf1, 0x13, 0x89, 0x0f, 0x23, 0x62, 0x2e, 0xb4, 0x8c, 0x76, 0xc5,
+	0x2d, 0x20, 0x68, 0x0d, 0x80, 0x13, 0x2a, 0x3d, 0x12, 0x33, 0xbf, 0x67, 0x96, 0x55, 0x9a, 0x6a,
+	0x8a, 0xec, 0xa6, 0x80, 0xfd, 0xc3, 0x80, 0x5a, 0x41, 0x25, 0xda, 0x80, 0x6b, 0x5a, 0xa7, 0x37,
+	0xae, 0xa8, 0xae, 0xe1, 0x6d, 0x2d, 0xec, 0x01, 0x2c, 0x25, 0x71, 0x97, 0xe3, 0x80, 0x78, 0x38,
+	0x91, 0x3d, 0xc6, 0x43, 0x39, 0x54, 0x0a, 0xab, 0x6e, 0x43, 0x1b, 0xb6, 0x47, 0x38, 0xba, 0x09,
+	0xb5, 0x80, 0xc4, 0x11, 0x1b, 0x7a, 0x6a, 0xa9, 0x32, 0xb1, 0x90, 0x41, 0xe9, 0xda, 0xa1, 0x36,
+	0x34, 0x22, 0x2c, 0xa4, 0x57, 0x64, 0x95, 0x14, 0xab, 0x9e, 0xe2, 0xcf, 0x2e, 0x98, 0xb7, 0x60,
+	0x51, 0x35, 0x6d, 0xb4, 0x40, 0x59, 0x33, 0x6a, 0x29, 0xa6, 0x27, 0x62, 0xaf, 0xc0, 0x0d, 0x35,
+	0xf1, 0x9d, 0x28, 0x11, 0x92, 0x70, 0x35, 0x3d, 0xbd, 0xeb, 0xdf, 0x0d, 0x30, 0x27, 0x6d, 0x7a,
+	0x23, 0x56, 0xa0, 0xa2, 0xa6, 0xef, 0x85, 0xc1, 0x68, 0x8c, 0xea, 0xbe, 0x17, 0xa4, 0x59, 0xbb,
+	0x84, 0x12, 0x11, 0x0a, 0xaf, 0x87, 0x45, 0x4f, 0x0b, 0xad, 0x69, 0xec, 0x39, 0x16, 0x3d, 0x74,
+	0x07, 0xea, 0x3e, 0x0e, 0xe3, 0x2d, 0x2f, 0x8f, 0x31, 0xa7, 0x48, 0x8b, 0x0a, 0xdd, 0xd1, 0x81,
+	0x2c, 0x80, 0x80, 0xf0, 0x70, 0xa0, 0x5e, 0xa5, 0x92, 0x58, 0x75, 0x0b, 0x48, 0xda, 0xd6, 0x6c,
+	0x78, 0x21, 0xa3, 0x1e, 0xa1, 0xe9, 0x08, 0x03, 0xa5, 0xb1, 0xe2, 0x36, 0x72, 0xc3, 0x6e, 0x86,
+	0x6f, 0x7d, 0x99, 0x83, 0x79, 0xa5, 0x06, 0xed, 0x43, 0x49, 0x75, 0xc7, 0x9e, 0xdc, 0xe1, 0xcb,
+	0xef, 0xbd, 0x79, 0xfb, 0x9f, 0x1c, 0xdd, 0x8b, 0xb7, 0x50, 0xd6, 0xed, 0x44, 0x77, 0xa7, 0xf0,
+	0xc7, 0xbf, 0x81, 0xe6, 0xfa, 0x55, 0xb4, 0x8b, 0xc8, 0x7a, 0xe1, 0xa6, 0x46, 0x1e, 0x7f, 0xdb,
+	0x53, 0x23, 0x5f, 0x7e, 0xd1, 0x1f, 0x0d, 0xa8, 0x15, 0xe6, 0x8a, 0xee, 0x4d, 0xf1, 0x9b, 0xdc,
+	0x8b, 0xe6, 0xfd, 0xff, 0xa1, 0x66, 0x69, 0xec, 0xf5, 0x0f, 0x3f, 0xff, 0x7c, 0x9e, 0x6d, 0x21,
+	0xcb, 0x99, 0xf8, 0x9a, 0xfd, 0x8c, 0xee, 0x85, 0xf4, 0x88, 0x3d, 0xdd, 0xfb, 0x7a, 0x66, 0x19,
+	0xa7, 0x67, 0x96, 0xf1, 0xfb, 0xcc, 0x32, 0x3e, 0x9d, 0x5b, 0x33, 0xa7, 0xe7, 0xd6, 0xcc, 0xaf,
+	0x73, 0x6b, 0xe6, 0x9d, 0xd3, 0x0d, 0x65, 0x2f, 0x39, 0xec, 0xf8, 0xac, 0x5f, 0x88, 0x91, 0x9f,
+	0x1e, 0xfa, 0x8c, 0x13, 0xe7, 0x44, 0x05, 0x95, 0xc3, 0x98, 0x88, 0xc3, 0x05, 0xf5, 0x7b, 0x3f,
+	0xfa, 0x1b, 0x00, 0x00, 0xff, 0xff, 0xa7, 0x7d, 0x77, 0xcb, 0x0d, 0x06, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -524,6 +657,11 @@ type QueryClient interface {
 	Account(ctx context.Context, in *QueryAccountRequest, opts ...grpc.CallOption) (*QueryAccountResponse, error)
 	// Program returns program metadata for a base58 program address.
 	Program(ctx context.Context, in *QueryProgramRequest, opts ...grpc.CallOption) (*QueryProgramResponse, error)
+	// ClusterInfo returns the SVM cluster identity wallets use to recognise the
+	// network: the genesis hash getGenesisHash reports and the Wallet Standard
+	// (CAIP-2) chain string. It is derived from the chain id alone and reads no
+	// SVM account or program state.
+	ClusterInfo(ctx context.Context, in *QueryClusterInfoRequest, opts ...grpc.CallOption) (*QueryClusterInfoResponse, error)
 }
 
 type queryClient struct {
@@ -561,6 +699,15 @@ func (c *queryClient) Program(ctx context.Context, in *QueryProgramRequest, opts
 	return out, nil
 }
 
+func (c *queryClient) ClusterInfo(ctx context.Context, in *QueryClusterInfoRequest, opts ...grpc.CallOption) (*QueryClusterInfoResponse, error) {
+	out := new(QueryClusterInfoResponse)
+	err := c.cc.Invoke(ctx, "/qorechain.svm.v1.Query/ClusterInfo", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Slot returns the current SVM virtual slot.
@@ -569,6 +716,11 @@ type QueryServer interface {
 	Account(context.Context, *QueryAccountRequest) (*QueryAccountResponse, error)
 	// Program returns program metadata for a base58 program address.
 	Program(context.Context, *QueryProgramRequest) (*QueryProgramResponse, error)
+	// ClusterInfo returns the SVM cluster identity wallets use to recognise the
+	// network: the genesis hash getGenesisHash reports and the Wallet Standard
+	// (CAIP-2) chain string. It is derived from the chain id alone and reads no
+	// SVM account or program state.
+	ClusterInfo(context.Context, *QueryClusterInfoRequest) (*QueryClusterInfoResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -583,6 +735,9 @@ func (*UnimplementedQueryServer) Account(ctx context.Context, req *QueryAccountR
 }
 func (*UnimplementedQueryServer) Program(ctx context.Context, req *QueryProgramRequest) (*QueryProgramResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Program not implemented")
+}
+func (*UnimplementedQueryServer) ClusterInfo(ctx context.Context, req *QueryClusterInfoRequest) (*QueryClusterInfoResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ClusterInfo not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -643,6 +798,24 @@ func _Query_Program_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_ClusterInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryClusterInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).ClusterInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qorechain.svm.v1.Query/ClusterInfo",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).ClusterInfo(ctx, req.(*QueryClusterInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "qorechain.svm.v1.Query",
@@ -659,6 +832,10 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Program",
 			Handler:    _Query_Program_Handler,
+		},
+		{
+			MethodName: "ClusterInfo",
+			Handler:    _Query_ClusterInfo_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -969,6 +1146,90 @@ func (m *ProgramInfo) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *QueryClusterInfoRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryClusterInfoRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryClusterInfoRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryClusterInfoResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryClusterInfoResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryClusterInfoResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.ExecutionEnabled {
+		i--
+		if m.ExecutionEnabled {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x28
+	}
+	if len(m.Derivation) > 0 {
+		i -= len(m.Derivation)
+		copy(dAtA[i:], m.Derivation)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Derivation)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if len(m.Caip2ChainId) > 0 {
+		i -= len(m.Caip2ChainId)
+		copy(dAtA[i:], m.Caip2ChainId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Caip2ChainId)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if len(m.GenesisHash) > 0 {
+		i -= len(m.GenesisHash)
+		copy(dAtA[i:], m.GenesisHash)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.GenesisHash)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.ChainId) > 0 {
+		i -= len(m.ChainId)
+		copy(dAtA[i:], m.ChainId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ChainId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -1109,6 +1370,43 @@ func (m *ProgramInfo) Size() (n int) {
 	l = len(m.DataAccount)
 	if l > 0 {
 		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryClusterInfoRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	return n
+}
+
+func (m *QueryClusterInfoResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ChainId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.GenesisHash)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Caip2ChainId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Derivation)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.ExecutionEnabled {
+		n += 2
 	}
 	return n
 }
@@ -1962,6 +2260,254 @@ func (m *ProgramInfo) Unmarshal(dAtA []byte) error {
 			}
 			m.DataAccount = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryClusterInfoRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryClusterInfoRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryClusterInfoRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryClusterInfoResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryClusterInfoResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryClusterInfoResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ChainId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ChainId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field GenesisHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.GenesisHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Caip2ChainId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Caip2ChainId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Derivation", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Derivation = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExecutionEnabled", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.ExecutionEnabled = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQuery(dAtA[iNdEx:])
