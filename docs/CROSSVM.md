@@ -72,6 +72,20 @@ A `MsgCrossVMCall` with `async = true` is queued instead of executed:
    - Pending messages are executed against the target VM
    - Results are emitted as `crossvm_response` events
 
+### Address rules and failure handling (from v3.2.7)
+
+From the v3.2.7 `crossvm-address-shapes` switch a call is refused when it is submitted (queued or synchronous, from a transaction or from the `0x0901` bridge) if its target lane cannot represent the sender or the target:
+
+| Target lane | Sender | `target_contract` |
+|-------------|--------|-------------------|
+| EVM | a 20-byte account, or a 32-byte derived account (a CosmWasm contract, a group policy); the EVM caller is the last 20 bytes | `0x` followed by 40 hex digits, not a precompile address (`0x...0000` to `0x...ffff`, the bridge `0x0901` included) |
+| CosmWasm | a 20-byte or 32-byte account | a 32-byte `qor1...` contract address |
+| SVM | a 20-byte account only (a 32-byte account has no SVM identity) | a canonical Base58 32-byte address |
+
+Any other sender length is refused on every lane.
+
+From the v3.2.7 `crossvm-panic-contained` switch a panic inside a call never reaches the block. A queued call that panics is recorded as `failed` with the error `cross-VM call aborted: the target VM panicked during execution`, its writes are dropped, its `crossvm_response` event carries an `error` attribute, and the queue goes on with the next call. On the synchronous path the panic becomes an `ErrExecutionFailed` error and the transaction fails; running out of gas still behaves as running out of gas. The async budget (1,000,000 gas) is charged at submission and is not refunded; coins attached to a CosmWasm call are only moved when the call succeeds.
+
 ## Message Types
 
 ### MsgCrossVMCall
@@ -114,7 +128,7 @@ Each message transitions through these states:
 | Event Type | Attributes | Description |
 |-----------|-----------|-------------|
 | `crossvm_request` | message_id, source_vm, target_vm, target_contract, sender | New cross-VM message submitted |
-| `crossvm_response` | message_id, status | Message execution completed |
+| `crossvm_response` | message_id, status (and error for a failed call, from v3.2.7) | Message execution completed |
 | `crossvm_timeout` | message_id | Message timed out |
 
 ## Parameters
