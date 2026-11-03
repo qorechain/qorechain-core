@@ -61,6 +61,30 @@ then reverts has still used its share: the authorisation was given.
 Tokens are not counted at all: an ERC-20 transfer or approval carries value zero and a token cannot be
 priced in uqor. Bound those with a scope.
 
+## Usage event (from v3.2.7, `evm-window-used-event`)
+
+Each EVM transaction the ante handler admits against a window emits one `pqc_evm_window_used` event
+in its result, so a wallet can show what the transaction took without querying the window before
+and after. The event is part of the result whether the transaction then succeeds or reverts, the
+same as the consumption itself. A refused transaction, `eth_call`, `eth_estimateGas` and simulation
+emit none.
+
+| Attribute | Value |
+|---|---|
+| `address` | the account in `qor1...` form, the form the window is queried by |
+| `evm_address` | the same account in `0x` form (checksummed) |
+| `window_open_height` | the height the window was opened at |
+| `used_txs` | transactions the window has admitted, this one included |
+| `used_value` | uqor the window has counted, this transaction included (decimal string) |
+| `tx_value` | uqor this transaction counted: its value plus its maximum fee, rounded up (decimal string) |
+
+`tx_value` is the difference in `used_value` before and after the transaction, not the bare value
+it transfers: the fee is counted at its maximum (above). A post-execution charge of the
+delegated-actor settlement (above) is recorded in the window but is not in this event; read the
+window for it. The other window events are `pqc_evm_window_opened` (`address`, `expiry_height`,
+`max_txs`, `max_value`, and `native_only` / `allowed_targets` when set) and
+`pqc_evm_window_closed` (`address`).
+
 ## Narrowing the scope (from v3.2.3, `evm-pqc-window-targets`)
 
 | Option | Admits | Refuses |
