@@ -21,6 +21,19 @@ service Query {
   rpc Pool(QueryPoolRequest) returns (QueryPoolResponse) {
     option (google.api.http).get = "/qorechain/stakingtier/v1/pool";
   }
+  // Apr returns the network base APR the module last measured and the bonus
+  // schedule: each lock term's bonus, and what it adds after the
+  // max_total_apy_bps ceiling. With validator set, the base is that
+  // validator's delegators' base (net of its commission).
+  rpc Apr(QueryAprRequest) returns (QueryAprResponse) {
+    option (google.api.http).get = "/qorechain/stakingtier/v1/apr";
+  }
+  // DelegatorApr returns a delegator's effective APR per delegation and per
+  // position (each open lock, and the unlocked rest of the delegation): the
+  // base plus the bonus the settlement pays that position, with the reason.
+  rpc DelegatorApr(QueryDelegatorAprRequest) returns (QueryDelegatorAprResponse) {
+    option (google.api.http).get = "/qorechain/stakingtier/v1/apr/{delegator}";
+  }
 }
 
 message QueryParamsRequest {}
@@ -110,4 +123,147 @@ message QueryPoolResponse {
   string last_base_apy_bps = 13;
   // lock_count is the number of open (not yet expired) locks.
   uint64 lock_count = 14;
+}
+
+// AprBase is the base yield the module measured at its latest settlement, and
+// how that settlement was funded. Every rate is a decimal string in basis
+// points a year.
+message AprBase {
+  // gross_base_apr_bps is the pool's last_base_apy_bps: the yield the epoch's
+  // base emission gives the bonded stake through the fee split
+  // (validator_share + staker_share), before commission. It leaves out fees
+  // and is measured once per settlement, not live.
+  string gross_base_apr_bps = 1;
+  // computed_height and computed_time (unix seconds) are the settlement that
+  // measured it.
+  int64 computed_height = 2;
+  int64 computed_time = 3;
+  // source is "emission" when the base emission is paying a yield,
+  // "fees_only" when the latest settlement measured none (the emission cap is
+  // reached or the target is zero: stakers earn fees only), and
+  // "not_settled" before the first settlement.
+  string source = 4;
+  // last_owed and last_funded (uqor) are the bonus the latest settlement owed
+  // and what it could fund.
+  string last_owed = 5;
+  string last_funded = 6;
+  // bonus_funding_ratio is last_funded / last_owed, 1 when nothing was owed.
+  // Below 1, every bonus was paid pro rata by this factor.
+  string bonus_funding_ratio = 7;
+  // bonus_enabled is false when the protocol feature or the enabled param is
+  // off: no bonus accrues.
+  bool bonus_enabled = 8;
+  uint32 max_total_apy_bps = 9;
+}
+
+message QueryAprRequest {
+  // validator (optional, qorvaloper) states the base net of its commission.
+  string validator = 1;
+}
+
+// TierAprView is one lock term as a new lock on the queried base would earn.
+message TierAprView {
+  uint32 months = 1;
+  // bonus_bps is the term's bonus as configured.
+  uint32 bonus_bps = 2;
+  // effective_bonus_bps is bonus_bps cut to the room left under
+  // max_total_apy_bps above the base; zero when the bonus is disabled.
+  string effective_bonus_bps = 3;
+  // effective_apr_bps is the base plus effective_bonus_bps.
+  string effective_apr_bps = 4;
+}
+
+message QueryAprResponse {
+  AprBase base = 1;
+  // validator and commission echo the request; commission is empty without
+  // one.
+  string validator = 2;
+  string commission = 3;
+  // base_apr_bps is the base the tiers are stated against: the gross base,
+  // or the validator's delegators' base net of commission.
+  string base_apr_bps = 4;
+  repeated TierAprView tiers = 5;
+  // light_node_bonus_bps is added to the locks of a holder that runs an
+  // active light node, before the ceiling.
+  uint32 light_node_bonus_bps = 6;
+  // validator_bonus_bps is paid on an active validator's whole self-bond;
+  // validator_effective_bonus_bps is what it pays after the ceiling over the
+  // gross base (a self-bond's base is gross).
+  uint32 validator_bonus_bps = 7;
+  string validator_effective_bonus_bps = 8;
+}
+
+message QueryDelegatorAprRequest {
+  string delegator = 1;
+  // validator (optional, qorvaloper) limits the answer to that delegation.
+  string validator = 2;
+}
+
+// AprPosition is one part of a delegation and the yield it earns going
+// forward, as the next settlement would pay it.
+message AprPosition {
+  // kind is "lock" (an open lock) or "unlocked" (the rest of the delegation,
+  // expired locks included).
+  string kind = 1;
+  uint64 lock_id = 2;
+  uint32 months = 3;
+  int64 end_time = 4;
+  // amount (uqor) is what the position covers today.
+  string amount = 5;
+  // base_apr_bps is the position's base: net of commission for a delegator,
+  // gross on a validator's own self-bond.
+  string base_apr_bps = 6;
+  // tier_bonus_bps is the lock term's bonus fixed when the lock was made.
+  uint32 tier_bonus_bps = 7;
+  // light_node_bonus_bps is the light node bonus added to this lock, zero
+  // when the holder does not qualify or the position is unlocked.
+  uint32 light_node_bonus_bps = 8;
+  // lock_bonus_bps is tier plus light node bonus after the ceiling.
+  string lock_bonus_bps = 9;
+  // validator_bonus_bps is the validator bonus after the ceiling, on an
+  // active validator's own self-bond.
+  string validator_bonus_bps = 10;
+  // bonus_bps is lock_bonus_bps plus validator_bonus_bps.
+  string bonus_bps = 11;
+  // effective_apr_bps is base_apr_bps plus bonus_bps.
+  string effective_apr_bps = 12;
+  // effective_apr_at_last_funding_bps scales the bonus by the latest
+  // settlement's bonus_funding_ratio.
+  string effective_apr_at_last_funding_bps = 13;
+  // capped is true when the ceiling cut the bonus.
+  bool capped = 14;
+  // reason says in words which bonuses apply and why.
+  string reason = 15;
+}
+
+message DelegationApr {
+  string validator = 1;
+  string commission = 2;
+  // validator_active is bonded and not jailed: the validator bonus condition.
+  bool validator_active = 3;
+  // self_bond is true when the delegator is the validator's operator.
+  bool self_bond = 4;
+  string delegated_amount = 5;
+  // locked_amount is what the open locks cover.
+  string locked_amount = 6;
+  // effective_apr_bps and effective_apr_at_last_funding_bps are the
+  // positions' rates weighted by amount.
+  string effective_apr_bps = 7;
+  string effective_apr_at_last_funding_bps = 8;
+  repeated AprPosition positions = 9;
+}
+
+message QueryDelegatorAprResponse {
+  string delegator = 1;
+  AprBase base = 2;
+  // light_node_bonus is true when the delegator qualifies for the light node
+  // bonus on their locks; light_node_reason says why or why not.
+  bool light_node_bonus = 3;
+  string light_node_reason = 4;
+  repeated DelegationApr delegations = 5;
+  string total_delegated = 6;
+  // effective_apr_bps and effective_apr_at_last_funding_bps are weighted by
+  // amount over every delegation listed.
+  string effective_apr_bps = 7;
+  string effective_apr_at_last_funding_bps = 8;
 }
