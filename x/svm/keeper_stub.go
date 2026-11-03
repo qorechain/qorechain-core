@@ -67,8 +67,12 @@ func (k *StubKeeper) ChargeAuthenticatorSpend(_ sdk.Context, _ string, _ []byte,
 	return nil
 }
 
-func (k *StubKeeper) SVMToCosmosAddr(svmAddr [32]byte) sdk.AccAddress {
-	return types.SVMToCosmosAddress(svmAddr)
+func (k *StubKeeper) SVMToCosmosAddr(svmAddr [32]byte) (sdk.AccAddress, error) {
+	native, err := types.CanonicalSVMToCosmos(svmAddr)
+	if err != nil {
+		return nil, types.ErrInvalidAddress.Wrap(err.Error())
+	}
+	return native, nil
 }
 
 func (k *StubKeeper) CosmosToSVMAddr(_ sdk.AccAddress) ([32]byte, error) {

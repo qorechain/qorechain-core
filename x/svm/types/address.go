@@ -44,19 +44,45 @@ func mustBase58Decode(s string) [32]byte {
 	return addr
 }
 
-// SVMToCosmosAddress returns the 20-byte native account for a 32-byte SVM
-// address by truncating to the first 20 bytes.
+// SVMToCosmosAddress returns the first 20 bytes of a 32-byte SVM address.
 //
-// UNIFIED IDENTITY: this makes the SVM address the SAME account as the
-// Cosmos/EVM address for a given secp256k1 key — SVMToEVMAddress truncates
-// identically, and CosmosToSVMAddress is the inverse (right-pads with zeros).
-// A wallet therefore holds ONE x/bank balance visible across all three VMs.
-// (Previously this hashed the address, fragmenting SVM identity from
-// Cosmos/EVM; changing it is consensus-affecting and requires a fresh genesis.)
+// LOSSY. It is the inverse of CosmosToSVMAddress only for a canonical address
+// (bytes 20..32 zero). For any other address, such as a real Solana pubkey,
+// 2^96 distinct SVM addresses map to the same 20 bytes, so the result names an
+// unrelated native account. It is kept, unchanged, because blocks below the
+// v3.2.5 and v3.2.7 plan heights were made with it. New code that needs the
+// native account of an SVM address must call CanonicalSVMToCosmos, which
+// refuses a non-canonical address instead of truncating it.
+//
+// UNIFIED IDENTITY: for a canonical address this makes the SVM address the SAME
+// account as the Cosmos/EVM address for a given key, so a wallet holds ONE
+// x/bank balance visible across all three VMs.
 func SVMToCosmosAddress(svmAddr [32]byte) []byte {
 	out := make([]byte, 20)
 	copy(out, svmAddr[:20])
 	return out
+}
+
+// CanonicalSVMToCosmos returns the 20-byte native account of a canonical SVM
+// address, and an error for any other address. It never truncates: an address
+// with a non-zero tail is not the image of a native account, and treating its
+// prefix as one would let it read, receive into or spend that account.
+func CanonicalSVMToCosmos(svmAddr [32]byte) ([]byte, error) {
+	if !IsCanonicalWalletAddress(svmAddr) {
+		return nil, fmt.Errorf("SVM address %s is not the canonical image of a native account", Base58Encode(svmAddr))
+	}
+	return SVMToCosmosAddress(svmAddr), nil
+}
+
+// CanonicalCosmosToSVM returns the canonical SVM address of a native account,
+// and an error when the account is not 20 bytes. A 32-byte native address (a
+// CosmWasm contract or an ICA host account) has no SVM image: copying its first
+// 20 bytes would name a different native account.
+func CanonicalCosmosToSVM(nativeAddr []byte) ([32]byte, error) {
+	if len(nativeAddr) != 20 {
+		return [32]byte{}, fmt.Errorf("native address of %d bytes has no SVM address; only 20-byte accounts do", len(nativeAddr))
+	}
+	return CosmosToSVMAddress(nativeAddr), nil
 }
 
 // CosmosToSVMAddress derives the canonical 32-byte SVM address for a 20-byte
@@ -64,6 +90,9 @@ func SVMToCosmosAddress(svmAddr [32]byte) []byte {
 // SVMToCosmosAddress, so a wallet's SVM address maps back to the same account
 // and shares its single x/bank balance. Programs and PDAs use their own
 // 32-byte addresses and are not wallet accounts.
+//
+// LOSSY for an input longer than 20 bytes: only the first 20 are kept. New
+// code must call CanonicalCosmosToSVM, which refuses such an input.
 func CosmosToSVMAddress(cosmosAddr []byte) [32]byte {
 	var out [32]byte
 	copy(out[:20], cosmosAddr)
@@ -103,9 +132,14 @@ func EVMToSVMAddress(evmAddr [20]byte) [32]byte {
 	return qorehash.Sum256(data)
 }
 
-// SVMToEVMAddress extracts an EVM-compatible 20-byte address from a 32-byte SVM address
-// by truncating to the first 20 bytes. NOTE: this is NOT the inverse of EVMToSVMAddress;
-// EVMToSVMAddress hashes the EVM address, so the mapping is one-way in both directions.
+// SVMToEVMAddress returns the first 20 bytes of a 32-byte SVM address.
+//
+// LOSSY, and unused by the chain: like SVMToCosmosAddress it names an unrelated
+// account for a non-canonical address. It is NOT the inverse of EVMToSVMAddress,
+// which hashes. New code must call CanonicalSVMToCosmos and convert the 20
+// bytes, so a non-canonical address is refused rather than truncated.
+//
+// Deprecated: use CanonicalSVMToCosmos.
 func SVMToEVMAddress(svmAddr [32]byte) [20]byte {
 	var evmAddr [20]byte
 	copy(evmAddr[:], svmAddr[:20])
