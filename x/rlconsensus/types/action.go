@@ -23,3 +23,13 @@ type Action struct {
 	Height int64                    `json:"height"`
 	Values [ActionDimensions]string `json:"values"`
 }
+
+// ActionRecord is the agent's last step as stored under LastActionKey
+// (FeatureRLAgentObservable): the proposed action, the mode it ran in and
+// whether it changed the applied values.
+type ActionRecord struct {
+	Height  int64                    `json:"height"`
+	Mode    AgentMode                `json:"mode"`
+	Values  [ActionDimensions]string `json:"values"`
+	Applied bool                     `json:"applied"`
+}

@@ -37,6 +37,35 @@ service Query {
   rpc KEMKey(QueryKEMKeyRequest) returns (QueryKEMKeyResponse) {
     option (google.api.http).get = "/qorechain/pqc/v1/kem/{address}";
   }
+
+  // Params returns the module parameters, including the chain-wide hybrid
+  // signature mode, so a client can tell whether a post-quantum signature is
+  // required before it builds a transaction.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/pqc/v1/params";
+  }
+}
+
+message QueryParamsRequest {}
+
+message QueryParamsResponse { ParamsView params = 1; }
+
+// ParamsView is the query-facing view of the x/pqc parameters.
+message ParamsView {
+  bool pqc_primary = 1;
+  // allow_classical_fallback reports whether an account without a registered
+  // PQC key may still sign classically where the hybrid mode allows it.
+  bool allow_classical_fallback = 2;
+  int32 min_security_level = 3;
+  // default_migration_blocks is the dual-signature period of an algorithm
+  // migration, in blocks.
+  int64 default_migration_blocks = 4;
+  uint32 default_signature_algo = 5;
+  string default_signature_algo_name = 6;
+  // hybrid_signature_mode is 0 (disabled), 1 (optional) or 2 (required);
+  // hybrid_signature_mode_name spells it.
+  uint32 hybrid_signature_mode = 7;
+  string hybrid_signature_mode_name = 8;
 }
 
 message QueryKEMKeyRequest {

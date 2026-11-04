@@ -40,6 +40,22 @@ var (
 	// PrevBlockTimeKey stores the previous observed block time (unix ms): single
 	// key -> int64 BE. Used to derive the real inter-block time.
 	PrevBlockTimeKey = []byte{0x09}
+
+	// LastActionKey stores the agent's last step: single key -> ActionRecord
+	// (FeatureRLAgentObservable).
+	LastActionKey = []byte{0x0A}
+)
+
+// History retention (FeatureRLHistoryRetention). The agent reads only the
+// latest observation and the one a step before it; the window kept is for
+// clients that look back.
+const (
+	// RLHistoryRetentionSteps is how many agent steps of observations and
+	// rewards are kept: 1,000 steps, 10,000 blocks at the default interval.
+	RLHistoryRetentionSteps = 1000
+	// RLHistoryPrunePerStep is the most records of each kind deleted at one
+	// step, which bounds the work of a block while an old backlog drains.
+	RLHistoryPrunePerStep = 200
 )
 
 // ObservationKey returns the key for an observation at a given height.

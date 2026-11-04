@@ -20,11 +20,14 @@ func NewStubKeeper(logger log.Logger) *StubKeeper {
 	return &StubKeeper{logger: logger.With("module", types.ModuleName)}
 }
 
-func (k *StubKeeper) Logger() log.Logger                              { return k.logger }
-func (k *StubKeeper) GetParams(_ sdk.Context) types.Params            { return types.DefaultParams() }
-func (k *StubKeeper) SetParams(_ sdk.Context, _ types.Params) error   { return nil }
-func (k *StubKeeper) GetPool(_ sdk.Context) types.Pool                { return types.DefaultPool() }
-func (k *StubKeeper) CheckStakingMsg(_ sdk.Context, _ sdk.Msg) error  { return nil }
+func (k *StubKeeper) Logger() log.Logger                             { return k.logger }
+func (k *StubKeeper) GetParams(_ sdk.Context) types.Params           { return types.DefaultParams() }
+func (k *StubKeeper) SetParams(_ sdk.Context, _ types.Params) error  { return nil }
+func (k *StubKeeper) GetPool(_ sdk.Context) types.Pool               { return types.DefaultPool() }
+func (k *StubKeeper) CheckStakingMsg(_ sdk.Context, _ sdk.Msg) error { return nil }
+func (k *StubKeeper) MempoolCheckStakingMsg(_ sdk.Context, _ sdk.Msg) error {
+	return nil
+}
 func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()

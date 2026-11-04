@@ -188,6 +188,9 @@ var (
 					epochstypes.ModuleName,
 					// IBC core implements BeginBlock (client/connection upkeep).
 					"ibc",
+					// ICS-20 rate limiter: hour epoch and quota resets (a no-op
+					// below the v3.2.6 ibc-rate-limit switch).
+					"ratelimit",
 					// EVM: feemarket MUST come before evm
 					"feemarket",
 					"evm",
@@ -258,6 +261,11 @@ var (
 					// IBC modules (before EVM — transfer needs IBC core)
 					"ibc",
 					"transfer",
+					// v3.2.6 IBC applications. A genesis without their
+					// sections (every chain started before v3.2.6) skips them.
+					"ratelimit",
+					"packetfowardmiddleware", // sic: PFM's module name
+					"08-wasm",
 					// EVM modules. feemarket first (base-fee params). evm MUST
 					// init before precisebank: evm InitGenesis installs the global
 					// EVM coin info (denom/decimals) that precisebank reads when
@@ -321,6 +329,9 @@ var (
 					// IBC modules
 					"ibc",
 					"transfer",
+					"ratelimit",
+					"packetfowardmiddleware",
+					"08-wasm",
 					// EVM modules
 					"feemarket",
 					"precisebank",
