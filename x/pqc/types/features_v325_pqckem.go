@@ -40,8 +40,8 @@ const (
 // so the CPU-equivalent price is about 1500. It is set at 2000 to leave room
 // for slower hosts. The signature's bytes are already paid for by the
 // transaction size charge. From FeaturePQCVerifyGasCalibrated (v3.2.7) the
-// price is PQCVerifyGasCalibrated: on the fleet's linux/amd64 hosts the
-// ratio to secp256k1 is about 7, not 1.6.
+// same price, PQCVerifyGasCalibrated, is charged at every verification site:
+// on a fleet linux/amd64 host the ratio to secp256k1 is about 1.8.
 const PQCHybridVerifyGas uint64 = 2000
 
 // V325PQCKEMFeatures is this area's share of the v3.2.5 release set. Every
