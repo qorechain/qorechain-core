@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.6] - 2026-11-04
+
+A coordinated governance upgrade (plan name `v3.2.6`, applied on mainnet at height 4,020,000 by governance proposal 15). Every consensus change below is guarded by a protocol feature that the v3.2.6 upgrade handler turns on at the plan height (listed in `ReleaseV3_2_6ProtocolFeatures`); below that height the binary replays history byte-identically.
+
+### Added
+- **IBC:** rate limiting, packet forwarding and 08-wasm light clients are wired into the IBC stack, and the client v2 REST routes (`/ibc/core/client/v2/...`) are served.
+- **RL consensus observability:** the query service is served over REST, with `applied_params` and `last_action`; the agent's observations are queryable, its circuit breaker counts per block and its history is retained within a bound.
+- **Reputation:** per-validator score queries with REST routes.
+- **PQC:** a params query at `/qorechain/pqc/v1/params`.
+- **RDK:** `BatchView` reports whether a batch's withdrawals are bound to it (`withdrawals_bound`).
+
+### Changed
+- **`rlConsensusParams` precompile (0x0C01)** returns the live x/rlconsensus values (applied block time, gas price floor, validator set size, agent epoch) instead of fixed defaults.
+- **Locked stake:** a node refuses an undelegate or redelegate of stake that is still locked by a staking tier before the transaction enters the mempool, so no fee is spent on a transaction that would fail.
+- **Simulation:** a refused simulation keeps the module's error code in the response body. Binary gRPC metadata is no longer sent as REST trailers, which strict HTTP clients and proxies rejected.
+
+### Notes
+- Upgrade handler: `v3.2.6`. Transaction signing (sign-bytes v2), addresses, decimals, memos and fees are unchanged. A node joining mainnet needs v3.2.6.
+
+---
+
 ## [3.2.5] - 2026-10-29
 
 A coordinated governance upgrade (plan name `v3.2.5`, applied on mainnet at height 3,906,833 by governance proposal 14). Every consensus change below is guarded by a protocol feature that the v3.2.5 upgrade handler turns on at the plan height (listed in `ReleaseV3_2_5ProtocolFeatures`); below that height the binary replays history byte-identically.
