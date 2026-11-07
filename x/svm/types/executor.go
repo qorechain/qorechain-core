@@ -43,3 +43,46 @@ type MeteredExecutor interface {
 		instructionData []byte, programID [32]byte, programs map[[32]byte][]byte,
 		computeBudget uint64, blockTime int64) (*ExecutionResult, error)
 }
+
+// Runtime flags of the v3 entry (v3.2.8). Each mirrors a FLAG_* constant of
+// the Rust runtime and is set from the protocol feature named beside it.
+const (
+	RuntimeFlagByteMetering     uint64 = 1 << 0 // svm-compute-gas (v3.2.5)
+	RuntimeFlagFullResult       uint64 = 1 << 1 // svm-result-full-fields
+	RuntimeFlagTokenOwnerCheck  uint64 = 1 << 2 // svm-token-owner-checks
+	RuntimeFlagCPIDepthBounded  uint64 = 1 << 3 // svm-cpi-depth-bounded
+	RuntimeFlagMemcpyNoOverlap  uint64 = 1 << 4 // svm-memcpy-no-overlap
+	RuntimeFlagPDASeedLimits    uint64 = 1 << 5 // svm-pda-seed-limits
+	RuntimeFlagConsensusSysvars uint64 = 1 << 6 // svm-consensus-sysvars
+)
+
+// RuntimeSysvars are the consensus values of the Clock and Rent sysvars handed
+// to the runtime with RuntimeFlagConsensusSysvars. ExemptionThresholdBits is the
+// IEEE 754 encoding of the rent exemption threshold, computed by the keeper from
+// the decimal param with a correctly rounded parse, so every node passes the
+// same bits.
+type RuntimeSysvars struct {
+	Slot                   uint64
+	Epoch                  uint64
+	LeaderScheduleEpoch    uint64
+	EpochStartTimestamp    int64
+	LamportsPerByteYear    uint64
+	ExemptionThresholdBits uint64
+	BurnPercent            uint8
+}
+
+// RuntimeOptions are the arguments of the v3 entry beyond the v2 ones.
+type RuntimeOptions struct {
+	Flags   uint64
+	Sysvars RuntimeSysvars
+}
+
+// HardenedExecutor is implemented by a runtime that has the v3 entry
+// (v3.2.8). Once any v3.2.8 runtime switch is active the keeper runs native
+// and user programs only through it; a runtime without it is refused rather
+// than run without the switches the chain asked for.
+type HardenedExecutor interface {
+	ExecuteV3(program []byte, accounts []SVMAccount, metas []AccountMeta,
+		instructionData []byte, programID [32]byte, programs map[[32]byte][]byte,
+		computeBudget uint64, blockTime int64, opts RuntimeOptions) (*ExecutionResult, error)
+}

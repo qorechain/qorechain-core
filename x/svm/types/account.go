@@ -322,3 +322,56 @@ func DeserializeModifiedAccounts(buf []byte) ([]SVMAccount, error) {
 
 	return accounts, nil
 }
+
+// DeserializeModifiedAccountsFull parses the full-field result layout of the
+// v3 entry (v3.2.8, svm-result-full-fields):
+//
+//	count(u32 LE), then per account: address(32) lamports(u64) data_len(u64)
+//	data(var) owner(32) executable(u8) rent_epoch(u64)
+//
+// Lengths are checked without overflow, since a data length in a result comes
+// from bytes a program could write.
+func DeserializeModifiedAccountsFull(buf []byte) ([]SVMAccount, error) {
+	if len(buf) < 4 {
+		return nil, fmt.Errorf("buffer too short for modified accounts count: need 4, got %d", len(buf))
+	}
+	count := binary.LittleEndian.Uint32(buf[0:4])
+	offset := 4
+	// Each account needs at least 89 bytes; refuse a count the buffer cannot hold
+	// before allocating for it.
+	if uint64(count) > uint64(len(buf)-offset)/89 {
+		return nil, fmt.Errorf("modified account count %d exceeds buffer", count)
+	}
+	accounts := make([]SVMAccount, count)
+	for i := uint32(0); i < count; i++ {
+		if len(buf)-offset < 48 {
+			return nil, fmt.Errorf("buffer too short at modified account %d header", i)
+		}
+		copy(accounts[i].Address[:], buf[offset:offset+32])
+		offset += 32
+		accounts[i].Lamports = binary.LittleEndian.Uint64(buf[offset:])
+		offset += 8
+		dataLen := binary.LittleEndian.Uint64(buf[offset:])
+		offset += 8
+		if dataLen > uint64(len(buf)-offset) || uint64(len(buf)-offset)-dataLen < 41 {
+			return nil, fmt.Errorf("buffer too short at modified account %d data", i)
+		}
+		accounts[i].DataLen = dataLen
+		accounts[i].Data = make([]byte, dataLen)
+		copy(accounts[i].Data, buf[offset:offset+int(dataLen)])
+		offset += int(dataLen)
+		copy(accounts[i].Owner[:], buf[offset:offset+32])
+		offset += 32
+		switch buf[offset] {
+		case 0:
+		case 1:
+			accounts[i].Executable = true
+		default:
+			return nil, fmt.Errorf("modified account %d: invalid executable byte %d", i, buf[offset])
+		}
+		offset++
+		accounts[i].RentEpoch = binary.LittleEndian.Uint64(buf[offset:])
+		offset += 8
+	}
+	return accounts, nil
+}
