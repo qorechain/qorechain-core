@@ -37,18 +37,19 @@ const (
 	FeatureAAFailedExecutionBurnsNonce = "abstractaccount-failed-execution-burns-nonce"
 
 	// FeatureAAValueRuleRequired requires an outflow limit on every
-	// authenticator that may move value (permission "send", "evm", "deploy" or
-	// "all"): its effective spending rule must bound every denom it admits (a
-	// per_tx_limit or daily_limit, or an allowed_denoms list whose every denom
-	// has a denom_limits amount). MsgRegisterAuthenticator refuses such a key
-	// without one; MsgUpdateSpendingRules refuses rules that would leave an
-	// active one unbounded; MsgExecuteCosmos and MsgExecuteEVM refuse an
-	// execution by an unbounded one (a key linked before the switch), before
-	// the nonce is checked. So that an owner can set rules on the account at
-	// its own address before linking a value key, MsgUpdateSpendingRules
-	// creates that account (as registration already does) when it does not
-	// exist yet and the module is enabled. Before it a key with no rule moved
-	// any amount: a classical key worth the whole balance with no window bound.
+	// authenticator that may move value (permission "send", "evm", "deploy",
+	// "svm" or "all"): its effective spending rule must bound every denom it
+	// admits (a per_tx_limit or daily_limit, or an allowed_denoms list whose
+	// every denom has a denom_limits amount). MsgRegisterAuthenticator refuses
+	// such a key without one; MsgUpdateSpendingRules refuses rules that would
+	// leave an active one unbounded; MsgExecuteCosmos, MsgExecuteEVM and an
+	// authenticator-signed SVM execution refuse an unbounded one (a key linked
+	// before the switch), before the nonce is checked. So that an owner can
+	// set rules on the account at its own address before linking a value key,
+	// MsgUpdateSpendingRules creates that account (as registration already
+	// does) when it does not exist yet and the module is enabled. Before it a
+	// key with no rule moved any amount: a classical key worth the whole
+	// balance with no window bound.
 	FeatureAAValueRuleRequired = "abstractaccount-value-rule-required"
 )
 
