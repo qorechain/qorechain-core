@@ -197,5 +197,8 @@ func (m *MsgUpdateParams) ToParams() Params {
 		MaxDABlobSize:          m.MaxDaBlobSize,
 		BlobRetentionBlocks:    m.BlobRetentionBlocks,
 		MaxBatchesPerBlock:     m.MaxBatchesPerBlock,
+		// Zero (the default) for every message built before v3.2.8, so the
+		// stored parameter record keeps its bytes.
+		FinalizedBatchRetentionBlocks: m.FinalizedBatchRetentionBlocks,
 	}
 }

@@ -29,7 +29,25 @@ var (
 	// that is not final yet (from v3.2.5, FeatureRDKChallengeSettlement), so
 	// auto-finalization does not read every batch a rollup ever settled.
 	FinalizeCursorPrefix = []byte("rdk/fcursor/")
+	// BatchCountPrefix records, per rollup, the height of the last block it
+	// settled a batch in and how many it settled there (from v3.2.8,
+	// FeatureRDKMaxBatchesPerBlock).
+	BatchCountPrefix = []byte("rdk/bcount/")
+	// CompactCursorPrefix records, per rollup, the index of the next batch
+	// finalized-batch compaction looks at (from v3.2.8,
+	// FeatureRDKBatchCompaction).
+	CompactCursorPrefix = []byte("rdk/ccursor/")
 )
+
+// BatchCountKey returns the per-rollup batches-in-this-block counter key.
+func BatchCountKey(rollupID string) []byte {
+	return append(append([]byte{}, BatchCountPrefix...), []byte(rollupID)...)
+}
+
+// CompactCursorKey returns the per-rollup compaction cursor key.
+func CompactCursorKey(rollupID string) []byte {
+	return append(append([]byte{}, CompactCursorPrefix...), []byte(rollupID)...)
+}
 
 // FinalizeCursorKey returns the per-rollup finalization cursor key.
 func FinalizeCursorKey(rollupID string) []byte {

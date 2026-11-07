@@ -15,6 +15,30 @@ type Params struct {
 	MaxDABlobSize          uint64 `json:"max_da_blob_size"`          // bytes
 	BlobRetentionBlocks    uint64 `json:"blob_retention_blocks"`
 	MaxBatchesPerBlock     uint32 `json:"max_batches_per_block"`
+	// FinalizedBatchRetentionBlocks is how many blocks a finalized batch
+	// keeps its proof before EndBlock compacts it (from v3.2.8,
+	// FeatureRDKBatchCompaction). Zero means DefaultFinalizedBatchRetentionBlocks.
+	// It is omitted when zero, so a parameter record written before v3.2.8, and
+	// every genesis file without the field, keeps its stored bytes.
+	FinalizedBatchRetentionBlocks uint64 `json:"finalized_batch_retention_blocks,omitempty"`
+}
+
+// DefaultFinalizedBatchRetentionBlocks is the retention a zero
+// finalized_batch_retention_blocks stands for: about 30 days at 6 s blocks,
+// the same as blob_retention_blocks.
+const DefaultFinalizedBatchRetentionBlocks uint64 = 432000
+
+// MinFinalizedBatchRetentionBlocks is the shortest non-zero retention a
+// parameter update may set.
+const MinFinalizedBatchRetentionBlocks uint64 = 100
+
+// FinalizedBatchRetention returns the retention in blocks, resolving zero to
+// the default.
+func (p Params) FinalizedBatchRetention() uint64 {
+	if p.FinalizedBatchRetentionBlocks == 0 {
+		return DefaultFinalizedBatchRetentionBlocks
+	}
+	return p.FinalizedBatchRetentionBlocks
 }
 
 // DefaultParams returns sensible default parameters.
@@ -70,6 +94,10 @@ func (p Params) ValidateUpdate() error {
 	if p.MaxBatchesPerBlock == 0 {
 		return ErrInvalidParams.Wrap("max_batches_per_block must be positive")
 	}
+	if r := p.FinalizedBatchRetentionBlocks; r != 0 && r < MinFinalizedBatchRetentionBlocks {
+		return ErrInvalidParams.Wrapf("finalized_batch_retention_blocks must be 0 (default) or at least %d, got %d",
+			MinFinalizedBatchRetentionBlocks, r)
+	}
 	return nil
 }
 
@@ -78,6 +106,18 @@ type GenesisState struct {
 	Params  Params            `json:"params"`
 	Rollups []RollupConfig    `json:"rollups"`
 	Batches []SettlementBatch `json:"batches"`
+	// EscrowLedger carries each rollup's share of the pooled module escrow.
+	// Before v3.2.8 it was not exported, so an export and re-import left every
+	// rollup with no ledger entry. Omitted when empty, so genesis files without
+	// it read and export as before.
+	EscrowLedger []RollupEscrowEntry `json:"escrow_ledger,omitempty"`
+}
+
+// RollupEscrowEntry is one rollup's escrow ledger entry. An entry with amount
+// 0 is a drained ledger, which is not the same as no entry.
+type RollupEscrowEntry struct {
+	RollupID string `json:"rollup_id"`
+	Amount   uint64 `json:"amount,string"`
 }
 
 // DefaultGenesisState returns the default genesis state.
@@ -103,10 +143,22 @@ func (gs GenesisState) Validate() error {
 	if gs.Params.MaxBatchesPerBlock == 0 {
 		return fmt.Errorf("max batches per block must be positive")
 	}
+	rollups := make(map[string]bool, len(gs.Rollups))
 	for i, r := range gs.Rollups {
 		if err := r.Validate(); err != nil {
 			return fmt.Errorf("rollup %d: %w", i, err)
 		}
+		rollups[r.RollupID] = true
+	}
+	seen := make(map[string]bool, len(gs.EscrowLedger))
+	for i, e := range gs.EscrowLedger {
+		if !rollups[e.RollupID] {
+			return fmt.Errorf("escrow ledger entry %d: rollup %q is not in genesis", i, e.RollupID)
+		}
+		if seen[e.RollupID] {
+			return fmt.Errorf("escrow ledger entry %d: duplicate rollup %q", i, e.RollupID)
+		}
+		seen[e.RollupID] = true
 	}
 	return nil
 }
