@@ -67,6 +67,9 @@ type HandlerOptions struct {
 	// RDKMempoolCheck refuses, in CheckTx only, a zk rollup batch that
 	// execution refuses after the fee (RDKZKBatchMempoolDecorator). Nil is off.
 	RDKMempoolCheck func(sdk.Context, sdk.Msg) error
+	// CrossVMMaxPayload is the crossvm max_message_size that
+	// CrossVMPayloadMempoolDecorator applies in CheckTx only. Nil is off.
+	CrossVMMaxPayload func(sdk.Context) uint64
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
 	// exempts them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
@@ -309,6 +312,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// usable verification key, which execution refuses with rdk code 21
 		// after the fee is paid. CheckTx only.
 		NewRDKZKBatchMempoolDecorator(options.RDKMempoolCheck),
+		// Mempool-only: refuse a cross-VM call whose payload is over
+		// max_message_size, which execution refuses after the fee is paid.
+		// CheckTx only.
+		NewCrossVMPayloadMempoolDecorator(options.CrossVMMaxPayload),
 		// Runs here, near the front, because the decorator that expands a multisig
 		// signature into event bytes sits much further down (SetPubKey) and the
 		// expansion is exponential in nesting depth. A guard placed after it would
