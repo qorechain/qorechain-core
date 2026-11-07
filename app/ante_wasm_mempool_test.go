@@ -7,6 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/x/authz"
 	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
+	"github.com/cosmos/cosmos-sdk/x/group"
 
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
@@ -156,4 +157,59 @@ func TestWasmGovernedDeployIsAV325Feature(t *testing.T) {
 		}
 	}
 	t.Fatal("FeatureWasmGovernedDeploy is not enabled by the v3.2.5 release")
+}
+
+// x/group executes a proposal's messages with the group policy as signer, so
+// an upload inside a group proposal (submitted with Exec TRY) is an upload by
+// an ordinary account and must not pass the guard.
+func TestWasmMempoolGuard_BlocksGroupProposalUpload(t *testing.T) {
+	policy := sdk.AccAddress("group_policy________").String()
+	proposer := sdk.AccAddress("proposer____________").String()
+	prop, err := group.NewMsgSubmitProposal(policy, []string{proposer},
+		[]sdk.Msg{&wasmtypes.MsgStoreCode{}}, "", group.Exec_EXEC_TRY, "t", "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectBlockedWasmMsgs([]sdk.Msg{prop}, 0); err == nil {
+		t.Fatal("group-proposal MsgStoreCode was admitted")
+	}
+	// Also when the proposal itself sits inside an authz grant.
+	exec := authz.NewMsgExec(sdk.AccAddress("grantee_____________"), []sdk.Msg{prop})
+	if err := rejectBlockedWasmMsgs([]sdk.Msg{&exec}, 0); err == nil {
+		t.Fatal("authz-wrapped group-proposal MsgStoreCode was admitted")
+	}
+	// And a group proposal inside a group proposal.
+	outer, err := group.NewMsgSubmitProposal(policy, []string{proposer}, []sdk.Msg{prop}, "", group.Exec_EXEC_UNSPECIFIED, "t", "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectBlockedWasmMsgs([]sdk.Msg{outer}, 0); err == nil {
+		t.Fatal("nested group-proposal MsgStoreCode was admitted")
+	}
+	// From governed deploy an instantiate in a group proposal is admitted like
+	// a top-level one; the upload stays refused.
+	inst, err := group.NewMsgSubmitProposal(policy, []string{proposer},
+		[]sdk.Msg{&wasmtypes.MsgInstantiateContract{}}, "", group.Exec_EXEC_TRY, "t", "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectWasmMsgs([]sdk.Msg{inst}, 0, true); err != nil {
+		t.Fatalf("governed deploy refused a group-proposal instantiate: %v", err)
+	}
+	if err := rejectWasmMsgs([]sdk.Msg{prop}, 0, true); err == nil {
+		t.Fatal("governed deploy admitted a group-proposal upload")
+	}
+}
+
+// A group proposal of ordinary messages passes.
+func TestWasmMempoolGuard_AllowsBenignGroupProposal(t *testing.T) {
+	policy := sdk.AccAddress("group_policy________").String()
+	prop, err := group.NewMsgSubmitProposal(policy, []string{policy},
+		[]sdk.Msg{&banktypes.MsgSend{}}, "", group.Exec_EXEC_TRY, "t", "s")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectBlockedWasmMsgs([]sdk.Msg{prop}, 0); err != nil {
+		t.Fatalf("benign group proposal was rejected: %v", err)
+	}
 }
