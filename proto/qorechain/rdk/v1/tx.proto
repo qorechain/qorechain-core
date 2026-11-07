@@ -157,6 +157,10 @@ message MsgUpdateParams {
   uint64 max_da_blob_size = 6;
   uint64 blob_retention_blocks = 7;
   uint32 max_batches_per_block = 8;
+  // finalized_batch_retention_blocks is how many blocks a finalized batch
+  // keeps its proof before it is compacted; 0 means the default. A non-zero
+  // value is refused before v3.2.8 (rdk-batch-compaction).
+  uint64 finalized_batch_retention_blocks = 9;
 }
 message MsgUpdateParamsResponse {}
 

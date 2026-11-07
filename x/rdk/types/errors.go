@@ -60,4 +60,7 @@ var (
 	// tries to change its verification key after the first batch; from then on
 	// only governance can (MsgUpdateVerificationKey).
 	ErrVerificationKeyLocked = errorsmod.Register(ModuleName, 39, "verification key can only be changed by governance after the first batch")
+	// ErrBatchLimitReached is returned from v3.2.8 (FeatureRDKMaxBatchesPerBlock)
+	// for a batch beyond params.max_batches_per_block for its rollup in one block.
+	ErrBatchLimitReached = errorsmod.Register(ModuleName, 40, "rollup reached max_batches_per_block in this block")
 )

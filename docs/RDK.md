@@ -200,7 +200,8 @@ The EndBlocker runs settlement logic each block:
 | `default_challenge_window` | 604,800 seconds (7 days) | Default optimistic challenge window |
 | `max_da_blob_size` | 2,097,152 bytes (2 MB) | Maximum data availability blob size |
 | `blob_retention_blocks` | 432,000 (~30 days) | Blocks before expired blobs are pruned |
-| `max_batches_per_block` | 10 | Maximum settlement batches per block |
+| `max_batches_per_block` | 10 | Maximum settlement batches one rollup can settle in one block (enforced from v3.2.8) |
+| `finalized_batch_retention_blocks` | 0 (= 432,000, ~30 days) | Blocks a finalized batch keeps its stored proof before it is compacted (from v3.2.8). Compaction removes only the proof; withdrawals against the batch keep working |
 
 ## CLI Commands
 
@@ -326,6 +327,12 @@ qorechaind query rdk params
   }
 }
 ```
+
+From v3.2.8 an export also carries `escrow_ledger`, each rollup's share of the
+pooled module escrow (`{"rollup_id": "...", "amount": "<uqor>"}`), and an import
+restores it. A rollup imported without a ledger entry is treated as a legacy
+record: stopping it refunds its recorded escrow (or its stake, whichever is
+smaller; the stake when no escrow figure is recorded).
 
 ## Events
 

@@ -51,6 +51,9 @@ message ParamsView {
   uint64 max_da_blob_size = 5;
   uint64 blob_retention_blocks = 6;
   uint32 max_batches_per_block = 7;
+  // finalized_batch_retention_blocks is the effective retention, with the
+  // default filled in for a stored 0.
+  uint64 finalized_batch_retention_blocks = 8;
 }
 
 // RollupView is the query-facing view of a rollup config (scalar fields).
