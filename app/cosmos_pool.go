@@ -22,9 +22,27 @@ import (
 // matches the default mempool.size in config.toml.
 const DefaultCosmosMempoolMaxTxs = 5000
 
-// cosmosTxPriority is the priority the cosmos/evm mempool gives a Cosmos tx by
-// default (fee in the EVM denom per unit of gas wanted). It is spelled out here
-// so the evicting wrapper ranks entries exactly as the pool does.
+// cosmosPriorityScale lifts the fee from the 6-decimal EVM denom (uqor) to
+// its 18-decimal extended form (aqor) before the division by gas.
+const cosmosPriorityScale = 1_000_000_000_000 // 10^12
+
+// feePerGasPriority is a fee in the EVM denom per unit of gas, counted in
+// 10^-12 of the denom (aqor for uqor). The cosmos/evm default divides the
+// whole-uqor amount, so every price below 1 uqor/gas (the live minimum is
+// 0.1) ranked 0 and an equal-priority pool could never evict for a
+// better-paying tx. Mempool order only: no state, fee or validity depends on
+// it.
+func feePerGasPriority(amount math.Int, gas uint64) math.Int {
+	if gas == 0 {
+		return math.ZeroInt()
+	}
+	return amount.MulRaw(cosmosPriorityScale).Quo(math.NewIntFromUint64(gas))
+}
+
+// cosmosTxPriority is the priority of a Cosmos tx in the app-side pool: fee
+// in the EVM denom per unit of gas wanted, on the 18-decimal scale
+// (feePerGasPriority). The same value is handed to the cosmos/evm pool and to
+// the evicting wrapper, so both rank entries identically.
 func cosmosTxPriority(evmDenom func(ctx sdk.Context) string) sdkmempool.TxPriority[math.Int] {
 	return sdkmempool.TxPriority[math.Int]{
 		GetTxPriority: func(goCtx context.Context, tx sdk.Tx) math.Int {
@@ -37,7 +55,7 @@ func cosmosTxPriority(evmDenom func(ctx sdk.Context) string) sdkmempool.TxPriori
 			if !found {
 				return math.ZeroInt()
 			}
-			return coin.Amount.Quo(math.NewIntFromUint64(feeTx.GetGas()))
+			return feePerGasPriority(coin.Amount, feeTx.GetGas())
 		},
 		Compare: func(a, b math.Int) int {
 			return a.BigInt().Cmp(b.BigInt())
