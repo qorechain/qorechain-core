@@ -34,7 +34,8 @@ directly and no commission is taken from the bonus.
   alone.
 - The ceiling: base yield plus bonus never exceeds `max_total_apy_bps` (25%).
   The base yield is what the epoch's base emission gives the bonded stake
-  through the fee split (`validator_share + staker_share` of x/burn), net of
+  through the fee split (`validator_share + staker_share` of x/burn, less
+  x/distribution's `community_tax`, which is taken before the split), net of
   the validator's commission for a delegator; for an operator's self-bond it is
   the gross yield, since the commission on their own stake comes back to them.
   The bonus of each stake is cut to the room left above its base.
@@ -60,14 +61,17 @@ the work of the epoch settlement, which reads every open lock.
 - **Slashing.** A lock is recorded in delegation shares. A slash lowers the
   tokens behind every share, so the lock shrinks exactly with the delegation.
   If a redelegation slash removes shares from the delegation itself, the locks
-  are capped at what the delegation still holds, oldest first.
+  open locks are capped at what the delegation still holds, oldest first.
 - **Clock.** Each lock keeps its own start height, start time and end time.
   x/distribution's `DelegatorStartingInfo` is reset by every reward withdrawal
   and cannot be used for this.
 - **Expiry.** Locks are released automatically in the end blocker, which reads
   only the locks that are due (a queue ordered by end time). A released lock no
-  longer restricts the delegation; its final period is credited at the next
-  settlement, and its bonus stays claimable.
+  longer restricts the delegation; its final period, up to its end time, is
+  credited at the next settlement on the lock's own shares (they were locked
+  for all of that time), even if the holder has since unbonded the stake it
+  freed, and its bonus stays claimable. Only the open locks share the
+  delegation's current shares.
 - **Early unlock.** `MsgUnlockEarly{delegator, lock_id}` ends a lock before it
   expires. The lock's unpaid bonus is forfeited (it stays in the module account
   and funds the next settlement before anything is minted), and

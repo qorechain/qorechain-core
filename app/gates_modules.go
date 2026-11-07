@@ -16,6 +16,9 @@ func (app *QoreChainApp) wireModuleGates() {
 	GovProposerRewardCapEnabled = func(ctx sdk.Context) bool {
 		return app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureGovProposerRewardCap)
 	}
+	GovProposerRewardOwnDepositEnabled = func(ctx sdk.Context) bool {
+		return app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureGovProposerRewardOwnDeposit)
+	}
 	licensemod.AuthorityUpdateEnabled = func(ctx sdk.Context) bool {
 		return app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureLicenseAuthorityUpdate)
 	}
