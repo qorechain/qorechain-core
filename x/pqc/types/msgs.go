@@ -15,8 +15,11 @@ import (
 // MsgAddAlgorithm — governance message to add a new PQC algorithm
 // ---------------------------------------------------------------------------
 
-// MsgAddAlgorithm proposes adding a new PQC algorithm to the registry.
-// Must be submitted through governance (MsgSubmitProposal).
+// MsgAddAlgorithm describes adding a new PQC algorithm to the registry. It
+// has no route in the Msg service and no handler, so no transaction or
+// proposal can execute it: adding an algorithm needs its verifier in the
+// binary and is done by a software upgrade. The type stays registered so that
+// transactions which carried it decode, and fail, exactly as they did.
 type MsgAddAlgorithm struct {
 	Authority string        `json:"authority"` // Governance module address
 	Algorithm AlgorithmInfo `json:"algorithm"`

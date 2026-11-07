@@ -166,3 +166,75 @@ func TestV323PqcIntegrityFeatures(t *testing.T) {
 		}
 	}
 }
+
+func TestPQCConsentMsgTypeURLs(t *testing.T) {
+	got := PQCConsentMsgTypeURLs()
+	want := []string{
+		"/qorechain.pqc.v1.MsgOpenEVMWindow",
+		"/qorechain.pqc.v1.MsgCloseEVMWindow",
+		"/qorechain.pqc.v1.MsgAuthorizeEVMDelegation",
+		"/qorechain.pqc.v1.MsgClearEVMDelegation",
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %v", got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("got %s want %s", got[i], want[i])
+		}
+	}
+	// The already-active key list is unchanged by it.
+	for _, u := range PQCKeyManagementMsgTypeURLs() {
+		for _, c := range got {
+			if u == c {
+				t.Errorf("%s is in both lists", u)
+			}
+		}
+	}
+}
+
+// v3.2.8 degenerate keys: a stored record, the stateless rule.
+func TestDegenerateRecordAndStatelessRule(t *testing.T) {
+	zeroT1 := make([]byte, 2592)
+	zeroT1[0] = 0x80
+	good := mldsaKey(7)
+
+	degenerate := PQCAccountInfo{PublicKey: zeroT1, AlgorithmID: AlgorithmDilithium5, KeyType: KeyTypeHybrid}
+	usable := PQCAccountInfo{PublicKey: good, AlgorithmID: AlgorithmDilithium5, KeyType: KeyTypeHybrid}
+	locked := PQCAccountInfo{KeyType: KeyTypeClassicalOnly, AlgorithmID: AlgorithmDilithium5}
+	if !IsDegenerateRecord(degenerate) || IsDegenerateRecord(usable) || IsDegenerateRecord(locked) {
+		t.Fatal("IsDegenerateRecord")
+	}
+	if IsReplaceableRecord(degenerate, false) || !IsReplaceableRecord(degenerate, true) {
+		t.Fatal("a degenerate record is replaceable only from the switch")
+	}
+	if IsReplaceableRecord(usable, true) || !IsReplaceableRecord(locked, false) {
+		t.Fatal("IsReplaceableRecord must keep IsRepairableRecord's verdict otherwise")
+	}
+
+	weak := []sdk.Msg{
+		&MsgRegisterPQCKey{DilithiumPubkey: zeroT1},
+		&MsgRegisterPQCKeyV2{PublicKey: zeroT1, AlgorithmID: AlgorithmDilithium5},
+		&MsgRotatePQCKey{OldPublicKey: good, NewPublicKey: zeroT1},
+		&MsgMigratePQCKey{NewPublicKey: make([]byte, 2592), NewAlgorithmID: AlgorithmDilithium5},
+	}
+	for _, m := range weak {
+		on := func(f string) bool { return f == FeaturePQCDegenerateKeyRefused }
+		off := func(string) bool { return false }
+		if err := FeatureGatedValidateBasic(m, on); !errors.Is(err, ErrWeakPQCKey) {
+			t.Errorf("%T switch on: got %v", m, err)
+		}
+		if err := FeatureGatedValidateBasic(m, off); err != nil {
+			t.Errorf("%T switch off: got %v", m, err)
+		}
+	}
+	strong := &MsgRegisterPQCKeyV2{PublicKey: good, AlgorithmID: AlgorithmDilithium5}
+	if err := FeatureGatedValidateBasic(strong, func(string) bool { return true }); err != nil {
+		t.Fatalf("a usable key: %v", err)
+	}
+	// The rotation size rule still runs first and alone below the new switch.
+	bad := &MsgRotatePQCKey{OldPublicKey: good, NewPublicKey: []byte{1}}
+	if err := FeatureGatedValidateBasic(bad, func(f string) bool { return f == FeaturePQCRotateKeySizeCheck }); !errors.Is(err, ErrInvalidKeyLength) {
+		t.Fatalf("rotation size rule: %v", err)
+	}
+}

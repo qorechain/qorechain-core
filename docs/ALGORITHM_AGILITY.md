@@ -4,7 +4,7 @@
 
 The Algorithm Agility Framework enables QoreChain to dynamically manage multiple post-quantum cryptographic (PQC) algorithms. This provides:
 
-- **Governance-controlled algorithm registry** — Add, deprecate, or emergency-disable algorithms via on-chain governance.
+- **Governance-controlled algorithm registry** - Deprecate or emergency-disable algorithms via on-chain governance. Adding an algorithm is a software upgrade (see below).
 - **Dual-signature key migration** — Securely migrate accounts between algorithms with cryptographic proof of ownership.
 - **Multi-algorithm dispatch** — The ante handler verifies transactions using the algorithm registered to each account.
 - **Modular FFI layer** — New algorithms can be added in Rust and exposed to the Go runtime via the C FFI bridge.
@@ -14,7 +14,7 @@ The Algorithm Agility Framework enables QoreChain to dynamically manage multiple
 ```
                     ┌──────────────────────────────────────┐
                     │          Governance Module            │
-                    │  (MsgAddAlgorithm, MsgDeprecate,     │
+                    │  (MsgDeprecateAlgorithm,             │
                     │   MsgDisableAlgorithm)               │
                     └──────────┬───────────────────────────┘
                                │
@@ -125,7 +125,7 @@ qorechaind tx pqc migrate-key <new-algo> <old-pubkey> <new-pubkey> <old-sig> <ne
 Algorithm management is controlled through governance proposals:
 
 ### Add a New Algorithm
-Submit a `MsgAddAlgorithm` through `MsgSubmitProposal`. The algorithm is registered with `active` status.
+There is no governance message for this. A new signature algorithm needs its verifier compiled into every node, so it ships in a software upgrade, whose upgrade handler registers it. `MsgAddAlgorithm` exists as a type only: it has no route and no handler, and a transaction or proposal carrying it fails.
 
 ### Deprecate an Algorithm
 Submit a `MsgDeprecateAlgorithm` to start a migration period. The default migration period is 1,000,000 blocks (~69 days at 6s/block). During this period, accounts must use dual signatures.
@@ -158,8 +158,8 @@ To add a new PQC algorithm:
 1. **Rust layer** — Implement `PQCSignatureScheme` or `PQCKEMScheme` trait in `qorechain-internal/pqc/src/`
 2. **Registry** — Add the algorithm to `AlgorithmRegistry::new()` with a new ID
 3. **Go types** — Add the algorithm ID constant in `types/algorithm.go`
-4. **Governance** — Submit `MsgAddAlgorithm` proposal on-chain
-5. **Compile & deploy** — Build new `libqorepqc` and deploy to validators
+4. **Upgrade handler** - Register the algorithm in the release's upgrade handler
+5. **Compile & deploy** - Build new `libqorepqc` and ship it in a governance software upgrade
 
 ## Security Considerations
 
