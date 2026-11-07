@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"cosmossdk.io/collections"
 	"cosmossdk.io/math"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -27,17 +28,69 @@ var ProposalRewardAmount = math.NewInt(1_000_000_000) // 1,000 QOR
 // application to the protocol-feature record.
 var GovProposerRewardCapEnabled func(ctx sdk.Context) bool
 
-// proposalReward is what a passed proposal pays its proposer (QSR-2026-0162).
+// GovProposerRewardOwnDepositEnabled answers, per block and from chain state,
+// whether the proposer reward is bounded by the proposer's own deposit
+// (FeatureGovProposerRewardOwnDeposit, v3.2.8) instead of the proposal's total
+// deposit. Unset or false keeps the v3.2.2 bound. Wired by the application to
+// the protocol-feature record.
+var GovProposerRewardOwnDepositEnabled func(ctx sdk.Context) bool
+
+// proposerOwnDepositKey carries the proposer's own uqor deposit from the gov
+// end blocker, which reads it before the deposits are refunded, to the
+// AfterProposalVotingPeriodEnded hook, which runs after they are deleted.
+type proposerOwnDepositKey struct{}
+
+// WithProposerOwnDeposit annotates the context the reward hook of one
+// proposal runs in with the proposer's own uqor deposit on it.
+func WithProposerOwnDeposit(ctx sdk.Context, amount math.Int) sdk.Context {
+	return ctx.WithValue(proposerOwnDepositKey{}, amount)
+}
+
+// proposerOwnDepositFrom reads what WithProposerOwnDeposit stored.
+func proposerOwnDepositFrom(ctx sdk.Context) (math.Int, bool) {
+	v, ok := ctx.Value(proposerOwnDepositKey{}).(math.Int)
+	if !ok || v.IsNil() {
+		return math.ZeroInt(), false
+	}
+	return v, true
+}
+
+// ProposerOwnDeposit is the uqor the proposer has on deposit on proposal,
+// zero when they deposited nothing. Only meaningful before the end blocker
+// refunds or burns the deposits.
+func ProposerOwnDeposit(ctx sdk.Context, gk *govkeeper.Keeper, proposal govv1.Proposal) math.Int {
+	proposer, err := sdk.AccAddressFromBech32(proposal.Proposer)
+	if err != nil || gk == nil {
+		return math.ZeroInt()
+	}
+	dep, err := gk.Deposits.Get(ctx, collections.Join(proposal.Id, proposer))
+	if err != nil {
+		return math.ZeroInt()
+	}
+	return sdk.Coins(dep.Amount).AmountOf("uqor")
+}
+
+// proposalReward is what a passed proposal pays its proposer.
 //
 // It used to be a flat 1,000 QOR from the community treasury for every passed
 // proposal, a hundred times the 10 QOR minimum deposit, so a trivial proposal
-// that could win a vote was profitable. Bounded, the reward is the smaller of
-// ProposalRewardAmount and the uqor the proposal had on deposit: it can never
-// exceed the stake the proposer side put at risk of a veto burn. The reward
-// stays automatic; governance raising min_deposit raises what it can reach.
+// that could win a vote was profitable. From the v3.2.2 cap the reward is the
+// smaller of ProposalRewardAmount and the uqor the proposal had on deposit.
+// That total counts other depositors' coins, and every deposit is refunded
+// when a proposal passes, so it did not bound the reward by anything the
+// proposer risked: a proposer who put in nothing was still paid up to the
+// full amount. From the v3.2.8 switch the bound is the proposer's own uqor
+// deposit, read by the end blocker before the refund (deps/patches/cosmos-sdk
+// 0011 in the full build). A context without that reading pays nothing. The
+// reward stays automatic; governance raising min_deposit raises what it can
+// reach.
 func proposalReward(ctx sdk.Context, totalDeposit sdk.Coins) math.Int {
 	if GovProposerRewardCapEnabled == nil || !GovProposerRewardCapEnabled(ctx) {
 		return ProposalRewardAmount
+	}
+	if GovProposerRewardOwnDepositEnabled != nil && GovProposerRewardOwnDepositEnabled(ctx) {
+		own, _ := proposerOwnDepositFrom(ctx)
+		return math.MinInt(ProposalRewardAmount, own)
 	}
 	return math.MinInt(ProposalRewardAmount, totalDeposit.AmountOf("uqor"))
 }
