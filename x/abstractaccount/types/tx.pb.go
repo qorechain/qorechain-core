@@ -774,6 +774,13 @@ func (m *MsgExecuteEVM) GetNonce() uint64 {
 	return 0
 }
 
+// MsgExecuteEVMResponse. From v3.2.8 (abstractaccount-failed-execution-burns-nonce)
+// an execution that fails after the signature, the key, its permission and the
+// nonce were accepted (call policy, value cap, a reverted call, deploy scope,
+// measured spend) consumes the nonce and returns success=false with the reason
+// in vm_error; the transaction itself succeeds and the call's state is dropped.
+// Relayers must treat success=false as final: the same signature cannot be
+// relayed again.
 type MsgExecuteEVMResponse struct {
 	Success bool   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
 	Ret     []byte `protobuf:"bytes,2,opt,name=ret,proto3" json:"ret,omitempty"`
@@ -954,6 +961,11 @@ func (m *MsgExecuteCosmos) GetNonce() uint64 {
 	return 0
 }
 
+// MsgExecuteCosmosResponse. From v3.2.8 (abstractaccount-failed-execution-burns-nonce)
+// a transfer that fails after the signature, the key, its permission and the
+// nonce were accepted (spending rule, bank send) consumes the nonce and returns
+// success=false; the reason is in the abstractaccount_execution_failed event.
+// Relayers must treat success=false as final.
 type MsgExecuteCosmosResponse struct {
 	Success bool `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
 }

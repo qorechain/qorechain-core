@@ -14,3 +14,15 @@ const (
 	AttributeKeyOwner           = "owner"
 	AttributeKeyEnabled         = "enabled"
 )
+
+// v3.2.8 (FeatureAAFailedExecutionBurnsNonce): a signed authenticator
+// execution that failed after its nonce was accepted. The nonce is consumed and
+// the message returns success=false.
+const (
+	EventTypeExecutionFailed = "abstractaccount_execution_failed"
+
+	AttributeKeyAccount = "account"
+	AttributeKeyLane    = "lane"
+	AttributeKeyNonce   = "nonce"
+	AttributeKeyReason  = "reason"
+)
