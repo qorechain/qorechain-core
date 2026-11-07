@@ -157,8 +157,40 @@ func FeatureGatedValidateBasic(msg sdk.Msg, enabled func(string) bool) error {
 	switch m := msg.(type) {
 	case *MsgRotatePQCKey:
 		if enabled(FeaturePQCRotateKeySizeCheck) {
-			return ValidateRotationKeySizes(m)
+			if err := ValidateRotationKeySizes(m); err != nil {
+				return err
+			}
 		}
+	}
+	if enabled(FeaturePQCDegenerateKeyRefused) {
+		return ValidateNoDegenerateKey(msg)
+	}
+	return nil
+}
+
+// ValidateNoDegenerateKey refuses a key message whose new key
+// IsDegeneratePublicKey flags (FeaturePQCDegenerateKeyRefused). The handlers
+// refuse such a key from FeaturePQCRegistrationIntegrity, after the fee; this
+// refuses it before. A rotation keeps the account's algorithm, which needs
+// state, so its key is judged as ML-DSA-87, the only signature algorithm, as
+// the mempool check does.
+func ValidateNoDegenerateKey(msg sdk.Msg) error {
+	var algo AlgorithmID
+	var pub []byte
+	switch m := msg.(type) {
+	case *MsgRegisterPQCKey:
+		algo, pub = AlgorithmDilithium5, m.DilithiumPubkey
+	case *MsgRegisterPQCKeyV2:
+		algo, pub = m.AlgorithmID, m.PublicKey
+	case *MsgRotatePQCKey:
+		algo, pub = AlgorithmDilithium5, m.NewPublicKey
+	case *MsgMigratePQCKey:
+		algo, pub = m.NewAlgorithmID, m.NewPublicKey
+	default:
+		return nil
+	}
+	if IsDegeneratePublicKey(algo, pub) {
+		return ErrWeakPQCKey.Wrap("the key's t1 part is all zero, so anyone can forge its signatures")
 	}
 	return nil
 }

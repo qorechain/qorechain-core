@@ -295,6 +295,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// From v3.2.3 an account's own post-quantum key messages cannot be
 		// sent on its behalf through authz either (QSR-2026-0521, 0506).
 		pqcKeyAuthzLimiter(options.PQCKeeper),
+		// From v3.2.8 neither can the EVM window and EIP-7702 consent
+		// messages, the abstract account management messages, the staking
+		// tier early unlock, nor MsgGrant itself.
+		pqcConsentAuthzLimiter(options.PQCKeeper),
 		ante.NewSetUpContextDecorator(),
 		// Mempool-only guard: refuse CosmWasm upload/instantiate into this
 		// node's mempool. CheckTx only, so block validity is unchanged and
