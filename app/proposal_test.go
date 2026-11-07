@@ -277,3 +277,70 @@ func TestPrepareProposalOutputAlwaysAccepted(t *testing.T) {
 		}
 	}
 }
+
+// With a positive block gas limit, a primer plus MaxSkips candidates that
+// each declare the whole block's gas (never included, so they never pay)
+// used to end selection with the block almost empty, every block. Gas
+// misfits no longer count towards MaxSkips: the scan goes on while the block
+// has room.
+func TestPrepareProposalGasDecoysDoNotStallSelection(t *testing.T) {
+	const maxGas = 100_000_000
+	txs := []*memTx{{id: 0, signer: addr(0), gas: 200_000, size: 300, fee: 1_000_000_000}}
+	for i := 1; i <= DefaultPrepareProposalMaxSkips; i++ {
+		txs = append(txs, &memTx{id: i, signer: addr(i), gas: maxGas, size: 300, fee: 10_000_000_000})
+	}
+	const normal = 400
+	for i := 0; i < normal; i++ {
+		id := 1000 + i
+		txs = append(txs, &memTx{id: id, signer: addr(id), gas: 200_000, size: 300, fee: 200_000})
+	}
+	mp := newMemPool(0)
+	fillPool(t, mp, txs)
+	v := newMemVerifier(txs)
+
+	selected := runPrepare(t, mp, v, testLimits(), 10_000_000, maxGas)
+	if len(selected) != 1+normal {
+		t.Fatalf("selected %d, want %d (primer + every normal tx)", len(selected), 1+normal)
+	}
+	if v.verifyCalls != 1+normal {
+		t.Fatalf("verified %d, want %d: a gas decoy must not be verified", v.verifyCalls, 1+normal)
+	}
+	if !processAccepts(t, mp, v, selected, maxGas) {
+		t.Fatal("ProcessProposal rejected the proposal")
+	}
+}
+
+// MaxSkips still ends a scan of candidates that miss on bytes, where the
+// block is within one transaction of full.
+func TestPrepareProposalByteMisfitsStillStopAfterMaxSkips(t *testing.T) {
+	const maxBytes = 10_000
+	txs := []*memTx{{id: 0, signer: addr(0), gas: 100_000, size: 9_000, fee: 1_000_000}}
+	for i := 1; i <= 5000; i++ {
+		txs = append(txs, &memTx{id: i, signer: addr(i), gas: 100_000, size: 2_000, fee: 10})
+	}
+	mp := newMemPool(0)
+	fillPool(t, mp, txs)
+	v := &countingEncoder{memVerifier: newMemVerifier(txs)}
+
+	h := prepareProposalHandler(mp, v, memTxSigners{}, testLimits(), log.NewNopLogger())
+	res, err := h(proposalCtx(-1), &abci.RequestPrepareProposal{MaxTxBytes: maxBytes, Height: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Txs) != 1 {
+		t.Fatalf("selected %d, want 1", len(res.Txs))
+	}
+	if v.encodes > 1+DefaultPrepareProposalMaxSkips+1 {
+		t.Fatalf("encoded %d candidates, want at most %d", v.encodes, 1+DefaultPrepareProposalMaxSkips+1)
+	}
+}
+
+type countingEncoder struct {
+	*memVerifier
+	encodes int
+}
+
+func (c *countingEncoder) TxEncode(tx sdk.Tx) ([]byte, error) {
+	c.encodes++
+	return c.memVerifier.TxEncode(tx)
+}

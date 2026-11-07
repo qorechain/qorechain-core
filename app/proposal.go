@@ -22,7 +22,7 @@ const (
 	DefaultPrepareProposalBudget = time.Second
 
 	// DefaultPrepareProposalMaxSkips is how many candidates in a row may be
-	// skipped for not fitting in the remaining block space before selection
+	// skipped for not fitting in the remaining block bytes before selection
 	// stops.
 	DefaultPrepareProposalMaxSkips = 64
 
@@ -37,8 +37,9 @@ type proposalLimits struct {
 	// Budget is the wall-clock time from handler entry after which no further
 	// candidate is verified.
 	Budget time.Duration
-	// MaxSkips is the number of consecutive non-fitting candidates after which
-	// selection stops.
+	// MaxSkips is the number of consecutive candidates that do not fit the
+	// remaining block bytes after which selection stops. Candidates that miss
+	// only on gas do not count.
 	MaxSkips int
 }
 
@@ -54,8 +55,9 @@ type proposalLimits struct {
 // measured first, and one that cannot fit in the remaining bytes or gas is
 // skipped without running the ante and without being treated as invalid; it
 // stays in the pool for a later block. Selection also stops after MaxSkips
-// non-fitting candidates in a row, when the space left is smaller than any
-// candidate seen, or when the time budget runs out.
+// candidates in a row that do not fit the remaining bytes (a miss on gas alone
+// does not count), when the space left is smaller than any candidate seen, or
+// when the time budget runs out.
 //
 // Everything the handler includes has passed the same PrepareProposalVerifyTx
 // the default handler uses, in the same order and against the same proposal
@@ -183,14 +185,23 @@ func prepareProposalHandler(
 
 			if !fits(size, gasWanted) {
 				holdBackSigners()
-				skipsInRow++
-				if limits.MaxSkips > 0 && skipsInRow >= limits.MaxSkips {
-					stopReason = "consecutive skips"
-					return false
-				}
 				if full() {
 					stopReason = "block full"
 					return false
+				}
+				// Only a miss on bytes counts towards MaxSkips. A candidate
+				// that misses only on gas costs nothing to declare and is
+				// never included, so it never pays: counting it let MaxSkips
+				// such candidates end selection with the block nearly empty
+				// whenever the block gas limit is positive. Skipping one is
+				// an encode and a size, no ante, and the time budget still
+				// bounds the scan.
+				if size > maxTxBytes-totalBytes {
+					skipsInRow++
+					if limits.MaxSkips > 0 && skipsInRow >= limits.MaxSkips {
+						stopReason = "consecutive skips"
+						return false
+					}
 				}
 				return true
 			}
