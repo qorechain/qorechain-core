@@ -67,8 +67,11 @@ type HandlerOptions struct {
 	// RDKMempoolCheck refuses, in CheckTx only, a zk rollup batch that
 	// execution refuses after the fee (RDKZKBatchMempoolDecorator). Nil is off.
 	RDKMempoolCheck func(sdk.Context, sdk.Msg) error
+	// CrossVMMaxPayload is the crossvm max_message_size that
+	// CrossVMPayloadMempoolDecorator applies in CheckTx only. Nil is off.
+	CrossVMMaxPayload func(sdk.Context) uint64
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
-	// exempts them). Nil falls back to height 0.
+	// and the min-gas-price floor exempt them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
 
 	// EVM keepers — the concrete AccountKeeper is needed because the EVM ante
@@ -253,13 +256,23 @@ func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, f
 	)
 }
 
-// genesisExemptDecorator wraps an ante decorator and skips it during InitChain
-// (block height 0). Genesis transactions (gentxs) are delivered fee-free, so
-// fee-floor decorators like the min-gas-price check must not run against them.
-type genesisExemptDecorator struct{ inner sdk.AnteDecorator }
+// genesisExemptDecorator wraps an ante decorator and skips it during InitChain.
+// Genesis transactions (gentxs) are delivered fee-free, so fee-floor
+// decorators like the min-gas-price check must not run against them.
+//
+// InitChain is told by executingGenesis (the application's InitChain flag),
+// not by height 0 alone: with initial_height above 1 the genesis context has
+// that height, and the floor refused the chain's own gentxs. Only InitChain
+// behaves differently, and a chain that is already running got through its
+// InitChain with every gentx passing the floor, so skipping it there replays
+// identically. A nil executingGenesis falls back to height 0.
+type genesisExemptDecorator struct {
+	inner            sdk.AnteDecorator
+	executingGenesis func(sdk.Context) bool
+}
 
 func (d genesisExemptDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if ctx.BlockHeight() == 0 {
+	if ctx.BlockHeight() == 0 || (d.executingGenesis != nil && d.executingGenesis(ctx)) {
 		return next(ctx, tx, simulate)
 	}
 	return d.inner.AnteHandle(ctx, tx, simulate, next)
@@ -313,6 +326,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// usable verification key, which execution refuses with rdk code 21
 		// after the fee is paid. CheckTx only.
 		NewRDKZKBatchMempoolDecorator(options.RDKMempoolCheck),
+		// Mempool-only: refuse a cross-VM call whose payload is over
+		// max_message_size, which execution refuses after the fee is paid.
+		// CheckTx only.
+		NewCrossVMPayloadMempoolDecorator(options.CrossVMMaxPayload),
 		// Runs here, near the front, because the decorator that expands a multisig
 		// signature into event bytes sits much further down (SetPubKey) and the
 		// expansion is exponential in nesting depth. A guard placed after it would
@@ -400,9 +417,9 @@ func newFeeRouter(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.A
 		},
 		Native: []sdk.AnteDecorator{
 			// Use EVM fee market min gas price instead of standard min gas price.
-			// Exempt at genesis (height 0): gentxs are delivered fee-free during
-			// InitChain, but the min-gas-price floor would otherwise reject them.
-			genesisExemptDecorator{minGasPrice},
+			// Exempt during InitChain: gentxs are delivered fee-free, but the
+			// min-gas-price floor would otherwise reject them.
+			genesisExemptDecorator{inner: minGasPrice, executingGenesis: options.ExecutingGenesis},
 			txSizeGas,
 			// Gas abstraction: refuses a non-native fee this path cannot take.
 			NewGasAbstractionDecorator(options.GasAbstractionKeeper),

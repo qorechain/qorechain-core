@@ -11,30 +11,44 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      # Actions are pinned to commit SHAs: a tag can be moved, and this job
+      # holds a token that can write releases.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           fetch-depth: 0
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6.5.0
         with:
           go-version: '1.26'
 
+      # A failed build fails the job: no release is published without the
+      # binary it is for.
       - name: Build Linux AMD64
         run: |
+          mkdir -p build
           CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o build/qorechaind-linux-amd64 ./cmd/qorechaind/
-        continue-on-error: true
 
-      - name: Build Sidecar
+      - name: Check release assets
         run: |
-          cd sidecar && go build -o ../build/ai-sidecar-linux-amd64 .
-        continue-on-error: true
+          set -euo pipefail
+          test -s build/qorechaind-linux-amd64
+          ./build/qorechaind-linux-amd64 --help >/dev/null
+
+      - name: Checksums
+        run: |
+          set -euo pipefail
+          cd build
+          sha256sum qorechaind-linux-amd64 > SHA256SUMS
+          cat SHA256SUMS
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           files: |
-            build/*
+            build/qorechaind-linux-amd64
+            build/SHA256SUMS
+          fail_on_unmatched_files: true
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

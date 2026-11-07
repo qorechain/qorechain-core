@@ -22,13 +22,23 @@ We will acknowledge your report within 48 hours and provide a detailed response 
 
 ## Scope
 
-The following areas are in scope for security reports:
-- Consensus vulnerabilities
-- PQC cryptographic implementation issues
-- Bridge security (circuit breaker bypass, attestation forgery)
-- AI module manipulation (anomaly detection bypass)
-- Privilege escalation
-- Denial of service
+The bug bounty scope is published, and kept current, on the security page at
+https://qorechain.io/security. At the time of writing it covers:
+- Consensus and block production, including staking, slashing and distribution
+- The bank module, locked-coin accounting and escrow accounts
+- The ML-DSA-87 signing path and post-quantum key registration, Go implementation
+- The EVM execution lane
+- Public RPC and API infrastructure
+- The QoreX wallet
+
+Components under active remediation (such as the CosmWasm lane, the bridge
+module and the SVM execution lane) are added to the scope, with an
+announcement, as their remediation lands. Volumetric and denial of service
+testing against production, social engineering, third party dependencies
+without a demonstrated impact on QoreChain, testing on mainnet that affects
+real users or funds, and automated mass submissions are out of scope. Every
+report needs a working proof of concept against a local devnet or the public
+testnet.
 
 ## Disclosure Policy
 

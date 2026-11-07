@@ -22,9 +22,13 @@ import (
 // map once every store is mounted is enough. Called right before Load, after
 // the last MountStores.
 //
-// The map is read only when a stateful precompile runs. None is active on any
-// network (active_static_precompiles is empty, there are no ERC-20 token
-// pairs), so no committed transaction has taken the path this changes.
+// The map is read whenever a stateful precompile runs. The standard
+// cosmos/evm precompiles (0x08xx) are not active on any network
+// (active_static_precompiles is empty, there are no ERC-20 token pairs), but
+// QoreChain's own precompiles are wired outside that list and switched on by
+// protocol features: on testnet the CrossVM bridge (0x0901), PQC verify
+// (0x0A01, 0x0A02) and RL consensus params (0x0C01) answer, and they run on
+// this completed map. Mainnet has none of them active.
 func (app *QoreChainApp) completeEVMStoreKeys() {
 	if app.EVMKeeper == nil {
 		return

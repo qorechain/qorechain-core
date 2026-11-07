@@ -7,7 +7,6 @@ import (
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/x/authz"
 
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
@@ -98,43 +97,28 @@ func rejectBlockedWasmMsgs(msgs []sdk.Msg, depth int) error {
 	return rejectWasmMsgs(msgs, depth, false)
 }
 
-// rejectWasmMsgs walks the message tree, descending into authz MsgExec so the
-// guard cannot be sidestepped by wrapping the payload in a grant. depth bounds
-// the recursion; authz nesting beyond a couple of levels is not legitimate
-// traffic. allowInstantiate admits the instantiate-only messages.
+// rejectWasmMsgs walks the message tree with walkMempoolMsgs, which descends
+// into authz MsgExec and x/group MsgSubmitProposal, so the guard cannot be
+// sidestepped by wrapping the payload in a grant or a group proposal. depth is
+// where the walk starts (0 for a transaction's own messages).
+// allowInstantiate admits the instantiate-only messages.
 func rejectWasmMsgs(msgs []sdk.Msg, depth int, allowInstantiate bool) error {
-	if depth > 4 {
-		return errorsmod.Wrap(errortypes.ErrUnauthorized,
-			"authz nesting too deep to inspect for CosmWasm upload messages")
-	}
-	for _, msg := range msgs {
+	return walkMempoolMsgsAt(msgs, depth, "CosmWasm upload messages", true, func(msg sdk.Msg) error {
 		url := sdk.MsgTypeURL(msg)
 		_, blocked := wasmMempoolBlockedMsgs[url]
 		if _, inst := wasmMempoolInstantiateMsgs[url]; inst && allowInstantiate {
 			blocked = false
 		}
-		if blocked {
-			if allowInstantiate {
-				return errorsmod.Wrapf(errortypes.ErrUnauthorized,
-					"%s is not accepted by this node: CosmWasm code is stored "+
-						"only through governance", url)
-			}
+		if !blocked {
+			return nil
+		}
+		if allowInstantiate {
 			return errorsmod.Wrapf(errortypes.ErrUnauthorized,
-				"%s is not accepted by this node: CosmWasm code upload and "+
-					"instantiation are suspended pending a security fix", url)
+				"%s is not accepted by this node: CosmWasm code is stored "+
+					"only through governance", url)
 		}
-		if exec, ok := msg.(*authz.MsgExec); ok {
-			inner, err := exec.GetMessages()
-			if err != nil {
-				// An MsgExec whose payload will not unpack cannot be inspected,
-				// so it cannot be shown to be safe.
-				return errorsmod.Wrap(errortypes.ErrUnauthorized,
-					"authz payload could not be unpacked for inspection")
-			}
-			if err := rejectWasmMsgs(inner, depth+1, allowInstantiate); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+		return errorsmod.Wrapf(errortypes.ErrUnauthorized,
+			"%s is not accepted by this node: CosmWasm code upload and "+
+				"instantiation are suspended pending a security fix", url)
+	})
 }

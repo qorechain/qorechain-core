@@ -1168,6 +1168,7 @@ func (app *QoreChainApp) setAnteHandler(
 			StakingKeeper:           app.StakingKeeper,
 			StakingLockMempoolCheck: app.stakingTierMempoolGate,
 			RDKMempoolCheck:         app.rdkMempoolGate,
+			CrossVMMaxPayload:       app.crossVMMaxPayload,
 			PQCClient:               app.pqcClient,
 			AIKeeper:                app.AIKeeper,
 			SVMKeeper:               app.SVMKeeper,
@@ -1254,6 +1255,7 @@ func (app *QoreChainApp) SimulationManager() *module.SimulationManager {
 func (app *QoreChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
 	apiSvr.Router.Use(dropBinaryTrailers)
+	apiSvr.Router.Use(rateLimitRESTAlias)
 	registerIBCClientV2Gateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	registerTextualGateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
