@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/viper"
+
 	"github.com/cosmos/cosmos-sdk/client/flags"
 )
 
@@ -154,5 +156,49 @@ func TestMustResolveEVMChainIDRefuses(t *testing.T) {
 	mustResolveEVMChainID(mockAppOpts{flags.FlagHome: home, appOptEVMChainID: uint64(9801)})
 	if rpcEVMChainIDMismatch != "" {
 		t.Fatalf("matching app.toml reported as a mismatch: %s", rpcEVMChainIDMismatch)
+	}
+}
+
+// The start command pins the JSON-RPC EVM chain ID to the keeper's value: an
+// old app.toml value is replaced in-process, a matching one is left alone,
+// and nothing changes when the chain-id is unknown.
+func TestPinRPCEVMChainID(t *testing.T) {
+	t.Setenv(EnvEVMChainID, "")
+	home := homeWithGenesis(t, CosmosChainIDMainnet)
+	for _, v := range []interface{}{uint64(9800), int64(262144), 0, nil} {
+		rpcEVMChainIDPinned = ""
+		cfg := viper.New()
+		cfg.Set(flags.FlagHome, home)
+		if v != nil {
+			cfg.Set(appOptEVMChainID, v)
+		}
+		_, to, changed := PinRPCEVMChainID(cfg)
+		if !changed || to != EVMChainIDMainnet {
+			t.Fatalf("app.toml %v: changed=%v to=%d", v, changed, to)
+		}
+		if got := cfg.GetUint64(appOptEVMChainID); got != EVMChainIDMainnet {
+			t.Fatalf("app.toml %v: JSON-RPC would read %d", v, got)
+		}
+		if rpcEVMChainIDPinned == "" {
+			t.Fatalf("app.toml %v: the override is not reported", v)
+		}
+		// App construction afterwards sees no mismatch.
+		mustResolveEVMChainID(cfg)
+		if rpcEVMChainIDMismatch != "" {
+			t.Fatalf("app.toml %v: mismatch after pinning: %s", v, rpcEVMChainIDMismatch)
+		}
+	}
+
+	cfg := viper.New()
+	cfg.Set(flags.FlagHome, home)
+	cfg.Set(appOptEVMChainID, uint64(9801))
+	if _, _, changed := PinRPCEVMChainID(cfg); changed {
+		t.Fatal("a matching value was replaced")
+	}
+
+	unknown := viper.New()
+	unknown.Set(appOptEVMChainID, uint64(1234))
+	if _, _, changed := PinRPCEVMChainID(unknown); changed || unknown.GetUint64(appOptEVMChainID) != 1234 {
+		t.Fatal("changed the value with no chain-id to resolve")
 	}
 }
