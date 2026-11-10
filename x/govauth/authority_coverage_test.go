@@ -96,7 +96,7 @@ var userRoleMessages = map[string]string{
 	"rdk/MsgCreateRollup":                      "any account creates a rollup with its own bond",
 	"rdk/MsgPauseRollup":                       "creator of the rollup, or governance for a based rollup (v3.2.8); the keeper checks it",
 	"rdk/MsgResumeRollup":                      "creator of the rollup, or governance for a based rollup (v3.2.8); the keeper checks it",
-	"rdk/MsgStopRollup":                        "creator of the rollup; the keeper checks it",
+	"rdk/MsgStopRollup":                        "creator of the rollup, or governance for a based rollup (v3.2.8); the keeper checks it",
 	"rdk/MsgSetVerificationKey":                "creator of the rollup, before its first batch; the keeper checks it",
 	"rdk/MsgSubmitBatch":                       "sequencer of the rollup, or any account for a based zk (snark) rollup whose Groth16 proof binds the batch; the keeper checks it",
 	"rdk/MsgPostRollupData":                    "sequencer of the rollup, or any account for a based rollup; the poster pays the per-byte fee; the keeper checks it",

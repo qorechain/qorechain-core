@@ -1,18 +1,17 @@
 package qledger
 
 import (
-	"crypto/ed25519"
 	"crypto/sha256"
 	"encoding/binary"
 
 	"github.com/cloudflare/circl/sign/mldsa/mldsa44"
 )
 
-// Signature schemes an account may use.
-const (
-	SchemeMLDSA44 byte = 1 // FIPS 204 ML-DSA-44
-	SchemeEd25519 byte = 2
-)
+// SchemeMLDSA44 (FIPS 204 ML-DSA-44) is the only signature scheme of a
+// qledger-v1 account. Any other scheme byte (2 was reserved for Ed25519 in
+// the first draft and refused by decision of 2026-11-11) does not parse, so
+// such a post is a no-op.
+const SchemeMLDSA44 byte = 1
 
 // Transaction kinds.
 const (
@@ -26,27 +25,20 @@ const (
 	MaxRecipientLen = 90
 	// mldsaContext is the FIPS 204 context string of a qledger-v1 signature.
 	mldsaContext = "qledger/v1"
-	// SigGasMLDSA44 and SigGasEd25519 are charged per signature checked.
+	// SigGasMLDSA44 is charged per signature checked.
 	SigGasMLDSA44 = 30_000
-	SigGasEd25519 = 10_000
 )
 
 func pkLen(s byte) int {
-	switch s {
-	case SchemeMLDSA44:
+	if s == SchemeMLDSA44 {
 		return mldsa44.PublicKeySize
-	case SchemeEd25519:
-		return ed25519.PublicKeySize
 	}
 	return -1
 }
 
 func sigLen(s byte) int {
-	switch s {
-	case SchemeMLDSA44:
+	if s == SchemeMLDSA44 {
 		return mldsa44.SignatureSize
-	case SchemeEd25519:
-		return ed25519.SignatureSize
 	}
 	return -1
 }
@@ -116,11 +108,6 @@ func SigningMessage(chainID, rollupID string, unsigned []byte) []byte {
 	return h.Sum(nil)
 }
 
-// SignEd25519 signs tx (whose Scheme and PubKey must be set) with key.
-func (tx *Tx) SignEd25519(chainID, rollupID string, key ed25519.PrivateKey) {
-	tx.Sig = ed25519.Sign(key, SigningMessage(chainID, rollupID, tx.Unsigned()))
-}
-
 // SignMLDSA44 signs tx with key (deterministic signing).
 func (tx *Tx) SignMLDSA44(chainID, rollupID string, key *mldsa44.PrivateKey) error {
 	sig := make([]byte, mldsa44.SignatureSize)
@@ -187,9 +174,6 @@ func DecodeTx(b []byte) (Tx, bool) {
 func (tx Tx) VerifySignature(chainID, rollupID string) bool {
 	msg := SigningMessage(chainID, rollupID, tx.Unsigned())
 	switch tx.Scheme {
-	case SchemeEd25519:
-		return len(tx.PubKey) == ed25519.PublicKeySize && len(tx.Sig) == ed25519.SignatureSize &&
-			ed25519.Verify(ed25519.PublicKey(tx.PubKey), msg, tx.Sig)
 	case SchemeMLDSA44:
 		if len(tx.PubKey) != mldsa44.PublicKeySize || len(tx.Sig) != mldsa44.SignatureSize {
 			return false
@@ -203,12 +187,7 @@ func (tx Tx) VerifySignature(chainID, rollupID string) bool {
 	return false
 }
 
-func sigGas(scheme byte) uint64 {
-	if scheme == SchemeMLDSA44 {
-		return SigGasMLDSA44
-	}
-	return SigGasEd25519
-}
+func sigGas(byte) uint64 { return SigGasMLDSA44 }
 
 // Deposits are inbox entries the chain writes itself (MsgDepositToRollup),
 // under a poster that no signer address can be.

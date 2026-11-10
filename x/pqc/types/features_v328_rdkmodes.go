@@ -13,7 +13,9 @@ const (
 	// is based and anyone with a bond may submit; an upheld fraud proof
 	// rejects the batch and its descendants, rolls the inbox back and pays
 	// the submitter's bond to the challenger. Withdrawals are paid from the
-	// deposit pool after the challenge window. Requires
+	// deposit pool after the challenge window. Account keys are ML-DSA-44
+	// only. From the switch no new optimistic rollup is created without an
+	// execution VM (existing ones are unchanged). Requires
 	// FeatureRDKPostRollupData and FeatureRDKBasedSequencing.
 	FeatureRDKOptimisticReexec = "rdk-optimistic-reexec"
 

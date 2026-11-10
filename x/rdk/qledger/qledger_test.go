@@ -18,28 +18,37 @@ const (
 	testRollup = "ledger-roll"
 )
 
-type edUser struct {
-	pub  ed25519.PublicKey
-	priv ed25519.PrivateKey
+type mlUser struct {
+	pub  []byte
+	priv *mldsa44.PrivateKey
 }
 
-func newEd(seed byte) edUser {
-	priv := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{seed}, 32))
-	return edUser{pub: priv.Public().(ed25519.PublicKey), priv: priv}
+func newUser(seed byte) mlUser {
+	var sd [mldsa44.SeedSize]byte
+	for i := range sd {
+		sd[i] = seed
+	}
+	pk, sk := mldsa44.NewKeyFromSeed(&sd)
+	pb, _ := pk.MarshalBinary()
+	return mlUser{pub: pb, priv: sk}
 }
 
-func (u edUser) id() [32]byte { return AccountID(SchemeEd25519, u.pub) }
+func (u mlUser) id() [32]byte { return AccountID(SchemeMLDSA44, u.pub) }
 
-func (u edUser) transfer(nonce uint64, to [32]byte, amt uint64) []byte {
-	tx := Tx{Scheme: SchemeEd25519, PubKey: u.pub, Kind: KindTransfer, Nonce: nonce, To: to, Amount: amt}
-	tx.SignEd25519(testChain, testRollup, u.priv)
+func (u mlUser) sign(tx Tx) []byte {
+	tx.Scheme, tx.PubKey = SchemeMLDSA44, u.pub
+	if err := tx.SignMLDSA44(testChain, testRollup, u.priv); err != nil {
+		panic(err)
+	}
 	return tx.Encode()
 }
 
-func (u edUser) withdraw(nonce uint64, rcpt string, amt uint64) []byte {
-	tx := Tx{Scheme: SchemeEd25519, PubKey: u.pub, Kind: KindWithdraw, Nonce: nonce, Recipient: rcpt, Amount: amt}
-	tx.SignEd25519(testChain, testRollup, u.priv)
-	return tx.Encode()
+func (u mlUser) transfer(nonce uint64, to [32]byte, amt uint64) []byte {
+	return u.sign(Tx{Kind: KindTransfer, Nonce: nonce, To: to, Amount: amt})
+}
+
+func (u mlUser) withdraw(nonce uint64, rcpt string, amt uint64) []byte {
+	return u.sign(Tx{Kind: KindWithdraw, Nonce: nonce, Recipient: rcpt, Amount: amt})
 }
 
 func deposit(id [32]byte, amt uint64) Entry {
@@ -110,7 +119,7 @@ func TestPartialTreeMatchesLedger(t *testing.T) {
 // Execution: deposits, transfers, withdrawals; everything invalid is a
 // no-op.
 func TestExecuteRules(t *testing.T) {
-	a, b := newEd(1), newEd(2)
+	a, b := newUser(1), newUser(2)
 	rcpt := sdk.AccAddress(bytes.Repeat([]byte{9}, 20)).String()
 	l := NewLedger()
 	entries := []Entry{
@@ -184,7 +193,7 @@ func TestMLDSA44Account(t *testing.T) {
 	}
 	pkb, _ := pk.MarshalBinary()
 	id := AccountID(SchemeMLDSA44, pkb)
-	to := newEd(3).id()
+	to := newUser(3).id()
 	tx := Tx{Scheme: SchemeMLDSA44, PubKey: pkb, Kind: KindTransfer, Nonce: 0, To: to, Amount: 40}
 	if err := tx.SignMLDSA44(testChain, testRollup, sk); err != nil {
 		t.Fatal(err)
@@ -214,7 +223,7 @@ func TestMLDSA44Account(t *testing.T) {
 // state root or a wrong withdrawals root is, and proofs about other inputs
 // or other parent states decide nothing.
 func TestCheckFraud(t *testing.T) {
-	a, b := newEd(1), newEd(2)
+	a, b := newUser(1), newUser(2)
 	rcpt := sdk.AccAddress(bytes.Repeat([]byte{8}, 20)).String()
 	parent := NewLedger()
 	_, _ = Execute(env, parent, []Entry{deposit(a.id(), 1000)})
@@ -282,7 +291,7 @@ func TestCheckFraud(t *testing.T) {
 // keyed by the leaf), each batch's tree places them at index mod its size,
 // and nothing can be sent to the counter slot.
 func TestWithdrawalIndicesAreGlobal(t *testing.T) {
-	a := newEd(1)
+	a := newUser(1)
 	rcpt := sdk.AccAddress(bytes.Repeat([]byte{7}, 20)).String()
 	l := NewLedger()
 	r1, _ := Execute(env, l, []Entry{deposit(a.id(), 100), post(a.withdraw(0, rcpt, 1)), post(a.withdraw(1, rcpt, 1)),
@@ -321,5 +330,30 @@ func TestWithdrawalIndicesAreGlobal(t *testing.T) {
 				t.Fatalf("withdrawal %d does not prove", w.Index)
 			}
 		}
+	}
+}
+
+// qledger-v1 accounts are ML-DSA-44 only: an Ed25519-shaped transaction
+// (scheme 2) does not parse and changes nothing.
+func TestEd25519TransactionIsNoOp(t *testing.T) {
+	priv := ed25519.NewKeyFromSeed(bytes.Repeat([]byte{4}, 32))
+	pub := priv.Public().(ed25519.PublicKey)
+	id := sha256.Sum256(append([]byte("qledger/v1/account\x02"), pub...))
+	unsigned := append([]byte{1, 2}, pub...)
+	unsigned = append(unsigned, KindTransfer)
+	unsigned = append(unsigned, make([]byte, 8)...)
+	to := newUser(5).id()
+	unsigned = append(unsigned, to[:]...)
+	unsigned = append(unsigned, 0, 0, 0, 0, 0, 0, 0, 10)
+	payload := append(unsigned, ed25519.Sign(priv, SigningMessage(testChain, testRollup, unsigned))...)
+	if _, ok := DecodeTx(payload); ok {
+		t.Fatal("an Ed25519 transaction parsed")
+	}
+	l := NewLedger()
+	if _, err := Execute(env, l, []Entry{deposit(id, 100), post(payload)}); err != nil {
+		t.Fatal(err)
+	}
+	if bal, _, _ := l.Get(to); bal != 0 {
+		t.Fatal("an Ed25519 transaction moved funds")
 	}
 }

@@ -196,7 +196,7 @@ func cmdCreateRollup() *cobra.Command {
 	cmd.Flags().String("vm", "", "rollup VM type (evm|cosmwasm|svm|custom); empty = use the profile's default VM")
 	cmd.Flags().String("verification-key-file", "", "zk profiles only (chain v3.2.7+): register this ZK verification key at creation (see set-verification-key)")
 	cmd.Flags().String("sequencing", "", "chain v3.2.8+: \"based\" orders the rollup's transactions by their inclusion on this chain (anyone posts data; defi (snark) rollups then accept batches from anyone). defi, gaming and enterprise profiles only")
-	cmd.Flags().String("execution-vm", "", "chain v3.2.8+: \"qledger-v1\" makes an optimistic (nft, custom) rollup whose batches a fraud proof re-executes on chain; requires --sequencing based")
+	cmd.Flags().String("execution-vm", "", "chain v3.2.8+: \"qledger-v1\" makes an optimistic (nft, custom) rollup whose batches a fraud proof re-executes on chain (ML-DSA-44 accounts); requires --sequencing based. From v3.2.8 a new optimistic rollup must set it")
 	cmd.Flags().String("privacy", "", "chain v3.2.8+: \"encapsulated\" makes a private rollup: posts are ML-KEM-1024 envelopes to its members (defi profile with a Groth16 key only)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd

@@ -169,7 +169,7 @@ Three protocol features, all enabled by the v3.2.8 upgrade.
 **`rdk-optimistic-reexec`: optimistic rollups with fraud proofs that check execution.**
 An optimistic rollup (`nft`, `custom`) created with `--execution-vm qledger-v1 --sequencing based` runs the
 qledger-v1 model (`x/rdk/qledger`): a uqor account ledger (sparse Merkle tree, SHA-256) with signed transfers
-and withdrawals (ML-DSA-44 or Ed25519 account keys). Its inputs are its inbox: user posts (one transaction each,
+and withdrawals (ML-DSA-44 account keys only). Its inputs are its inbox: user posts (one transaction each,
 at most 6 KiB) and deposits (`MsgDepositToRollup`, which the chain appends itself). Any account holding a
 submitter bond (`MsgBondRollupSubmitter`, at least `min_submitter_bond`, default 1,000 QOR) may submit a batch of
 at most 64 inbox entries. During the challenge window anyone may send `MsgChallengeBatch` with a qledger-v1 fraud
@@ -177,9 +177,10 @@ proof (the batch's inputs and a Merkle witness of the accounts they touch); the 
 if its state root or withdrawals root is wrong, rejects it and every batch built on it, rolls the inbox back and
 pays the submitter's whole bond to the challenger. A proof that does not show fraud fails and changes nothing.
 Withdrawals are paid from finalized batches only, from the rollup's deposit pool (never from the creator's
-escrow); the creator cannot stop the rollup while the pool holds deposits. A bond can be withdrawn
-(`MsgUnbondRollupSubmitter`) a full challenge window after its holder's last batch. Optimistic rollups without an
-execution VM are unchanged: their batches are as good as their sequencer.
+escrow); the rollup cannot be stopped while the pool holds deposits. A bond can be withdrawn
+(`MsgUnbondRollupSubmitter`) a full challenge window after its holder's last batch. From v3.2.8 no new optimistic
+rollup can be created without an execution VM; optimistic rollups created before are unchanged (their batches are as
+good as their sequencer).
 
 **`rdk-stark-statement`: the demonstration STARK AIR is refused.** The only AIR the STARK verifier implements
 proves iterated squaring between two 64-bit values, which anyone can prove for any roots and which does not
@@ -195,7 +196,7 @@ every entry names the member's current key; it never decrypts. Posts, poster, ti
 withdrawals (recipient and amount) stay public. Use `tx rdk post-private-data` to encrypt and post, and
 `tx rdk decrypt-private-data` (offline) to open a post.
 
-**Based rollups are paused and resumed by governance only** (from `rdk-based-sequencing`).
+**Based rollups are paused, resumed and stopped by governance only** (from `rdk-based-sequencing`).
 
 ## Gas Models
 
