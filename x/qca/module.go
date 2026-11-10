@@ -30,6 +30,7 @@ var (
 // RegisterServices registers the qca gRPC query service.
 func (am AppModule) RegisterServices(cfg module.Configurator) {
 	types.RegisterQueryServer(cfg.QueryServer(), keeper.NewQueryServer(am.keeper))
+	types.RegisterMsgServer(cfg.MsgServer(), keeper.NewMsgServerImpl(am.keeper))
 }
 
 type AppModuleBasic struct{}
@@ -38,7 +39,10 @@ func (AppModuleBasic) Name() string { return types.ModuleName }
 
 func (AppModuleBasic) RegisterLegacyAminoCodec(_ *codec.LegacyAmino) {}
 
-func (AppModuleBasic) RegisterInterfaces(_ codectypes.InterfaceRegistry) {}
+// RegisterInterfaces registers MsgUpdateQDRWConfig (gov-qdrw-tally).
+func (AppModuleBasic) RegisterInterfaces(registry codectypes.InterfaceRegistry) {
+	registry.RegisterImplementations((*sdk.Msg)(nil), &types.MsgUpdateQDRWConfig{})
+}
 
 func (AppModuleBasic) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
 

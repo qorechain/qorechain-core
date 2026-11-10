@@ -21,6 +21,12 @@ message FeeToken {
   string min_liquidity = 6;
   // max_deviation_bps bounds |TWAP - spot| / spot and the refill slippage.
   uint32 max_deviation_bps = 7;
+  // min_foreign_liquidity is the foreign-side reserve the pool must hold
+  // (gasabstraction-depth-age-gate); required for amm_twap from that switch.
+  string min_foreign_liquidity = 8;
+  // min_pool_age_blocks is how old the pool must be before it may price fees;
+  // the chain floor MinFeePricingPoolAgeBlocks applies when it is lower.
+  int64 min_pool_age_blocks = 9;
 }
 
 // FeeConfig is the gas abstraction configuration.

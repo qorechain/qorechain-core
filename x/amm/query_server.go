@@ -45,16 +45,8 @@ func poolView(p types.Pool) *types.PoolView {
 func (q queryServer) Params(goCtx context.Context, _ *types.QueryParamsRequest) (*types.QueryParamsResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	p := q.keeper.GetParams(ctx)
-	return &types.QueryParamsResponse{Params: &types.ParamsView{
-		SwapFeeBps:         p.SwapFeeBps,
-		ProtocolFeeBps:     p.ProtocolFeeBps,
-		MinLiquidity:       p.MinLiquidity.String(),
-		MaxPoolsPerCreator: p.MaxPoolsPerCreator,
-		LpTokenDecimals:    p.LPTokenDecimals,
-		PoolCreationFee:    p.PoolCreationFee.String(),
-		MaxSwapImpactBps:   p.MaxSwapImpactBps,
-		Enabled:            p.Enabled,
-	}}, nil
+	view := types.ParamsToView(p)
+	return &types.QueryParamsResponse{Params: &view}, nil
 }
 
 func (q queryServer) Pool(goCtx context.Context, req *types.QueryPoolRequest) (*types.QueryPoolResponse, error) {

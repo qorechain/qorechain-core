@@ -3,21 +3,16 @@ package types
 import (
 	"fmt"
 
+	"cosmossdk.io/math"
+
 	sdkerrors "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
-// MsgCreatePool, MsgAddLiquidity, MsgRemoveLiquidity, MsgSwapExactIn,
-// MsgSwapExactOut, MsgPausePool and MsgResumePool are generated from
-// proto/qorechain/amm/v1/tx.proto (see tx.pb.go). MsgSetParams remains
-// hand-written (embeds Params; migrated to proto in a later pass). The
-// ValidateBasic / GetSigners methods below are attached to the generated types.
-
-// MsgSetParams updates module Params. Gov-only.
-type MsgSetParams struct {
-	Authority string `json:"authority"`
-	Params    Params `json:"params"`
-}
+// Every AMM message is generated from proto/qorechain/amm/v1/tx.proto (see
+// tx.pb.go). The ValidateBasic / GetSigners methods below are attached to the
+// generated types. MsgUpdateParams (v3.2.8, amm-gov-params) replaced the
+// hand-written MsgSetParams, which had no proto, handler or registration.
 
 // ----- ValidateBasic implementations -----
 
@@ -150,11 +145,52 @@ func (m MsgResumePool) ValidateBasic() error {
 	return nil
 }
 
-func (m MsgSetParams) ValidateBasic() error {
+func (m MsgUpdateParams) ValidateBasic() error {
 	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
 		return sdkerrors.Wrap(ErrUnauthorized, "authority")
 	}
-	return m.Params.Validate()
+	p, err := ParamsFromView(m.Params)
+	if err != nil {
+		return sdkerrors.Wrap(ErrInvalidParams, err.Error())
+	}
+	return p.Validate()
+}
+
+// ParamsFromView converts the wire form of the parameters to Params. The two
+// integer fields must parse; Params.Validate checks the ranges.
+func ParamsFromView(v ParamsView) (Params, error) {
+	minLiq, ok := math.NewIntFromString(v.MinLiquidity)
+	if !ok {
+		return Params{}, fmt.Errorf("min_liquidity %q is not an integer", v.MinLiquidity)
+	}
+	fee, ok := math.NewIntFromString(v.PoolCreationFee)
+	if !ok {
+		return Params{}, fmt.Errorf("pool_creation_fee %q is not an integer", v.PoolCreationFee)
+	}
+	return Params{
+		SwapFeeBps:         v.SwapFeeBps,
+		ProtocolFeeBps:     v.ProtocolFeeBps,
+		MinLiquidity:       minLiq,
+		MaxPoolsPerCreator: v.MaxPoolsPerCreator,
+		LPTokenDecimals:    v.LpTokenDecimals,
+		PoolCreationFee:    fee,
+		MaxSwapImpactBps:   v.MaxSwapImpactBps,
+		Enabled:            v.Enabled,
+	}, nil
+}
+
+// ParamsToView converts Params to their wire form.
+func ParamsToView(p Params) ParamsView {
+	return ParamsView{
+		SwapFeeBps:         p.SwapFeeBps,
+		ProtocolFeeBps:     p.ProtocolFeeBps,
+		MinLiquidity:       p.MinLiquidity.String(),
+		MaxPoolsPerCreator: p.MaxPoolsPerCreator,
+		LpTokenDecimals:    p.LPTokenDecimals,
+		PoolCreationFee:    p.PoolCreationFee.String(),
+		MaxSwapImpactBps:   p.MaxSwapImpactBps,
+		Enabled:            p.Enabled,
+	}
 }
 
 // ----- GetSigners -----
@@ -194,7 +230,7 @@ func (m MsgResumePool) GetSigners() []sdk.AccAddress {
 	return []sdk.AccAddress{addr}
 }
 
-func (m MsgSetParams) GetSigners() []sdk.AccAddress {
+func (m MsgUpdateParams) GetSigners() []sdk.AccAddress {
 	addr, _ := sdk.AccAddressFromBech32(m.Authority)
 	return []sdk.AccAddress{addr}
 }

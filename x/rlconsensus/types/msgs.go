@@ -5,6 +5,7 @@ import (
 
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 )
 
 // ---------------------------------------------------------------------------
@@ -122,4 +123,17 @@ func (m *MsgUpdateRewardWeights) ValidateBasic() error {
 func (m *MsgUpdateRewardWeights) GetSigners() []sdk.AccAddress {
 	addr, _ := sdk.AccAddressFromBech32(m.Authority)
 	return []sdk.AccAddress{addr}
+}
+
+func (m *MsgUpdateGasFloorBand) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
+		return errorsmod.Wrapf(sdkerrors.ErrInvalidAddress, "invalid authority address: %s", err)
+	}
+	if !m.ApplyEnabled && m.MinGasPrice == "" && m.MaxGasPrice == "" && m.MaxStepChange == "" {
+		return nil
+	}
+	if _, err := ValidateGasFloorBand(m.MinGasPrice, m.MaxGasPrice, m.MaxStepChange); err != nil {
+		return errorsmod.Wrap(sdkerrors.ErrInvalidRequest, err.Error())
+	}
+	return nil
 }

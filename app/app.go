@@ -1008,6 +1008,14 @@ func NewQoreChainApp(
 	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}
+	// Node-local listeners (the x/ai node insights): appended after any
+	// configured streaming plugin. They observe finalized blocks and never
+	// change state; an error from one is logged, never fatal.
+	if len(nodeLocalABCIListeners) > 0 {
+		sm := app.StreamingManager()
+		sm.ABCIListeners = append(sm.ABCIListeners, nodeLocalABCIListeners...)
+		app.SetStreamingManager(sm)
+	}
 
 	app.RegisterUpgradeHandlers()
 
@@ -1261,6 +1269,7 @@ func (app *QoreChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
 	apiSvr.Router.Use(dropBinaryTrailers)
 	apiSvr.Router.Use(rateLimitRESTAlias)
+	apiSvr.Router.Use(moduleRESTAlias)
 	registerIBCClientV2Gateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	registerTextualGateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
