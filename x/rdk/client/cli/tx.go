@@ -33,6 +33,7 @@ func GetTxCmd() *cobra.Command {
 		cmdStopRollup(),
 		cmdExecuteWithdrawal(),
 		cmdSetVerificationKey(),
+		cmdPostData(),
 	)
 	return cmd
 }
@@ -175,6 +176,7 @@ func cmdCreateRollup() *cobra.Command {
 				VmType:      vm,
 				StakeAmount: stake,
 			}
+			msg.Sequencing, _ = cmd.Flags().GetString("sequencing")
 			if path, _ := cmd.Flags().GetString("verification-key-file"); path != "" {
 				if msg.VerificationKey, err = readVerificationKeyFile(path); err != nil {
 					return err
@@ -185,6 +187,7 @@ func cmdCreateRollup() *cobra.Command {
 	}
 	cmd.Flags().String("vm", "", "rollup VM type (evm|cosmwasm|svm|custom); empty = use the profile's default VM")
 	cmd.Flags().String("verification-key-file", "", "zk profiles only (chain v3.2.7+): register this ZK verification key at creation (see set-verification-key)")
+	cmd.Flags().String("sequencing", "", "chain v3.2.8+: \"based\" orders the rollup's transactions by their inclusion on this chain (anyone posts data; defi (snark) rollups then accept batches from anyone). defi, gaming and enterprise profiles only")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
@@ -229,6 +232,7 @@ func cmdSubmitBatch() *cobra.Command {
 				return err
 			}
 			msg.TxCount, _ = cmd.Flags().GetUint64("tx-count")
+			msg.InboxEnd, _ = cmd.Flags().GetUint64("inbox-end")
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
@@ -236,6 +240,7 @@ func cmdSubmitBatch() *cobra.Command {
 	cmd.Flags().String("data-hash", "", "hex hash of the batch data posted as a DA blob")
 	cmd.Flags().String("withdrawals-root", "", "hex Merkle root of the batch's L2->L1 withdrawals")
 	cmd.Flags().Uint64("tx-count", 0, "number of rollup transactions in the batch")
+	cmd.Flags().Uint64("inbox-end", 0, "based rollups (chain v3.2.8+): the last inbox sequence this batch consumes; --data-hash must then be the inbox range hash ('query rdk inbox')")
 	cmd.Flags().String("anchor-signature", "", "hex Dilithium signature by the rollup creator over the v2 anchor sign bytes (see 'query rdk anchor-sign-bytes'); the batch is then anchored in x/multilayer")
 	cmd.Flags().String("validator-set-hash", "", "hex validator-set commitment carried in the anchor (covered by the anchor signature)")
 	flags.AddTxFlagsToCmd(cmd)
@@ -344,6 +349,46 @@ func cmdStopRollup() *cobra.Command {
 			msg := &types.MsgStopRollup{
 				Creator:  clientCtx.GetFromAddress().String(),
 				RollupID: args[0],
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+// cmdPostData sends MsgPostRollupData (chain v3.2.8+).
+func cmdPostData() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "post-data [rollup-id] [data-hex | @file]",
+		Short: "Post rollup data on chain (chain v3.2.8+)",
+		Long: `Post rollup data on chain. The payload stays in the transaction; the chain
+keeps its SHA-256 commitment under the rollup's next inbox sequence. The fee is
+charged per billable byte (at least 1 KiB per post); read the current fee and
+size caps with 'query rdk params'. Only the rollup's sequencer may post, unless
+the rollup is based, where anyone may. Pass the data as hex, or as @path to
+read a file's raw bytes.`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			var data []byte
+			if path, ok := strings.CutPrefix(args[1], "@"); ok {
+				if data, err = os.ReadFile(path); err != nil {
+					return err
+				}
+			} else if data, err = hex.DecodeString(strings.TrimPrefix(args[1], "0x")); err != nil {
+				return fmt.Errorf("data: %w", err)
+			}
+			msg := &types.MsgPostRollupData{
+				Poster:   clientCtx.GetFromAddress().String(),
+				RollupID: args[0],
+				Data:     data,
+			}
+			if err := msg.ValidateBasic(); err != nil {
+				return err
 			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},

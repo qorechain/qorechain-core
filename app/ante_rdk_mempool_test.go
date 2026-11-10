@@ -17,6 +17,7 @@ import (
 func TestRDKMempoolChecks(t *testing.T) {
 	b1, b2 := &rdktypes.MsgSubmitBatch{RollupID: "a"}, &rdktypes.MsgSubmitBatch{RollupID: "b"}
 	setKey := &rdktypes.MsgSetVerificationKey{RollupID: "a"}
+	post := &rdktypes.MsgPostRollupData{RollupID: "a", Data: []byte{1}}
 	for _, tc := range []struct {
 		name string
 		msgs []sdk.Msg
@@ -28,6 +29,11 @@ func TestRDKMempoolChecks(t *testing.T) {
 		{"key set between", []sdk.Msg{b1, setKey, b2}, []sdk.Msg{b1}},
 		{"other message first", []sdk.Msg{&banktypes.MsgSend{}, b1}, nil},
 		{"authz wrapped", []sdk.Msg{&authz.MsgExec{}}, nil},
+		// v3.2.8: leading posts are checked with the batches.
+		{"post then batch", []sdk.Msg{post, b1}, []sdk.Msg{post, b1}},
+		{"batch then post", []sdk.Msg{b1, post}, []sdk.Msg{b1, post}},
+		{"post after key set", []sdk.Msg{setKey, post}, nil},
+		{"post after other message", []sdk.Msg{post, &banktypes.MsgSend{}, b1}, []sdk.Msg{post}},
 	} {
 		got := rdkMempoolChecks(tc.msgs)
 		if len(got) != len(tc.want) {

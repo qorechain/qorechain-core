@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 
@@ -27,6 +28,8 @@ func GetQueryCmd() *cobra.Command {
 		CmdSuggestProfile(),
 		CmdQueryBatches(),
 		CmdAnchorSignBytes(),
+		CmdQueryPostedData(),
+		CmdQueryInbox(),
 	)
 	return cmd
 }
@@ -144,5 +147,58 @@ func CmdSuggestProfile() *cobra.Command {
 			return nil
 		},
 	}
+	return cmd
+}
+
+// CmdQueryPostedData queries one posted-data commitment (chain v3.2.8+).
+func CmdQueryPostedData() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "posted-data [rollup-id] [sequence]",
+		Short: "Query a posted-data commitment by inbox sequence (the payload is in the transaction at its height)",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			seq, err := strconv.ParseUint(args[1], 10, 64)
+			if err != nil {
+				return err
+			}
+			res, err := types.NewQueryClient(clientCtx).PostedData(cmd.Context(),
+				&types.QueryPostedDataRequest{RollupId: args[0], Sequence: seq})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
+		},
+	}
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+// CmdQueryInbox queries a rollup's inbox and the data_hash a based batch must
+// carry (chain v3.2.8+).
+func CmdQueryInbox() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "inbox [rollup-id]",
+		Short: "Query a rollup's inbox and the range data_hash for a based batch ending at --inbox-end (default the head)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			end, _ := cmd.Flags().GetUint64("inbox-end")
+			res, err := types.NewQueryClient(clientCtx).Inbox(cmd.Context(),
+				&types.QueryInboxRequest{RollupId: args[0], InboxEnd: end})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
+		},
+	}
+	cmd.Flags().Uint64("inbox-end", 0, "range end for range_data_hash (0 = the head)")
+	flags.AddQueryFlagsToCmd(cmd)
 	return cmd
 }

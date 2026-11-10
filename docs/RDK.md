@@ -120,6 +120,47 @@ IBC-based data availability via Celestia. Stubbed in v1.3.0 — submissions retu
 
 Redundant storage on both native and Celestia backends simultaneously.
 
+### Posted Rollup Data and Based Sequencing (from v3.2.8)
+
+`MsgPostRollupData` (`tx rdk post-data`) puts rollup data on chain. The payload
+stays in the transaction (so it is in the block); the chain keeps a commitment
+(SHA-256 of the data, size, poster, height) under the rollup's next inbox
+sequence and extends the rollup's inbox accumulator. A batch of a native-DA
+rollup may reference a retained post by `data_hash = SHA-256(data)`.
+
+- Who may post: the rollup's sequencer (its creator when no sequencer address
+  is set); anyone on a based rollup.
+- Caps: `max_posted_data_bytes` per post (default 128 KiB, hard ceiling 1 MiB)
+  and `max_posted_data_bytes_per_block` for all rollups together (default
+  512 KiB of billable bytes).
+- Fee: `posted_data_fee_per_byte` uqor (default 10) per billable byte, where a
+  post is billed at least 1 KiB, paid into the fee collector and split like a
+  transaction fee. Gas is charged on top.
+- Retention: commitments are pruned after `posted_data_retention_blocks`
+  (default 201,600). The bytes stay in the block history.
+
+Based sequencing (`create-rollup --sequencing based`, or governance
+`MsgSetRollupSequencing` for an existing rollup) orders a rollup's
+transactions by their inclusion on this chain. Each post gets the next inbox
+sequence, and every batch of a based rollup sets `inbox_end` and carries as
+`data_hash` the inbox range commitment from the consumed position to
+`inbox_end` (`query rdk inbox` returns it). A based zk rollup proving with
+Groth16 (`defi` profile) accepts batches from any account, since the proof
+binds the roots, the inbox range and the withdrawals root; a based-settlement
+rollup (`gaming`, `enterprise`) keeps its sequencer as the only submitter.
+Optimistic and STARK rollups cannot be based in this release.
+
+The accumulator and range commitment are:
+
+```
+acc_n = SHA-256("qorechain/rdk/inbox/v1" | lp(chain_id) | lp(rollup_id) | acc_{n-1}
+                | be64(n) | be64(height) | lp(poster) | SHA-256(data))
+range = SHA-256("qorechain/rdk/inbox-range/v1" | lp(chain_id) | lp(rollup_id)
+                | be64(from) | be64(to) | acc_from | acc_to)
+```
+
+with `acc_0` = 32 zero bytes and `lp` a 4-byte big-endian length prefix.
+
 ## Gas Models
 
 | Model | Description | Use Case |
@@ -202,6 +243,10 @@ The EndBlocker runs settlement logic each block:
 | `blob_retention_blocks` | 432,000 (~30 days) | Blocks before expired blobs are pruned |
 | `max_batches_per_block` | 10 | Maximum settlement batches one rollup can settle in one block (enforced from v3.2.8) |
 | `finalized_batch_retention_blocks` | 0 (= 432,000, ~30 days) | Blocks a finalized batch keeps its stored proof before it is compacted (from v3.2.8). Compaction removes only the proof; withdrawals against the batch keep working |
+| `max_posted_data_bytes` | 0 (= 131,072) | Largest `MsgPostRollupData` payload (from v3.2.8) |
+| `max_posted_data_bytes_per_block` | 0 (= 524,288) | Billable bytes all posts of one block may total (from v3.2.8) |
+| `posted_data_fee_per_byte` | 0 (= 10 uqor) | Fee per billable byte, at least 1 KiB billed per post (from v3.2.8) |
+| `posted_data_retention_blocks` | 0 (= 201,600) | Blocks a posted-data commitment stays in state (from v3.2.8) |
 
 ## CLI Commands
 
@@ -297,6 +342,8 @@ qorechaind query rdk params
 | GET | `/qorechain/rdk/v1/batches/{rollup_id}` | List batches for a rollup |
 | GET | `/qorechain/rdk/v1/blob/{rollup_id}/{blob_index}` | DA blob details |
 | GET | `/qorechain/rdk/v1/params` | Module parameters |
+| GET | `/qorechain/rdk/v1/posted_data/{rollup_id}/{sequence}` | Posted-data commitment (v3.2.8) |
+| GET | `/qorechain/rdk/v1/inbox/{rollup_id}?inbox_end=N` | Inbox head, consumed position and the range data_hash for a based batch (v3.2.8) |
 
 ## JSON-RPC (`qor_` Namespace)
 
@@ -334,6 +381,10 @@ restores it. A rollup imported without a ledger entry is treated as a legacy
 record: stopping it refunds its recorded escrow (or its stake, whichever is
 smaller; the stake when no escrow figure is recorded).
 
+It also carries `posted_data` (the retained posted-data commitments) and
+`inboxes` (each rollup's inbox head and consumed position); an import rebuilds
+the hash index and the pruning queue from them.
+
 ## Events
 
 | Event | Description |
@@ -349,6 +400,10 @@ smaller; the stake when no escrow figure is recorded).
 | `da_blob_stored` | DA blob stored on native backend |
 | `da_blob_pruned` | Expired DA blob pruned |
 | `profile_suggested` | AI profile recommendation made |
+| `rdk_data_posted` | Rollup data posted (rollup_id, sequence, data_hash, size, billable_bytes, fee, poster, inbox_acc), from v3.2.8 |
+| `rdk_inbox_consumed` | A based batch consumed an inbox range (rollup_id, batch_index, inbox_start, inbox_end), from v3.2.8 |
+| `rdk_sequencing_set` | A rollup was made based at creation or by governance, from v3.2.8 |
+| `rdk_posted_data_pruned` | Expired posted-data commitments pruned this block (count), from v3.2.8 |
 
 ## Security Considerations
 

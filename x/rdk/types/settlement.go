@@ -45,6 +45,12 @@ type SettlementBatch struct {
 	// every batch submitted before, so their records keep their bytes and are
 	// judged by the rule they were settled under.
 	WithdrawalsBound bool `json:"withdrawals_bound,omitempty"`
+	// InboxStart and InboxEnd are, for a batch of a based rollup (from
+	// v3.2.8, FeatureRDKBasedSequencing), the inbox range it consumed: the
+	// posts after InboxStart up to InboxEnd. Zero and omitted for every other
+	// batch, so their records keep their bytes.
+	InboxStart uint64 `json:"inbox_start,omitempty"`
+	InboxEnd   uint64 `json:"inbox_end,omitempty"`
 
 	// AnchorSignature and ValidatorSetHash carry MsgSubmitBatch's optional
 	// anchor fields to the x/multilayer anchor written for the batch (from
