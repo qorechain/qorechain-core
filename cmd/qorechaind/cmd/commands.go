@@ -290,6 +290,7 @@ func initRootCmd(
 	)
 	// A community build refuses to start on a public network unless told to.
 	wireBuildFlavorGuard(rootCmd)
+	wireRPCEVMChainIDPin(rootCmd)
 
 	rootCmd.AddCommand(
 		server.StatusCommand(),

@@ -36,6 +36,12 @@ var (
 	EVMBankPrecompile         = common.HexToAddress("0x0000000000000000000000000000000000000804")
 	EVMGovPrecompile          = common.HexToAddress("0x0000000000000000000000000000000000000805")
 	EVMSlashingPrecompile     = common.HexToAddress("0x0000000000000000000000000000000000000806")
+
+	// EVMCrossVMBridgePrecompile is QoreChain's cross-VM bridge (0x0901),
+	// which runs an allowlisted CosmWasm contract as its caller. It counts as
+	// value-moving from FeatureEVMWindowCrossVMBridge (see
+	// IsEVMValueMovingPrecompileWith).
+	EVMCrossVMBridgePrecompile = common.HexToAddress("0x0000000000000000000000000000000000000901")
 )
 
 // EVMValueMovingPrecompiles are the precompiles whose transaction methods move
@@ -58,6 +64,18 @@ func IsEVMValueMovingPrecompile(a common.Address) bool {
 	return false
 }
 
+// IsEVMValueMovingPrecompileWith reports whether a is value-moving for the
+// window: one of EVMValueMovingPrecompiles, or, when crossVMBridge is set
+// (FeatureEVMWindowCrossVMBridge), the cross-VM bridge precompile. Without the
+// switch the bridge was treated as an ordinary contract, so an unscoped window
+// admitted it.
+func IsEVMValueMovingPrecompileWith(a common.Address, crossVMBridge bool) bool {
+	if crossVMBridge && a == EVMCrossVMBridgePrecompile {
+		return true
+	}
+	return IsEVMValueMovingPrecompile(a)
+}
+
 // ListsTarget reports whether the window's allowed_targets names a.
 func (w EVMAuthWindow) ListsTarget(a common.Address) bool {
 	for _, t := range w.AllowedTargets {
@@ -73,7 +91,14 @@ func (w EVMAuthWindow) ListsTarget(a common.Address) bool {
 // window cannot, and native_only never admits calldata. Any other recipient
 // is left to CheckScope.
 func (w EVMAuthWindow) CheckValueMovingPrecompile(to *common.Address) error {
-	if to == nil || !IsEVMValueMovingPrecompile(*to) {
+	return w.CheckValueMovingPrecompileWith(to, false)
+}
+
+// CheckValueMovingPrecompileWith is CheckValueMovingPrecompile with the set of
+// IsEVMValueMovingPrecompileWith: crossVMBridge also subjects the cross-VM
+// bridge precompile to the rule.
+func (w EVMAuthWindow) CheckValueMovingPrecompileWith(to *common.Address, crossVMBridge bool) error {
+	if to == nil || !IsEVMValueMovingPrecompileWith(*to, crossVMBridge) {
 		return nil
 	}
 	if !w.NativeOnly && w.ListsTarget(*to) {

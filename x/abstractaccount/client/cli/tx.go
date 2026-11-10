@@ -31,6 +31,7 @@ func GetTxCmd() *cobra.Command {
 		CmdCreateAbstractAccount(),
 		CmdUpdateSpendingRules(),
 		CmdRegisterAuthenticator(),
+		CmdAuthenticatorLinkMessage(),
 		CmdRevokeAuthenticator(),
 		CmdExecuteCosmos(),
 		CmdExecuteEVM(),
@@ -159,16 +160,56 @@ func CmdRegisterAuthenticator() *cobra.Command {
 			if len(args) == 6 {
 				label = args[5]
 			}
+			var proof []byte
+			if s, _ := cmd.Flags().GetString(flagPossessionProof); s != "" {
+				if proof, err = base64.StdEncoding.DecodeString(s); err != nil {
+					return fmt.Errorf("--%s must be base64: %w", flagPossessionProof, err)
+				}
+			}
 			msg := &types.MsgRegisterAuthenticator{
-				Owner:          clientCtx.GetFromAddress().String(),
-				AccountAddress: args[0],
-				Scheme:         args[1],
-				Pubkey:         pk,
-				Permissions:    strings.Split(args[3], ","),
-				ExpiryUnix:     exp,
-				Label:          label,
+				Owner:           clientCtx.GetFromAddress().String(),
+				AccountAddress:  args[0],
+				Scheme:          args[1],
+				Pubkey:          pk,
+				Permissions:     strings.Split(args[3], ","),
+				ExpiryUnix:      exp,
+				Label:           label,
+				PossessionProof: proof,
 			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	cmd.Flags().String(flagPossessionProof, "",
+		"base64 signature by the linked key over the link message (required from v3.2.8; "+
+			"see the link-message command)")
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+const flagPossessionProof = "possession-proof"
+
+// CmdAuthenticatorLinkMessage prints the message the linked key must sign for
+// --possession-proof. It reads nothing from the chain: the chain id comes
+// from --chain-id or the client configuration.
+func CmdAuthenticatorLinkMessage() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "link-message [account-address] [scheme] [pubkey-base64]",
+		Short: "Print the message a wallet key signs to prove possession when it is linked to an account",
+		Args:  cobra.ExactArgs(3),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			pk, err := base64.StdEncoding.DecodeString(args[2])
+			if err != nil {
+				return fmt.Errorf("pubkey must be base64: %w", err)
+			}
+			if clientCtx.ChainID == "" {
+				return fmt.Errorf("the chain id is required (--chain-id)")
+			}
+			_, err = fmt.Fprintln(cmd.OutOrStdout(), string(types.AuthenticatorLinkMessage(clientCtx.ChainID, args[0], args[1], pk)))
+			return err
 		},
 	}
 	flags.AddTxFlagsToCmd(cmd)
