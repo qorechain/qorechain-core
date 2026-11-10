@@ -1,0 +1,28 @@
+syntax = "proto3";
+package qorechain.qca.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/qca/types";
+
+import "cosmos/msg/v1/msg.proto";
+
+// Msg defines the qca module's governance-authority transactions.
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+  // UpdateQDRWConfig switches the QDRW governance tally on or off and sets its
+  // reputation multiplier band (gov-qdrw-tally). Governance only.
+  rpc UpdateQDRWConfig(MsgUpdateQDRWConfig) returns (MsgUpdateQDRWConfigResponse);
+}
+
+// MsgUpdateQDRWConfig sets the QDRW tally configuration. The tally is used
+// only while gov-qdrw-tally is on and enabled is true; otherwise governance
+// tallies with the stock rules.
+message MsgUpdateQDRWConfig {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  bool enabled = 2;
+  // rep_min_multiplier and rep_max_multiplier bound the reputation
+  // multiplier, within [0.5, 2] and min <= max.
+  string rep_min_multiplier = 3;
+  string rep_max_multiplier = 4;
+}
+message MsgUpdateQDRWConfigResponse {}

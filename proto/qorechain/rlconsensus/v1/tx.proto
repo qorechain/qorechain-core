@@ -18,6 +18,10 @@ service Msg {
   rpc UpdatePolicy(MsgUpdatePolicy) returns (MsgUpdatePolicyResponse);
   // UpdateRewardWeights changes the reward function weighting.
   rpc UpdateRewardWeights(MsgUpdateRewardWeights) returns (MsgUpdateRewardWeightsResponse);
+  // UpdateGasFloorBand sets whether, and inside which band, the agent's gas
+  // price floor is applied to the x/feemarket minimum gas price
+  // (rl-apply-gas-floor). Governance only.
+  rpc UpdateGasFloorBand(MsgUpdateGasFloorBand) returns (MsgUpdateGasFloorBandResponse);
 }
 
 message MsgSetAgentMode {
@@ -55,3 +59,20 @@ message MsgUpdateRewardWeights {
   string failed_txs = 6;
 }
 message MsgUpdateRewardWeightsResponse {}
+
+// MsgUpdateGasFloorBand sets the band within which the agent's gas price floor
+// moves the x/feemarket min_gas_price. Decimals as strings, in min_gas_price
+// units. With apply_enabled false nothing is applied and the band fields may
+// be empty.
+message MsgUpdateGasFloorBand {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1;
+  bool apply_enabled = 2;
+  // min_gas_price and max_gas_price bound the applied value absolutely.
+  string min_gas_price = 3;
+  string max_gas_price = 4;
+  // max_step_change bounds one step's change relative to the current value,
+  // in (0, 0.5].
+  string max_step_change = 5;
+}
+message MsgUpdateGasFloorBandResponse {}

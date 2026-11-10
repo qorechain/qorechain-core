@@ -68,6 +68,25 @@ const (
 	// and up to the same number of records written before the switch (which
 	// have no height index). Before it a record was kept forever.
 	FeatureAIFlaggedTxRetention = "ai-flagged-tx-retention"
+
+	// FeatureRLApplyGasFloor lets the RL agent's gas price floor move the
+	// x/feemarket minimum gas price, inside a band governance sets with
+	// x/rlconsensus MsgUpdateGasFloorBand (apply_enabled, absolute minimum and
+	// maximum, largest relative change per step). Each applying step moves the
+	// minimum gas price by the same factor as the agent's own floor, limited to
+	// that change and that band. With apply_enabled false, the default, nothing
+	// is applied. Before it the floor stayed in the module and the message was
+	// refused.
+	FeatureRLApplyGasFloor = "rl-apply-gas-floor"
+
+	// FeatureGovQDRWTally lets governance tally with QDRW (quadratic
+	// delegation with reputation weighting) while the x/qca QDRW configuration
+	// is enabled (MsgUpdateQDRWConfig, false by default): each voter's power
+	// is the square root of its bonded stake times a bounded reputation
+	// multiplier, scaled so quorum is still judged on participating stake.
+	// LegacyDec arithmetic only; xQORE adds nothing. With the configuration
+	// disabled the stock tally runs. Before it the message was refused.
+	FeatureGovQDRWTally = "gov-qdrw-tally"
 )
 
 // V328AMMRLAIFeatures are the v3.2.8 switches of the AMM, RL consensus and AI
@@ -80,4 +99,6 @@ var V328AMMRLAIFeatures = []string{
 	FeatureRLRelativeBounds,
 	FeatureEVMAIRiskScoreBytecode,
 	FeatureAIFlaggedTxRetention,
+	FeatureRLApplyGasFloor,
+	FeatureGovQDRWTally,
 }

@@ -1003,6 +1003,14 @@ func NewQoreChainApp(
 	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}
+	// Node-local listeners (the x/ai node insights): appended after any
+	// configured streaming plugin. They observe finalized blocks and never
+	// change state; an error from one is logged, never fatal.
+	if len(nodeLocalABCIListeners) > 0 {
+		sm := app.StreamingManager()
+		sm.ABCIListeners = append(sm.ABCIListeners, nodeLocalABCIListeners...)
+		app.SetStreamingManager(sm)
+	}
 
 	app.RegisterUpgradeHandlers()
 

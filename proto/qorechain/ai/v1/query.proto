@@ -20,6 +20,33 @@ service Query {
   rpc FlaggedTx(QueryFlaggedTxRequest) returns (QueryFlaggedTxResponse) {
     option (google.api.http).get = "/qorechain/ai/v1/flagged/{tx_hash}";
   }
+
+  // The four Node* queries are node-local advisory answers from the x/ai
+  // heuristic engines (fraud detector, fee and network optimisers, router).
+  // They read the node's latest committed state and block statistics the node
+  // collected while it was running, use floating point, and are never part of
+  // consensus: two nodes may answer slightly differently, and a node that
+  // restarted has less history. Do not use them to decide anything on chain.
+
+  // NodeFraudCheck runs the six-layer fraud detector on a hypothetical
+  // transaction against the sender's recent screening history.
+  rpc NodeFraudCheck(QueryNodeFraudCheckRequest) returns (QueryNodeFraudCheckResponse) {
+    option (google.api.http).get = "/qorechain/ai/v1/node/fraud_check";
+  }
+  // NodeFeeEstimate suggests a fee for an urgency (low, medium, high,
+  // urgent) from the congestion this node has observed.
+  rpc NodeFeeEstimate(QueryNodeFeeEstimateRequest) returns (QueryNodeFeeEstimateResponse) {
+    option (google.api.http).get = "/qorechain/ai/v1/node/fee_estimate";
+  }
+  // NodeNetworkRecommendations lists parameter suggestions from the network
+  // state this node has observed. Advisory only: nothing applies them.
+  rpc NodeNetworkRecommendations(QueryNodeNetworkRecommendationsRequest) returns (QueryNodeNetworkRecommendationsResponse) {
+    option (google.api.http).get = "/qorechain/ai/v1/node/network_recommendations";
+  }
+  // NodeRoute returns the heuristic router's priority for a transaction.
+  rpc NodeRoute(QueryNodeRouteRequest) returns (QueryNodeRouteResponse) {
+    option (google.api.http).get = "/qorechain/ai/v1/node/route";
+  }
 }
 
 message ConfigView {
@@ -60,4 +87,61 @@ message QueryFlaggedTxRequest { string tx_hash = 1; }
 message QueryFlaggedTxResponse {
   bool found = 1;
   FlaggedTxView flagged = 2;
+}
+
+message QueryNodeFraudCheckRequest {
+  string sender = 1;
+  string receiver = 2;
+  uint64 amount = 3;
+  // tx_type: transfer, delegate, contract_deploy or contract_call.
+  string tx_type = 4;
+  uint64 gas = 5;
+}
+message QueryNodeFraudCheckResponse {
+  string threat_level = 1;
+  string threat_type = 2;
+  string action = 3;
+  string confidence = 4;
+  string details = 5;
+  int64 height = 6;
+  bool node_local = 7;
+}
+
+message QueryNodeFeeEstimateRequest { string urgency = 1; }
+message QueryNodeFeeEstimateResponse {
+  string suggested_fee = 1;
+  int64 estimated_blocks = 2;
+  string current_congestion = 3;
+  string predicted_congestion = 4;
+  string confidence = 5;
+  int64 blocks_observed = 6;
+  bool node_local = 7;
+}
+
+message QueryNodeNetworkRecommendationsRequest {}
+message NodeNetworkRecommendation {
+  string parameter = 1;
+  string current_value = 2;
+  string suggested_value = 3;
+  string expected_impact = 4;
+  string confidence = 5;
+  string reasoning = 6;
+}
+message QueryNodeNetworkRecommendationsResponse {
+  repeated NodeNetworkRecommendation recommendations = 1;
+  int64 blocks_observed = 2;
+  bool node_local = 3;
+}
+
+message QueryNodeRouteRequest {
+  string sender = 1;
+  uint64 amount = 2;
+  string tx_type = 3;
+}
+message QueryNodeRouteResponse {
+  int32 priority = 1;
+  string reason = 2;
+  string confidence = 3;
+  repeated string preferred_validators = 4;
+  bool node_local = 5;
 }
