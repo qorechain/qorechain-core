@@ -54,6 +54,7 @@ const (
 	RuntimeFlagMemcpyNoOverlap  uint64 = 1 << 4 // svm-memcpy-no-overlap
 	RuntimeFlagPDASeedLimits    uint64 = 1 << 5 // svm-pda-seed-limits
 	RuntimeFlagConsensusSysvars uint64 = 1 << 6 // svm-consensus-sysvars
+	RuntimeFlagNonzeroReturn    uint64 = 1 << 7 // svm-nonzero-return-fails
 )
 
 // RuntimeSysvars are the consensus values of the Clock and Rent sysvars handed
