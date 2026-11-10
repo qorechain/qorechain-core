@@ -3,12 +3,23 @@ package qorechain.ai.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/ai/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the gRPC query service for the ai module.
 service Query {
   // Config returns the AI engine configuration.
-  rpc Config(QueryConfigRequest) returns (QueryConfigResponse);
+  rpc Config(QueryConfigRequest) returns (QueryConfigResponse) {
+    option (google.api.http).get = "/qorechain/ai/v1/config";
+  }
   // Stats returns the AI engine runtime statistics.
-  rpc Stats(QueryStatsRequest) returns (QueryStatsResponse);
+  rpc Stats(QueryStatsRequest) returns (QueryStatsResponse) {
+    option (google.api.http).get = "/qorechain/ai/v1/stats";
+  }
+  // FlaggedTx returns the screening record of a transaction the anomaly
+  // scoring flagged, if it is still kept.
+  rpc FlaggedTx(QueryFlaggedTxRequest) returns (QueryFlaggedTxResponse) {
+    option (google.api.http).get = "/qorechain/ai/v1/flagged/{tx_hash}";
+  }
 }
 
 message ConfigView {
@@ -35,3 +46,18 @@ message QueryConfigResponse { ConfigView config = 1; }
 
 message QueryStatsRequest {}
 message QueryStatsResponse { StatsView stats = 1; }
+
+// FlaggedTxView is a flagged transaction's screening record.
+message FlaggedTxView {
+  string tx_hash = 1;
+  // anomaly_score is the score in [0, 1] as a decimal string.
+  string anomaly_score = 2;
+  repeated string flags = 3;
+  int64 height = 4;
+}
+
+message QueryFlaggedTxRequest { string tx_hash = 1; }
+message QueryFlaggedTxResponse {
+  bool found = 1;
+  FlaggedTxView flagged = 2;
+}

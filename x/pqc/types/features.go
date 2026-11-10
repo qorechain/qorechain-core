@@ -224,6 +224,7 @@ var ReleaseV3_2_8ProtocolFeatures = concatFeatures(
 	V328RDKFeatures,
 	V328AIFeatures,
 	V328SVMFeatures,
+	V328AMMRLAIFeatures,
 )
 
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain

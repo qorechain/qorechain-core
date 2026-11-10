@@ -1256,6 +1256,7 @@ func (app *QoreChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
 	apiSvr.Router.Use(dropBinaryTrailers)
 	apiSvr.Router.Use(rateLimitRESTAlias)
+	apiSvr.Router.Use(moduleRESTAlias)
 	registerIBCClientV2Gateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	registerTextualGateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {

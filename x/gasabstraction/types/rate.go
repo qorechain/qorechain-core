@@ -9,6 +9,26 @@ import (
 
 var bpsDenom = math.LegacyNewDec(10_000)
 
+// DepthAgeGateEnabled answers, per block and from chain state, whether the
+// gasabstraction-depth-age-gate switch is on. Wired by the application to the
+// protocol-feature record; unset or false keeps the historical rules, so
+// blocks below the switch replay unchanged. From it an amm_twap token also
+// needs:
+//
+//   - min_foreign_liquidity in the listing, and the pool's foreign reserve at
+//     or above it. The native-side minimum alone let the pool's first
+//     depositor set any price with a token amount worth nothing;
+//   - a pool at least max(min_pool_age_blocks, MinFeePricingPoolAgeBlocks)
+//     blocks old, so its running average has a history beyond its creation
+//     price;
+//   - a constant_product pool, on every path (the ante path already asked for
+//     it under gasabstraction-pool-type-pricing; the float refill did not).
+var DepthAgeGateEnabled func(ctx sdk.Context) bool
+
+func depthAgeGateOn(ctx sdk.Context) bool {
+	return DepthAgeGateEnabled != nil && DepthAgeGateEnabled(ctx)
+}
+
 // ResolveRate returns the native units one unit of token.Denom is worth now,
 // or an error saying why the token cannot pay fees at this height.
 func ResolveRate(ctx sdk.Context, cfg GasAbstractionConfig, token AcceptedFeeToken, pools PoolReader) (math.LegacyDec, error) {
@@ -48,6 +68,10 @@ func resolveRate(ctx sdk.Context, cfg GasAbstractionConfig, token AcceptedFeeTok
 		if !ok || pool.Status != ammtypes.PoolStatusActive {
 			return math.LegacyDec{}, ErrConversionFailed.Wrapf("pool %d is not active", token.PoolID)
 		}
+		gated := depthAgeGateOn(ctx)
+		if gated {
+			constantProductOnly = true
+		}
 		if constantProductOnly && pool.Type != ammtypes.PoolTypeConstantProduct {
 			return math.LegacyDec{}, ErrConversionFailed.Wrapf(
 				"pool %d is a %s pool; fees are priced only from constant_product pools", token.PoolID, pool.Type)
@@ -66,6 +90,25 @@ func resolveRate(ctx sdk.Context, cfg GasAbstractionConfig, token AcceptedFeeTok
 		if !ok || foreignReserve.IsNil() || nativeReserve.IsNil() || !foreignReserve.IsPositive() || nativeReserve.LT(minLiq) {
 			return math.LegacyDec{}, ErrConversionFailed.Wrapf(
 				"pool %d is below the minimum liquidity for fee pricing", token.PoolID)
+		}
+		if gated {
+			minForeign, ok := math.NewIntFromString(token.MinForeignLiquidity)
+			if !ok || !minForeign.IsPositive() {
+				return math.LegacyDec{}, ErrConversionFailed.Wrapf(
+					"token %s has no min_foreign_liquidity; it cannot be priced from pool %d", token.Denom, token.PoolID)
+			}
+			if foreignReserve.LT(minForeign) {
+				return math.LegacyDec{}, ErrConversionFailed.Wrapf(
+					"pool %d holds less than the minimum foreign liquidity for fee pricing", token.PoolID)
+			}
+			minAge := token.MinPoolAgeBlocks
+			if minAge < MinFeePricingPoolAgeBlocks {
+				minAge = MinFeePricingPoolAgeBlocks
+			}
+			if age := ctx.BlockHeight() - pool.CreatedAt; pool.CreatedAt <= 0 || age < minAge {
+				return math.LegacyDec{}, ErrConversionFailed.Wrapf(
+					"pool %d is younger than %d blocks; it cannot price fees yet", token.PoolID, minAge)
+			}
 		}
 		twap := pool.WeightedAvgPrice // TokenB per TokenA
 		if twap.IsNil() || !twap.IsPositive() {

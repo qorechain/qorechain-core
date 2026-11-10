@@ -44,6 +44,15 @@ var (
 	// LastActionKey stores the agent's last step: single key -> ActionRecord
 	// (FeatureRLAgentObservable).
 	LastActionKey = []byte{0x0A}
+
+	// StepGasKey sums the gas used by the blocks of the current agent step:
+	// single key -> uint64 BE (FeatureRLObservationInputs). Written in
+	// EndBlock, read and cleared when the next observation is collected.
+	StepGasKey = []byte{0x0B}
+
+	// LastAnomalyCountKey stores the x/ai anomalies-detected total seen at the
+	// previous observation: single key -> uint64 BE (FeatureRLObservationInputs).
+	LastAnomalyCountKey = []byte{0x0C}
 )
 
 // History retention (FeatureRLHistoryRetention). The agent reads only the

@@ -17,7 +17,7 @@ func GetQueryCmd() *cobra.Command {
 		SuggestionsMinimumDistance: 2,
 		RunE:                       client.ValidateCmd,
 	}
-	cmd.AddCommand(cmdConfig(), cmdStats())
+	cmd.AddCommand(cmdConfig(), cmdStats(), cmdFlagged())
 	return cmd
 }
 
@@ -53,6 +53,27 @@ func cmdStats() *cobra.Command {
 				return err
 			}
 			res, err := types.NewQueryClient(clientCtx).Stats(cmd.Context(), &types.QueryStatsRequest{})
+			if err != nil {
+				return err
+			}
+			return clientCtx.PrintProto(res)
+		},
+	}
+	flags.AddQueryFlagsToCmd(cmd)
+	return cmd
+}
+
+func cmdFlagged() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "flagged [tx-hash]",
+		Short: "Show the screening record of a transaction the anomaly scoring flagged",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientQueryContext(cmd)
+			if err != nil {
+				return err
+			}
+			res, err := types.NewQueryClient(clientCtx).FlaggedTx(cmd.Context(), &types.QueryFlaggedTxRequest{TxHash: args[0]})
 			if err != nil {
 				return err
 			}

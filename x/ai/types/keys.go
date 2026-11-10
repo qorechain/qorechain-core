@@ -20,6 +20,21 @@ var (
 	CircuitBreakerPrefix        = []byte("ai/circuit-breakers/")
 	ExtendedStatsKey            = []byte("ai/extended-stats")
 	TxHistoryPrefix             = []byte("ai/tx-history/")
+
+	// FlaggedPruneCursorKey holds the next flagged-record key the retention
+	// sweep looks at (ai-flagged-tx-retention). It sorts outside
+	// FlaggedTxPrefix.
+	FlaggedPruneCursorKey = []byte("ai/flagged-cursor")
+)
+
+const (
+	// AIFlaggedRetentionBlocks is how long a flagged-transaction record is
+	// kept from ai-flagged-tx-retention: about six days at five-second blocks.
+	AIFlaggedRetentionBlocks int64 = 100_000
+	// AIFlaggedPrunePerWrite is how many records the sweep looks at each time
+	// a record is written, so the work per transaction stays bounded and the
+	// records kept since genesis drain over time.
+	AIFlaggedPrunePerWrite = 16
 )
 
 // HeightKey builds a store key by appending a big-endian encoded height
