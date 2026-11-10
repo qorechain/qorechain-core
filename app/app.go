@@ -158,6 +158,7 @@ import (
 
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
+	"github.com/qorechain/qorechain-core/x/wasmfilter"
 
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	rlconsensustypes "github.com/qorechain/qorechain-core/x/rlconsensus/types"
@@ -241,6 +242,7 @@ type QoreChainApp struct {
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	WasmClientKeeper    ibcwasmkeeper.Keeper
 	rateLimitStore      hostedStoreService
+	codeFilter          *wasmfilter.Filter // see wasm_code_filter.go
 
 	// EVM keepers (QoreChain EVM)
 	FeeMarketKeeper   feemarketkeeper.Keeper
@@ -538,6 +540,9 @@ func NewQoreChainApp(
 		wasmtypes.VMConfig{},
 		wasmkeeper.BuiltInCapabilities(),
 		authAddr,
+		// The code filter sits between the keeper and the VM (see
+		// wasm_code_filter.go); it refuses nothing below its protocol feature.
+		wasmkeeper.WithWasmEngineDecorator(app.wasmCodeFilter().DecorateEngine),
 	)
 
 	// ==========================================================================
@@ -961,7 +966,7 @@ func NewQoreChainApp(
 		evmerc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
 		evmprecisebank.NewAppModule(app.PreciseBankKeeper, app.BankKeeper, app.AccountKeeper),
 		// CosmWasm module
-		wasm.NewAppModule(app.appCodec, &app.WasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.MsgServiceRouter(), nil),
+		wasmCodeFilterAppModule{AppModule: wasm.NewAppModule(app.appCodec, &app.WasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.MsgServiceRouter(), nil), filter: app.wasmCodeFilter()},
 		// QoreChain custom modules
 		NewPQCAppModule(app.PQCKeeper),
 		NewAIAppModule(app.AIKeeper),
