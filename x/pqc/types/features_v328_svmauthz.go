@@ -70,6 +70,52 @@ const (
 	// to the System program id was replaced by the canonical account and marked
 	// as a signer.
 	FeatureSVMRelayedWalletKeyOnly = "svm-relayed-wallet-key-only"
+	// FeatureSVMZeroLamportAccountsClosed deletes, at the end of an
+	// instruction, every account other than a wallet that it left with zero
+	// lamports, as Solana's runtime does. Before it a closed token account
+	// stayed in the store owned by the token program, uninitialized, and anyone
+	// could initialize it again with themselves as holder, including at a
+	// wallet's associated token account address.
+	FeatureSVMZeroLamportAccountsClosed = "svm-zero-lamport-accounts-closed"
+	// FeatureSVMATAIdempotentVerified makes the associated token program's
+	// CreateIdempotent accept an existing account only if it is the token
+	// account it would have created: owned by the token program, initialized,
+	// for the same mint and held by the same wallet. Before it any account with
+	// data at the address was reported as already existing.
+	FeatureSVMATAIdempotentVerified = "svm-ata-idempotent-verified"
+	// FeatureSVMCPICalleeRules applies Solana's account rules to every
+	// cross-program invocation: an account not writable for the callee does not
+	// change, an account the callee does not own keeps its data and owner and
+	// may only gain lamports, the executable flag never changes, the
+	// invocation's lamports balance, and an invocation names each account once.
+	// Before it a callee's changes to data and lamports were copied back to the
+	// caller unchecked; only the top-level result was judged.
+	FeatureSVMCPICalleeRules = "svm-cpi-callee-rules"
+	// FeatureSVMNoStrandedCredits refuses an instruction that leaves lamports
+	// added to a system-owned account with no data at an address that is not
+	// canonical, unless the running program signed for it as its PDA in the
+	// same instruction. No signer can ever be produced for such an address (a
+	// raw ed25519 key, a seed address), so the value could never move again.
+	FeatureSVMNoStrandedCredits = "svm-no-stranded-credits"
+	// FeatureSVMCustodyCapNet applies the custody cap to the net change of the
+	// svm module account over an instruction's settlement instead of to each
+	// inflow, so a wallet-to-wallet transfer that leaves custody unchanged is
+	// not refused when custody is at the cap.
+	FeatureSVMCustodyCapNet = "svm-custody-cap-net"
+	// FeatureSVMATAPrefundedCreate makes the associated token program create a
+	// token account at an address that already holds lamports but is otherwise
+	// blank, topping it up to the rent-exempt minimum, as SPL does. Before it
+	// one lamport sent to the address blocked the account forever.
+	FeatureSVMATAPrefundedCreate = "svm-ata-prefunded-create"
+	// FeatureSVMTokenCloseFrozenRefused makes CloseAccount refuse a frozen
+	// token account, as SPL Token does.
+	FeatureSVMTokenCloseFrozenRefused = "svm-token-close-frozen-refused"
+	// FeatureSVMRelayedGrossOutflow makes a relayed (linked-key) execution
+	// charge the key's spending rule with the gross lamports that left every
+	// account of the instruction, not only the net change of the canonical
+	// account, and refuses a relayed execution that changes an existing token
+	// account: spending rules are in QOR and cannot bound token value.
+	FeatureSVMRelayedGrossOutflow = "svm-relayed-gross-outflow"
 )
 
 // V328SVMAuthzFeatures are the v3.2.8 SVM authorization switches.
@@ -82,4 +128,12 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMMetadataNotNative,
 	FeatureSVMExecuteResultChecked,
 	FeatureSVMRelayedWalletKeyOnly,
+	FeatureSVMZeroLamportAccountsClosed,
+	FeatureSVMATAIdempotentVerified,
+	FeatureSVMCPICalleeRules,
+	FeatureSVMNoStrandedCredits,
+	FeatureSVMCustodyCapNet,
+	FeatureSVMATAPrefundedCreate,
+	FeatureSVMTokenCloseFrozenRefused,
+	FeatureSVMRelayedGrossOutflow,
 }

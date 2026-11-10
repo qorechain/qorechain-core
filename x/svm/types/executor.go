@@ -58,6 +58,10 @@ const (
 	RuntimeFlagHostPrivileges   uint64 = 1 << 8  // svm-cpi-host-privileges
 	RuntimeFlagTokenSPL         uint64 = 1 << 9  // svm-token-spl-semantics
 	RuntimeFlagMetadataNotNat   uint64 = 1 << 10 // svm-metadata-not-native
+	RuntimeFlagATAIdempotent    uint64 = 1 << 11 // svm-ata-idempotent-verified
+	RuntimeFlagCPICalleeRules   uint64 = 1 << 12 // svm-cpi-callee-rules
+	RuntimeFlagATAPrefunded     uint64 = 1 << 13 // svm-ata-prefunded-create
+	RuntimeFlagTokenCloseFrozen uint64 = 1 << 14 // svm-token-close-frozen-refused
 )
 
 // RuntimeSysvars are the consensus values of the Clock and Rent sysvars handed
