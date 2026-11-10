@@ -19,6 +19,10 @@ const (
 	DefaultSVMSlotOffset      int64  = 0
 	DefaultSigScheme          uint8  = 0 // Ed25519
 	DefaultMaxCPI             uint8  = 4
+	// DefaultMaxCustodyUqor is no cap, the behaviour before the cap existed.
+	// The cap is enforced only on a chain with the svm-lane-governed feature,
+	// whose release handler writes a finite value.
+	DefaultMaxCustodyUqor uint64 = 0
 )
 
 // Params defines the configurable parameters for the SVM runtime module.
@@ -32,6 +36,10 @@ type Params struct {
 	SVMSlotOffset      int64          `json:"svm_slot_offset"`
 	DefaultSigScheme   uint8          `json:"default_sig_scheme"`
 	MaxCPI             uint8          `json:"max_cpi"`
+	// MaxCustodyUqor caps the uqor balance of the svm module account; 0 is no
+	// cap. omitempty keeps the stored JSON of every params value written before
+	// the field existed byte-identical when it is rewritten on replay.
+	MaxCustodyUqor uint64 `json:"max_custody_uqor,omitempty"`
 }
 
 // DefaultParams returns a default set of SVM parameters.
@@ -46,6 +54,7 @@ func DefaultParams() Params {
 		SVMSlotOffset:      DefaultSVMSlotOffset,
 		DefaultSigScheme:   DefaultSigScheme,
 		MaxCPI:             DefaultMaxCPI,
+		MaxCustodyUqor:     DefaultMaxCustodyUqor,
 	}
 }
 

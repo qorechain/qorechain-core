@@ -27,4 +27,7 @@ var (
 	// authorise it. Declaring an account WRITABLE is not authorisation; only a
 	// verified signature is. See the settlement pass in the executor.
 	ErrUnauthorized          = errorsmod.Register(ModuleName, 22, "unauthorized account modification")
+	// ErrCustodyCapExceeded refuses a transfer that would lift the svm module
+	// account above max_custody_uqor (svm-lane-governed only).
+	ErrCustodyCapExceeded = errorsmod.Register(ModuleName, 23, "svm custody cap exceeded")
 )

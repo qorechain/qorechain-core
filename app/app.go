@@ -46,6 +46,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensuskeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	epochskeeper "github.com/cosmos/cosmos-sdk/x/epochs/keeper"
@@ -677,6 +678,19 @@ func NewQoreChainApp(
 	// Back wallet-account SVM balances with native QOR so an account holds ONE
 	// balance across Cosmos/EVM/SVM (unified identity + balance). No-op in stub.
 	app.SVMKeeper.SetBankKeeper(app.BankKeeper)
+
+	// SVM custody cap (svm-lane-governed, v3.2.8). Every transfer into the svm
+	// module account, whatever its route (an SVM debit, a plain bank send, an
+	// EVM transfer through precisebank), passes bank's send restriction, so the
+	// cap is enforced at that one point. The restriction is a no-op for any
+	// other recipient and, until the feature is on, for the svm account too: it
+	// reads nothing metered and refuses nothing, so history replays unchanged.
+	// A keeper without the method (the public build's stub) adds nothing.
+	if r, ok := app.SVMKeeper.(interface {
+		CustodyInflowRestriction() banktypes.SendRestrictionFn
+	}); ok {
+		app.BankKeeper.AppendSendRestriction(r.CustodyInflowRestriction())
+	}
 
 	// Wire SVM into CrossVM routing so cross-VM messages can target SVM programs.
 	//

@@ -88,6 +88,10 @@ message SVMParams {
   int64 svm_slot_offset = 7;
   uint32 default_sig_scheme = 8;
   uint32 max_cpi = 9;
+  // max_custody_uqor caps the uqor balance of the svm module account (the
+  // custody backing program, PDA and data-account lamports). 0 means no cap.
+  // Enforced only while the svm-lane-governed protocol feature is on.
+  uint64 max_custody_uqor = 10;
 }
 
 // MsgUpdateParams replaces the SVM runtime parameters wholesale.

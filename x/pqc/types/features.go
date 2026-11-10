@@ -246,7 +246,8 @@ func concatFeatures(lists ...[]string) []string {
 }
 
 // KnownProtocolFeature reports whether this binary knows the feature at all,
-// released or staged.
+// released, staged or chain-scoped. A chain-scoped feature has to be known so
+// that a genesis exported from the chain that enabled it validates.
 func KnownProtocolFeature(name string) bool {
 	for _, f := range AllProtocolFeatures {
 		if f == name {
@@ -254,6 +255,11 @@ func KnownProtocolFeature(name string) bool {
 		}
 	}
 	for _, f := range StagedProtocolFeatures {
+		if f == name {
+			return true
+		}
+	}
+	for _, f := range ChainScopedProtocolFeatures {
 		if f == name {
 			return true
 		}
