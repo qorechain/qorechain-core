@@ -69,6 +69,40 @@ func SVMAuthSignBytes(programID [32]byte, accounts []AccountMeta, data, recentBl
 	return h.Sum(nil)
 }
 
+// SVMAuthSignBytesV3 is SVMAuthSignBytes with the chain id bound in
+// (svm-relayed-chain-bound):
+//
+//	sha256( "qorechain-svm-auth-v3" ‖ BE64(len(chainID)) ‖ chainID ‖ programID(32) ‖
+//	        BE64(len(accounts)) ‖ Σ[ addr(32) ‖ flags(1) ] ‖
+//	        BE64(len(data)) ‖ data ‖
+//	        BE64(len(recentBlockhash)) ‖ recentBlockhash )
+//
+// A signature made for one chain is then never valid on another, whatever
+// their blockhashes. The new domain tag keeps v2 and v3 digests disjoint.
+func SVMAuthSignBytesV3(chainID string, programID [32]byte, accounts []AccountMeta, data, recentBlockhash []byte) []byte {
+	h := sha256.New()
+	h.Write([]byte("qorechain-svm-auth-v3"))
+	writeLenPrefixed(h, []byte(chainID))
+	h.Write(programID[:])
+
+	writeBE64(h, len(accounts))
+	for _, m := range accounts {
+		h.Write(m.Address[:])
+		var flags byte
+		if m.IsSigner {
+			flags |= 1
+		}
+		if m.IsWritable {
+			flags |= 2
+		}
+		h.Write([]byte{flags})
+	}
+
+	writeLenPrefixed(h, data)
+	writeLenPrefixed(h, recentBlockhash)
+	return h.Sum(nil)
+}
+
 // writeBE64 writes n as a big-endian uint64, matching the framing used by the
 // other sign-bytes helpers in this codebase.
 func writeBE64(h interface{ Write([]byte) (int, error) }, n int) {

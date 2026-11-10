@@ -116,6 +116,44 @@ const (
 	// account, and refuses a relayed execution that changes an existing token
 	// account: spending rules are in QOR and cannot bound token value.
 	FeatureSVMRelayedGrossOutflow = "svm-relayed-gross-outflow"
+	// FeatureSVMRelayedIdentityLocked refuses a relayed (linked-key) execution
+	// that changes the owner, data or executable flag of the canonical account
+	// it acts for, or of an account that account owns, and counts a canonical
+	// wallet that stops being a wallet as an outflow of its whole previous
+	// balance. Before it a linked key could assign the holder's canonical
+	// account to a program of its choice: the balance moved into custody as that
+	// program's store lamports and no lamports "left", so the spending rule was
+	// charged nothing. The holder's own signature (a message from the native
+	// account) is not affected.
+	FeatureSVMRelayedIdentityLocked = "svm-relayed-identity-locked"
+	// FeatureSVMZeroLamportTouchedOnly limits svm-zero-lamport-accounts-closed
+	// to accounts the instruction itself changed (or brought to zero lamports);
+	// an untouched account listed writable is never deleted. The v3.2.8 handler
+	// reports, in store order, every account other than a wallet that already
+	// holds zero lamports and leaves it as it is.
+	FeatureSVMZeroLamportTouchedOnly = "svm-zero-lamport-touched-only"
+	// FeatureSVMCustodyCapRentExempt exempts from the custody cap the inflow
+	// that only pays the rent-exempt minimum of an account being created (a
+	// program deploy, MsgCreateAccount at exactly the minimum, an account a
+	// built-in or program creates in an instruction). One holder filling the
+	// shared cap with free value can then no longer block other users from
+	// creating accounts or deploying. Rent deposits stay bound to the account
+	// they fund.
+	FeatureSVMCustodyCapRentExempt = "svm-custody-cap-rent-exempt"
+	// FeatureSVMCreateAccountOwnerChecked refuses MsgCreateAccount with the
+	// loader as owner (the account could never be writable again). An account
+	// created for the token program is uninitialized until InitializeMint or
+	// InitializeAccount runs; clients must put both messages in the same
+	// transaction, as on Solana, or anyone may initialize it first.
+	FeatureSVMCreateAccountOwnerChecked = "svm-create-account-owner-checked"
+	// FeatureSVMNoStrandedZeroedData extends svm-no-stranded-credits to a
+	// system-owned account whose data is all zero but not empty (what a program
+	// leaves when it gives an account back to System).
+	FeatureSVMNoStrandedZeroedData = "svm-no-stranded-zeroed-data"
+	// FeatureSVMRelayedChainBound binds the chain id into the message a linked
+	// key signs for a relayed execution (types.SVMAuthSignBytesV3). Before it
+	// the v2 message carried no chain id.
+	FeatureSVMRelayedChainBound = "svm-relayed-chain-bound"
 )
 
 // V328SVMAuthzFeatures are the v3.2.8 SVM authorization switches.
@@ -136,4 +174,10 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMATAPrefundedCreate,
 	FeatureSVMTokenCloseFrozenRefused,
 	FeatureSVMRelayedGrossOutflow,
+	FeatureSVMRelayedIdentityLocked,
+	FeatureSVMZeroLamportTouchedOnly,
+	FeatureSVMCustodyCapRentExempt,
+	FeatureSVMCreateAccountOwnerChecked,
+	FeatureSVMNoStrandedZeroedData,
+	FeatureSVMRelayedChainBound,
 }

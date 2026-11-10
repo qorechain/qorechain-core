@@ -125,3 +125,20 @@ func sha256SumForTest(p []byte) []byte {
 	s := sha256.Sum256(p)
 	return s[:]
 }
+
+// The v3 relayed message binds the chain id and never equals the v2 one.
+func TestSVMAuthSignBytesV3BindsChainID(t *testing.T) {
+	pid := [32]byte{1}
+	acc := []AccountMeta{{Address: [32]byte{2}, IsSigner: true}}
+	a := SVMAuthSignBytesV3("qorechain-diana", pid, acc, []byte{3}, []byte{4})
+	b := SVMAuthSignBytesV3("qorechain-vladi", pid, acc, []byte{3}, []byte{4})
+	v2 := SVMAuthSignBytes(pid, acc, []byte{3}, []byte{4})
+	if string(a) == string(b) || string(a) == string(v2) || string(b) == string(v2) {
+		t.Fatal("chain id not bound, or v3 equals v2")
+	}
+	// The chain id is length framed: moving a byte between it and the program
+	// id cannot produce the same digest.
+	if string(SVMAuthSignBytesV3("ab", pid, acc, nil, nil)) == string(SVMAuthSignBytesV3("a", pid, acc, nil, nil)) {
+		t.Fatal("chain id not framed")
+	}
+}

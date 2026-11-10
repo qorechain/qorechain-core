@@ -25,6 +25,7 @@ func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan,
 	if err := app.upgradeV3_2_8SVMBytecodeOwners(sdkCtx); err != nil {
 		return fromVM, err
 	}
+	app.upgradeV3_2_8SVMZeroLamportReport(sdkCtx)
 	return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
 }
 
@@ -51,6 +52,26 @@ func (app *QoreChainApp) upgradeV3_2_8SVMBytecodeOwners(ctx sdk.Context) error {
 		app.Logger().Info("v3.2.8: SVM bytecode accounts moved to the loader", "count", moved)
 	}
 	return nil
+}
+
+// svmZeroLamportReporter is implemented by the full SVM keeper.
+type svmZeroLamportReporter interface {
+	ReportZeroLamportAccountsV328(ctx sdk.Context) int
+}
+
+// upgradeV3_2_8SVMZeroLamportReport lists, as svm_zero_lamport_account events in
+// store order, the stored accounts other than wallets and programs that already
+// hold zero lamports. They are left exactly as they are: no deletion and no
+// funding (svm-zero-lamport-touched-only never deletes an account an
+// instruction did not change).
+func (app *QoreChainApp) upgradeV3_2_8SVMZeroLamportReport(ctx sdk.Context) {
+	r, ok := app.SVMKeeper.(svmZeroLamportReporter)
+	if !ok || !app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureSVMZeroLamportTouchedOnly) {
+		return
+	}
+	if n := r.ReportZeroLamportAccountsV328(ctx); n > 0 {
+		app.Logger().Info("v3.2.8: SVM accounts holding zero lamports left in place", "count", n)
+	}
 }
 
 // upgradeV3_2_8SVMLaneGoverned hands the SVM lane switch to governance on the
