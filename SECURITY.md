@@ -18,7 +18,7 @@ Include:
 - Potential impact
 - Suggested fix (if any)
 
-We will acknowledge your report within 48 hours and provide a detailed response within 7 days.
+We will acknowledge your report within 48 hours and give a triage decision within 21 days for Critical and High and within 60 days for Medium, Low and Insight.
 
 ## Scope
 
@@ -44,7 +44,7 @@ testnet.
 
 - We follow responsible disclosure practices
 - Reporters will be credited (unless anonymity is requested)
-- We aim to fix critical vulnerabilities within 30 days
+- We aim to fix critical vulnerabilities within 90 days
 - Public disclosure after fix is deployed to mainnet
 
 ## PQC-Specific Security
