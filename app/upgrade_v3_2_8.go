@@ -22,7 +22,35 @@ func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan,
 	if err := app.upgradeV3_2_8SVMLaneGoverned(sdkCtx); err != nil {
 		return fromVM, err
 	}
+	if err := app.upgradeV3_2_8SVMBytecodeOwners(sdkCtx); err != nil {
+		return fromVM, err
+	}
 	return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
+}
+
+// svmBytecodeMigrator is implemented by the full SVM keeper.
+type svmBytecodeMigrator interface {
+	MigrateBytecodeOwnersV328(ctx sdk.Context) (int, error)
+}
+
+// upgradeV3_2_8SVMBytecodeOwners hands the bytecode account of every program
+// deployed before svm-bytecode-loader-owned to the loader, so from the plan
+// height no program owns its own code (FeatureSVMBytecodeLoaderOwned). It runs
+// on every chain; a chain with no deployed program writes nothing. The stub
+// keeper of a build without SVM has no programs and no migration.
+func (app *QoreChainApp) upgradeV3_2_8SVMBytecodeOwners(ctx sdk.Context) error {
+	m, ok := app.SVMKeeper.(svmBytecodeMigrator)
+	if !ok {
+		return nil
+	}
+	moved, err := m.MigrateBytecodeOwnersV328(ctx)
+	if err != nil {
+		return err
+	}
+	if moved > 0 {
+		app.Logger().Info("v3.2.8: SVM bytecode accounts moved to the loader", "count", moved)
+	}
+	return nil
 }
 
 // upgradeV3_2_8SVMLaneGoverned hands the SVM lane switch to governance on the

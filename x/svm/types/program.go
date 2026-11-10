@@ -17,4 +17,9 @@ type ExecutionResult struct {
 	Logs             []string     `json:"logs"`
 	ModifiedAccounts []SVMAccount `json:"modified_accounts"`
 	Error            string       `json:"error,omitempty"`
+	// PDASigners are the program derived addresses the top-level program
+	// signed for with sol_invoke_signed during this execution, as the runtime
+	// derived them from the program id it holds (svm-cpi-host-privileges).
+	// Empty without that switch. Not part of any encoded output.
+	PDASigners [][32]byte `json:"-"`
 }
