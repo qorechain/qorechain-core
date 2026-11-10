@@ -161,6 +161,42 @@ range = SHA-256("qorechain/rdk/inbox-range/v1" | lp(chain_id) | lp(rollup_id)
 
 with `acc_0` = 32 zero bytes and `lp` a 4-byte big-endian length prefix.
 
+
+### Settlement Modes (from v3.2.8)
+
+Three protocol features, all enabled by the v3.2.8 upgrade.
+
+**`rdk-optimistic-reexec`: optimistic rollups with fraud proofs that check execution.**
+An optimistic rollup (`nft`, `custom`) created with `--execution-vm qledger-v1 --sequencing based` runs the
+qledger-v1 model (`x/rdk/qledger`): a uqor account ledger (sparse Merkle tree, SHA-256) with signed transfers
+and withdrawals (ML-DSA-44 or Ed25519 account keys). Its inputs are its inbox: user posts (one transaction each,
+at most 6 KiB) and deposits (`MsgDepositToRollup`, which the chain appends itself). Any account holding a
+submitter bond (`MsgBondRollupSubmitter`, at least `min_submitter_bond`, default 1,000 QOR) may submit a batch of
+at most 64 inbox entries. During the challenge window anyone may send `MsgChallengeBatch` with a qledger-v1 fraud
+proof (the batch's inputs and a Merkle witness of the accounts they touch); the chain re-executes the batch and,
+if its state root or withdrawals root is wrong, rejects it and every batch built on it, rolls the inbox back and
+pays the submitter's whole bond to the challenger. A proof that does not show fraud fails and changes nothing.
+Withdrawals are paid from finalized batches only, from the rollup's deposit pool (never from the creator's
+escrow); the creator cannot stop the rollup while the pool holds deposits. A bond can be withdrawn
+(`MsgUnbondRollupSubmitter`) a full challenge window after its holder's last batch. Optimistic rollups without an
+execution VM are unchanged: their batches are as good as their sequencer.
+
+**`rdk-stark-statement`: the demonstration STARK AIR is refused.** The only AIR the STARK verifier implements
+proves iterated squaring between two 64-bit values, which anyone can prove for any roots and which does not
+constrain withdrawals or data. From v3.2.8 a STARK key cannot be set and a STARK rollup's batches are refused;
+governance can move such a rollup to a Groth16 key. STARK settlement returns with a real rollup statement.
+
+**`rdk-private-rollups`: private rollups.** A `defi` (Groth16) rollup created with `--privacy encapsulated` takes
+only posts that are ML-KEM-1024 envelopes (`x/rdk/privpost`) to its members: the data encrypted once (AES-256-GCM)
+under a fresh key, that key encapsulated to every member's key in the x/pqc KEM registry, with a key commitment so
+all members open the same content. The creator sets the members (`MsgSetRollupMembers`, at most 32, each with a
+registered ML-KEM-1024 key); each change starts a new epoch. The chain checks the envelope's structure and that
+every entry names the member's current key; it never decrypts. Posts, poster, timing, sizes, members, roots and
+withdrawals (recipient and amount) stay public. Use `tx rdk post-private-data` to encrypt and post, and
+`tx rdk decrypt-private-data` (offline) to open a post.
+
+**Based rollups are paused and resumed by governance only** (from `rdk-based-sequencing`).
+
 ## Gas Models
 
 | Model | Description | Use Case |
@@ -247,6 +283,7 @@ The EndBlocker runs settlement logic each block:
 | `max_posted_data_bytes_per_block` | 0 (= 524,288) | Billable bytes all posts of one block may total (from v3.2.8) |
 | `posted_data_fee_per_byte` | 0 (= 10 uqor) | Fee per billable byte, at least 1 KiB billed per post (from v3.2.8) |
 | `posted_data_retention_blocks` | 0 (= 201,600) | Blocks a posted-data commitment stays in state (from v3.2.8) |
+| `min_submitter_bond` | 0 (= 1,000,000,000 uqor) | Bond a qledger-v1 batch submitter must hold (from v3.2.8) |
 
 ## CLI Commands
 
@@ -344,6 +381,7 @@ qorechaind query rdk params
 | GET | `/qorechain/rdk/v1/params` | Module parameters |
 | GET | `/qorechain/rdk/v1/posted_data/{rollup_id}/{sequence}` | Posted-data commitment (v3.2.8) |
 | GET | `/qorechain/rdk/v1/inbox/{rollup_id}?inbox_end=N` | Inbox head, consumed position and the range data_hash for a based batch (v3.2.8) |
+| GET | `/qorechain/rdk/v1/submitter_bond/{rollup_id}/{submitter}` | A qledger-v1 submitter's bond and when it unlocks (v3.2.8) |
 
 ## JSON-RPC (`qor_` Namespace)
 

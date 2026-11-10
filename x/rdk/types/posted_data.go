@@ -35,6 +35,10 @@ type InboxState struct {
 	HeadAcc          []byte `json:"head_acc,omitempty"`
 	ConsumedSequence uint64 `json:"consumed_sequence"`
 	ConsumedAcc      []byte `json:"consumed_acc,omitempty"`
+	// FinalSequence is the inbox end of the rollup's latest finalized based
+	// batch (v3.2.8). Commitments of a qledger-v1 rollup after it are not
+	// pruned, so a range a fraud proof rolls back can be consumed again.
+	FinalSequence uint64 `json:"final_sequence,omitempty"`
 }
 
 // EmptyInboxAcc is the accumulator of an inbox with no post.

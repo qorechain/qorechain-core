@@ -51,6 +51,10 @@ type SettlementBatch struct {
 	// batch, so their records keep their bytes.
 	InboxStart uint64 `json:"inbox_start,omitempty"`
 	InboxEnd   uint64 `json:"inbox_end,omitempty"`
+	// InboxStartAcc is the inbox accumulator at InboxStart, kept so an
+	// upheld fraud proof can roll the inbox back to it (v3.2.8). Omitted when
+	// empty.
+	InboxStartAcc []byte `json:"inbox_start_acc,omitempty"`
 
 	// AnchorSignature and ValidatorSetHash carry MsgSubmitBatch's optional
 	// anchor fields to the x/multilayer anchor written for the batch (from

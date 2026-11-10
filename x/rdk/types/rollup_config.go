@@ -152,6 +152,15 @@ type RollupConfig struct {
 	// (from v3.2.8, FeatureRDKBasedSequencing). Omitted when empty, so every
 	// record written before keeps its bytes.
 	Sequencing SequencingMode `json:"sequencing,omitempty"`
+	// ExecutionVM is "" or ExecutionVMQLedgerV1 (v3.2.8,
+	// FeatureRDKOptimisticReexec): an optimistic rollup whose batches a
+	// fraud proof re-executes on chain. Omitted when empty.
+	ExecutionVM string `json:"execution_vm,omitempty"`
+	// Privacy is "" or PrivacyEncapsulated (v3.2.8, FeatureRDKPrivateRollups)
+	// with its member list and membership epoch. Omitted when empty.
+	Privacy      string   `json:"privacy,omitempty"`
+	Members      []string `json:"members,omitempty"`
+	MembersEpoch uint64   `json:"members_epoch,omitempty"`
 }
 
 // SequencingMode selects who orders a rollup's transactions and who may
@@ -198,6 +207,10 @@ func (c RollupConfig) BasedEligible() error {
 	case c.SettlementMode == SettlementZK && c.ProofConfig.System == ProofSystemSNARK:
 		return nil
 	case c.SettlementMode == SettlementBased:
+		return nil
+	case c.SettlementMode == SettlementOptimistic && c.ExecutionVM == ExecutionVMQLedgerV1:
+		// v3.2.8 (FeatureRDKOptimisticReexec): the chain re-executes a
+		// fraud proof, and every submitter is bonded.
 		return nil
 	default:
 		return ErrBasedSequencingUnsupported.Wrapf("settlement %s with proof system %s cannot be based in this release",
@@ -254,6 +267,6 @@ func (c RollupConfig) Validate() error {
 			return err
 		}
 	}
-
-	return nil
+	// Execution VM and privacy (v3.2.8): empty on every record written before.
+	return c.validateModes()
 }

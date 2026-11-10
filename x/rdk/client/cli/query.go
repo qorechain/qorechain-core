@@ -30,6 +30,7 @@ func GetQueryCmd() *cobra.Command {
 		CmdAnchorSignBytes(),
 		CmdQueryPostedData(),
 		CmdQueryInbox(),
+		CmdQuerySubmitterBond(),
 	)
 	return cmd
 }

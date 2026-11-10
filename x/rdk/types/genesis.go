@@ -38,6 +38,9 @@ type Params struct {
 	// PostedDataRetentionBlocks is how many blocks a posted-data commitment
 	// stays in state (DefaultPostedDataRetentionBlocks).
 	PostedDataRetentionBlocks uint64 `json:"posted_data_retention_blocks,omitempty"`
+	// MinSubmitterBond is the uqor bond a qledger-v1 rollup's submitter must
+	// hold (v3.2.8, DefaultMinSubmitterBond when zero).
+	MinSubmitterBond uint64 `json:"min_submitter_bond,omitempty"`
 }
 
 // Posted-data defaults and bounds (v3.2.8, FeatureRDKPostRollupData).
@@ -197,7 +200,7 @@ func (p Params) ValidateUpdate() error {
 	if err := p.validatePostedData(); err != nil {
 		return err
 	}
-	return nil
+	return p.validateModes()
 }
 
 // validatePostedData checks the posted-data parameters. Zero is the default
@@ -242,6 +245,10 @@ type GenesisState struct {
 	// files without them read and export as before.
 	PostedData []PostedDataRecord `json:"posted_data,omitempty"`
 	Inboxes    []InboxState       `json:"inboxes,omitempty"`
+	// SubmitterBonds and DepositPools carry the v3.2.8 qledger-v1 state
+	// (FeatureRDKOptimisticReexec). Omitted when empty.
+	SubmitterBonds []SubmitterBond     `json:"submitter_bonds,omitempty"`
+	DepositPools   []RollupEscrowEntry `json:"deposit_pools,omitempty"`
 }
 
 // RollupEscrowEntry is one rollup's escrow ledger entry. An entry with amount
@@ -292,6 +299,16 @@ func (gs GenesisState) Validate() error {
 		seen[e.RollupID] = true
 	}
 	if err := gs.Params.validatePostedData(); err != nil {
+		return err
+	}
+	if err := gs.Params.validateModes(); err != nil {
+		return err
+	}
+	byID := make(map[string]RollupConfig, len(gs.Rollups))
+	for _, r := range gs.Rollups {
+		byID[r.RollupID] = r
+	}
+	if err := validateGenesisModes(byID, gs.SubmitterBonds, gs.DepositPools); err != nil {
 		return err
 	}
 	return validateGenesisInboxes(rollups, gs.Inboxes, gs.PostedData)

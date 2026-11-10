@@ -51,6 +51,12 @@ service Query {
   rpc Inbox(QueryInboxRequest) returns (QueryInboxResponse) {
     option (google.api.http).get = "/qorechain/rdk/v1/inbox/{rollup_id}";
   }
+  // SubmitterBond returns an account's submitter bond on a qledger-v1
+  // rollup and the earliest block time it can be unbonded (v3.2.8,
+  // rdk-optimistic-reexec).
+  rpc SubmitterBond(QuerySubmitterBondRequest) returns (QuerySubmitterBondResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/submitter_bond/{rollup_id}/{submitter}";
+  }
 }
 
 // ParamsView is the query-facing view of the module parameters.
@@ -71,6 +77,8 @@ message ParamsView {
   uint64 max_posted_data_bytes_per_block = 10;
   uint64 posted_data_fee_per_byte = 11;
   uint64 posted_data_retention_blocks = 12;
+  // min_submitter_bond (v3.2.8), effective value.
+  uint64 min_submitter_bond = 13;
 }
 
 // RollupView is the query-facing view of a rollup config (scalar fields).
@@ -106,6 +114,17 @@ message RollupView {
   // rdk-based-sequencing): anyone posts data, batches consume the inbox in
   // order, and a zk (snark) based rollup accepts batches from anyone.
   string sequencing = 18;
+  // execution_vm (v3.2.8): "qledger-v1" for an optimistic rollup whose
+  // batches a fraud proof re-executes, else empty.
+  string execution_vm = 19;
+  // privacy (v3.2.8): "encapsulated" for a private rollup, else empty.
+  string privacy = 20;
+  // members and members_epoch: a private rollup's member list and epoch.
+  repeated string members = 21;
+  uint64 members_epoch = 22;
+  // deposit_pool: uqor deposited into a qledger-v1 rollup and not yet
+  // withdrawn.
+  uint64 deposit_pool = 23;
 }
 
 // BatchView is the query-facing view of a settlement batch.
@@ -236,3 +255,18 @@ message QueryInboxRequest {
   uint64 inbox_end = 2;
 }
 message QueryInboxResponse { InboxView inbox = 1; }
+
+message QuerySubmitterBondRequest {
+  string rollup_id = 1;
+  string submitter = 2;
+}
+message QuerySubmitterBondResponse {
+  // amount is the bond in uqor (0 when there is none).
+  uint64 amount = 1;
+  // last_submit_time is the block time (unix seconds) of the submitter's
+  // last batch on the rollup, 0 when none.
+  int64 last_submit_time = 2;
+  // unbond_after is the block time from which MsgUnbondRollupSubmitter
+  // succeeds.
+  int64 unbond_after = 3;
+}

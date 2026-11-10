@@ -205,6 +205,8 @@ func (m *MsgUpdateParams) ToParams() Params {
 		MaxPostedDataBytesPerBlock: m.MaxPostedDataBytesPerBlock,
 		PostedDataFeePerByte:       m.PostedDataFeePerByte,
 		PostedDataRetentionBlocks:  m.PostedDataRetentionBlocks,
+		// Zero (the default) for every message built before v3.2.8.
+		MinSubmitterBond: m.MinSubmitterBond,
 	}
 }
 

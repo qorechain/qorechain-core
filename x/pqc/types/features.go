@@ -223,6 +223,7 @@ var ReleaseV3_2_8ProtocolFeatures = concatFeatures(
 	V328EconFeatures,
 	V328RDKFeatures,
 	V328RDKDataFeatures,
+	V328RDKModeFeatures,
 	V328AIFeatures,
 	V328SVMFeatures,
 )
