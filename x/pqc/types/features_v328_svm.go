@@ -62,6 +62,17 @@ const (
 	// is disabled, in the ante handler and in the message handler. Before it the
 	// message wrote state with the lane closed.
 	FeatureSVMPQCKeyLaneGated = "svm-pqc-key-lane-gated"
+	// FeatureSVMNonzeroReturnFails makes a non-zero value returned by a
+	// program's entrypoint a program error, as on Solana: the instruction
+	// fails with the value reported (e.g. "custom program error: 0x1"), every
+	// state change of the message is discarded and the fee is charged as for
+	// any failed transaction. A callee returning non-zero fails its caller's
+	// invocation the same way. It also makes an error raised inside a syscall,
+	// a failed cross-program invocation included, keep its own kind and code
+	// (the callee's error, not a generic one). Before it any return value was
+	// success, and every error inside a callee surfaced as "syscall error
+	// (code -4)".
+	FeatureSVMNonzeroReturnFails = "svm-nonzero-return-fails"
 )
 
 // V328SVMFeatures are the v3.2.8 switches for SVM hardening and enablement.
@@ -75,4 +86,5 @@ var V328SVMFeatures = []string{
 	FeatureSVMPDASeedLimits,
 	FeatureSVMConsensusSysvars,
 	FeatureSVMPQCKeyLaneGated,
+	FeatureSVMNonzeroReturnFails,
 }

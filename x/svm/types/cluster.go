@@ -70,3 +70,8 @@ func ClusterCAIP2ChainID(chainID string) (string, error) {
 	}
 	return CAIP2Namespace + ":" + s[:caip2ReferenceLen], nil
 }
+
+// SlotsPerEpoch is the SVM epoch length: Solana's default. The chain has no
+// epoch of its own for SVM, so the Clock sysvar and the RPC getEpochInfo
+// derive the epoch from the slot with it.
+const SlotsPerEpoch uint64 = 432_000
