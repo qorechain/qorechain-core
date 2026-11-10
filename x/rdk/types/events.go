@@ -16,4 +16,9 @@ const (
 	// EventVerificationKeySet is emitted from v3.2.7 (FeatureRDKZKVerificationKey)
 	// when a rollup's ZK verification key is set, at creation or later.
 	EventVerificationKeySet = "rdk_verification_key_set"
+	// v3.2.8 (FeatureRDKPostRollupData, FeatureRDKBasedSequencing).
+	EventRollupDataPosted    = "rdk_data_posted"
+	EventPostedDataPruned    = "rdk_posted_data_pruned"
+	EventInboxConsumed       = "rdk_inbox_consumed"
+	EventRollupSequencingSet = "rdk_sequencing_set"
 )

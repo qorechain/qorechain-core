@@ -63,4 +63,24 @@ var (
 	// ErrBatchLimitReached is returned from v3.2.8 (FeatureRDKMaxBatchesPerBlock)
 	// for a batch beyond params.max_batches_per_block for its rollup in one block.
 	ErrBatchLimitReached = errorsmod.Register(ModuleName, 40, "rollup reached max_batches_per_block in this block")
+	// ErrRollupDataNotEnabled is returned below v3.2.8
+	// (FeatureRDKPostRollupData) for MsgPostRollupData and for a parameter
+	// update that sets a posted-data parameter.
+	ErrRollupDataNotEnabled = errorsmod.Register(ModuleName, 41, "rollup data posting is not enabled at this height")
+	// ErrRollupDataTooLarge is returned for a post above the per-message cap.
+	ErrRollupDataTooLarge = errorsmod.Register(ModuleName, 42, "rollup data exceeds the per-message limit")
+	// ErrRollupDataBlockFull is returned in block execution for a post that
+	// would take the block's posted bytes above the per-block cap.
+	ErrRollupDataBlockFull = errorsmod.Register(ModuleName, 43, "rollup data limit for this block reached")
+	// ErrBasedSequencingNotEnabled is returned below v3.2.8
+	// (FeatureRDKBasedSequencing) for MsgSetRollupSequencing, a
+	// MsgCreateRollup that sets sequencing and a MsgSubmitBatch with inbox_end.
+	ErrBasedSequencingNotEnabled = errorsmod.Register(ModuleName, 44, "based sequencing is not enabled at this height")
+	// ErrBasedSequencingUnsupported is returned when a rollup that cannot be
+	// based safely in this release (optimistic, stark, sovereign) asks for it.
+	ErrBasedSequencingUnsupported = errorsmod.Register(ModuleName, 45, "based sequencing is not available for this rollup")
+	// ErrInvalidInboxRange is returned for a based batch whose inbox range or
+	// data_hash does not match the rollup's inbox, and for inbox_end on a
+	// rollup that is not based.
+	ErrInvalidInboxRange = errorsmod.Register(ModuleName, 46, "batch does not match the rollup inbox")
 )

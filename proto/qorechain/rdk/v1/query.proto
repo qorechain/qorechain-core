@@ -40,6 +40,23 @@ service Query {
   rpc Blob(QueryBlobRequest) returns (QueryBlobResponse) {
     option (google.api.http).get = "/qorechain/rdk/v1/blob/{rollup_id}/{blob_index}";
   }
+  // PostedData returns one posted-data commitment (v3.2.8,
+  // rdk-post-rollup-data). The payload is in the transaction of the block at
+  // height.
+  rpc PostedData(QueryPostedDataRequest) returns (QueryPostedDataResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/posted_data/{rollup_id}/{sequence}";
+  }
+  // Inbox returns a rollup's inbox: head, consumed position, accumulators and
+  // the data_hash a based batch ending at inbox_end (0 = the head) must carry.
+  rpc Inbox(QueryInboxRequest) returns (QueryInboxResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/inbox/{rollup_id}";
+  }
+  // SubmitterBond returns an account's submitter bond on a qledger-v1
+  // rollup and the earliest block time it can be unbonded (v3.2.8,
+  // rdk-optimistic-reexec).
+  rpc SubmitterBond(QuerySubmitterBondRequest) returns (QuerySubmitterBondResponse) {
+    option (google.api.http).get = "/qorechain/rdk/v1/submitter_bond/{rollup_id}/{submitter}";
+  }
 }
 
 // ParamsView is the query-facing view of the module parameters.
@@ -54,6 +71,14 @@ message ParamsView {
   // finalized_batch_retention_blocks is the effective retention, with the
   // default filled in for a stored 0.
   uint64 finalized_batch_retention_blocks = 8;
+  // The posted-data parameters (v3.2.8), effective values with the defaults
+  // filled in for a stored 0.
+  uint64 max_posted_data_bytes = 9;
+  uint64 max_posted_data_bytes_per_block = 10;
+  uint64 posted_data_fee_per_byte = 11;
+  uint64 posted_data_retention_blocks = 12;
+  // min_submitter_bond (v3.2.8), effective value.
+  uint64 min_submitter_bond = 13;
 }
 
 // RollupView is the query-facing view of a rollup config (scalar fields).
@@ -85,6 +110,21 @@ message RollupView {
   // registered (from v3.2.7 a zk rollup can register one). A zk batch of a
   // rollup without one is refused.
   bool has_verification_key = 17;
+  // sequencing is "" (the rollup's sequencer settles) or "based" (v3.2.8,
+  // rdk-based-sequencing): anyone posts data, batches consume the inbox in
+  // order, and a zk (snark) based rollup accepts batches from anyone.
+  string sequencing = 18;
+  // execution_vm (v3.2.8): "qledger-v1" for an optimistic rollup whose
+  // batches a fraud proof re-executes, else empty.
+  string execution_vm = 19;
+  // privacy (v3.2.8): "encapsulated" for a private rollup, else empty.
+  string privacy = 20;
+  // members and members_epoch: a private rollup's member list and epoch.
+  repeated string members = 21;
+  uint64 members_epoch = 22;
+  // deposit_pool: uqor deposited into a qledger-v1 rollup and not yet
+  // withdrawn.
+  uint64 deposit_pool = 23;
 }
 
 // BatchView is the query-facing view of a settlement batch.
@@ -112,6 +152,10 @@ message BatchView {
   // and the chain id, and its withdrawal leaves start with the chain id. False
   // for a batch settled before the switch, whose leaves are the v1 form.
   bool withdrawals_bound = 13;
+  // inbox_start and inbox_end are, for a batch of a based rollup (v3.2.8),
+  // the inbox range it consumed: the posts after inbox_start up to inbox_end.
+  uint64 inbox_start = 14;
+  uint64 inbox_end = 15;
 }
 
 message QueryParamsRequest {}
@@ -165,3 +209,64 @@ message QueryBlobRequest {
   uint64 blob_index = 2;
 }
 message QueryBlobResponse { BlobView blob = 1; }
+
+// PostedDataView is one posted-data commitment (v3.2.8).
+message PostedDataView {
+  string rollup_id = 1;
+  uint64 sequence = 2;
+  // data_hash is SHA-256 of the payload, hex.
+  string data_hash = 3;
+  uint64 size = 4;
+  string poster = 5;
+  // height is the block whose transaction carries the payload.
+  int64 height = 6;
+  // inbox_acc is the inbox accumulator after this post, hex.
+  string inbox_acc = 7;
+  // expires_at_height is the height from which the commitment is pruned.
+  int64 expires_at_height = 8;
+}
+
+message QueryPostedDataRequest {
+  string rollup_id = 1;
+  uint64 sequence = 2;
+}
+message QueryPostedDataResponse { PostedDataView posted_data = 1; }
+
+// InboxView is a rollup's inbox (v3.2.8).
+message InboxView {
+  string rollup_id = 1;
+  string sequencing = 2;
+  // head_sequence is the sequence of the last post (0 = none yet).
+  uint64 head_sequence = 3;
+  string head_acc = 4;
+  // consumed_sequence is where the next based batch starts.
+  uint64 consumed_sequence = 5;
+  string consumed_acc = 6;
+  // range_end and range_data_hash: the data_hash a based batch with
+  // inbox_end = range_end must carry (hex). Empty when the end's commitment
+  // is no longer retained.
+  uint64 range_end = 7;
+  string range_data_hash = 8;
+}
+
+message QueryInboxRequest {
+  string rollup_id = 1;
+  // inbox_end selects the range end for range_data_hash; 0 means the head.
+  uint64 inbox_end = 2;
+}
+message QueryInboxResponse { InboxView inbox = 1; }
+
+message QuerySubmitterBondRequest {
+  string rollup_id = 1;
+  string submitter = 2;
+}
+message QuerySubmitterBondResponse {
+  // amount is the bond in uqor (0 when there is none).
+  uint64 amount = 1;
+  // last_submit_time is the block time (unix seconds) of the submitter's
+  // last batch on the rollup, 0 when none.
+  int64 last_submit_time = 2;
+  // unbond_after is the block time from which MsgUnbondRollupSubmitter
+  // succeeds.
+  int64 unbond_after = 3;
+}

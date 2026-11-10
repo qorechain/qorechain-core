@@ -200,5 +200,43 @@ func (m *MsgUpdateParams) ToParams() Params {
 		// Zero (the default) for every message built before v3.2.8, so the
 		// stored parameter record keeps its bytes.
 		FinalizedBatchRetentionBlocks: m.FinalizedBatchRetentionBlocks,
+		// Zero (the default) for every message built before v3.2.8.
+		MaxPostedDataBytes:         m.MaxPostedDataBytes,
+		MaxPostedDataBytesPerBlock: m.MaxPostedDataBytesPerBlock,
+		PostedDataFeePerByte:       m.PostedDataFeePerByte,
+		PostedDataRetentionBlocks:  m.PostedDataRetentionBlocks,
+		// Zero (the default) for every message built before v3.2.8.
+		MinSubmitterBond: m.MinSubmitterBond,
 	}
+}
+
+// ValidateBasic checks the poster, the rollup id and the payload size against
+// the hard ceiling; the governed per-message cap is checked by the keeper.
+// The message is new in v3.2.8, so no historical block holds one that decoded.
+func (m *MsgPostRollupData) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Poster); err != nil {
+		return fmt.Errorf("invalid poster address: %w", err)
+	}
+	if m.RollupID == "" {
+		return fmt.Errorf("rollup_id cannot be empty")
+	}
+	if len(m.Data) == 0 {
+		return fmt.Errorf("data cannot be empty")
+	}
+	if uint64(len(m.Data)) > MaxPostedDataHardLimit {
+		return ErrRollupDataTooLarge.Wrapf("data is %d bytes, at most %d", len(m.Data), MaxPostedDataHardLimit)
+	}
+	return nil
+}
+
+// ValidateBasic checks the authority address and the mode; the handler checks
+// that the authority is governance. New in v3.2.8.
+func (m *MsgSetRollupSequencing) ValidateBasic() error {
+	if _, err := sdk.AccAddressFromBech32(m.Authority); err != nil {
+		return fmt.Errorf("invalid authority address: %w", err)
+	}
+	if m.RollupID == "" {
+		return fmt.Errorf("rollup_id cannot be empty")
+	}
+	return ValidateSequencingMode(SequencingMode(m.Sequencing))
 }
