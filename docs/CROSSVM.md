@@ -153,6 +153,7 @@ Each message transitions through these states:
 | `bridge_target_pins` | {target, code_id, history_len}[] | empty | From v3.2.8: the CosmWasm code ID each pinned allowlist entry must run, and the length of its code history when it was pinned, for the bridge to call it. |
 | `max_pending_per_sender` | uint32 | 0 (= 100) | From v3.2.8: how many async calls one sender may have queued at a time. |
 | `max_cosmos_tx_gas` | uint64 | 0 (= 50,000,000) | From v3.2.8 (`cosmos-tx-gas-cap`): the most gas one Cosmos-lane transaction may declare; at least 10,000,000 when set. A transaction above it is refused before its fee is taken. Kept here because these params are the chain's lane-level execution bounds. |
+| `max_block_wasm_gas` | uint64 | 0 (= 6,000,000) | From v3.2.8 (`wasm-block-gas-budget`): the CosmWasm execution (VM gas, in SDK gas units) one block's transactions may use together, failed ones included; at least 1,000,000 when set. Once spent, further contract calls in the block fail ("block wasm gas budget exhausted") and the next block starts full. An ordinary cw20 transfer uses about 11,600, so about 500 fit in a block. EVM and native transactions are not counted. |
 | `record_retention_blocks` | uint64 | 0 (= 100,000) | From v3.2.8 (`crossvm-record-prune`): how long the record of a finished queued call is kept before it is pruned (at most 200 records per block). |
 
 ### Governance

@@ -131,6 +131,21 @@ const (
 	// height, then message ID, instead of the order of the hashed IDs, so a
 	// call queued earlier runs no later than one queued after it.
 	FeatureCrossVMQueueFIFO = "crossvm-queue-fifo"
+
+	// FeatureWasmBlockGasBudget bounds the CosmWasm execution of one block.
+	// The VM's flat operator price leaves some operator classes (memory.grow,
+	// integer division) costing the validator far more CPU per unit of gas
+	// than the EVM, so a block full of such contract calls could take tens of
+	// seconds to execute. From this switch the VM gas the block's
+	// transactions use (execute, instantiate, migrate, sudo, reply and the
+	// contract queries they make, whether the transaction succeeds or not) is
+	// counted against crossvm params max_block_wasm_gas (default
+	// DefaultMaxBlockWasmGas); a VM call is given at most what is left, and
+	// once it is spent every further VM call in the block fails ("block wasm
+	// gas budget exhausted"). The next block starts with the full budget.
+	// EVM and native transactions, the end-of-block work and queries outside
+	// block execution are not counted.
+	FeatureWasmBlockGasBudget = "wasm-block-gas-budget"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -150,4 +165,5 @@ var V328WasmAuthzFeatures = []string{
 	FeatureCrossVMAsyncFundsChecked,
 	FeatureCrossVMReentryCanonical,
 	FeatureCrossVMQueueFIFO,
+	FeatureWasmBlockGasBudget,
 }

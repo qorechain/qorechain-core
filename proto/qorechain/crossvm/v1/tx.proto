@@ -100,6 +100,12 @@ message MsgUpdateParams {
   // (100,000). Set from the crossvm-record-prune switch; below it the update
   // is refused when this is not zero.
   uint64 record_retention_blocks = 10;
+  // max_block_wasm_gas bounds the CosmWasm execution (VM gas, counted in SDK
+  // gas units) all transactions of one block may use together. Zero means
+  // the default (6,000,000); a set value is at least 1,000,000. Set from the
+  // wasm-block-gas-budget switch; below it the update is refused when this is
+  // not zero.
+  uint64 max_block_wasm_gas = 11;
 }
 message MsgUpdateParamsResponse {}
 

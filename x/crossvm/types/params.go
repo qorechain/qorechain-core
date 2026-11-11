@@ -56,6 +56,17 @@ const (
 	// MaxRecordPrunePerBlock bounds how many records one EndBlock deletes.
 	DefaultRecordRetentionBlocks uint64 = 100_000
 	MaxRecordPrunePerBlock              = 200
+
+	// DefaultMaxBlockWasmGas is the CosmWasm execution budget of one block
+	// (VM gas in SDK gas units) when params.MaxBlockWasmGas is zero, from the
+	// wasm-block-gas-budget switch. The slowest operator class the VM admits
+	// (memory.grow) costs about 84 ns per unit at the calibrated price on the
+	// measuring host; 6,000,000 keeps a worst-case block's wasm execution
+	// near half a second there, with room for slower validator hardware,
+	// while an ordinary token transfer uses about 12,000 of it.
+	// MinMaxBlockWasmGas is the lowest value governance may set.
+	DefaultMaxBlockWasmGas uint64 = 6_000_000
+	MinMaxBlockWasmGas     uint64 = 1_000_000
 )
 
 // Params defines the parameters for the crossvm module.
@@ -90,6 +101,18 @@ type Params struct {
 	// RecordRetentionBlocks is how long finished queued call records are kept
 	// (crossvm-record-prune); zero means DefaultRecordRetentionBlocks.
 	RecordRetentionBlocks uint64 `json:"record_retention_blocks,omitempty"`
+
+	// MaxBlockWasmGas is the per-block CosmWasm execution budget
+	// (wasm-block-gas-budget); zero means DefaultMaxBlockWasmGas.
+	MaxBlockWasmGas uint64 `json:"max_block_wasm_gas,omitempty"`
+}
+
+// BlockWasmGasLimit is the per-block CosmWasm execution budget in force.
+func (p Params) BlockWasmGasLimit() uint64 {
+	if p.MaxBlockWasmGas == 0 {
+		return DefaultMaxBlockWasmGas
+	}
+	return p.MaxBlockWasmGas
 }
 
 // CosmosTxGasLimit is the per-transaction gas bound in force.
@@ -340,6 +363,9 @@ func (p Params) ValidateUpdate() error {
 	}
 	if len(p.BridgeAllowedTargets) > MaxBridgeAllowedTargets {
 		return fmt.Errorf("bridge allowlist has %d entries, max %d", len(p.BridgeAllowedTargets), MaxBridgeAllowedTargets)
+	}
+	if p.MaxBlockWasmGas != 0 && p.MaxBlockWasmGas < MinMaxBlockWasmGas {
+		return fmt.Errorf("max block wasm gas %d is below %d", p.MaxBlockWasmGas, MinMaxBlockWasmGas)
 	}
 	if p.MaxCosmosTxGas != 0 && p.MaxCosmosTxGas < MinMaxCosmosTxGas {
 		return fmt.Errorf("max cosmos tx gas %d is below %d", p.MaxCosmosTxGas, MinMaxCosmosTxGas)

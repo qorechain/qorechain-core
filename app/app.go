@@ -244,6 +244,7 @@ type QoreChainApp struct {
 	rateLimitStore      hostedStoreService
 	codeFilter          *wasmfilter.Filter     // see wasm_code_filter.go
 	gasRegister         *calibratedGasRegister // see wasm_gas_register.go
+	blockBudget         *blockWasmBudget       // see wasm_block_budget.go
 
 	// EVM keepers (QoreChain EVM)
 	FeeMarketKeeper   feemarketkeeper.Keeper

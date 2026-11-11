@@ -78,5 +78,6 @@ func (m *MsgUpdateParams) Params() Params {
 		MaxPendingPerSender:   m.MaxPendingPerSender,
 		MaxCosmosTxGas:        m.MaxCosmosTxGas,
 		RecordRetentionBlocks: m.RecordRetentionBlocks,
+		MaxBlockWasmGas:       m.MaxBlockWasmGas,
 	}
 }

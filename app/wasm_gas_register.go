@@ -93,5 +93,7 @@ func (app *QoreChainApp) syncWasmGasMultiplier(ctx sdk.Context) {
 func (app *QoreChainApp) preBlockerSyncingWasmGas(ctx sdk.Context, req *abci.RequestFinalizeBlock) (*sdk.ResponsePreBlock, error) {
 	res, err := app.App.PreBlocker(ctx, req)
 	app.syncWasmGasMultiplier(ctx)
+	// The block's CosmWasm execution budget starts full (wasm_block_budget.go).
+	app.resetWasmBlockBudget(ctx)
 	return res, err
 }

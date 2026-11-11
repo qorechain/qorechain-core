@@ -58,6 +58,9 @@ message QueryParamsResponse {
   // record_retention_blocks is the retention of finished queued call records
   // in force (the default when the stored value is zero).
   uint64 record_retention_blocks = 9;
+  // max_block_wasm_gas is the per-block CosmWasm execution budget in force
+  // (the default when the stored value is zero).
+  uint64 max_block_wasm_gas = 10;
 }
 
 // QueryPendingMessagesRequest pages through the queue in key order. A page
