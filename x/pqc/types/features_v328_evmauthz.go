@@ -17,8 +17,15 @@ const (
 	// reverted the whole transaction: a delegated recipient with no window
 	// could make any payment to it, however the payer guarded it (try/catch,
 	// a 2300 gas stipend, an ignored success flag), revert the payer's whole
-	// transaction. The end-of-execution settlement stays, as the backstop for
-	// native value the hooks cannot see (SELFDESTRUCT, a precompile debit).
+	// transaction. The same rule applies, in frame, to the debits a call hook
+	// does not see: a SELFDESTRUCT of the account (checked before its balance
+	// moves; a refusal fails that frame as a REVERT does) and a debit by a
+	// stateful precompile acting for the account (checked once the debit is
+	// mirrored into the EVM state; a refusal fails that precompile call). Only
+	// a CALL counts as an action: a STATICCALL changes nothing, and a
+	// DELEGATECALL or CALLCODE runs other code as the account itself, whose
+	// own calls, creations and value are checked in turn. The
+	// end-of-execution settlement stays as the backstop.
 	FeatureEVMDelegatedActorInFrame = "evm-delegated-actor-in-frame"
 
 	// FeatureEVMDelegatedActorScope applies the window's scope (native_only,
@@ -98,9 +105,20 @@ const (
 	// could open a window, consent to a delegation or register an
 	// authenticator in that account's name whenever the account called it.
 	FeaturePQCConsentOwnMessage = "pqc-consent-own-message"
+
+	// FeatureEVMPraguePrecompiles makes the EVM serve the Ethereum
+	// precompiles of the Prague fork rules the chain runs under (the KZG point
+	// evaluation at 0x0a and the BLS12-381 operations at 0x0b..0x11) from
+	// the fork's own set, where the application registers only the Berlin
+	// set. Before it a call to one of them, directly or from a contract,
+	// panicked in the EVM keeper ("precompiled contract not stored in
+	// memory"): a transaction failed with a recovered panic, a query returned
+	// an internal error, and an end-of-block cross-VM call that did not
+	// contain panics failed the block.
+	FeatureEVMPraguePrecompiles = "evm-prague-precompiles"
 )
 
-// V328EVMAuthzFeatures are the v3.2.8 switches for EVM-lane authorisation (delegated actors in frame and in scope, ecrecover, usable keys, native allowances) and for consent messages being the account's own.
+// V328EVMAuthzFeatures are the v3.2.8 switches for EVM-lane authorisation (delegated actors in frame and in scope, ecrecover, usable keys, native allowances), consent messages being the account's own, and the Prague precompiles.
 var V328EVMAuthzFeatures = []string{
 	FeatureEVMDelegatedActorInFrame,
 	FeatureEVMDelegatedActorScope,
@@ -109,4 +127,5 @@ var V328EVMAuthzFeatures = []string{
 	FeatureEVMWindowUsableKey,
 	FeatureEVMNativeAllowanceWindow,
 	FeaturePQCConsentOwnMessage,
+	FeatureEVMPraguePrecompiles,
 }

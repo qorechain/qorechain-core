@@ -12,6 +12,17 @@ P-256).
 > `pqcKeyStatus` and `rlConsensusParams` right after the v3.2.5 upgrade. A call to an inactive
 > address succeeds with empty return data; see [Availability](#availability-build-and-network-status).
 
+## Ethereum precompiles
+
+The Ethereum precompiles `0x01`..`0x09` (ecrecover, hashes, modexp, bn256 pairing, blake2f) are
+always active. The chain runs under the Prague fork rules, and from v3.2.8
+(`evm-prague-precompiles`) the Prague precompiles `0x0a` (KZG point evaluation) and `0x0b`..`0x11`
+(BLS12-381) are served too. Before v3.2.8 a call to `0x0a`..`0x11`, direct or from a contract,
+failed the whole transaction (a recovered node-side panic: code 111222, nothing executed).
+
+From v3.2.8 (`evm-ecrecover-window`) `0x01` honours the post-quantum window of the account it
+recovers; see [EVM_WINDOW.md](EVM_WINDOW.md#delegated-accounts-signatures-and-allowances-from-v328).
+
 ## Address table
 
 | Address (as listed in `active_static_precompiles`) | Name | Gas (precompile itself) | Kind |

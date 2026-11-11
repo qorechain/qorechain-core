@@ -157,6 +157,38 @@ qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id $QCHAIN 
 
 The standard precompiles are inactive on both networks until governance activates them.
 
+## Delegated accounts, signatures and allowances (from v3.2.8)
+
+- **Decided when the account acts** (`evm-delegated-actor-in-frame`). An EIP-7702 delegated account
+  other than the sender needs a usable post-quantum key and a live window at the moment its code
+  makes a CALL to code or a stateful precompile, creates a contract, sends QOR (a CALL with value, a
+  SELFDESTRUCT) or is debited by a precompile. Without one only that call fails, as a failed call
+  on Ethereum: the code that called the account sees the failure and carries on, so a payment to a
+  delegated account can no longer make the payer's whole transaction revert. A STATICCALL, a
+  DELEGATECALL and a CALLCODE are not actions in themselves. Each admitted account is charged one
+  window transaction per transaction, plus what it lost.
+- **Scope applies to the account's own code** (`evm-delegated-actor-scope`). `--native-only` admits
+  no call to code and no creation by the account's delegated code; `--allowed-targets` admits calls
+  to the listed addresses only. This also holds for the sender's own delegated code.
+- **Signatures** (`evm-ecrecover-window`). When a contract verifies a signature with the ecrecover
+  precompile (`0x01`: EIP-2612 permits, Permit2, signed orders, meta-transactions) and the signer
+  holds a usable post-quantum key, the signature counts only inside the signer's live window, and
+  is charged one window transaction. `--native-only` admits no signature for another contract;
+  `--allowed-targets` must list the contract that verifies it. A delegated wallet checking its own
+  signature, the sender's own signature, and every account without a post-quantum key recover as
+  always. Queries and gas estimates are not affected. Open a window before signing a permit, as
+  before sending a transaction.
+- **Native-QOR allowances** (`evm-native-allowance-window`). If a token pair for native QOR is ever
+  registered, an approve that raises an allowance counts the increase against the owner's window.
+- **Usable key** (`evm-window-usable-key`). A window works only while the key is usable: not empty,
+  classical-only or degenerate, and its algorithm not disabled by governance.
+
+**Known limit.** The chain sees signature checks made through the ecrecover precompile only. A
+contract that verifies secp256k1 signatures with its own arithmetic (bytecode elliptic-curve code,
+no precompile) is outside what the chain can see, and a classical signature it accepts is not
+bounded by the window. Whoever chooses such a contract (a token issuer, a wallet) chooses that
+trust; the precompile path, which every standard library uses, is covered.
+
 ## What is outside the window
 
 The window governs the EVM lane only, that is transactions signed with the classical key alone. These
@@ -181,6 +213,6 @@ authorities.
 | `no open EVM authorisation window` | 26 | no window, no registered key, or the window expired |
 | `EVM authorisation window exhausted` | 27 | a bound is used up, or the transaction is outside the window's scope, including a value-moving precompile the window does not list |
 | `invalid EVM authorisation window` | 28 | an open request outside the limits |
-| `delegated account has no window covering this action` | 62 | the settlement refused: the sender moved more than its window covers, or a delegated account acted without a window |
+| `delegated account has no window covering this action` | 62 | the settlement refused: the sender moved more than its window covers, or a delegated account acted without a window (from v3.2.8 the same rule fails only the offending call, in frame) |
 | `<method> is disabled: the circuit breaker has tripped <message>` | revert | a standard precompile method whose message is tripped |
 | `<method>: account ... has no open EVM authorisation window that lists 0x...` | revert | a value-moving precompile reached through code, for an account whose window does not list it |
