@@ -1,6 +1,10 @@
 package types
 
-import "sync"
+import (
+	"errors"
+	"fmt"
+	"sync"
+)
 
 // FullProgramValidator is a runtime that can run, on a program being
 // deployed, the full loader and verifier an execution runs
@@ -42,4 +46,36 @@ func ClearNodeFault() {
 	nodeFaultMu.Lock()
 	nodeFault = nil
 	nodeFaultMu.Unlock()
+}
+
+// ErrRuntimeFlagsUnsupported is returned by the runtime bridge when the SVM
+// library refused a runtime switch it does not know (code -38): the library
+// is older than the chain binary. A plain error, like
+// ErrExecutionThreadUnavailable; with svm-library-flags-checked it is a node
+// fault during block execution.
+var ErrRuntimeFlagsUnsupported = errors.New("svm library does not support a runtime switch this binary uses")
+
+// AllRuntimeFlags is every v3 runtime flag this binary can request. The SVM
+// library must know all of them; the node refuses to start otherwise.
+const AllRuntimeFlags = RuntimeFlagByteMetering | RuntimeFlagFullResult | RuntimeFlagTokenOwnerCheck |
+	RuntimeFlagCPIDepthBounded | RuntimeFlagMemcpyNoOverlap | RuntimeFlagPDASeedLimits |
+	RuntimeFlagConsensusSysvars | RuntimeFlagNonzeroReturn | RuntimeFlagHostPrivileges |
+	RuntimeFlagTokenSPL | RuntimeFlagMetadataNotNat | RuntimeFlagATAIdempotent |
+	RuntimeFlagCPICalleeRules | RuntimeFlagATAPrefunded | RuntimeFlagTokenCloseFrozen |
+	RuntimeFlagCPICallerRules | RuntimeFlagCPIComposable | RuntimeFlagSystemSeedBase |
+	RuntimeFlagPDASigningMeter | RuntimeFlagReentrancyGuard | RuntimeFlagATAPayerSystem |
+	RuntimeFlagResultSizeExact | RuntimeFlagSystemSeedCPI | RuntimeFlagNestedAttrib |
+	RuntimeFlagResultBounded | RuntimeFlagSeedBases | RuntimeFlagRegistrySharedCharge
+
+// FlagReporter is a runtime that reports the v3 flags it knows.
+type FlagReporter interface {
+	KnownFlags() uint64
+}
+
+// CheckRuntimeFlags returns an error naming the flags `known` lacks.
+func CheckRuntimeFlags(known uint64) error {
+	if missing := AllRuntimeFlags &^ known; missing != 0 {
+		return fmt.Errorf("the SVM library is older than this binary: it does not support runtime flags %#x (it knows %#x, the binary uses %#x); install the libqoresvm built with this release", missing, known, AllRuntimeFlags)
+	}
+	return nil
 }

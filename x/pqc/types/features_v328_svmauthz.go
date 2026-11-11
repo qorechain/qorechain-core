@@ -413,6 +413,26 @@ const (
 	// nothing of it is copied (runtime flag 1<<26). Before it the whole
 	// registry was charged, from when each invocation cloned it.
 	FeatureSVMCPIRegistrySharedCharge = "svm-cpi-registry-shared-charge"
+	// FeatureSVMCustodyCeilingAlarmOnly makes the hard ceiling
+	// (max_custody_hard_uqor) a monitoring threshold that refuses nothing.
+	// DECISION (round 11): any refusal tied to a global custody total, raw or
+	// liability, can be pinned by one holder with refundable capital and then
+	// blocks everyone else; it happened in five successive forms. So the
+	// ceiling only emits svm_custody_above_hard_ceiling when an operation
+	// leaves the raw balance or the liability above it, and every block emits
+	// svm_custody_summary (liability, raw balance, ceiling) for monitoring.
+	// Exposure is bounded instead by the per-account excess cap
+	// (max_account_excess_uqor, 10,000 QOR on the public testnet), which only
+	// ever refuses the account being credited; by the lane switch (governance
+	// MsgUpdateParams enabled=false); and by the circuit breaker. See
+	// handoff-v328/SVM-CUSTODY-MONITORING.md for the alarms and the runbook.
+	FeatureSVMCustodyCeilingAlarmOnly = "svm-custody-ceiling-alarm-only"
+	// FeatureSVMLibraryFlagsChecked makes a runtime switch the SVM library does
+	// not know (the library is older than the binary) a node fault during
+	// block execution: the node halts before commit instead of recording
+	// failed transactions no other node has. The node also refuses to start
+	// with such a library (checked whatever the features).
+	FeatureSVMLibraryFlagsChecked = "svm-library-flags-checked"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -485,4 +505,6 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMCustodyCeilingOnLiability,
 	FeatureSVMCustodyCeilingDustActual,
 	FeatureSVMCPIRegistrySharedCharge,
+	FeatureSVMCustodyCeilingAlarmOnly,
+	FeatureSVMLibraryFlagsChecked,
 }
