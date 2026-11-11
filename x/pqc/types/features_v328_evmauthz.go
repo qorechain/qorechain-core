@@ -130,13 +130,17 @@ const (
 	// settlement (evm-delegated-actor-settlement) charges to the window of a
 	// delegated account that is not the sender. Its actions are still
 	// checked (usable key, live window, scope), in frame and at settlement,
-	// but a window transaction is charged only when the execution costs the
-	// account something it authorised: native value it lost, a native
-	// allowance it granted, or actions its own code took after accepting its
-	// own signature (a delegated wallet executing a signed batch). Before it
-	// every action was charged, so anyone could use up the window of an
-	// account whose delegated code calls out on an incoming call (a fallback
-	// handler, a receive hook) by calling it repeatedly.
+	// but window transactions are charged only for what the execution costs
+	// the account and it authorised: one for each action its code takes in
+	// a frame where its own signature was accepted (the frame of its code
+	// that encloses the ecrecover call, whatever contract asked for it, a
+	// validator module included; an action beyond what the window has left
+	// fails in frame), and at least one when it lost native value or granted
+	// a native allowance. A signature accepted in one frame does not count
+	// for another, so a stranger replaying an old public signature and then
+	// calling the account's fallback uses nothing. Before it every action was
+	// charged, so anyone could use up the window of an account whose
+	// delegated code calls out on an incoming call by calling it repeatedly.
 	FeatureEVMDelegatedActorChargeOnCost = "evm-delegated-actor-charge-on-cost"
 )
 

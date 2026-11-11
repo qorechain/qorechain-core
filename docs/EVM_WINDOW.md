@@ -167,10 +167,13 @@ The standard precompiles are inactive on both networks until governance activate
   delegated account can no longer make the payer's whole transaction revert. A STATICCALL, a
   DELEGATECALL and a CALLCODE are not actions in themselves.
 - **What a delegated account is charged** (`evm-delegated-actor-charge-on-cost`). In a transaction it
-  did not send, its actions are always checked (key, live window, scope), but it is charged one
-  window transaction only when the transaction costs it something it authorised: QOR it lost, a
-  native allowance it granted, or actions its own code took after accepting its own signature (a
-  wallet executing a signed batch), plus the QOR it lost. A stranger calling its code uses nothing.
+  did not send, its actions are always checked (key, live window, scope), but it is charged window
+  transactions only for what the transaction costs it and it authorised: one per action its code
+  takes in the frame where its own signature was accepted (a wallet executing a signed batch,
+  whether it checks the signature itself or through a validator contract; an action beyond what
+  the window has left fails), and at least one when it lost QOR or granted a native allowance,
+  plus the QOR it lost. A stranger calling its code uses nothing, even after replaying an old
+  signature of it in another call.
 - **Scope applies to the account's own code** (`evm-delegated-actor-scope`). `--native-only` admits
   no call to code and no creation by the account's delegated code; `--allowed-targets` admits calls
   to the listed addresses only. This also holds for the sender's own delegated code.
