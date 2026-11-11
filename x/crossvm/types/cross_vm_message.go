@@ -81,6 +81,12 @@ type CrossVMMessage struct {
 	Escrow         sdk.Coins `json:"escrow,omitempty"`
 	EscrowGasPrice string    `json:"escrow_gas_price,omitempty"`
 	EscrowFee      sdk.Coins `json:"escrow_fee,omitempty"`
+	// LoadUnits and LoadGas are what loading the target code costs (budget
+	// units, and gas at the base price; zero for a pinned code), recorded at
+	// submission of an escrowed call into CosmWasm (wasm-code-load-priced)
+	// and included in its prepay and its admission.
+	LoadUnits uint64 `json:"load_units,omitempty"`
+	LoadGas   uint64 `json:"load_gas,omitempty"`
 }
 
 func (m CrossVMMessage) Validate() error {

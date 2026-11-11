@@ -529,6 +529,9 @@ func NewQoreChainApp(
 	// gas limits change no consensus result.
 	wasmDir := wasmDataDir(appOpts)
 	wasmNodeConfig := readWasmNodeConfig(appOpts)
+	// Node-local: queries of codes this node loaded lately (within its
+	// memory cache) load nothing.
+	app.wasmBlockBudget().setRecentLoadCapacity(uint64(wasmNodeConfig.MemoryCacheSize) << 20)
 
 	app.WasmKeeper = wasmkeeper.NewKeeper(
 		app.appCodec,
@@ -1111,6 +1114,12 @@ func NewQoreChainApp(
 		// make this node diverge at its first contract call.
 		if err := app.checkWasmCodePresent(ctx, wasmDir); err != nil {
 			panic("x/wasm: " + err.Error())
+		}
+		// Node-local: load the codes governance pinned into the VM's pinned
+		// cache, as the state says (the load price exempts pinned codes, so
+		// they must really be in memory after a restart).
+		if err := app.WasmKeeper.InitializePinnedCodes(ctx); err != nil {
+			panic("x/wasm: initialize pinned codes: " + err.Error())
 		}
 		// Queries and simulations before the first block use the price of
 		// the latest state.

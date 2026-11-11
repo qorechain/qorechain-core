@@ -60,8 +60,10 @@ func unpackUpload(code []byte) ([]byte, bool) {
 type Verdict struct {
 	Err    error
 	Floats error // CheckFloats's result
-	// Size and Functions of the code, for pricing its load.
+	// Size and Functions of the code, and its conservative compiled size,
+	// for pricing its load.
 	Size, Functions int
+	Compiled        uint64
 }
 
 // Verdicts caches the verdicts per code checksum. They depend on the bytes
@@ -116,11 +118,11 @@ const (
 	// From wasm-upload-compiled-size: an upload may define at most
 	// MaxUploadFunctions functions (release contracts have 295 to 828, the
 	// largest testnet code 828; code already stored is never refused for
-	// it), and pays CompiledGasPerByte per byte of its estimated compiled
-	// size, which every node keeps on disk: CompiledBytesPerWasmByte per
-	// module byte plus CompiledBytesPerFunction per function (measured 5 to
-	// 16.3 times the module). An 800 KiB module of 4,096 functions costs
-	// about 44M gas in all, inside the 50M transaction cap.
+	// it), its conservative compiled size (ConservativeCompiledSize) may be
+	// at most MaxUploadCompiledSize, and it pays CompiledGasPerByte per byte
+	// of that size, which every node keeps on disk. The largest release
+	// contract (cw721_base, about 11.9 MB estimated) stores for about 37.7M
+	// gas, inside the 50M transaction cap.
 	MaxUploadFunctions       = 4_096
 	CompiledBytesPerWasmByte = 16
 	CompiledBytesPerFunction = 256
@@ -131,10 +133,52 @@ const (
 // MaxUploadFunctions.
 var ErrTooManyFunctions = errors.New("too many functions")
 
-// EstimatedCompiledSize is the compiled size the upload charge assumes.
+// EstimatedCompiledSize is the size-based floor of the compiled-size
+// estimate: CompiledBytesPerWasmByte per module byte plus
+// CompiledBytesPerFunction per function.
 func EstimatedCompiledSize(size, functions int) uint64 {
 	return uint64(size)*CompiledBytesPerWasmByte + uint64(functions)*CompiledBytesPerFunction
 }
+
+// Compiled bytes per operator kind, measured (the machine code and
+// metadata the VM keeps for one operator; an uploader chooses the mix, so
+// the estimate follows the operators, not the module size).
+const (
+	CompiledBytesPerCall         = 180
+	CompiledBytesPerCallIndirect = 250
+	CompiledBytesPerBranch       = 270 // block, loop, if, br_if, br_table
+	CompiledBytesPerDivRem       = 70
+	CompiledBytesPerOtherOp      = 16
+)
+
+// ConservativeCompiledSize is the compiled size a module is charged and
+// bounded by: the larger of the size-based floor and the per-operator
+// estimate from its inspection. Measured compiled sizes of the release
+// contracts, the testnet's codes and adversarial shapes are all at or
+// below it.
+func ConservativeCompiledSize(size int, st Stats) uint64 {
+	floor := EstimatedCompiledSize(size, st.Functions)
+	other := st.Ops - st.Calls - st.CallIndirects - st.Branches - st.DivRemOps
+	if other < 0 {
+		other = 0
+	}
+	ops := uint64(st.Functions)*CompiledBytesPerFunction +
+		uint64(st.Calls)*CompiledBytesPerCall +
+		uint64(st.CallIndirects)*CompiledBytesPerCallIndirect +
+		uint64(st.Branches)*CompiledBytesPerBranch +
+		uint64(st.DivRemOps)*CompiledBytesPerDivRem +
+		uint64(other)*CompiledBytesPerOtherOp
+	return max(floor, ops)
+}
+
+// MaxUploadCompiledSize bounds an upload's conservative compiled size
+// (wasm-upload-compiled-size): two such modules stay well inside a node's
+// default 100 MiB memory cache. Code already stored is never refused for it.
+const MaxUploadCompiledSize = 32 << 20
+
+// ErrCompiledTooLarge is the refusal of an upload whose conservative
+// compiled size is over MaxUploadCompiledSize.
+var ErrCompiledTooLarge = errors.New("compiled size too large")
 
 // ErrCustomSections is the refusal of an upload whose custom sections are
 // too large.

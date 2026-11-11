@@ -103,12 +103,19 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 		if insp.Stats.CustomBytes > MaxUploadCustomBytes {
 			return errorsmod.Wrapf(ErrCodeRefused, "%v: %d bytes, at most %d", ErrCustomSections, insp.Stats.CustomBytes, MaxUploadCustomBytes)
 		}
-		if compiled && insp.Stats.Functions > MaxUploadFunctions {
-			return errorsmod.Wrapf(ErrCodeRefused, "%v: %d, at most %d", ErrTooManyFunctions, insp.Stats.Functions, MaxUploadFunctions)
+		var compiledSize uint64
+		if compiled {
+			if insp.Stats.Functions > MaxUploadFunctions {
+				return errorsmod.Wrapf(ErrCodeRefused, "%v: %d, at most %d", ErrTooManyFunctions, insp.Stats.Functions, MaxUploadFunctions)
+			}
+			compiledSize = ConservativeCompiledSize(len(insp.Raw), insp.Stats)
+			if compiledSize > MaxUploadCompiledSize {
+				return errorsmod.Wrapf(ErrCodeRefused, "%v: about %d bytes, at most %d", ErrCompiledTooLarge, compiledSize, MaxUploadCompiledSize)
+			}
 		}
 		ctx.GasMeter().ConsumeGas(saturatingMul(uint64(len(insp.Raw)), UploadStorageGasPerByte), "wasm code storage")
 		if compiled {
-			ctx.GasMeter().ConsumeGas(saturatingMul(EstimatedCompiledSize(len(insp.Raw), insp.Stats.Functions), CompiledGasPerByte), "wasm compiled code storage")
+			ctx.GasMeter().ConsumeGas(saturatingMul(compiledSize, CompiledGasPerByte), "wasm compiled code storage")
 		}
 	}
 	// Compiling the module is validator CPU too: the block wasm budget

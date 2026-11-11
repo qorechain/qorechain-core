@@ -38,30 +38,26 @@ func (f *Filter) WithCompiledSizeCharge(on func(sdk.Context) bool) *Filter {
 }
 
 // Loading a code that is not pinned (from the node's disk cache when it is
-// not in memory) is work proportional to the compiled module, which grows
-// with the code's size and function count; wasmd prices it flat. From
+// not in memory) is work proportional to the compiled module
+// (ConservativeCompiledSize); wasmd prices it flat. From
 // wasm-code-load-priced every call to an unpinned code takes
-// LoadUnits(size, functions) from the block wasm budget and the matching SDK
-// gas at the price in force, before the call. Calibrated on the reviewer's
-// measurements (Apple silicon, x86 about three times slower) against the
-// budget's design bound of 265 ns per unit on validator hardware:
-// cw20_base 9,400 units, cw721_base 15,200, a 180 KB module 6,100.
-//
-// The SDK gas is LoadGasPerUnit per unit (at the price in force): a unit of
-// budget is sized for the slowest operator (265 ns on validator hardware),
-// while SDK gas is priced for typical execution (about 1.9 ns per gas on the
-// measuring host), so loading a module costs about as much gas per
-// nanosecond as executing code does (within 2x on the measured shapes).
+// LoadUnits(compiled) from the block wasm budget and LoadGasPerUnit gas per
+// unit at the price in force, before the call. Calibrated on measured loads
+// (2.7 to 8.8 compiled KB per microsecond on the measuring host, validator
+// hardware about three times slower) against the budget's design bound of
+// 265 ns per unit: about one unit per LoadCompiledBytesPerUnit compiled
+// bytes. The gas makes a cold load cost about as much per nanosecond as
+// executing code (within 2x on the measured shapes).
 const (
-	LoadUnitsBase        = 3_000
-	LoadBytesPerUnit     = 64
-	LoadUnitsPerFunction = 1
-	LoadGasPerUnit       = 18
+	LoadUnitsBase            = 1_000
+	LoadCompiledBytesPerUnit = 450
+	LoadGasPerUnit           = 18
 )
 
-// LoadUnits is what loading one unpinned code costs, in budget units.
-func LoadUnits(size, functions int) uint64 {
-	return LoadUnitsBase + uint64(size)/LoadBytesPerUnit + uint64(functions)*LoadUnitsPerFunction
+// LoadUnits is what loading one unpinned code of the given conservative
+// compiled size costs, in budget units.
+func LoadUnits(compiled uint64) uint64 {
+	return LoadUnitsBase + compiled/LoadCompiledBytesPerUnit
 }
 
 // SetupCharger is a Budget that also charges loading a code before a call:
@@ -70,7 +66,7 @@ func LoadUnits(size, functions int) uint64 {
 // (an error) or abort the transaction (BudgetAbort).
 //
 // The charger may charge a code's load once per block: checksum names the
-// code and compiled is its estimated compiled size (EstimatedCompiledSize),
+// code and compiled is its conservative compiled size,
 // for bounding what a block may load before repeats are charged again.
 type SetupCharger interface {
 	ChargeSetup(ctx sdk.Context, checksum []byte, units, gas, compiled uint64) error
@@ -82,6 +78,19 @@ type SetupCharger interface {
 func (f *Filter) WithLoadPricing(on func(sdk.Context) bool, pinned func(ctx sdk.Context, checksum []byte) bool) *Filter {
 	f.loadPriced, f.pinned = on, pinned
 	return f
+}
+
+// LoadCost is what loading an unpinned code costs (budget units and gas at
+// the base price), from the filter's verdict for its checksum; code reads
+// the code's bytes when the verdict is not cached. False when the code
+// cannot be read.
+func (f *Filter) LoadCost(checksum []byte, code func() ([]byte, error)) (units, gas uint64, ok bool) {
+	known, v := f.verdictFor(checksum, code)
+	if !known {
+		return 0, 0, false
+	}
+	units = LoadUnits(v.Compiled)
+	return units, units * LoadGasPerUnit, true
 }
 
 // chargeLoad charges loading the code of one call, before it runs.
@@ -104,8 +113,8 @@ func (e *Engine) chargeLoad(checksum wasmvm.Checksum, querier wasmvm.Querier) er
 	if !known {
 		return nil
 	}
-	units := LoadUnits(v.Size, v.Functions)
-	return sc.ChargeSetup(ctx, checksum, units, units*LoadGasPerUnit, EstimatedCompiledSize(v.Size, v.Functions))
+	units := LoadUnits(v.Compiled)
+	return sc.ChargeSetup(ctx, checksum, units, units*LoadGasPerUnit, v.Compiled)
 }
 
 // WithUploadBounds turns on the upload ordering and bounds of
@@ -264,21 +273,26 @@ var _ wasmtypes.WasmEngine = (*Engine)(nil)
 // verdict returns the filter's verdict on a stored code, from the cache or by
 // reading the code's bytes from the VM.
 func (e *Engine) verdict(checksum wasmvm.Checksum) (known bool, v Verdict) {
-	if ok, v := e.f.verdicts.Get(checksum); ok {
+	return e.f.verdictFor(checksum, func() ([]byte, error) { return e.WasmEngine.GetCode(checksum) })
+}
+
+// verdictFor is the cached verdict for a checksum, computed from code() on a
+// miss. A code that cannot be read is not cached (the bytes may arrive, as
+// in a state-sync restore).
+func (f *Filter) verdictFor(checksum []byte, code func() ([]byte, error)) (bool, Verdict) {
+	if ok, v := f.verdicts.Get(checksum); ok {
 		return true, v
 	}
-	code, gerr := e.WasmEngine.GetCode(checksum)
-	if gerr != nil {
-		// The call below fails on its own for a code the node does not hold;
-		// do not cache, the bytes may arrive (state-sync restore).
+	bz, err := code()
+	if err != nil {
 		return false, Verdict{}
 	}
-	st, cerr := Inspect(code)
-	v = Verdict{Err: cerr, Size: len(code), Functions: st.Functions}
+	st, cerr := Inspect(bz)
+	v := Verdict{Err: cerr, Size: len(bz), Functions: st.Functions, Compiled: ConservativeCompiledSize(len(bz), st)}
 	if v.Err == nil && st.FloatOps > 0 {
 		v.Floats = fmt.Errorf("%w: %d float operators", ErrFloatOpcode, st.FloatOps)
 	}
-	e.f.verdicts.Put(checksum, v)
+	f.verdicts.Put(checksum, v)
 	return true, v
 }
 

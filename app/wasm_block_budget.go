@@ -1,6 +1,7 @@
 package app
 
 import (
+	"container/list"
 	"crypto/sha256"
 	"fmt"
 	"math"
@@ -84,6 +85,9 @@ type blockWasmBudget struct {
 	simMargin bool
 	// queryLoads bounds code loading by queries (node-local).
 	queryLoads loadAllowance
+	// recent is the codes this node loaded lately (node-local), bounded by
+	// its memory cache size: queries of them load nothing.
+	recent recentLoads
 	// loaded is the set of codes whose load the block has charged, in
 	// block execution order (reset with the block); loadedBytes their
 	// estimated compiled size together.
@@ -461,58 +465,75 @@ const QueryLoadUnitsPerSecond = 1_000_000
 // (wasm-code-load-priced): units from the block's budget like the call's own
 // execution (the transaction's share and pool, the queue's, or the
 // block-level counter, refused or aborting as Limit does), and gas at the
-// price in force on ctx's meter. In a query a node-local
-// allowance per second bounds what queries may load.
+// price in force on ctx's meter. The gas is taken first: a call that cannot
+// pay it fails before the budget or the set of loaded codes is touched.
+//
+// In block execution a code's load is charged on its first call in the
+// block only, while the block's distinct loads stay within what a node's
+// memory cache holds (FreeRepeatLoadBytes); past that every call is charged
+// again, since a repeat may load again. Simulation and CheckTx always
+// charge, as for a first call, and mark nothing. A query served by the node
+// pays only for a code that is not hot (loaded in this block or recently on
+// this node), and such loads share a node-local allowance per second.
 func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, checksum []byte, units, gas, compiled uint64) error {
-	sdkGas, err := b.takeSetup(ctx, checksum, units, gas, compiled)
-	if err != nil {
-		return err
-	}
-	ctx.GasMeter().ConsumeGas(sdkGas, "wasm code load")
-	return nil
-}
-
-func (b *blockWasmBudget) takeSetup(ctx sdk.Context, checksum []byte, units, gas, compiled uint64) (uint64, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	// In block execution a code's load is charged on its first call in the
-	// block only, while the block's distinct loads stay within what a
-	// node's memory cache holds (FreeRepeatLoadBytes); past that every call
-	// is charged again, since a repeat may load again. Simulation, CheckTx
-	// and queries always charge, as for a first call, and mark nothing.
 	key := string(checksum)
-	if b.counts(ctx) {
-		if _, seen := b.loaded[key]; seen && b.loadedBytes <= FreeRepeatLoadBytes {
-			return 0, nil
-		}
+	b.mu.Lock()
+	counts := b.counts(ctx)
+	query := !counts && ctx.IsCheckTx() && len(ctx.TxBytes()) == 0 && ctx.ExecMode() == sdk.ExecModeCheck
+	_, seen := b.loaded[key]
+	if counts && seen && b.loadedBytes <= FreeRepeatLoadBytes {
+		b.recent.touch(key, compiled)
+		b.mu.Unlock()
+		return nil
 	}
-	reg := b.reg
+	if query && (seen || b.recent.has(key)) {
+		b.recent.touch(key, compiled)
+		b.mu.Unlock()
+		return nil
+	}
 	base, eff := CalibratedWasmGasMultiplier, CalibratedWasmGasMultiplier
-	if reg != nil {
-		base, eff = reg.BaseMultiplier(), reg.Multiplier()
+	if b.reg != nil {
+		base, eff = b.reg.BaseMultiplier(), b.reg.Multiplier()
 	}
-	vm := saturatingVMGas(units, base)
-	// The gas at the price in force: gas x base / effective (the congestion
-	// factor).
+	b.mu.Unlock()
+
+	// The gas at the price in force (gas x base / effective, the congestion
+	// factor), before anything else.
 	sdkGas := gas
 	if eff > 0 {
 		g := saturatingVMGas(gas, base)
 		sdkGas = g/eff + min64(g%eff, 1)
 	}
-	if !b.counts(ctx) {
-		// A query served by the node: its context is a check-state context
-		// without transaction bytes (CheckTx always carries them).
-		if ctx.IsCheckTx() && len(ctx.TxBytes()) == 0 && ctx.ExecMode() == sdk.ExecModeCheck {
-			if !b.queryLoads.take(units) {
-				return 0, ErrBlockWasmBudget.Wrap("this node's allowance for loading contract code in queries is spent; retry shortly")
-			}
-		}
-		return sdkGas, nil
+	if !counts && !query {
+		ctx.GasMeter().ConsumeGas(sdkGas, "wasm code load")
+		return nil
 	}
+	if query {
+		b.mu.Lock()
+		ok := b.queryLoads.take(units)
+		b.mu.Unlock()
+		if !ok {
+			return ErrBlockWasmBudget.Wrap("this node's allowance for loading contract code in queries is spent; retry shortly")
+		}
+		ctx.GasMeter().ConsumeGas(sdkGas, "wasm code load")
+		b.mu.Lock()
+		b.recent.touch(key, compiled)
+		b.mu.Unlock()
+		return nil
+	}
+	ctx.GasMeter().ConsumeGas(sdkGas, "wasm code load")
+	return b.takeSetup(ctx, key, saturatingVMGas(units, base), compiled)
+}
+
+// takeSetup takes a charged load's VM gas from the block's budget and marks
+// the code loaded for the rest of the block.
+func (b *blockWasmBudget) takeSetup(ctx sdk.Context, key string, vm, compiled uint64) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	switch {
 	case len(ctx.TxBytes()) > 0:
-		if key := txKeyOf(ctx); key != b.tx {
-			b.tx, b.txUsed = key, 0
+		if k := txKeyOf(ctx); k != b.tx {
+			b.tx, b.txUsed = k, 0
 		}
 		if vm > b.txPool {
 			abortTx("loading this contract's code does not fit in what is left of the block's CosmWasm execution budget; retry in a later block")
@@ -527,14 +548,14 @@ func (b *blockWasmBudget) takeSetup(ctx sdk.Context, checksum []byte, units, gas
 		b.txPool -= vm
 	case crossvmtypes.IsQueueExecution(ctx):
 		if vm > b.queuePool+b.txPool {
-			return 0, ErrBlockWasmBudget.Wrap("loading this contract's code does not fit in what is left of the block's CosmWasm execution budget")
+			return ErrBlockWasmBudget.Wrap("loading this contract's code does not fit in what is left of the block's CosmWasm execution budget")
 		}
 		fromQueue := min64(vm, b.queuePool)
 		b.queuePool -= fromQueue
 		b.txPool -= vm - fromQueue
 	default:
 		if vm > b.blockLevel {
-			return 0, ErrBlockWasmBudget.Wrap("loading this contract's code does not fit in this block's CosmWasm budget for calls outside transactions")
+			return ErrBlockWasmBudget.Wrap("loading this contract's code does not fit in this block's CosmWasm budget for calls outside transactions")
 		}
 		b.blockLevel -= vm
 	}
@@ -544,7 +565,8 @@ func (b *blockWasmBudget) takeSetup(ctx sdk.Context, checksum []byte, units, gas
 		b.loaded[key] = struct{}{}
 		b.loadedBytes += min64(compiled, math.MaxUint64-b.loadedBytes)
 	}
-	return sdkGas, nil
+	b.recent.touch(key, compiled)
+	return nil
 }
 
 // FreeRepeatLoadBytes is the estimated compiled size of the distinct codes a
@@ -570,4 +592,52 @@ func (a *loadAllowance) take(units uint64) bool {
 	}
 	a.used += units
 	return true
+}
+
+// recentLoads is a node-local least-recently-used set of loaded codes, by
+// conservative compiled size, bounded by the node's wasm memory cache size.
+type recentLoads struct {
+	capacity uint64
+	total    uint64
+	order    *list.List
+	byKey    map[string]*list.Element
+}
+
+type recentLoad struct {
+	key  string
+	size uint64
+}
+
+func (r *recentLoads) has(key string) bool {
+	_, ok := r.byKey[key]
+	return ok
+}
+
+func (r *recentLoads) touch(key string, size uint64) {
+	if r.order == nil {
+		r.order, r.byKey = list.New(), map[string]*list.Element{}
+	}
+	if r.capacity == 0 {
+		r.capacity = uint64(MinWasmMemoryCacheMiB) << 20
+	}
+	if e, ok := r.byKey[key]; ok {
+		r.order.MoveToFront(e)
+		return
+	}
+	r.byKey[key] = r.order.PushFront(recentLoad{key, size})
+	r.total += size
+	for r.total > r.capacity && r.order.Len() > 0 {
+		last := r.order.Back()
+		v := last.Value.(recentLoad)
+		r.order.Remove(last)
+		delete(r.byKey, v.key)
+		r.total -= v.size
+	}
+}
+
+// setRecentLoadCapacity sets the node's memory cache size in bytes.
+func (b *blockWasmBudget) setRecentLoadCapacity(bytes uint64) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.recent.capacity = bytes
 }

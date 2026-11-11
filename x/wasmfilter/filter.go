@@ -171,6 +171,9 @@ type Stats struct {
 	DivRemOps   int // integer div and rem operators
 	MemoryOps   int // memory.size and memory.grow
 	CustomBytes int // bytes in custom sections (names, debug info, producers)
+	// Operators walked, and of them calls, indirect calls and branches
+	// (block, loop, if, br_if, br_table), for the compiled-size estimate.
+	Ops, Calls, CallIndirects, Branches int
 }
 
 // IsFloatOp reports whether the single-byte opcode op handles a float value:
@@ -378,6 +381,7 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 		at := r.pos
 		op, _ := r.byte()
 		if st != nil {
+			st.Ops++
 			switch {
 			case IsFloatOp(op):
 				st.FloatOps++
@@ -385,6 +389,12 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 				st.DivRemOps++
 			case op == 0x3F || op == 0x40:
 				st.MemoryOps++
+			case op == 0x10:
+				st.Calls++
+			case op == 0x11:
+				st.CallIndirects++
+			case op == opBlock || op == opLoop || op == opIf || op == 0x0D || op == 0x0E:
+				st.Branches++
 			}
 		}
 		switch {
