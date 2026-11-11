@@ -115,6 +115,33 @@ func (e *Engine) chargeCallSetup(checksum wasmvm.Checksum, querier wasmvm.Querie
 	return pq, &callSetup{ctx: ctx, initial: v.MemoryPages, q: pq}, nil
 }
 
+// afterCall settles one call with the budget, in an order that lets nothing
+// skip a charge for work already done. First the call's own VM gas is
+// recorded (budgetUsed); an abort it raises (a call cut short by the
+// budget) is held. Then the memory the call grew into is charged
+// (chargeCallGrowth: its units, then its gas). Then the held abort is
+// raised, also when the growth charge panicked (out of gas), so a
+// submessage that recovers an out-of-gas cannot swallow it. ext is the
+// call's external gas, read before the growth charge adds to the meter.
+func (e *Engine) afterCall(querier wasmvm.Querier, cs *callSetup, used, ext, limit uint64, clamped bool, err error) error {
+	var held any
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if !IsBudgetAbort(r) {
+					panic(r)
+				}
+				held = r
+			}
+		}()
+		e.budgetUsed(querier, used, ext, limit, clamped)
+	}()
+	if held != nil {
+		defer panic(held)
+	}
+	return e.chargeCallGrowth(cs, err)
+}
+
 // chargeCallGrowth charges, after a call, the memory it grew into beyond
 // its initial memory (CallGrowthUnits), whether the call succeeded or not;
 // err is the call's own error, returned unless the charge fails.
@@ -497,8 +524,7 @@ func (e *Engine) Instantiate(checksum wasmvm.Checksum, env wasmvmtypes.Env, info
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.Instantiate(checksum, env, info, initMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -521,8 +547,7 @@ func (e *Engine) Execute(checksum wasmvm.Checksum, env wasmvmtypes.Env, info was
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.Execute(checksum, env, info, executeMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -545,8 +570,7 @@ func (e *Engine) Query(checksum wasmvm.Checksum, env wasmvmtypes.Env, queryMsg [
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.Query(checksum, env, queryMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -569,8 +593,7 @@ func (e *Engine) Migrate(checksum wasmvm.Checksum, env wasmvmtypes.Env, migrateM
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.Migrate(checksum, env, migrateMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -593,8 +616,7 @@ func (e *Engine) MigrateWithInfo(checksum wasmvm.Checksum, env wasmvmtypes.Env, 
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.MigrateWithInfo(checksum, env, migrateMsg, migrateInfo, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -617,8 +639,7 @@ func (e *Engine) Sudo(checksum wasmvm.Checksum, env wasmvmtypes.Env, sudoMsg []b
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.Sudo(checksum, env, sudoMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -641,8 +662,7 @@ func (e *Engine) Reply(checksum wasmvm.Checksum, env wasmvmtypes.Env, reply wasm
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.Reply(checksum, env, reply, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -665,8 +685,7 @@ func (e *Engine) IBCChannelOpen(checksum wasmvm.Checksum, env wasmvmtypes.Env, m
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.IBCChannelOpen(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -689,8 +708,7 @@ func (e *Engine) IBCChannelConnect(checksum wasmvm.Checksum, env wasmvmtypes.Env
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.IBCChannelConnect(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -713,8 +731,7 @@ func (e *Engine) IBCChannelClose(checksum wasmvm.Checksum, env wasmvmtypes.Env, 
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.IBCChannelClose(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -737,8 +754,7 @@ func (e *Engine) IBCPacketReceive(checksum wasmvm.Checksum, env wasmvmtypes.Env,
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.IBCPacketReceive(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -761,8 +777,7 @@ func (e *Engine) IBCPacketAck(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.IBCPacketAck(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -785,8 +800,7 @@ func (e *Engine) IBCPacketTimeout(checksum wasmvm.Checksum, env wasmvmtypes.Env,
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.IBCPacketTimeout(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -809,8 +823,7 @@ func (e *Engine) IBCSourceCallback(checksum wasmvm.Checksum, env wasmvmtypes.Env
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.IBCSourceCallback(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil
@@ -833,8 +846,7 @@ func (e *Engine) IBCDestinationCallback(checksum wasmvm.Checksum, env wasmvmtype
 	}
 	ext0 := consumed(gasMeter)
 	res, used, err := e.WasmEngine.IBCDestinationCallback(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	if err = e.chargeCallGrowth(cs, err); err != nil {
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
 		return nil, used, err
 	}
 	return res, used, nil

@@ -72,7 +72,7 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 		declared = size
 		perByte := uint64(CompileGasPerByte + UploadStorageGasPerByte + UploadInspectGasPerByte)
 		if compiled {
-			perByte += CompiledBytesPerWasmByte * CompiledGasPerByte
+			perByte += CompiledBytesPerWasmByte / CompiledBytesPerGas
 		}
 		need := saturatingMul(size, perByte) + UploadGasMargin
 		if left := ctx.GasMeter().GasRemaining(); left < need {
@@ -130,7 +130,7 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 		}
 		ctx.GasMeter().ConsumeGas(saturatingMul(uint64(len(insp.Raw)), UploadStorageGasPerByte), "wasm code storage")
 		if compiled {
-			ctx.GasMeter().ConsumeGas(saturatingMul(compiledSize, CompiledGasPerByte), "wasm compiled code storage")
+			ctx.GasMeter().ConsumeGas(compiledGas(compiledSize), "wasm compiled code storage")
 		}
 	}
 	// Compiling the module is validator CPU too: the block wasm budget
@@ -154,6 +154,12 @@ func uploadUnits(size int, compiledSize uint64, compiled bool) int {
 		}
 	}
 	return units
+}
+
+// compiledGas is the gas an upload pays for its conservative compiled size:
+// one per CompiledBytesPerGas bytes, rounded up.
+func compiledGas(compiledSize uint64) uint64 {
+	return compiledSize/CompiledBytesPerGas + min(compiledSize%CompiledBytesPerGas, 1)
 }
 
 func saturatingMul(a, b uint64) uint64 {

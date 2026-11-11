@@ -661,19 +661,27 @@ func (b *blockWasmBudget) ChargeCallSetup(ctx sdk.Context, units, gas uint64) er
 }
 
 // ChargeCallGrowth charges, after a call, the memory it grew into
-// (wasm-call-setup-priced): gas at the price in force first (out of gas when
-// the meter cannot cover it), then, in block execution only, units from the
-// call's pool. The work is already done, so when the units do not fit, what
-// is left of the pool they did not fit in is taken (the transactions' pool
-// or the transaction's share, the queue's pools, the block-level counter)
-// before the transaction is aborted or the call refused: later calls in
-// the block cannot repeat it on the same remainder.
+// (wasm-call-setup-priced). The work is already done, so the budget units
+// come first and cannot be skipped by anything that follows: in block
+// execution they are taken from the call's pool, or, when they do not fit,
+// what is left of the pool they did not fit in is taken (the transactions'
+// pool or the transaction's share, the queue's pools, the block-level
+// counter), so later calls cannot repeat the work on the same remainder.
+// Only then is the gas charged at the price in force (out of gas when the
+// meter cannot cover it: the units are already gone), and only then is the
+// transaction aborted, or the call refused outside one, when the units did
+// not fit. Outside block execution only the gas is charged.
 func (b *blockWasmBudget) ChargeCallGrowth(ctx sdk.Context, units, gas uint64) error {
 	b.mu.Lock()
 	counts := b.counts(ctx)
 	base, eff := CalibratedWasmGasMultiplier, CalibratedWasmGasMultiplier
 	if b.reg != nil {
 		base, eff = b.reg.BaseMultiplier(), b.reg.Multiplier()
+	}
+	var abort string
+	var refuse error
+	if counts {
+		abort, refuse = b.takeAfterWorkLocked(ctx, saturatingVMGas(units, base), "the memory this contract call grew into")
 	}
 	b.mu.Unlock()
 	sdkGas := gas
@@ -682,13 +690,18 @@ func (b *blockWasmBudget) ChargeCallGrowth(ctx sdk.Context, units, gas uint64) e
 		sdkGas = g/eff + min64(g%eff, 1)
 	}
 	ctx.GasMeter().ConsumeGas(sdkGas, "wasm call memory growth")
-	if !counts {
-		return nil
+	if abort != "" {
+		abortTx(abort)
 	}
-	vm := saturatingVMGas(units, base)
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	const what = "the memory this contract call grew into"
+	return refuse
+}
+
+// takeAfterWorkLocked takes vm (VM gas) for work already done from the pool
+// of ctx's kind of call. It never panics: when the units do not fit it takes
+// what is left of that pool (or the transaction's share) and returns the
+// abort reason for a transaction, or the refusal for a call outside one,
+// for the caller to raise after charging the gas.
+func (b *blockWasmBudget) takeAfterWorkLocked(ctx sdk.Context, vm uint64, what string) (abort string, refuse error) {
 	switch {
 	case len(ctx.TxBytes()) > 0:
 		if k := txKeyOf(ctx); k != b.tx {
@@ -697,27 +710,29 @@ func (b *blockWasmBudget) ChargeCallGrowth(ctx sdk.Context, units, gas uint64) e
 		if vm > b.txPool {
 			b.drainTxLocked(ctx, b.txPool)
 			b.txPool = 0
-			abortTx(what + " does not fit in what is left of the block's CosmWasm execution budget; retry in a later block")
+			return what + " does not fit in what is left of the block's CosmWasm execution budget; retry in a later block", nil
 		}
 		if b.txUsed+vm > b.txCap {
 			take := b.txCap - min64(b.txUsed, b.txCap)
 			b.drainTxLocked(ctx, take)
 			b.txPool -= take
 			b.txUsed = b.txCap
-			abortTx("this transaction has used its share of the block's CosmWasm execution budget")
+			return "this transaction has used its share of the block's CosmWasm execution budget", nil
 		}
 	case crossvmtypes.IsQueueExecution(ctx):
 		if vm > b.queuePool+b.txPool {
 			b.queuePool, b.txPool = 0, 0
-			return ErrBlockWasmBudget.Wrap(what + " does not fit in what is left of the block's CosmWasm execution budget")
+			return "", ErrBlockWasmBudget.Wrap(what + " does not fit in what is left of the block's CosmWasm execution budget")
 		}
 	default:
 		if vm > b.blockLevel {
 			b.blockLevel = 0
-			return ErrBlockWasmBudget.Wrap(what + " does not fit in this block's CosmWasm budget for calls outside transactions")
+			return "", ErrBlockWasmBudget.Wrap(what + " does not fit in this block's CosmWasm budget for calls outside transactions")
 		}
 	}
-	return b.takeUnitsLocked(ctx, vm, what)
+	// It fits: takeUnitsLocked takes it without aborting.
+	_ = b.takeUnitsLocked(ctx, vm, what)
+	return "", nil
 }
 
 // drainTxLocked records vm taken by ctx's transaction (its share and its

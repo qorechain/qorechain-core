@@ -126,14 +126,17 @@ const (
 	// MaxUploadFunctions functions (release contracts have 295 to 828, the
 	// largest testnet code 828; code already stored is never refused for
 	// it), its conservative compiled size (ConservativeCompiledSize) may be
-	// at most MaxUploadCompiledSize, and it pays CompiledGasPerByte per byte
-	// of that size, which every node keeps on disk. The largest release
-	// contract (cw721_base, about 16.8 MB estimated) stores for about 31M
-	// gas, inside the 50M transaction cap.
+	// at most MaxUploadCompiledSize, and it pays one gas per
+	// CompiledBytesPerGas bytes of that size, which every node keeps on disk
+	// (real compiled sizes are at most 0.58 of the estimate, so this is
+	// still more than one gas per real byte). The densest upload within the
+	// caps (800 KiB at 32 MiB estimated) then stores for about 32.4M gas, well
+	// inside the 50M transaction cap with room for the transaction's own
+	// costs (at one gas per byte it took 46.7M); cw721_base about 22.8M.
 	MaxUploadFunctions       = 4_096
 	CompiledBytesPerWasmByte = 16
 	CompiledBytesPerFunction = 256
-	CompiledGasPerByte       = 1
+	CompiledBytesPerGas      = 2
 
 	// CompiledBytesPerUploadUnit is how much conservative compiled size one
 	// unit of the block's upload pool compiles (an upload takes the larger

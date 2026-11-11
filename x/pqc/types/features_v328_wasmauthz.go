@@ -223,7 +223,7 @@ const (
 	// conservative compiled size (wasmfilter.ConservativeCompiledSize: per
 	// operator class, per operator run deep in the value stack, per
 	// function and signature) is over 32 MiB, and charges an upload 1 gas
-	// per byte of that size, which every node keeps on disk. An upload
+	// per 2 bytes of that size, which every node keeps on disk. An upload
 	// takes the larger of its bytes and a 32nd of that size from the
 	// block's upload pool, so every upload within the caps (at most
 	// 1,048,576 units) fits the default pool of an empty block.
@@ -253,8 +253,10 @@ const (
 	// plus 150 per 64 KiB page of initial memory, plus 9 per data segment)
 	// and after it runs wasmfilter.CallGrowthUnits (150 per page it grew its
 	// memory by, as the patched VM reports), from the block wasm budget like
-	// its execution and as much gas at the price in force. Growth that does
-	// not fit takes what is left of the pool (or the transaction's share) and
+	// its execution and as much gas at the price in force. The growth's units
+	// are taken before its gas (an out-of-gas cannot skip them) and before
+	// the call's own VM gas is settled; growth that does not fit takes what
+	// is left of the pool (or the transaction's share), then the gas, and
 	// aborts the transaction, or fails the call outside one. Every call shape
 	// stays within the budget's design bound of 265 ns per unit on AMD. An
 	// ordinary cw20 transfer takes about 3,250 units and gas more than before.
