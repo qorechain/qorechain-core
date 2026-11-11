@@ -185,6 +185,13 @@ message MsgOpenEVMWindow {
   // transactions or code may go. Optional; honoured from the
   // evm-window-validators feature on.
   repeated string validators = 7;
+  // staking_validators, when non-empty, names the validators (bech32
+  // operator addresses) the account's stake may be delegated or redelegated
+  // to through this window, by its EVM transactions or its EIP-7702 code.
+  // Empty: delegate and redelegate are refused through the window and remain
+  // available as post-quantum signed Cosmos transactions. Optional; honoured
+  // from the evm-window-staking-validators feature on.
+  repeated string staking_validators = 8;
 }
 message MsgOpenEVMWindowResponse {
   uint64 expiry_height = 1;

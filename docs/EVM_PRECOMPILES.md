@@ -259,6 +259,11 @@ what that bypassed:
 - **`evm-precompile-window-scope`:** the value-moving ones (staking, distribution, ics20, gov) run
   for an account that the EVM authorisation window authorises only when that account's window lists
   the precompile in `allowed_targets`. See [EVM_WINDOW.md](./EVM_WINDOW.md#value-moving-precompiles).
+- **`evm-precompile-authority-refused`** and **`evm-window-staking-validators`** (v3.2.8): for such
+  an account, staking `undelegate`, `createValidator`, `editValidator`, distribution
+  `setWithdrawAddress` and gov `vote`, `voteWeighted`, `cancelProposal` are refused through the
+  window; `delegate` and `redelegate` run only to a validator the window names in
+  `staking_validators`. All of them remain available as post-quantum signed Cosmos transactions.
 
 The bank precompile is read-only (`balances`, `totalSupply`, `supplyOf`) and slashing can only
 unjail the caller's own validator, so neither needs a window listing.

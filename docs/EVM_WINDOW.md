@@ -182,23 +182,47 @@ The standard precompiles are inactive on both networks until governance activate
   STATICCALLs, or the ERC-4337 entry point that calls the wallet. Only this list counts; a contract
   listed in `--allowed-targets` (a router, a relay) is not thereby a validator. Validators do not
   narrow where the account's transactions go.
-- **What offsets what the account sends.** QOR paid into the account by others during the
-  transaction (the sender, a payer whose call reached it) offsets what it then sends, so it can
-  forward a payment. QOR that comes back from a call the account's own code made (a vault
-  withdrawal, an unwrap, a refund to msg.sender) and QOR a precompile pays it (a staking reward
-  claim, a module payout) do not: a holder of the classical key cannot move the account's contract
-  positions out past the window's value.
+- **What offsets what the account sends.** Only QOR the transaction's sender pays the account
+  (the transaction's own value, or a payment by the sender's own code) offsets what it then sends,
+  so it can forward what the sender paid it. QOR any contract or other account pays it (a vault
+  withdrawal or an unwrap, a refund, an escrow, bridge or withdrawal queue that anyone may
+  finalise, a contract that SELFDESTRUCTs to it) and QOR a precompile pays it (a staking reward
+  claim, a module payout) do not: a holder of the classical key cannot move the account's
+  positions out past the window's value, whoever triggers the payout. Forwarding such a payment in
+  the same transaction uses window value.
 - **Lasting authority changes** (`evm-precompile-authority-refused`). Setting the distribution
-  withdraw address, creating or editing a validator, undelegating, redelegating to a validator the
-  account does not already delegate to, and governance votes, weighted votes and proposal
-  cancellation are refused through the EVM window whatever it lists; send them as post-quantum
-  signed Cosmos transactions. Delegating and claiming rewards stay available through a window
+  withdraw address, creating or editing a validator, undelegating, and governance votes, weighted
+  votes and proposal cancellation are refused through the EVM window whatever it lists; send them
+  as post-quantum signed Cosmos transactions. Claiming rewards stays available through a window
   that lists the precompile.
+- **Staking validators** (`evm-window-staking-validators`, `--staking-validators v1,v2,...`,
+  bech32 operator addresses, at most 16). Delegating and redelegating through the window (the
+  account's EVM transactions or its EIP-7702 code calling the staking precompile, which the window
+  must also list in `--allowed-targets`) go only to a validator this list names; with the list
+  empty both are refused through the window and stay available as post-quantum signed Cosmos
+  transactions. The account's existing delegations grant nothing, so a classical key cannot make
+  a validator "its own" with a dust delegation and then move the whole stake there.
 - **Simulations match.** `eth_call` and `eth_estimateGas` (and a module's read-only EVM call) run
   the same in-frame rules and the settlement's decision for every account other than the sender,
   and record nothing, so a preview fails where the transaction would. The sender is taken as
   authorised: a wallet can estimate a transaction before opening the window that will pay for it;
-  delivery then needs that window.
+  delivery then needs that window. A module's EVM call made inside a precompile (an ERC-20 balance
+  query during an IBC transfer) is part of the transaction that reached the precompile and is
+  judged with it, under its sender.
+
+**Known limit: token approvals outlive the window.** An ERC-20 `approve`, a permit, Permit2 or
+`setApprovalForAll` granted inside a window (by the account, or by a holder of its classical key
+within the window's scope) stays after the window closes, expires or is revoked: the chain cannot
+price contract tokens or undo another contract's records. Native QOR allowances are charged as
+outflow. When a window ends, review and revoke the approvals it granted (a wallet's approval
+manager or a revoke tool), and keep `--allowed-targets` to the contracts you mean to approve.
+
+**Known limit: modular wallets and the transaction count.** An account is charged window
+transactions only for actions taken under a signature check the chain recognises as the account's
+own (see above). A wallet whose validator module is reached with CALL rather than STATICCALL, or
+is not named in `--validators`, produces no such mark: actions through it are checked (live
+window, scope, value) but not counted. Wallet integrators: name the validator module in
+`--validators`.
 
 **Known limit: verifiers without a nonce.** A wallet whose own public multicall runs its
 signature check without a nonce and then a public action, in one call, lets a stranger replay an

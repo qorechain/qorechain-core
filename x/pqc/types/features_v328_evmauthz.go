@@ -27,9 +27,12 @@ const (
 	// own calls, creations and value are checked in turn. The
 	// end-of-execution settlement stays as the backstop. Value a stateful
 	// precompile pays the account (a reward claim, a module payout), and
-	// value coming back from a call the account's own code made (a vault
-	// withdrawal, an unwrap, a refund to msg.sender), do not offset what it
-	// sends; a payment made into it by others does (a payment it forwards).
+	// any value another contract or account pays it (a vault withdrawal, an
+	// unwrap, a refund, an escrow or withdrawal queue finalised by anyone, a
+	// SELFDESTRUCT naming it), do not offset what it sends. Only value the
+	// execution's sender pays it (the transaction's own value, or a payment
+	// by the sender's own code) does, so the account can forward what the
+	// sender paid it.
 	// Runs that commit nothing (eth_call, eth_estimateGas, a module's
 	// read-only call) apply the same rules to every account but the sender,
 	// whose window the ante handler checks at delivery.
@@ -168,14 +171,25 @@ const (
 	// delegated account's code), the standard precompile methods that change
 	// a lasting authority or position of the account rather than move value
 	// it can see: the distribution withdraw address; creating or editing a
-	// validator; undelegating; redelegating, except to a validator the
-	// account already delegates to; and governance votes, weighted votes and
-	// proposal cancellation. A stolen classical key inside a window could
+	// validator; undelegating; redelegating (admitted from
+	// evm-window-staking-validators only to a validator the window names);
+	// and governance votes, weighted votes and proposal cancellation. A stolen classical key inside a window could
 	// otherwise redirect every future reward, move the whole stake to a
 	// validator of its choosing, or vote with it. They stay available as
-	// post-quantum signed Cosmos messages; delegating and claiming rewards
-	// stay available through a window that lists the precompile.
+	// post-quantum signed Cosmos messages; claiming rewards stays available
+	// through a window that lists the precompile.
 	FeatureEVMPrecompileAuthorityRefused = "evm-precompile-authority-refused"
+
+	// FeatureEVMWindowStakingValidators adds the optional staking_validators
+	// list to MsgOpenEVMWindow, set with the post-quantum key: delegate and
+	// redelegate through the window (the EVM-lane sender, or a delegated
+	// account's code, calling the staking precompile) are admitted only to a
+	// validator it names; with the list empty both are refused through the
+	// window. They stay available as post-quantum signed Cosmos messages. The
+	// account's current delegations grant nothing: a dust delegation made
+	// through the window cannot make a validator "its own". Below the switch
+	// a request with staking_validators is refused.
+	FeatureEVMWindowStakingValidators = "evm-window-staking-validators"
 )
 
 // V328EVMAuthzFeatures are the v3.2.8 switches for EVM-lane authorisation (delegated actors in frame and in scope, ecrecover, usable keys, native allowances), consent messages being the account's own, and the Prague precompiles.
@@ -191,4 +205,5 @@ var V328EVMAuthzFeatures = []string{
 	FeatureEVMDelegatedActorChargeOnCost,
 	FeatureEVMWindowValidators,
 	FeatureEVMPrecompileAuthorityRefused,
+	FeatureEVMWindowStakingValidators,
 }

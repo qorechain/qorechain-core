@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	sdkmath "cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -70,6 +71,43 @@ type EVMAuthWindow struct {
 	// counts for its actions (FeatureEVMWindowValidators). Optional, omitted
 	// when empty; it does not narrow the scope.
 	Validators []string `json:"validators,omitempty"`
+	// StakingValidators names the validators (bech32 operator addresses) the
+	// account's stake may be delegated or redelegated to through the window
+	// (FeatureEVMWindowStakingValidators). Optional, omitted when empty;
+	// empty refuses delegate and redelegate through the window.
+	StakingValidators []string `json:"staking_validators,omitempty"`
+}
+
+// NamesStakingValidator reports whether the window admits delegating or
+// redelegating the account's stake to the validator (bech32 operator
+// address). Only the list the post-quantum key set counts; the account's
+// current delegations do not.
+func (w EVMAuthWindow) NamesStakingValidator(validator string) bool {
+	val, err := sdk.ValAddressFromBech32(validator)
+	if err != nil {
+		return false
+	}
+	for _, v := range w.StakingValidators {
+		if named, err := sdk.ValAddressFromBech32(v); err == nil && named.Equals(val) {
+			return true
+		}
+	}
+	return false
+}
+
+// NormalizeStakingValidators returns the list in canonical bech32 form, in
+// the order given. Validate has already refused invalid or repeated entries.
+func NormalizeStakingValidators(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	for _, v := range in {
+		if val, err := sdk.ValAddressFromBech32(v); err == nil {
+			out = append(out, val.String())
+		}
+	}
+	return out
 }
 
 // NamesValidator reports whether the window names a as a validator of the
@@ -266,6 +304,20 @@ func (m MsgOpenEVMWindow) Validate() error {
 			return fmt.Errorf("validators lists %s more than once", a.Hex())
 		}
 		seenV[a] = true
+	}
+	if len(m.StakingValidators) > MaxEVMWindowTargets {
+		return fmt.Errorf("staking_validators lists %d validators, the maximum is %d", len(m.StakingValidators), MaxEVMWindowTargets)
+	}
+	seenS := make(map[string]bool, len(m.StakingValidators))
+	for _, v := range m.StakingValidators {
+		val, err := sdk.ValAddressFromBech32(v)
+		if err != nil {
+			return fmt.Errorf("staking_validators: %q is not a validator operator address: %w", v, err)
+		}
+		if seenS[val.String()] {
+			return fmt.Errorf("staking_validators lists %s more than once", val.String())
+		}
+		seenS[val.String()] = true
 	}
 	return nil
 }
