@@ -17,7 +17,11 @@ import (
 // Step order: the release features are enabled first, because later steps
 // check them (the SVM zero-lamport report and the custody liability start).
 // Then the params writes: the SVM lane params, the crossvm bridge target pins,
-// and the removal of consent grants inside authz. The SVM store steps follow:
+// and the removal of consent grants inside authz. The queued cross-VM calls
+// into the EVM are then marked as sent on the account's behalf; no step of
+// this handler migrates the queue, and the marking only sets that flag on
+// records as they stand (their prepaid gas and escrow fields are untouched),
+// so any later queue step must run before it. The SVM store steps follow:
 // bytecode accounts move to the loader, zero-lamport accounts are reported,
 // and the custody liability is started last, from the store as the earlier
 // SVM steps leave it.
