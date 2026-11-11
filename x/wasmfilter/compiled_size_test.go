@@ -3,6 +3,7 @@ package wasmfilter
 import (
 	"bytes"
 	"compress/gzip"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -141,6 +142,41 @@ func TestConservativeCompiledSizeCoversCompiled(t *testing.T) {
 		"block/br_if":   shape(4096, []byte{0x00}, []byte{0x02, 0x40, 0x41, 0x00, 0x0d, 0x00, 0x0b}),
 		"loop":          shape(4096, []byte{0x00}, []byte{0x03, 0x40, 0x0b}),
 		"if":            shape(4096, []byte{0x00}, []byte{0x41, 0x00, 0x04, 0x40, 0x0b}),
+	}
+	none := []byte{0x00}
+	loc := func(n uint64, typ byte) []byte { return append(append([]byte{0x01}, uleb(n)...), typ) }
+	i32c0 := []byte{0x41, 0x00}
+	chain := func(prefix, pat []byte) []byte {
+		per := target/512 - len(prefix) - 1 - 4
+		return ccModule(512, none, append(append(append([]byte{}, prefix...), ccRep(per/len(pat), pat...)...), 0x1a))
+	}
+	brTable := func(fns, targets int) []byte {
+		b := []byte{0x02, 0x40, 0x20, 0x00, 0x0e}
+		b = append(b, uleb(uint64(targets))...)
+		b = append(b, ccRep(targets+1, 0x00)...)
+		b = append(b, 0x0b)
+		per := target/fns - 7
+		return ccModule(fns, loc(1, 0x7f), ccRep(max(1, per/len(b)), b...))
+	}
+	// Calibration shapes: the store constant forms, bit counts, loads, the
+	// control forms that compile largest, br_table targets and the locals
+	// series (small modules where the per-module base dominates).
+	cases["i64.store const"] = shape(4096, none, []byte{0x41, 0x00, 0x42, 0x00, 0x37, 0x03, 0x00})
+	cases["i32.store const"] = shape(4096, none, []byte{0x41, 0x00, 0x41, 0x00, 0x36, 0x02, 0x00})
+	cases["i64.store16 const"] = shape(4096, none, []byte{0x41, 0x00, 0x42, 0x00, 0x3D, 0x01, 0x00})
+	cases["i32.clz chain"] = chain(i32c0, []byte{0x67})
+	cases["i64.clz chain"] = chain([]byte{0x42, 0x00}, []byte{0x79})
+	cases["i32.load8_u chain"] = chain(i32c0, []byte{0x2D, 0x00, 0x00})
+	cases["i64.rem_s const"] = chain([]byte{0x42, 0x00}, []byte{0x42, 0x7f, 0x81})
+	cases["if/else const"] = shape(512, none, []byte{0x41, 0x00, 0x04, 0x40, 0x05, 0x0B})
+	cases["nest loops"] = ccModule(100, none, append(ccRep(3000, 0x03, 0x40), ccRep(3000, 0x0B)...))
+	cases["br_table 64"] = brTable(512, 64)
+	cases["br_table 4096"] = brTable(160, 4096)
+	for _, n := range []int{24, 48, 72, 96} {
+		cases[fmt.Sprintf("%d fns of 100 i64 locals", n)] = ccModule(n, loc(100, 0x7e), nil)
+	}
+	for _, l := range []uint64{0, 25, 50, 100} {
+		cases[fmt.Sprintf("68 fns of %d locals", l)] = ccModule(68, loc(l, 0x7e), nil)
 	}
 	rel, _ := filepath.Glob(os.Getenv("QORE_HANDLER_ROOTS") + "/app/testdata/*.wasm.gz")
 	for _, f := range rel {

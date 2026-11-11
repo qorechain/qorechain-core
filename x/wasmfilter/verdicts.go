@@ -141,39 +141,49 @@ func EstimatedCompiledSize(size, functions int) uint64 {
 }
 
 // CompiledBytesPerClass is the compiled code one operator of each class
-// makes, the largest measured over the architectures validators run (x86-64
-// and arm64) with a 1.25x margin; CompiledBytesPerFunctionOps is the same
-// for a function's own overhead. The VM compiles for the machine it runs
-// on, and x86-64 makes up to 2.3 times the code arm64 does for some
-// operators (memory loads, bit counts, division by constants, if/else), so
-// the weights follow the larger. Provisional x86-64 figures, from probes run
-// on x86-64 under emulation, until the validator-hardware table replaces
-// them.
+// makes: the largest of the sizes measured on Intel (c6i) and AMD (m6a)
+// x86-64 validator hardware and on arm64, with a 1.25x margin; bit counts
+// follow x86-64 without the LZCNT/BMI1 instructions (the compiler emits a
+// longer sequence there), so any x86-64 host is covered. The VM
+// compiles for the machine it runs on, and x86-64 makes up to 2.3 times the
+// code arm64 makes for some operators, so the weights follow the larger.
 var CompiledBytesPerClass = [NumOpClasses]uint64{
-	OpOther:        20,
-	OpCall:         225,
-	OpCallIndirect: 366,
-	OpBranch:       337,
-	OpFlow:         125,
-	OpLoad:         146,
-	OpStore:        139,
-	OpDivRem:       160,
-	OpBitCount:     40,
-	OpMemory:       50,
+	OpOther:        10,
+	OpCall:         275,
+	OpCallIndirect: 357,
+	OpBranch:       197,
+	OpFlow:         202,
+	OpLoad:         141,
+	OpStore:        222,
+	OpDivRem:       150,
+	OpBitCount:     40, // x86-64 without LZCNT/BMI1 (31 B), not 18 with them
+	OpMemory:       42,
 }
 
-// CompiledBytesPerFunctionOps is a function's own compiled overhead in the
-// per-operator estimate.
-const CompiledBytesPerFunctionOps = 500
+const (
+	// CompiledBytesPerFunctionOps is a function's own compiled overhead
+	// (prologue, epilogue, its locals) in the per-operator estimate.
+	CompiledBytesPerFunctionOps = 725
+	// CompiledBytesPerBrTableTarget is the jump-table entry of one br_table
+	// target.
+	CompiledBytesPerBrTableTarget = 13
+	// CompiledBytesModuleBase is a module's fixed compiled overhead
+	// (metadata, trampolines, local frames: the VM allows 100 locals per
+	// function and 10,000 per module).
+	CompiledBytesModuleBase = 64 << 10
+)
 
 // ConservativeCompiledSize is the compiled size a module is charged and
 // bounded by: the larger of the size-based floor and the per-operator
-// estimate from its inspection (CompiledBytesPerClass). Measured compiled
-// sizes of the release contracts, the testnet's codes and adversarial shapes
-// are at or below it on both architectures.
+// estimate from its inspection (module base, per function, per operator
+// class, per br_table target). Measured compiled sizes of the release
+// contracts, the testnet's codes and adversarial shapes are at or below it
+// on x86-64 and arm64.
 func ConservativeCompiledSize(size int, st Stats) uint64 {
 	floor := EstimatedCompiledSize(size, st.Functions)
-	ops := uint64(st.Functions) * CompiledBytesPerFunctionOps
+	ops := uint64(CompiledBytesModuleBase) +
+		uint64(st.Functions)*CompiledBytesPerFunctionOps +
+		uint64(st.BrTableTargets)*CompiledBytesPerBrTableTarget
 	for c, n := range st.ByClass {
 		ops += uint64(n) * CompiledBytesPerClass[c]
 	}

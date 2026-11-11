@@ -175,6 +175,9 @@ type Stats struct {
 	// (OpClass), for the compiled-size estimate.
 	Ops     int
 	ByClass [NumOpClasses]int
+	// BrTableTargets is the number of br_table targets (defaults
+	// included) in all bodies together.
+	BrTableTargets int
 }
 
 // OpClass groups operators by how much compiled code one of them makes.
@@ -487,8 +490,11 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 			if err != nil {
 				return fmt.Errorf("%w: br_table", ErrMalformed)
 			}
-			if st != nil && int(cnt) > st.MaxBrTable {
-				st.MaxBrTable = int(cnt)
+			if st != nil {
+				if int(cnt) > st.MaxBrTable {
+					st.MaxBrTable = int(cnt)
+				}
+				st.BrTableTargets += int(cnt) + 1
 			}
 			if cnt > MaxBrTableTargets {
 				return fmt.Errorf("%w: %d targets at offset %d, at most %d", ErrBrTableTooLarge, cnt, at, MaxBrTableTargets)
