@@ -8,11 +8,14 @@ import (
 
 	"github.com/google/btree"
 
+	abci "github.com/cometbft/cometbft/abci/types"
+
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 
 	evmtypes "github.com/cosmos/evm/x/vm/types"
@@ -228,8 +231,22 @@ func (m *evictingMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 	return err
 }
 
-func (m *evictingMempool) Remove(tx sdk.Tx) error {
-	err := m.ExtMempool.Remove(tx)
+// Remove is also what baseapp calls from block execution, for every
+// transaction of the block after its ante handler, and an error other than
+// not-found or a panic there fails the transaction. What the pool does to
+// answer is this node's own business: the EVM pool checks its own view of
+// the latest state, which no other node shares (what it holds, how much it
+// has read). So a panic in the pool is never let out: it is logged and the
+// transaction is left to the pool, which drops it once the block's nonces
+// make it stale. Every other answer is passed on unchanged.
+func (m *evictingMempool) Remove(tx sdk.Tx) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			m.logger.Error("mempool removal failed; the transaction is left to the pool", "panic", fmt.Sprint(r))
+			err = nil
+		}
+	}()
+	err = m.ExtMempool.Remove(tx)
 	if isEVMTx(tx) {
 		return err
 	}
@@ -333,4 +350,23 @@ func (m *evictingMempool) victim(newSender string, p math.Int) (poolKey, poolEnt
 		return false
 	})
 	return best, entry, found
+}
+
+// recoveringCheckTxHandler answers a CheckTx whose handler panicked with a
+// refusal instead of letting the panic out. The EVM pool's handler sends a
+// nonce-gapped transaction to the pool outside baseapp's own recovery, and
+// a panic there (the pool reads its own view of the latest state) left
+// CheckTx and stopped the node. Nothing a refused CheckTx does reaches
+// state.
+func recoveringCheckTxHandler(inner sdk.CheckTxHandler, logger log.Logger) sdk.CheckTxHandler {
+	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (res *abci.ResponseCheckTx, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Error("CheckTx handler panicked; the transaction is refused", "panic", fmt.Sprint(r))
+				res, err = sdkerrors.ResponseCheckTxWithEvents(
+					sdkerrors.ErrPanic.Wrapf("mempool: %v", r), 0, 0, nil, false), nil
+			}
+		}()
+		return inner(runTx, req)
+	}
 }

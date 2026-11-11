@@ -1177,7 +1177,7 @@ func (app *QoreChainApp) setupEVMMempool(logger log.Logger, cfg MempoolConfig) {
 	// makes room for a better-paying tx instead of refusing everyone.
 	mp := newEvictingMempool(evmMempool, cosmosPriority, logger.With(log.ModuleKey, "mempool"))
 	app.SetMempool(mp)
-	app.SetCheckTxHandler(evmmempool.NewCheckTxHandler(evmMempool))
+	app.SetCheckTxHandler(recoveringCheckTxHandler(evmmempool.NewCheckTxHandler(evmMempool), logger.With(log.ModuleKey, "mempool")))
 
 	// PrepareProposal checks that a candidate fits before running the ante on
 	// it and bounds how long it keeps looking (QSR-2026-0029). It is local to
