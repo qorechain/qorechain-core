@@ -50,6 +50,7 @@ func cmdCrossVMCall() *cobra.Command {
 				}
 			}
 			async, _ := cmd.Flags().GetBool("async")
+			asyncGas, _ := cmd.Flags().GetUint64("async-gas-limit")
 			// No source-vm argument: the chain derives the origin lane from the
 			// execution context, so asking the caller to name it would only invite a
 			// value the node discards. The field still gets a placeholder, because
@@ -64,6 +65,7 @@ func cmdCrossVMCall() *cobra.Command {
 				Payload:        payload,
 				Funds:          funds,
 				Async:          async,
+				AsyncGasLimit:  asyncGas,
 			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -72,6 +74,8 @@ func cmdCrossVMCall() *cobra.Command {
 	cmd.Flags().String("funds", "", "coins to attach, e.g. 100uqor (CosmWasm targets only)")
 	cmd.Flags().Bool("async", false, "queue the call instead of executing it now; "+
 		"it runs at the end of the block (from v3.2.5 on a prepaid budget of 1,000,000 gas) and the result is not returned")
+	cmd.Flags().Uint64("async-gas-limit", 0, "for an async call into CosmWasm, the contract execution it runs on in base "+
+		"gas units (from v3.2.8; 0 means 500,000); it prepays this times the wasm congestion factor")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }

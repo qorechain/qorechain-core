@@ -99,11 +99,13 @@ func (app *QoreChainApp) syncWasmGasMultiplier(ctx sdk.Context) {
 	}
 	g := app.wasmGasRegister()
 	g.base.Store(m)
-	if app.PQCKeeper != nil && app.CrossVMKeeper != nil &&
-		app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmCongestionPricing) {
+	congestion := app.PQCKeeper != nil && app.CrossVMKeeper != nil &&
+		app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmCongestionPricing)
+	if congestion {
 		m = congestedMultiplier(m, app.CrossVMKeeper.WasmCongestionFactor(ctx))
 	}
 	g.mult.Store(m)
+	app.wasmBlockBudget().setSimulationMargin(congestion)
 }
 
 // congestedMultiplier is base / (factor / 1e6), at least 1.
@@ -128,12 +130,11 @@ func (app *QoreChainApp) updateWasmCongestion(ctx sdk.Context) {
 		!app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmCongestionPricing) {
 		return
 	}
-	used, total, exhausted := app.wasmBlockBudget().utilisation(ctx)
+	used, total, exhaustedByMany := app.wasmBlockBudget().utilisation(ctx)
 	p := app.CrossVMKeeper.GetParams(ctx)
-	cur, last := app.CrossVMKeeper.WasmCongestion(ctx)
-	next, nextLast := p.NextCongestionFactor(cur, used, total, exhausted, ctx.BlockHeight(), last)
-	if next != cur || nextLast != last {
-		app.CrossVMKeeper.SetWasmCongestion(ctx, next, nextLast)
+	cur := app.CrossVMKeeper.WasmCongestionFactor(ctx)
+	if next := p.NextCongestionFactor(cur, used, total, exhaustedByMany); next != cur {
+		app.CrossVMKeeper.SetWasmCongestionFactor(ctx, next)
 	}
 }
 

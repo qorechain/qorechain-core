@@ -2,6 +2,7 @@ package app
 
 import (
 	errorsmod "cosmossdk.io/errors"
+	storetypes "cosmossdk.io/store/types"
 
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 
@@ -57,6 +58,18 @@ var wasmMempoolInstantiateMsgs = map[string]struct{}{
 // switch is off.
 type WasmMempoolGuardDecorator struct {
 	governedDeploy func(sdk.Context) bool
+	uploadOpen     func(sdk.Context) bool
+}
+
+// WithUploadPolicy makes the guard follow the chain's upload policy: once
+// governance has opened code upload (x/wasm code_upload_access other than
+// Nobody) and FeatureWasmGovernedDeploy is on, the upload messages are
+// admitted to the mempool too, as a contract may already dispatch them, and
+// execution applies the access rule, the code filter and the block wasm
+// budget to every route alike. A nil policy keeps uploads refused.
+func (d WasmMempoolGuardDecorator) WithUploadPolicy(uploadOpen func(sdk.Context) bool) WasmMempoolGuardDecorator {
+	d.uploadOpen = uploadOpen
+	return d
 }
 
 func NewWasmMempoolGuardDecorator(governedDeploy func(sdk.Context) bool) WasmMempoolGuardDecorator {
@@ -85,6 +98,9 @@ func (d WasmMempoolGuardDecorator) AnteHandle(
 		return next(ctx, tx, simulate)
 	}
 	allowInstantiate := d.governedDeploy != nil && d.governedDeploy(ctx)
+	if allowInstantiate && d.uploadOpen != nil && d.uploadOpen(ctx) {
+		return next(ctx, tx, simulate)
+	}
 	if err := rejectWasmMsgs(tx.GetMsgs(), 0, allowInstantiate); err != nil {
 		return ctx, err
 	}
@@ -121,4 +137,11 @@ func rejectWasmMsgs(msgs []sdk.Msg, depth int, allowInstantiate bool) error {
 			"%s is not accepted by this node: CosmWasm code upload and "+
 				"instantiation are suspended pending a security fix", url)
 	})
+}
+
+// wasmUploadOpen reports whether x/wasm code_upload_access admits anyone but
+// nobody. Read off the gas meter.
+func (app *QoreChainApp) wasmUploadOpen(ctx sdk.Context) bool {
+	free := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	return app.WasmKeeper.GetParams(free).CodeUploadAccess.Permission != wasmtypes.AccessTypeNobody
 }

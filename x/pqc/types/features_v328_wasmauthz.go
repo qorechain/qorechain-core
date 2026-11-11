@@ -158,22 +158,24 @@ const (
 	// block wasm budget has been. A factor kept in state (crossvm,
 	// default 1) multiplies the SDK gas one unit of contract execution costs;
 	// after every block it rises by 1/8 when the block used more than
-	// wasm_congestion_target_bps of its wasm budget and falls by 1/9 when it
-	// used less, bounded by wasm_congestion_max_factor (default 1,000). The
-	// budget itself is unchanged (it bounds validator CPU); keeping it full
-	// becomes exponentially expensive, and ordinary use, which leaves most of
-	// the budget unused, stays at the base price.
+	// wasm_congestion_target_bps of its wasm budget (by half when the
+	// transactions' pool was exhausted by at least two fee payers, each using
+	// 5 percent of the budget or more) and falls by 1/9 when it used less,
+	// bounded by wasm_congestion_max_factor (default 20, at most 100). The
+	// budget itself is unchanged (it bounds validator CPU), storage, setup and
+	// code upload are not priced by it, and estimates are taken one
+	// exhaustion step up.
 	FeatureWasmCongestionPricing = "wasm-congestion-pricing"
 
 	// FeatureCrossVMAsyncGasPriced prices async calls into CosmWasm by the
-	// congestion factor. The sender may choose how much contract execution
-	// the call may use (MsgCrossVMCall async_gas_limit, base units, 250,000
-	// to 10,000,000, default 1,000,000) and prepays that times the factor
-	// in force (at most 50,000,000; above that the call is refused at
-	// submission). The queue runs the call on what it prepaid, bounded by the
-	// block wasm budget and by 50,000,000 SDK gas for the whole queue per
-	// block; a call admitted on less than it prepaid that runs short is rolled
-	// back and stays pending until a block with room, or its timeout.
+	// congestion factor and the queue by its occupancy. A call runs on a
+	// fixed amount of contract execution (MsgCrossVMCall async_gas_limit,
+	// base units, 250,000 up to what the queue can run in a block, default
+	// 500,000) and prepays that times the factor in force (at most
+	// 50,000,000, refused above); every async call also pays a queue-slot fee
+	// growing with the square of the queue's occupancy. The queue runs a call
+	// on exactly its units or not at all (it waits for a block with room, or
+	// its timeout), and a prepay buys one run.
 	FeatureCrossVMAsyncGasPriced = "crossvm-async-gas-priced"
 )
 

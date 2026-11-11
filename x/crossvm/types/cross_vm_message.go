@@ -64,17 +64,13 @@ type CrossVMMessage struct {
 	ExecutedHeight int64         `json:"executed_height,omitempty"`
 	Response       []byte        `json:"response,omitempty"`
 	Error          string        `json:"error,omitempty"`
-	// AsyncGas is the contract execution an async call into CosmWasm may
-	// use, in base gas units (zero: AsyncCallGas); PrepaidGas is the SDK gas
-	// it prepaid for it at submission (zero: AsyncCallGas), from
-	// crossvm-async-gas-priced. omitempty keeps older records unchanged.
+	// AsyncGas is the contract execution an async call into CosmWasm runs
+	// on, in base gas units (zero: AsyncCallGas); PrepaidGas is what it paid
+	// for it at submission, that times the congestion factor then (zero:
+	// AsyncCallGas), from crossvm-async-gas-priced. omitempty keeps older
+	// records unchanged.
 	AsyncGas   uint64 `json:"async_gas,omitempty"`
 	PrepaidGas uint64 `json:"prepaid_gas,omitempty"`
-	// RanShort records that the call was once admitted on less than it
-	// prepaid and needed more; from then on it runs only when the block can
-	// admit all it prepaid (so its prepaid gas is not spent again on every
-	// block until its timeout).
-	RanShort bool `json:"ran_short,omitempty"`
 }
 
 func (m CrossVMMessage) Validate() error {

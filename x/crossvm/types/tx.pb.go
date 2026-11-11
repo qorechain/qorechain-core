@@ -49,9 +49,10 @@ type MsgCrossVMCall struct {
 	Async bool `protobuf:"varint,7,opt,name=async,proto3" json:"async,omitempty"`
 	// async_gas_limit is, for an async call into CosmWasm, the contract
 	// execution it may use, in base gas units (what it would cost with no
-	// congestion). Zero means 1,000,000; a set value is 250,000 to
-	// 10,000,000. The call prepays it times the wasm congestion factor at
-	// submission. Set from the crossvm-async-gas-priced switch; refused for
+	// congestion). Zero means 500,000; a set value is 250,000 to
+	// 10,000,000, and at most what the queue can run in a block. The call
+	// prepays it times the wasm congestion factor at submission, and runs on
+	// exactly that much execution. Set from the crossvm-async-gas-priced switch; refused for
 	// synchronous calls and for other lanes.
 	AsyncGasLimit uint64 `protobuf:"varint,8,opt,name=async_gas_limit,json=asyncGasLimit,proto3" json:"async_gas_limit,omitempty"`
 }
