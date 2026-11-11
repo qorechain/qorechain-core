@@ -103,10 +103,10 @@ const (
 	// DefaultMaxBlockUploadBps is the block's code-upload pool when
 	// params.MaxBlockUploadBps is zero, in basis points of the transactions'
 	// wasm pool: 5,000 of 2,250,000 units at the default budget is 1,125,000,
-	// enough for the largest release contract (an upload takes the larger of
-	// its bytes and a sixteenth of its conservative compiled size: cw721_base
-	// about 1,050,000), so modules up to about 18 MB of conservative compiled
-	// size fit one block. Compiling costs far less validator CPU per unit than
+	// enough for every upload within the caps (an upload takes the larger of
+	// its bytes and a 32nd of its conservative compiled size, at most
+	// 1,048,576 at the 32 MiB cap; the first upload of a block may take that
+	// much even past a smaller pool). Compiling costs far less validator CPU per unit than
 	// the slowest admitted operator, so the pool adds little to a block's
 	// worst case, and uploads cannot spend the execution pool.
 	DefaultMaxBlockUploadBps uint32 = 5_000

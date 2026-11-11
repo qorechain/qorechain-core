@@ -66,6 +66,9 @@ type Verdict struct {
 	// for pricing its load.
 	Size, Functions int
 	Compiled        uint64
+	// SetupUnits is what every call of the code costs to set up
+	// (CallSetupUnits, wasm-call-setup-priced).
+	SetupUnits uint64
 }
 
 // Verdicts caches the verdicts per code checksum. They depend on the bytes
@@ -129,7 +132,25 @@ const (
 	CompiledBytesPerWasmByte = 16
 	CompiledBytesPerFunction = 256
 	CompiledGasPerByte       = 1
+
+	// CompiledBytesPerUploadUnit is how much conservative compiled size one
+	// unit of the block's upload pool compiles (an upload takes the larger
+	// of its bytes and its compiled size over this). Compiling the release
+	// and test contracts (and a 727 KB module with cw20's code mix) cost at
+	// most 52 ns per unit on arm64 and 71 under x86-64 emulation (Rosetta),
+	// well under the budget's 265 ns design bound, and every upload within
+	// MaxUploadCompiledSize takes at most MaxUploadUnits, which fits the
+	// default upload pool of an empty block.
+	CompiledBytesPerUploadUnit = 32
 )
+
+// MaxUploadUnits is the most upload units an upload within the caps takes:
+// MaxUploadCompiledSize / CompiledBytesPerUploadUnit (1,048,576), above
+// wasmd's 800 KiB size limit. The first upload of a block may take up to
+// this much even when the block's upload pool is smaller (governance may
+// set a smaller budget), so every upload within the caps can be stored in
+// some block.
+const MaxUploadUnits = MaxUploadCompiledSize / CompiledBytesPerUploadUnit
 
 // ErrTooManyFunctions is the refusal of an upload with more functions than
 // MaxUploadFunctions.
@@ -253,7 +274,14 @@ var ErrCompiledTooLarge = errors.New("compiled size too large")
 // signatures in 800 KB compiled to more than the size estimate, took 0.2 s
 // to compile and loaded at over three times the priced rate. Release and
 // test contracts declare at most 35.
+//
+// The memory every call starts with is bounded too (MaxModuleInitialPages):
+// the VM gives every call a fresh memory of the declared minimum and copies
+// the data segments into it. Release and test contracts declare 17 to 20
+// pages (cw721_base 20), and so do all 407 distinct codes stored on the
+// testnet; none declares a maximum.
 const (
+	MaxModuleInitialPages = 64
 	MaxModuleTypes        = 512
 	MaxModuleExports      = 128
 	MaxModuleGlobals      = 256
@@ -280,12 +308,84 @@ func CheckShape(st Stats) error {
 		{"element segments", st.ElemSegments, MaxModuleElemSegments},
 		{"element entries", st.ElemEntries, MaxModuleElemEntries},
 		{"data segments", st.DataSegments, MaxModuleDataSegments},
+		{"initial memory pages", st.MemoryPages, MaxModuleInitialPages},
 	} {
 		if b.n > b.max {
 			return fmt.Errorf("%w: %d %s, at most %d", ErrModuleShape, b.n, b.what, b.max)
 		}
 	}
 	return nil
+}
+
+// Per-call setup (wasm-call-setup-priced). Every call runs in a fresh
+// instance of the module: the VM maps a fresh linear memory of the declared
+// minimum (lazily: untouched pages cost nothing) and copies every data
+// segment into it, and every 4 KiB operating-system page the call touches
+// for the first time (an initial page, one written by a data segment, or
+// one it grew into, up to the VM's limit of VMMemoryLimitPages) is faulted
+// in and zeroed, then released when the call ends. The VM meters none of
+// that: a store into a fresh page costs what any store costs, and wasmd's
+// flat instance cost does not grow with it. Measured natively on validator
+// hardware (Linux, 4 KiB pages): a first touch costs 1.26 us on Intel c6i
+// and 1.93 us on AMD m6a, so a call that touches its whole 32 MiB took
+// 10.4 ms and 15.9 ms; a minimal call 54 and 83 us.
+//
+// CallSetupUnits charges, before every call: CallSetupUnitsBase, plus
+// CallSetupUnitsPerPage per 64 KiB page the call is charged for
+// (ChargedSetupPages: its initial pages, plus for a module with
+// memory.grow up to CallSetupGrowPages more, never past its high-water
+// mark), plus CallSetupUnitsPerDataSegment per data segment, taken from the
+// block wasm budget like the call's execution, and CallSetupGasPerUnit gas
+// per unit at the price in force. The per-page and per-segment prices are
+// the AMD cost at the budget's design bound of 265 ns per unit with a 1.25
+// margin (16 x 1.93 us x 1.25 / 265 ns = 146 per page), so a call that
+// touches every page it starts with stays within the bound.
+//
+// How far a call grows its memory is known only while it runs (the VM does
+// not report it), and every contract can grow to the VM's limit; charging
+// every call for all 512 pages would cost an ordinary contract call about
+// 77,000 units and gas. CallSetupGrowPages is the growth charged instead
+// (2 MiB beyond the initial memory): one constant to retune in a release.
+// A call that grows past it and touches what it grew is not fully priced:
+// up to about 15.9 ms on AMD for about 12,000 units (1,300 ns per unit);
+// the bound for it needs the VM to report a call's memory high-water mark.
+const (
+	VMMemoryLimitPages           = 512 // wasmd's contract memory limit, 32 MiB
+	CallSetupUnitsBase           = 350
+	CallSetupUnitsPerPage        = 150
+	CallSetupUnitsPerDataSegment = 9
+	CallSetupGrowPages           = 32
+	CallSetupGasPerUnit          = 1
+)
+
+// MemoryHighWaterPages is the most linear memory, in 64 KiB pages, a call
+// of the module can touch: its initial pages without memory.grow, else the
+// VM's limit or the declared maximum if lower (never below the initial
+// pages).
+func MemoryHighWaterPages(st Stats) uint64 {
+	pages := uint64(st.MemoryPages)
+	if st.GrowOps > 0 {
+		top := uint64(VMMemoryLimitPages)
+		if st.MemoryHasMax && uint64(st.MemoryMaxPages) < top {
+			top = uint64(st.MemoryMaxPages)
+		}
+		pages = max(pages, top)
+	}
+	return min(pages, VMMemoryLimitPages)
+}
+
+// ChargedSetupPages is the memory, in 64 KiB pages, a call of the module is
+// charged for: its initial pages, plus for a module that can grow up to
+// CallSetupGrowPages more, at most its high-water mark.
+func ChargedSetupPages(st Stats) uint64 {
+	return min(MemoryHighWaterPages(st), uint64(st.MemoryPages)+CallSetupGrowPages)
+}
+
+// CallSetupUnits is what setting up one call of the module costs, in budget
+// units (wasm-call-setup-priced).
+func CallSetupUnits(st Stats) uint64 {
+	return CallSetupUnitsBase + ChargedSetupPages(st)*CallSetupUnitsPerPage +
+		uint64(st.DataSegments)*CallSetupUnitsPerDataSegment
 }
 
 // ErrCustomSections is the refusal of an upload whose custom sections are

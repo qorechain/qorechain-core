@@ -70,6 +70,7 @@ type blockWasmBudget struct {
 	txPool     uint64
 	queuePool  uint64
 	uploadPool uint64 // compiling uploads; not counted for congestion
+	uploadUsed bool   // an upload has been charged to the pool this block
 	txCap      uint64
 	blockLevel uint64
 	tx         wasmTxKey
@@ -137,7 +138,7 @@ func (b *blockWasmBudget) reset(height int64, on bool, total uint64, reserveBps,
 	b.on, b.height, b.total, b.blockLevel = on, height, total, blockLevel
 	b.queuePool = bpsOf(total, reserveBps)
 	b.txPool = total - b.queuePool
-	b.uploadPool = bpsOf(b.txPool, uploadBps)
+	b.uploadPool, b.uploadUsed = bpsOf(b.txPool, uploadBps), false
 	b.txCap = bpsOf(total, shareBps)
 	b.tx, b.txUsed, b.nextToken = wasmTxKey{}, 0, 0
 	b.payers = map[string]uint64{}
@@ -275,44 +276,66 @@ func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed, gasExternal, limit uint
 	}
 }
 
-// UploadBudgetUnitsPerByte is what storing (compiling) one byte of module
-// takes from the block wasm budget, in budget units (SDK gas of VM work at
-// the base price). Measured compile cost is 31 to 54 ns per byte on the
-// measuring host, below the 84 ns per unit of the slowest admitted operator
-// there, so one unit per byte bounds compiling as tightly as execution: a
-// maximum-size module (800 KiB) takes 819,200 units of the block's upload
-// pool (843,750 at the default budget).
+// UploadBudgetUnitsPerByte is what one upload unit (a byte of module, or
+// wasmfilter.CompiledBytesPerUploadUnit bytes of its conservative compiled
+// size, whichever is more) takes from the block's upload pool, in budget
+// units (SDK gas of VM work at the base price). Measured compile cost is
+// well under the 265 ns design bound per unit: a maximum-size module
+// (800 KiB) takes 819,200 units, and the largest upload within the caps
+// 1,048,576, of the default pool of 1,125,000.
 const UploadBudgetUnitsPerByte = 1
 
-// ChargeUpload takes compiling a module of wasmBytes from the block's
-// upload pool (a call outside a transaction from the block-level counter).
-// The upload pool is separate from the execution pools and does not count
-// towards congestion, so uploads cannot close the execution lane or set the
-// price; it bounds the compile CPU of a block. A transaction's upload that
-// does not fit aborts the transaction; any other is refused.
-func (b *blockWasmBudget) ChargeUpload(ctx sdk.Context, wasmBytes int) error {
+// ChargeUpload takes compiling a module of the given upload units
+// (wasmfilter: its bytes, or its compiled size over
+// CompiledBytesPerUploadUnit) from the block's upload pool (a call outside a
+// transaction from the block-level counter). The upload pool is separate
+// from the execution pools and does not count towards congestion, so
+// uploads cannot close the execution lane or set the price; it bounds the
+// compile CPU of a block. The first upload of a block may take up to
+// wasmfilter.MaxUploadUnits even past the pool (it then empties the pool),
+// so an upload within the caps is never too large for every block. A
+// transaction's upload that does not fit aborts the transaction; any other
+// is refused.
+func (b *blockWasmBudget) ChargeUpload(ctx sdk.Context, units int) error {
+	return b.upload(ctx, units, true)
+}
+
+// UploadFits is ChargeUpload without taking anything: the same refusal (or
+// abort) when the upload would not fit now, nil otherwise.
+func (b *blockWasmBudget) UploadFits(ctx sdk.Context, units int) error {
+	return b.upload(ctx, units, false)
+}
+
+func (b *blockWasmBudget) upload(ctx sdk.Context, units int, take bool) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if !b.counts(ctx) || wasmBytes <= 0 {
+	if !b.counts(ctx) || units <= 0 {
 		return nil
 	}
-	need := saturatingVMGas(uint64(wasmBytes)*UploadBudgetUnitsPerByte, b.uploadMult)
+	need := saturatingVMGas(uint64(units)*UploadBudgetUnitsPerByte, b.uploadMult)
 	switch {
-	case len(ctx.TxBytes()) > 0:
-		if need > b.uploadPool {
-			abortTx("storing this code does not fit in what is left of the block's code-upload budget; retry in a later block")
+	case len(ctx.TxBytes()) > 0, crossvmtypes.IsQueueExecution(ctx):
+		fits := need <= b.uploadPool
+		if !fits && !b.uploadUsed && need <= saturatingVMGas(wasmfilter.MaxUploadUnits, b.uploadMult) {
+			fits = true // the block's first upload, within the caps
 		}
-		b.uploadPool -= need
-	case crossvmtypes.IsQueueExecution(ctx):
-		if need > b.uploadPool {
+		if !fits {
+			if len(ctx.TxBytes()) > 0 {
+				abortTx("storing this code does not fit in what is left of the block's code-upload budget; retry in a later block")
+			}
 			return ErrBlockWasmBudget.Wrap("storing this code does not fit in what is left of the block's code-upload budget")
 		}
-		b.uploadPool -= need
+		if take {
+			b.uploadPool -= min64(need, b.uploadPool)
+			b.uploadUsed = true
+		}
 	default:
 		if need > b.blockLevel {
 			return ErrBlockWasmBudget.Wrap("storing this code does not fit in this block's CosmWasm budget for calls outside transactions")
 		}
-		b.blockLevel -= need
+		if take {
+			b.blockLevel -= need
+		}
 	}
 	return nil
 }
@@ -559,13 +582,31 @@ func repeatLoadShare(v uint64) uint64 {
 func (b *blockWasmBudget) takeSetup(ctx sdk.Context, key string, vm, compiled uint64) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	if err := b.takeUnitsLocked(ctx, vm, "loading this contract's code"); err != nil {
+		return err
+	}
+	// Charged: the load happens (whether the transaction then succeeds or
+	// not), so the code counts as loaded for the rest of the block.
+	if _, seen := b.loaded[key]; !seen && b.loaded != nil {
+		b.loaded[key] = 0
+		b.loadedBytes += min64(compiled, math.MaxUint64-b.loadedBytes)
+	}
+	b.recent.touch(key, compiled)
+	return nil
+}
+
+// takeUnitsLocked takes vm (VM gas) from the pool of ctx's kind of call: a
+// transaction's share and pool (aborting the transaction when it does not
+// fit), the queue's reserve and then the transactions' pool, or the
+// block-level counter. what names the work in the refusal.
+func (b *blockWasmBudget) takeUnitsLocked(ctx sdk.Context, vm uint64, what string) error {
 	switch {
 	case len(ctx.TxBytes()) > 0:
 		if k := txKeyOf(ctx); k != b.tx {
 			b.tx, b.txUsed = k, 0
 		}
 		if vm > b.txPool {
-			abortTx("loading this contract's code does not fit in what is left of the block's CosmWasm execution budget; retry in a later block")
+			abortTx(what + " does not fit in what is left of the block's CosmWasm execution budget; retry in a later block")
 		}
 		if b.txUsed+vm > b.txCap {
 			abortTx("this transaction has used its share of the block's CosmWasm execution budget")
@@ -577,25 +618,46 @@ func (b *blockWasmBudget) takeSetup(ctx sdk.Context, key string, vm, compiled ui
 		b.txPool -= vm
 	case crossvmtypes.IsQueueExecution(ctx):
 		if vm > b.queuePool+b.txPool {
-			return ErrBlockWasmBudget.Wrap("loading this contract's code does not fit in what is left of the block's CosmWasm execution budget")
+			return ErrBlockWasmBudget.Wrap(what + " does not fit in what is left of the block's CosmWasm execution budget")
 		}
 		fromQueue := min64(vm, b.queuePool)
 		b.queuePool -= fromQueue
 		b.txPool -= vm - fromQueue
 	default:
 		if vm > b.blockLevel {
-			return ErrBlockWasmBudget.Wrap("loading this contract's code does not fit in this block's CosmWasm budget for calls outside transactions")
+			return ErrBlockWasmBudget.Wrap(what + " does not fit in this block's CosmWasm budget for calls outside transactions")
 		}
 		b.blockLevel -= vm
 	}
-	// Charged: the load happens (whether the transaction then succeeds or
-	// not), so the code counts as loaded for the rest of the block.
-	if _, seen := b.loaded[key]; !seen && b.loaded != nil {
-		b.loaded[key] = 0
-		b.loadedBytes += min64(compiled, math.MaxUint64-b.loadedBytes)
-	}
-	b.recent.touch(key, compiled)
 	return nil
+}
+
+// ChargeCallSetup charges setting up one call (wasm-call-setup-priced):
+// gas at the price in force on ctx's meter first (in every mode: block
+// execution, simulation, CheckTx and queries), then, in block execution
+// only, units from the call's pool as takeUnitsLocked does. Every call is
+// charged, repeated calls and pinned codes included: each runs in a fresh
+// instance.
+func (b *blockWasmBudget) ChargeCallSetup(ctx sdk.Context, units, gas uint64) error {
+	b.mu.Lock()
+	counts := b.counts(ctx)
+	base, eff := CalibratedWasmGasMultiplier, CalibratedWasmGasMultiplier
+	if b.reg != nil {
+		base, eff = b.reg.BaseMultiplier(), b.reg.Multiplier()
+	}
+	b.mu.Unlock()
+	sdkGas := gas
+	if eff > 0 {
+		g := saturatingVMGas(gas, base)
+		sdkGas = g/eff + min64(g%eff, 1)
+	}
+	ctx.GasMeter().ConsumeGas(sdkGas, "wasm call setup")
+	if !counts {
+		return nil
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.takeUnitsLocked(ctx, saturatingVMGas(units, base), "setting up this contract call")
 }
 
 // FreeRepeatLoadBytes is the conservative compiled size of the distinct

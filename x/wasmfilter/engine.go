@@ -28,6 +28,56 @@ type Filter struct {
 	pinned          func(ctx sdk.Context, checksum []byte) bool
 	compiledSize    func(sdk.Context) bool
 	shape           func(sdk.Context) bool
+	setupPriced     func(sdk.Context) bool
+}
+
+// CallSetupCharger is a Budget that also charges setting up a call
+// (wasm-call-setup-priced): units from the block's budget like the call's
+// own execution (refused or aborting as Limit does) and gas (SDK gas at the
+// base price, scaled by the price in force) from ctx's meter, the gas first.
+// Outside block execution only the gas is charged.
+type CallSetupCharger interface {
+	ChargeCallSetup(ctx sdk.Context, units, gas uint64) error
+}
+
+// WithCallSetupPricing charges every call its setup (CallSetupUnits, and
+// CallSetupGasPerUnit gas per unit) while on(ctx) is true, pinned codes
+// included: every call gets a fresh instance whatever cache it came from.
+func (f *Filter) WithCallSetupPricing(on func(sdk.Context) bool) *Filter {
+	f.setupPriced = on
+	return f
+}
+
+// CallSetupCost is what setting up one call of a code costs (budget units
+// and gas at the base price), from the filter's verdict for its checksum;
+// code reads the code's bytes when the verdict is not cached. False when
+// the code cannot be read.
+func (f *Filter) CallSetupCost(checksum []byte, code func() ([]byte, error)) (units, gas uint64, ok bool) {
+	known, v := f.verdictFor(checksum, code)
+	if !known {
+		return 0, 0, false
+	}
+	return v.SetupUnits, v.SetupUnits * CallSetupGasPerUnit, true
+}
+
+// chargeCallSetup charges setting up one call, before it runs.
+func (e *Engine) chargeCallSetup(checksum wasmvm.Checksum, querier wasmvm.Querier) error {
+	if e.f.setupPriced == nil {
+		return nil
+	}
+	sc, ok := e.f.budget.(CallSetupCharger)
+	if !ok {
+		return nil
+	}
+	ctx, ok := contextOf(querier)
+	if !ok || !e.f.setupPriced(ctx) {
+		return nil
+	}
+	known, v := e.verdict(checksum)
+	if !known {
+		return nil
+	}
+	return sc.ChargeCallSetup(ctx, v.SetupUnits, v.SetupUnits*CallSetupGasPerUnit)
 }
 
 // WithCompiledSizeCharge turns on, while on(ctx) is true and upload bounds
@@ -152,11 +202,21 @@ func consumed(m wasmvm.GasMeter) uint64 {
 }
 
 // UploadCharger is a Budget that also charges storing (compiling) code:
-// ChargeUpload is called with the uncompressed module size before the code
-// is stored, and may refuse it (an error) or abort the transaction
-// (BudgetAbort).
+// ChargeUpload is called with the upload's units (its uncompressed size, or
+// from wasm-upload-compiled-size the larger of that and its conservative
+// compiled size over CompiledBytesPerUploadUnit) before the code is stored,
+// and may refuse it (an error) or abort the transaction (BudgetAbort).
 type UploadCharger interface {
-	ChargeUpload(ctx sdk.Context, wasmBytes int) error
+	ChargeUpload(ctx sdk.Context, units int) error
+}
+
+// UploadFitter is an UploadCharger that can also tell, without taking
+// anything, whether an upload of the given units would be charged now: an
+// error (or a BudgetAbort panic) exactly when ChargeUpload would refuse it.
+// The message server asks before charging an upload's storage gas, so an
+// upload the block cannot compile is refused cheaply.
+type UploadFitter interface {
+	UploadFits(ctx sdk.Context, units int) error
 }
 
 // BudgetAbort is the panic a Budget raises to abort a whole transaction
@@ -303,7 +363,7 @@ func (f *Filter) verdictFor(checksum []byte, code func() ([]byte, error)) (bool,
 		return false, Verdict{}
 	}
 	st, cerr := Inspect(bz)
-	v := Verdict{Err: cerr, Size: len(bz), Functions: st.Functions, Compiled: ConservativeCompiledSize(len(bz), st)}
+	v := Verdict{Err: cerr, Size: len(bz), Functions: st.Functions, Compiled: ConservativeCompiledSize(len(bz), st), SetupUnits: CallSetupUnits(st)}
 	if v.Err == nil && st.FloatOps > 0 {
 		v.Floats = fmt.Errorf("%w: %d float operators", ErrFloatOpcode, st.FloatOps)
 	}
@@ -371,6 +431,9 @@ func (e *Engine) Instantiate(checksum wasmvm.Checksum, env wasmvmtypes.Env, info
 	if err := e.chargeLoad(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
@@ -386,6 +449,9 @@ func (e *Engine) Execute(checksum wasmvm.Checksum, env wasmvmtypes.Env, info was
 		return nil, 0, err
 	}
 	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
 		return nil, 0, err
 	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
@@ -405,6 +471,9 @@ func (e *Engine) Query(checksum wasmvm.Checksum, env wasmvmtypes.Env, queryMsg [
 	if err := e.chargeLoad(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
@@ -420,6 +489,9 @@ func (e *Engine) Migrate(checksum wasmvm.Checksum, env wasmvmtypes.Env, migrateM
 		return nil, 0, err
 	}
 	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
 		return nil, 0, err
 	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
@@ -439,6 +511,9 @@ func (e *Engine) MigrateWithInfo(checksum wasmvm.Checksum, env wasmvmtypes.Env, 
 	if err := e.chargeLoad(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
@@ -454,6 +529,9 @@ func (e *Engine) Sudo(checksum wasmvm.Checksum, env wasmvmtypes.Env, sudoMsg []b
 		return nil, 0, err
 	}
 	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
 		return nil, 0, err
 	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
@@ -473,6 +551,9 @@ func (e *Engine) Reply(checksum wasmvm.Checksum, env wasmvmtypes.Env, reply wasm
 	if err := e.chargeLoad(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
@@ -488,6 +569,9 @@ func (e *Engine) IBCChannelOpen(checksum wasmvm.Checksum, env wasmvmtypes.Env, m
 		return nil, 0, err
 	}
 	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
 		return nil, 0, err
 	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
@@ -507,6 +591,9 @@ func (e *Engine) IBCChannelConnect(checksum wasmvm.Checksum, env wasmvmtypes.Env
 	if err := e.chargeLoad(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
@@ -522,6 +609,9 @@ func (e *Engine) IBCChannelClose(checksum wasmvm.Checksum, env wasmvmtypes.Env, 
 		return nil, 0, err
 	}
 	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
 		return nil, 0, err
 	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
@@ -541,6 +631,9 @@ func (e *Engine) IBCPacketReceive(checksum wasmvm.Checksum, env wasmvmtypes.Env,
 	if err := e.chargeLoad(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
@@ -556,6 +649,9 @@ func (e *Engine) IBCPacketAck(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg
 		return nil, 0, err
 	}
 	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
 		return nil, 0, err
 	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
@@ -575,6 +671,9 @@ func (e *Engine) IBCPacketTimeout(checksum wasmvm.Checksum, env wasmvmtypes.Env,
 	if err := e.chargeLoad(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
@@ -592,6 +691,9 @@ func (e *Engine) IBCSourceCallback(checksum wasmvm.Checksum, env wasmvmtypes.Env
 	if err := e.chargeLoad(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
@@ -607,6 +709,9 @@ func (e *Engine) IBCDestinationCallback(checksum wasmvm.Checksum, env wasmvmtype
 		return nil, 0, err
 	}
 	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	if err := e.chargeCallSetup(checksum, querier); err != nil {
 		return nil, 0, err
 	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)

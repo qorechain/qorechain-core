@@ -210,6 +210,17 @@ type Stats struct {
 	// result goes through memory, which makes several times the code.
 	DeepOps     int
 	DeepByClass [NumOpClasses]int
+
+	// Linear memory (wasm-call-setup-priced): the pages every call starts
+	// with (the memory's declared minimum, 64 KiB each), its declared
+	// maximum (MemoryHasMax) and the memory.grow operators of the code;
+	// DataBytes is the bytes of the data segments together, which every
+	// call copies into the fresh memory.
+	MemoryPages    int
+	MemoryMaxPages int
+	MemoryHasMax   bool
+	GrowOps        int
+	DataBytes      int
 }
 
 // StackRegisterDepth is the value-stack height up to which an operator is
@@ -378,7 +389,7 @@ func check(code []byte, st *Stats) error {
 				st.Tables += n
 			}
 		case id == secMemory:
-			if _, err := parseVec(body, "memory", readLimits); err != nil {
+			if _, err := parseVec(body, "memory", func(r *reader) error { return readMemory(r, st) }); err != nil {
 				return err
 			}
 		case id == secGlobal:
@@ -454,6 +465,9 @@ func check(code []byte, st *Stats) error {
 				sz, err := r.u32()
 				if err != nil {
 					return err
+				}
+				if st != nil {
+					st.DataBytes += int(sz)
 				}
 				_, err = r.bytes(int(sz))
 				return err
@@ -533,6 +547,32 @@ func readLimits(r *reader) error {
 		_, err = r.u32()
 	}
 	return err
+}
+
+// readMemory reads a memory's limits (defined or imported) and records
+// them: the largest minimum of any memory, and its maximum.
+func readMemory(r *reader, st *Stats) error {
+	flag, err := r.byte()
+	if err != nil {
+		return err
+	}
+	if flag > 1 {
+		return fmt.Errorf("%w: limits form 0x%02x", ErrUnsupportedOpcode, flag)
+	}
+	lo, err := r.u32()
+	if err != nil {
+		return err
+	}
+	var hi uint32
+	if flag == 1 {
+		if hi, err = r.u32(); err != nil {
+			return err
+		}
+	}
+	if st != nil && int(lo) >= st.MemoryPages {
+		st.MemoryPages, st.MemoryHasMax, st.MemoryMaxPages = int(lo), flag == 1, int(hi)
+	}
+	return nil
 }
 
 // readTable reads a table type: funcref and limits.
@@ -630,7 +670,7 @@ func parseImports(body []byte, m *modInfo, st *Stats) error {
 		case 1:
 			return readTable(r)
 		case 2:
-			return readLimits(r)
+			return readMemory(r, st)
 		case 3:
 			return readGlobalType(r)
 		}
@@ -846,6 +886,9 @@ func checkBody(body []byte, m *modInfo, fnIdx int, st *Stats) error {
 				st.DivRemOps++
 			case op == 0x3F || op == 0x40:
 				st.MemoryOps++
+				if op == 0x40 {
+					st.GrowOps++
+				}
 			}
 		}
 		top := &stack[len(stack)-1]

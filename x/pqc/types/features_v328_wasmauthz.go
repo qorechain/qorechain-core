@@ -188,7 +188,11 @@ const (
 	// storage price is charged on the uncompressed size, and the block wasm
 	// budget's upload units only when compiling is about to run, from a pool
 	// of their own that does not count towards congestion. Code already
-	// stored is never refused for its custom sections.
+	// stored is never refused for its custom sections. The upload pool is
+	// checked before the storage price is charged, so an upload that does
+	// not fit in the block is refused at the cost of its inspection, and
+	// the first upload of a block may take up to
+	// wasmfilter.MaxUploadUnits even past the pool.
 	FeatureWasmUploadBounds = "wasm-upload-bounds"
 
 	// FeatureCrossVMAsyncEscrow holds an async call's prepaid execution in
@@ -219,7 +223,10 @@ const (
 	// conservative compiled size (wasmfilter.ConservativeCompiledSize: per
 	// operator class, per operator run deep in the value stack, per
 	// function and signature) is over 32 MiB, and charges an upload 1 gas
-	// per byte of that size, which every node keeps on disk.
+	// per byte of that size, which every node keeps on disk. An upload
+	// takes the larger of its bytes and a 32nd of that size from the
+	// block's upload pool, so every upload within the caps (at most
+	// 1,048,576 units) fits the default pool of an empty block.
 	FeatureWasmUploadCompiledSize = "wasm-upload-compiled-size"
 
 	// FeatureWasmModuleShapeBounds bounds what the VM sets up again on every
@@ -230,11 +237,27 @@ const (
 	// times the CPU of an ordinary one for the same gas; loading and
 	// compiling grow with the declared function types. From this switch an
 	// upload with more than 512 function types, 128 exports, 256 globals,
-	// 16 element segments, 2,500 element entries or 1,024 data segments is
-	// refused (the largest release or test contract has 35, 24, 3, 1, 260
-	// and 149), and so is every call of stored code over them, as for code
-	// the filter refuses.
+	// 16 element segments, 2,500 element entries, 1,024 data segments or an
+	// initial memory of more than 64 pages (4 MiB) is refused (the largest
+	// release or test contract has 35, 24, 3, 1, 260, 149 and 20 pages), and
+	// so is every call of stored code over them, as for code the filter
+	// refuses.
 	FeatureWasmModuleShapeBounds = "wasm-module-shape-bounds"
+
+	// FeatureWasmCallSetupPriced prices what the VM does to set up every
+	// call: a fresh linear memory, the data segments copied into it, and the
+	// operating system's work for every 4 KiB page the call touches for the
+	// first time (1.26 us on Intel c6i, 1.93 us on AMD m6a), none of which
+	// the VM meters. From this switch every call, pinned codes and repeated
+	// calls included, takes wasmfilter.CallSetupUnits from the block wasm
+	// budget like its execution, and pays as much gas at the price in force,
+	// before it runs: 350, plus 150 per 64 KiB page of its initial memory
+	// (plus up to 32 pages of growth for a module with memory.grow), plus 9
+	// per data segment. A call that touches all the memory it starts with
+	// stays within the budget's design bound of 265 ns per unit on AMD. An
+	// ordinary contract call (17 initial pages, grows) takes about 7,700
+	// units and gas more than before.
+	FeatureWasmCallSetupPriced = "wasm-call-setup-priced"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -262,4 +285,5 @@ var V328WasmAuthzFeatures = []string{
 	FeatureWasmCodeLoadPriced,
 	FeatureWasmUploadCompiledSize,
 	FeatureWasmModuleShapeBounds,
+	FeatureWasmCallSetupPriced,
 }
