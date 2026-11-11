@@ -392,6 +392,27 @@ const (
 	// convert the canonical account is refused for what it is, whatever the
 	// balance.
 	FeatureSVMRelayedIdentityLockFirst = "svm-relayed-identity-lock-first"
+	// FeatureSVMCustodyCeilingOnLiability holds the deposit side of the hard
+	// ceiling against the custody liability (lamports above rent reserves plus
+	// wallet dust) instead of the raw module balance: rent paid for created
+	// accounts and plain sends into the module (pre-funding, donations) no
+	// longer count, so rent-only creations cannot pin the ceiling and block
+	// everyone's deposits. The raw balance above the ceiling becomes an alarm
+	// event (svm_custody_above_hard_ceiling) for governance. What a runtime
+	// fault could reach stays bounded by the liability ceiling, the window
+	// monitor and the per-account cap. Needs svm-custody-liability-window.
+	FeatureSVMCustodyCeilingOnLiability = "svm-custody-ceiling-on-liability"
+	// FeatureSVMCustodyCeilingDustActual allows, above the ceiling, exactly
+	// the wallet dust an instruction added instead of one uqor per wallet it
+	// touched, so crediting dust to many wallets cannot cover moving rent into
+	// store excess. Sub-uqor wallet transfers keep working (their dust is
+	// what they add).
+	FeatureSVMCustodyCeilingDustActual = "svm-custody-ceiling-dust-actual"
+	// FeatureSVMCPIRegistrySharedCharge charges a BPF invocation for the
+	// callee's ELF only: the program registry is shared by every frame, so
+	// nothing of it is copied (runtime flag 1<<26). Before it the whole
+	// registry was charged, from when each invocation cloned it.
+	FeatureSVMCPIRegistrySharedCharge = "svm-cpi-registry-shared-charge"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -461,4 +482,7 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMCustodyCeilingLiabilityGrowth,
 	FeatureSVMPDASignerBound,
 	FeatureSVMRelayedIdentityLockFirst,
+	FeatureSVMCustodyCeilingOnLiability,
+	FeatureSVMCustodyCeilingDustActual,
+	FeatureSVMCPIRegistrySharedCharge,
 }
