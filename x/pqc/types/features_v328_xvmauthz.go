@@ -85,7 +85,11 @@ const (
 	// sender's calls oldest first), up to MaxQueueVisitsPerBlock calls. One
 	// sender with many calls queued ahead of others no longer keeps their
 	// calls from running until they time out; a queue with one sender runs
-	// exactly as before.
+	// exactly as before. Only calls the block admits count against
+	// MaxQueueVisitsPerBlock: a call that waits (its price or its lane's
+	// budget is not met) is skipped, without being decoded when its index
+	// value shows it waiting, so waiting calls cannot take the visits of
+	// calls that can run.
 	FeatureCrossVMQueueSenderRoundRobin = "crossvm-queue-sender-round-robin"
 )
 
