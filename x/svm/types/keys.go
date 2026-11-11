@@ -84,6 +84,10 @@ var (
 	// CustodyWindowKey holds the current custody window: single key ->
 	// start height(8, big-endian) | net growth in lamports (decimal string).
 	CustodyWindowKey = []byte{0x21}
+
+	// CustodySummaryLiabilityKey holds the liability (decimal lamports) at the
+	// previous block's svm_custody_summary (svm-custody-growth-signal).
+	CustodySummaryLiabilityKey = []byte{0x22}
 )
 
 // ConsumedAuthKey returns the store key recording that an authenticator digest

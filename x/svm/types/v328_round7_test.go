@@ -82,3 +82,15 @@ func TestParamsHardCeilingValidation(t *testing.T) {
 		t.Fatalf("ceiling above the threshold refused: %v", err)
 	}
 }
+
+func TestAllRuntimeFlags(t *testing.T) {
+	if AllRuntimeFlags != 1<<28-1 {
+		t.Fatalf("AllRuntimeFlags %#x does not name every flag 1<<0..1<<27", uint64(AllRuntimeFlags))
+	}
+	if err := CheckRuntimeFlags(AllRuntimeFlags); err != nil {
+		t.Fatal(err)
+	}
+	if err := CheckRuntimeFlags(AllRuntimeFlags &^ RuntimeFlagRegistrySharedCharge); err == nil {
+		t.Fatal("a library without 1<<26 was accepted")
+	}
+}

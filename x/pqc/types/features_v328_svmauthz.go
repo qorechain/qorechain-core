@@ -392,6 +392,72 @@ const (
 	// convert the canonical account is refused for what it is, whatever the
 	// balance.
 	FeatureSVMRelayedIdentityLockFirst = "svm-relayed-identity-lock-first"
+	// FeatureSVMCustodyCeilingOnLiability holds the deposit side of the hard
+	// ceiling against the custody liability (lamports above rent reserves plus
+	// wallet dust) instead of the raw module balance: rent paid for created
+	// accounts and plain sends into the module (pre-funding, donations) no
+	// longer count, so rent-only creations cannot pin the ceiling and block
+	// everyone's deposits. The raw balance above the ceiling becomes an alarm
+	// event (svm_custody_above_hard_ceiling) for governance. What a runtime
+	// fault could reach stays bounded by the liability ceiling, the window
+	// monitor and the per-account cap. Needs svm-custody-liability-window.
+	FeatureSVMCustodyCeilingOnLiability = "svm-custody-ceiling-on-liability"
+	// FeatureSVMCustodyCeilingDustActual allows, above the ceiling, exactly
+	// the wallet dust an instruction added instead of one uqor per wallet it
+	// touched, so crediting dust to many wallets cannot cover moving rent into
+	// store excess. Sub-uqor wallet transfers keep working (their dust is
+	// what they add).
+	FeatureSVMCustodyCeilingDustActual = "svm-custody-ceiling-dust-actual"
+	// FeatureSVMCPIRegistrySharedCharge charges a BPF invocation for the
+	// callee's ELF only: the program registry is shared by every frame, so
+	// nothing of it is copied (runtime flag 1<<26). Before it the whole
+	// registry was charged, from when each invocation cloned it.
+	FeatureSVMCPIRegistrySharedCharge = "svm-cpi-registry-shared-charge"
+	// FeatureSVMCustodyCeilingAlarmOnly makes the hard ceiling
+	// (max_custody_hard_uqor) a monitoring threshold that refuses nothing.
+	// DECISION (round 11): any refusal tied to a global custody total, raw or
+	// liability, can be pinned by one holder with refundable capital and then
+	// blocks everyone else; it happened in five successive forms. So the
+	// ceiling only emits svm_custody_above_hard_ceiling when an operation
+	// leaves the raw balance or the liability above it, and every block emits
+	// svm_custody_summary (liability, raw balance, ceiling) for monitoring.
+	// Exposure is bounded instead by the per-account excess cap
+	// (max_account_excess_uqor, 10,000 QOR on the public testnet), which only
+	// ever refuses the account being credited; by the lane switch (governance
+	// MsgUpdateParams enabled=false); and by the circuit breaker. See
+	// handoff-v328/SVM-CUSTODY-MONITORING.md for the alarms and the runbook.
+	FeatureSVMCustodyCeilingAlarmOnly = "svm-custody-ceiling-alarm-only"
+	// FeatureSVMLibraryFlagsChecked makes a runtime switch the SVM library does
+	// not know (the library is older than the binary) a node fault during
+	// block execution: the node halts before commit instead of recording
+	// failed transactions no other node has. The node also refuses to start
+	// with such a library (checked whatever the features).
+	FeatureSVMLibraryFlagsChecked = "svm-library-flags-checked"
+	// FeatureSVMAccountExcessAlarmOnly makes the per-account excess cap
+	// (max_account_excess_uqor) a monitoring threshold too: a credit that
+	// leaves a store account above rent plus the cap emits
+	// svm_account_above_excess_cap (account, owner, excess) and is not
+	// refused. DECISION (round 12), the same as for the hard ceiling: a
+	// refusal on a shared account (a program vault, a pool) can be pinned by
+	// one depositor with refundable capital and then blocks every other
+	// depositor. With it, no SVM refusal depends on how much value others put
+	// in; exposure is controlled by monitoring (the alarms, the per-block
+	// svm_custody_summary with growth, svm_custody_growth_alarm), the lane
+	// switch and the circuit breaker (handoff-v328/SVM-CUSTODY-MONITORING.md).
+	FeatureSVMAccountExcessAlarmOnly = "svm-account-excess-alarm-only"
+	// FeatureSVMCustodyGrowthSignal adds growth to the per-block
+	// svm_custody_summary: the liability growth since the previous block
+	// (the previous value is kept in the store) and the growth over the
+	// current custody window, and emits svm_custody_growth_alarm when the
+	// window growth exceeds max_custody_uqor.
+	FeatureSVMCustodyGrowthSignal = "svm-custody-growth-signal"
+	// FeatureSVMSystemOwnerChecks makes the native System program apply
+	// Solana's own checks to the account it debits, assigns or allocates
+	// (runtime flag 1<<27): Transfer from a System-owned account without data,
+	// Assign of a System-owned account whose data is all zero (or already the
+	// new owner's, a no-op), Allocate of a System-owned account. Defence in
+	// depth: the keeper already refuses every such change it would not allow.
+	FeatureSVMSystemOwnerChecks = "svm-system-owner-checks"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -461,4 +527,12 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMCustodyCeilingLiabilityGrowth,
 	FeatureSVMPDASignerBound,
 	FeatureSVMRelayedIdentityLockFirst,
+	FeatureSVMCustodyCeilingOnLiability,
+	FeatureSVMCustodyCeilingDustActual,
+	FeatureSVMCPIRegistrySharedCharge,
+	FeatureSVMCustodyCeilingAlarmOnly,
+	FeatureSVMLibraryFlagsChecked,
+	FeatureSVMAccountExcessAlarmOnly,
+	FeatureSVMCustodyGrowthSignal,
+	FeatureSVMSystemOwnerChecks,
 }
