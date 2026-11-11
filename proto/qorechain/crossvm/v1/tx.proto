@@ -100,4 +100,9 @@ message BridgeTargetPin {
   string target = 1;
   // code_id is the code the contract must run for the bridge to call it.
   uint64 code_id = 2 [(gogoproto.customname) = "CodeID"];
+  // history_len is the length of the contract's code history (wasmd
+  // ContractCodeHistory) the pin was taken at. Every migration appends to the
+  // history, so a contract migrated away and back to code_id (which lets
+  // other code rewrite its state) no longer matches the pin.
+  uint64 history_len = 3 [(gogoproto.customname) = "HistoryLen"];
 }

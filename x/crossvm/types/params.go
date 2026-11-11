@@ -120,18 +120,21 @@ func (p Params) validatePins() error {
 		if pin.CodeID == 0 {
 			return fmt.Errorf("bridge target pin %q has no code ID", pin.Target)
 		}
+		if pin.HistoryLen == 0 {
+			return fmt.Errorf("bridge target pin %q has no code history length", pin.Target)
+		}
 	}
 	return nil
 }
 
-// BridgeTargetCodePin returns the code ID the allowlist entry is pinned to.
-func (p Params) BridgeTargetCodePin(entry string) (uint64, bool) {
+// BridgeTargetCodePin returns the pin of the allowlist entry, if any.
+func (p Params) BridgeTargetCodePin(entry string) (BridgeTargetPin, bool) {
 	for _, pin := range p.BridgeTargetPins {
 		if pin.Target == entry {
-			return pin.CodeID, true
+			return pin, true
 		}
 	}
-	return 0, false
+	return BridgeTargetPin{}, false
 }
 
 // PendingPerSenderLimit is the per-sender bound on queued async calls in
@@ -145,10 +148,13 @@ func (p Params) PendingPerSenderLimit() uint32 {
 
 // BridgeContractState is what the bridge code pin needs to know about the
 // contract an allowlist entry names, read from the CosmWasm keeper.
+// HistoryLen is the number of entries of the contract's code history (wasmd
+// ContractCodeHistory): instantiation and every migration append one.
 type BridgeContractState struct {
-	Found  bool
-	CodeID uint64
-	Admin  string
+	Found      bool
+	CodeID     uint64
+	Admin      string
+	HistoryLen uint64
 }
 
 // BridgeContractLookup reads a contract's state by its bech32 address.
@@ -160,24 +166,39 @@ func adminIsGovOrNone(admin, govAuthority string) bool {
 	return admin == "" || admin == govAuthority
 }
 
+// pinMatches reports why st does not match pin, or nil when it does: the
+// contract must exist, run the pinned code, and have exactly the code history
+// the pin was taken at. The history check is what binds the pin to state as
+// well as code: an admin who migrates the contract to other code (whose
+// migrate entry point can rewrite its storage) and back again leaves the code
+// ID as pinned but the history two entries longer.
+func pinMatches(entry string, pin BridgeTargetPin, st BridgeContractState) error {
+	if !st.Found {
+		return fmt.Errorf("target %s is pinned to code %d but names no contract", entry, pin.CodeID)
+	}
+	if st.CodeID != pin.CodeID {
+		return fmt.Errorf("target %s is pinned to code %d but its contract now runs code %d", entry, pin.CodeID, st.CodeID)
+	}
+	if st.HistoryLen != pin.HistoryLen {
+		return fmt.Errorf("target %s is pinned at code history length %d but its contract has been migrated since (history length %d)", entry, pin.HistoryLen, st.HistoryLen)
+	}
+	return nil
+}
+
 // CheckBridgeTargetCode is the call-time half of crossvm-bridge-code-pin, for
 // an entry that BridgeTargetAllowed already matched. A pinned entry is called
-// only while its contract runs the pinned code. An unpinned entry is called
-// only while nobody but governance can migrate its contract (no admin, or
-// governance as admin); a contract that does not exist is left to fail in
-// the VM as before.
+// only while its contract runs the pinned code with the pinned code history.
+// An unpinned entry is called only while its contract exists and nobody but
+// governance can migrate it (no admin, or governance as admin).
 func (p Params) CheckBridgeTargetCode(vm VMType, contract string, st BridgeContractState, govAuthority string) error {
 	entry := string(vm) + ":" + contract
 	if pin, ok := p.BridgeTargetCodePin(entry); ok {
-		if !st.Found {
-			return fmt.Errorf("target %s is pinned to code %d but names no contract", entry, pin)
-		}
-		if st.CodeID != pin {
-			return fmt.Errorf("target %s is pinned to code %d but its contract now runs code %d", entry, pin, st.CodeID)
-		}
-		return nil
+		return pinMatches(entry, pin, st)
 	}
-	if st.Found && !adminIsGovOrNone(st.Admin, govAuthority) {
+	if !st.Found {
+		return fmt.Errorf("target %s names no contract", entry)
+	}
+	if !adminIsGovOrNone(st.Admin, govAuthority) {
 		return fmt.Errorf("target %s is not pinned to a code and its admin %s is not governance", entry, st.Admin)
 	}
 	return nil
@@ -185,9 +206,10 @@ func (p Params) CheckBridgeTargetCode(vm VMType, contract string, st BridgeContr
 
 // ValidateBridgePins is the parameter-update half of crossvm-bridge-code-pin:
 // every allowlist entry names an existing contract, a pin names the code the
-// contract runs now, and an entry whose contract an account other than
-// governance could migrate is pinned. A governance proposal that migrates a
-// pinned contract updates the pin after the migration message.
+// contract runs now and its current code history length, and an entry whose
+// contract an account other than governance could migrate is pinned. A
+// governance proposal that migrates a pinned contract updates the pin after
+// the migration message.
 func (p Params) ValidateBridgePins(lookup BridgeContractLookup, govAuthority string) error {
 	for _, entry := range p.BridgeAllowedTargets {
 		_, contract, _ := strings.Cut(entry, ":")
@@ -196,41 +218,52 @@ func (p Params) ValidateBridgePins(lookup BridgeContractLookup, govAuthority str
 			return fmt.Errorf("bridge allowed target %q names no contract", entry)
 		}
 		if pin, ok := p.BridgeTargetCodePin(entry); ok {
-			if st.CodeID != pin {
-				return fmt.Errorf("bridge allowed target %q is pinned to code %d but its contract runs code %d", entry, pin, st.CodeID)
+			if err := pinMatches(entry, pin, st); err != nil {
+				return fmt.Errorf("bridge allowed target %q: %s", entry, err.Error())
 			}
 			continue
 		}
 		if !adminIsGovOrNone(st.Admin, govAuthority) {
-			return fmt.Errorf("bridge allowed target %q has admin %s, which is not governance: pin its code (bridge_target_pins) to allowlist it", entry, st.Admin)
+			return fmt.Errorf("bridge allowed target %q has admin %s, which is not governance: pin its code and code history length (bridge_target_pins) to allowlist it", entry, st.Admin)
 		}
 	}
 	return nil
 }
 
-// PinBridgeTargets returns p with every unpinned allowlist entry whose
-// contract exists pinned to the code that contract runs now, and whether
-// anything changed. It is the v3.2.8 release step that carries the existing
-// allowlist over to crossvm-bridge-code-pin without closing any target.
-func (p Params) PinBridgeTargets(lookup BridgeContractLookup) (Params, bool) {
-	changed := false
-	pins := append([]BridgeTargetPin(nil), p.BridgeTargetPins...)
+// PinBridgeTargets is the v3.2.8 release step that carries the existing
+// allowlist over to crossvm-bridge-code-pin. Every entry whose contract exists
+// is pinned to the code it runs now and its current code history length, so
+// every target that answered before still answers. An entry that names no
+// contract is removed (with any pin it had): left unpinned, it would be
+// callable as soon as someone instantiated a contract at that address, with
+// whatever initial state they chose. It returns the new params, whether
+// anything changed and the removed entries.
+func (p Params) PinBridgeTargets(lookup BridgeContractLookup) (Params, bool, []string) {
+	var (
+		targets []string
+		pins    []BridgeTargetPin
+		removed []string
+	)
 	for _, entry := range p.BridgeAllowedTargets {
-		if _, ok := p.BridgeTargetCodePin(entry); ok {
-			continue
-		}
 		_, contract, _ := strings.Cut(entry, ":")
 		st := lookup(contract)
 		if !st.Found {
+			removed = append(removed, entry)
 			continue
 		}
-		pins = append(pins, BridgeTargetPin{Target: entry, CodeID: st.CodeID})
-		changed = true
+		targets = append(targets, entry)
+		if pin, ok := p.BridgeTargetCodePin(entry); ok {
+			pins = append(pins, pin)
+			continue
+		}
+		pins = append(pins, BridgeTargetPin{Target: entry, CodeID: st.CodeID, HistoryLen: st.HistoryLen})
 	}
-	if changed {
-		p.BridgeTargetPins = pins
+	if len(removed) == 0 && len(pins) == len(p.BridgeTargetPins) {
+		return p, false, nil
 	}
-	return p, changed
+	p.BridgeAllowedTargets = targets
+	p.BridgeTargetPins = pins
+	return p, true, removed
 }
 
 // BridgeTargetAllowed reports whether the EVM bridge precompile may call

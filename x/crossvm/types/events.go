@@ -6,6 +6,10 @@ const (
 	EventTypeCrossVMTimeout  = "crossvm_timeout"
 	EventTypeParamsUpdated   = "crossvm_params_updated"
 
+	// EventTypeBridgeTargetRemoved: the v3.2.8 release step removed a bridge
+	// allowlist entry that names no contract.
+	EventTypeBridgeTargetRemoved = "crossvm_bridge_target_removed"
+
 	AttributeKeyMessageID            = "message_id"
 	AttributeKeySourceVM             = "source_vm"
 	AttributeKeyTargetVM             = "target_vm"
@@ -16,4 +20,6 @@ const (
 	AttributeKeyError                = "error"
 	AttributeKeyEnabled              = "enabled"
 	AttributeKeyBridgeAllowedTargets = "bridge_allowed_targets"
+	AttributeKeyTarget               = "target"
+	AttributeKeyReason               = "reason"
 )

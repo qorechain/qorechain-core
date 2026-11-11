@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -9,6 +10,7 @@ import (
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/spf13/cast"
 )
 
@@ -85,4 +87,30 @@ func wasmDataDir(appOpts servertypes.AppOptions) string {
 func dirExists(path string) bool {
 	st, err := os.Stat(path)
 	return err == nil && st.IsDir()
+}
+
+// checkWasmCodePresent refuses to run a node whose x/wasm VM directory holds
+// none of the contract code the chain has stored. Such a node would fail every
+// contract call, compute different results from the rest of the network at
+// the first one and halt there; refusing at startup says why instead. It
+// stops at the first code it finds, so a healthy node reads one file. A chain
+// with no stored code (a new chain, a node about to state-sync, whose
+// snapshot restores the code) passes.
+func (app *QoreChainApp) checkWasmCodePresent(ctx sdk.Context, dir string) error {
+	stored, present := 0, false
+	app.WasmKeeper.IterateCodeInfos(ctx, func(id uint64, _ wasmtypes.CodeInfo) bool {
+		stored++
+		if bz, err := app.WasmKeeper.GetByteCode(ctx, id); err == nil && len(bz) > 0 {
+			present = true
+			return true
+		}
+		return false
+	})
+	if stored == 0 || present {
+		return nil
+	}
+	return fmt.Errorf("the chain has %d stored CosmWasm codes but the wasm directory %s holds none of them; "+
+		"if this node's code is in another wasm directory (the default home's is %s), stop the node and "+
+		"move or copy it to %s, or restore it from a state-sync snapshot", stored, dir,
+		filepath.Join(DefaultNodeHome, "wasm"), dir)
 }

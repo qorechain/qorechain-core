@@ -1088,6 +1088,11 @@ func NewQoreChainApp(
 		if err := app.WasmClientKeeper.InitializePinnedCodes(ctx); err != nil {
 			panic(fmt.Sprintf("08-wasm: initialize pinned codes: %s", err))
 		}
+		// Node-local: a VM directory without the chain's contract code would
+		// make this node diverge at its first contract call.
+		if err := app.checkWasmCodePresent(ctx, wasmDir); err != nil {
+			panic("x/wasm: " + err.Error())
+		}
 	}
 
 	return app

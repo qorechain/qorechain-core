@@ -72,6 +72,10 @@ A `MsgCrossVMCall` with `async = true` is queued instead of executed:
    - Pending messages are executed against the target VM
    - Results are emitted as `crossvm_response` events
 
+From the v3.2.8 `crossvm-failed-call-charged` switch a cross-VM call that fails is charged for the work it did, as one that succeeds is: an EVM call that reverts or runs out of gas consumes the EVM gas it used from the caller's meter before the failure is reported, and a CosmWasm call made through the `0x0901` bridge that fails consumes the gas the contract used from the calling EVM frame. A caller that catches failures (a contract reply, an x/group proposal with `Exec=TRY`, a Solidity `try`) therefore cannot repeat a failing call on the same remaining gas; a contract that wants to survive an expensive failing callee sets `gas_limit` on the submessage. Successful calls cost exactly what they did.
+
+From the v3.2.8 `crossvm-error-text-plain` switch the revert reason the bridge returns to an EVM caller, and the error recorded on a failed queued call, carry no source-file annotation (` [<path>.go:<line>]`), whose path depends on how the node binary was built.
+
 From the v3.2.8 `crossvm-queue-sender-cap` switch one sender may have at most `max_pending_per_sender` calls queued at a time (default 100, a tenth of the default queue), so a single sender cannot fill the shared queue and keep everyone else off the async path. A call over the bound is refused at submission with `ErrQueueFull`; once the sender's calls have run or timed out it may queue again. Synchronous calls are not affected. Calls queued before the switch do not count against the bound.
 
 ### Address rules and failure handling (from v3.2.7)
@@ -142,7 +146,7 @@ Each message transitions through these states:
 | `queue_timeout_blocks` | int64 | 100 | Blocks before a message times out |
 | `enabled` | bool | true | Module enable/disable switch |
 | `bridge_allowed_targets` | string[] | empty | Targets the EVM bridge precompile may call, each `cosmwasm:<qor1 contract address>`. Empty keeps the bridge shut. |
-| `bridge_target_pins` | {target, code_id}[] | empty | From v3.2.8: the CosmWasm code ID each pinned allowlist entry must run for the bridge to call it. |
+| `bridge_target_pins` | {target, code_id, history_len}[] | empty | From v3.2.8: the CosmWasm code ID each pinned allowlist entry must run, and the length of its code history when it was pinned, for the bridge to call it. |
 | `max_pending_per_sender` | uint32 | 0 (= 100) | From v3.2.8: how many async calls one sender may have queued at a time. |
 
 ### Governance
@@ -167,10 +171,10 @@ Allowlist only contracts that have been reviewed: a contract reached through the
 
 An allowlist entry names a contract address, but what governance reviewed is the contract's code. A contract whose admin is an account can be migrated by that admin to any code it may instantiate, which would put unreviewed code behind a reviewed entry. From the v3.2.8 `crossvm-bridge-code-pin` switch:
 
-- `bridge_target_pins` pins an entry to a code ID. The bridge calls a pinned entry only while its contract runs that code; after a migration the call is refused (`target ... is pinned to code N but its contract now runs code M`).
-- An entry whose contract has an admin other than the governance module account must be pinned. A contract with no admin, or with governance as admin, may be listed unpinned, as before; if its admin is later changed to an account, the bridge refuses it until it is pinned.
-- Every entry must name an existing contract, and a pin must name the code the contract runs when the update executes. To move a pinned contract to new code, put the `MsgMigrateContract` (or the admin's migration) first and then a `MsgUpdateParams` carrying the new code ID; the same proposal can do both.
-- The v3.2.8 upgrade pins every existing entry to the code its contract runs at the upgrade height, so every target that answered before still answers. When resubmitting the parameters, copy `bridge_target_pins` from the params query along with the allowlist.
+- `bridge_target_pins` pins an entry to a code ID and to the length of the contract's code history (`qorechaind q wasm contract-history <addr>`: one entry for instantiation, one per migration). The bridge calls a pinned entry only while its contract runs that code with that history; after any migration the call is refused, including a migration to other code and back (which could have rewritten the contract's state).
+- An entry whose contract has an admin other than the governance module account must be pinned. A contract with no admin, or with governance as admin, may be listed unpinned, as before; if its admin is later changed to an account, the bridge refuses it until it is pinned. An unpinned entry naming no contract is refused at call time.
+- Every entry must name an existing contract, and a pin must name the code and history length the contract has when the update executes. To move a pinned contract to new code, put the `MsgMigrateContract` (or the admin's migration) first and then a `MsgUpdateParams` carrying the new code ID and the history length plus one; the same proposal can do both.
+- The v3.2.8 upgrade pins every existing entry to the code and history its contract has at the upgrade height, so every target that answered before still answers, and removes entries that name no contract (event `crossvm_bridge_target_removed`). When resubmitting the parameters, copy `bridge_target_pins` from the params query along with the allowlist.
 
 ```json
 {
@@ -181,7 +185,7 @@ An allowlist entry names a contract address, but what governance reviewed is the
   "queue_timeout_blocks": "100",
   "enabled": true,
   "bridge_allowed_targets": ["cosmwasm:qor1..."],
-  "bridge_target_pins": [{"target": "cosmwasm:qor1...", "code_id": "5"}],
+  "bridge_target_pins": [{"target": "cosmwasm:qor1...", "code_id": "5", "history_len": "1"}],
   "max_pending_per_sender": 100
 }
 ```
@@ -259,7 +263,8 @@ Response:
 | `crossvm/msg/{id}` | JSON-encoded CrossVMMessage | Message storage |
 | `crossvm/queue/{id}` | Message ID bytes | Pending queue |
 | `crossvm/params` | JSON-encoded Params | Module parameters |
-| `crossvm/qsender/{sender}/{id}` | `0x01` | From v3.2.8: pending async call indexed by its sender (per-sender bound) |
+| `crossvm/qsender/{length-prefixed sender address bytes}/{id}` | `0x01` | From v3.2.8: pending async call indexed by its sender (per-sender bound; one bucket per account however its address is spelled) |
+| `crossvm/qcreated/{id}` | 8-byte height | From v3.2.8 (`crossvm-queue-lazy-decode`): creation height of a queued call, so the end-of-block walk decodes only the calls it times out or executes |
 
 ## Open-Core Architecture
 
