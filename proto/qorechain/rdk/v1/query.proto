@@ -156,6 +156,13 @@ message BatchView {
   // the inbox range it consumed: the posts after inbox_start up to inbox_end.
   uint64 inbox_start = 14;
   uint64 inbox_end = 15;
+  // withdrawals_root_reduced is true when withdrawals_root was stored reduced
+  // modulo the BLS12-381 scalar field r: a Groth16 batch with
+  // withdrawals_bound, settled with rdk-zk-canonical-inputs on (v3.2.8). Its
+  // proof commits to the root modulo r, so a withdrawal against it is checked
+  // by comparing roots modulo r. False for every other batch, whose root is
+  // the submitted bytes.
+  bool withdrawals_root_reduced = 16;
 }
 
 message QueryParamsRequest {}
@@ -269,4 +276,8 @@ message QuerySubmitterBondResponse {
   // unbond_after is the block time from which MsgUnbondRollupSubmitter
   // succeeds.
   int64 unbond_after = 3;
+  // pending is the number of the submitter's batches on the rollup that are
+  // still waiting for finality (submitted, not yet finalized or rejected), 0
+  // when none. A submitter can have at most a fixed number pending at once.
+  uint64 pending = 4;
 }

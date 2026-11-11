@@ -61,7 +61,7 @@ for a bound data hash) for its circuit witness and may submit the unreduced
 The proof commits to the withdrawals root only modulo r, so that is what the
 chain keeps: a Groth16 batch that binds its withdrawals stores
 `withdrawals_root mod r` as 32 big-endian bytes (the `batch` query shows that
-value), and `MsgExecuteWithdrawal` accepts a withdrawal whose Merkle proof
+value, with `withdrawals_root_reduced` true), and `MsgExecuteWithdrawal` accepts a withdrawal whose Merkle proof
 rebuilds a root equal to the stored one modulo r. The root, root + r and
 root - r therefore settle as the same batch. Withdrawal proofs are built from
 the tree as usual (leaves, siblings, the unreduced root); nothing changes for
@@ -434,6 +434,20 @@ qorechaind query rdk params
 | GET | `/qorechain/rdk/v1/posted_data/{rollup_id}/{sequence}` | Posted-data commitment (v3.2.8) |
 | GET | `/qorechain/rdk/v1/inbox/{rollup_id}?inbox_end=N` | Inbox head, consumed position and the range data_hash for a based batch (v3.2.8) |
 | GET | `/qorechain/rdk/v1/submitter_bond/{rollup_id}/{submitter}` | A qledger-v1 submitter's bond and when it unlocks (v3.2.8) |
+
+Query fields added for RDK clients in v3.2.8 (read-only):
+
+- `SubmitterBond` returns `pending` (field 4, JSON `pending`): the
+  submitter's batches on the rollup still waiting for finality, 0 when none.
+  It goes up on each batch submitted and down when one is finalized or
+  rejected.
+- The batch view (`batch`, `latest-batch`, `batches`) returns
+  `withdrawals_root_reduced` (field 16, JSON `withdrawals_root_reduced`):
+  true when `withdrawals_root` was stored reduced modulo r, which is a
+  Groth16 batch with `withdrawals_bound` settled with
+  `rdk-zk-canonical-inputs` on. A client then compares the root its Merkle
+  proof rebuilds with the stored one modulo r. False for every other batch,
+  whose root is the submitted bytes.
 
 ## JSON-RPC (`qor_` Namespace)
 
