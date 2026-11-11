@@ -76,6 +76,10 @@ From the v3.2.8 `crossvm-failed-call-charged` switch a cross-VM call that fails 
 
 From the v3.2.8 `crossvm-error-text-plain` switch the revert reason the bridge returns to an EVM caller, and the error recorded on a failed queued call, carry no source-file annotation (` [<path>.go:<line>]`), whose path depends on how the node binary was built.
 
+From the v3.2.8 `crossvm-response-charged` switch the data a queued call returns is paid from the call's own 1,000,000-gas budget at the store's write price before it is stored; a call whose response does not fit fails (`out of gas`) and stores no data. A call that needs to return large data should be made synchronously. From `crossvm-record-prune` the records of finished queued calls (executed, failed, timed out) are deleted `record_retention_blocks` after they finish. From `crossvm-async-funds-checked` an async call with funds into a lane that cannot carry them is refused at submission. From `crossvm-queue-fifo` the queue runs in order of creation height, then message ID.
+
+The pending-messages query (`/qorechain/crossvm/v1/pending`) is paginated (`pagination.key`, `pagination.limit`, at most 100 per page) and shows at most the first 1,024 bytes of each payload; the message query returns the whole payload.
+
 From the v3.2.8 `crossvm-queue-sender-cap` switch one sender may have at most `max_pending_per_sender` calls queued at a time (default 100, a tenth of the default queue), so a single sender cannot fill the shared queue and keep everyone else off the async path. A call over the bound is refused at submission with `ErrQueueFull`; once the sender's calls have run or timed out it may queue again. Synchronous calls are not affected. Calls queued before the switch do not count against the bound.
 
 ### Address rules and failure handling (from v3.2.7)
@@ -148,6 +152,8 @@ Each message transitions through these states:
 | `bridge_allowed_targets` | string[] | empty | Targets the EVM bridge precompile may call, each `cosmwasm:<qor1 contract address>`. Empty keeps the bridge shut. |
 | `bridge_target_pins` | {target, code_id, history_len}[] | empty | From v3.2.8: the CosmWasm code ID each pinned allowlist entry must run, and the length of its code history when it was pinned, for the bridge to call it. |
 | `max_pending_per_sender` | uint32 | 0 (= 100) | From v3.2.8: how many async calls one sender may have queued at a time. |
+| `max_cosmos_tx_gas` | uint64 | 0 (= 50,000,000) | From v3.2.8 (`cosmos-tx-gas-cap`): the most gas one Cosmos-lane transaction may declare; at least 10,000,000 when set. A transaction above it is refused before its fee is taken. Kept here because these params are the chain's lane-level execution bounds. |
+| `record_retention_blocks` | uint64 | 0 (= 100,000) | From v3.2.8 (`crossvm-record-prune`): how long the record of a finished queued call is kept before it is pruned (at most 200 records per block). |
 
 ### Governance
 
@@ -264,6 +270,7 @@ Response:
 | `crossvm/queue/{id}` | Message ID bytes | Pending queue |
 | `crossvm/params` | JSON-encoded Params | Module parameters |
 | `crossvm/qsender/{length-prefixed sender address bytes}/{id}` | `0x01` | From v3.2.8: pending async call indexed by its sender (per-sender bound; one bucket per account however its address is spelled) |
+| `crossvm/qdone/{8-byte height}{id}` | `0x01` | From v3.2.8 (`crossvm-record-prune`): finished queued call, by the height it finished at, for pruning |
 | `crossvm/qcreated/{id}` | 8-byte height | From v3.2.8 (`crossvm-queue-lazy-decode`): creation height of a queued call, so the end-of-block walk decodes only the calls it times out or executes |
 
 ## Open-Core Architecture

@@ -242,7 +242,8 @@ type QoreChainApp struct {
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	WasmClientKeeper    ibcwasmkeeper.Keeper
 	rateLimitStore      hostedStoreService
-	codeFilter          *wasmfilter.Filter // see wasm_code_filter.go
+	codeFilter          *wasmfilter.Filter     // see wasm_code_filter.go
+	gasRegister         *calibratedGasRegister // see wasm_gas_register.go
 
 	// EVM keepers (QoreChain EVM)
 	FeeMarketKeeper   feemarketkeeper.Keeper
@@ -546,6 +547,9 @@ func NewQoreChainApp(
 		// The code filter sits between the keeper and the VM (see
 		// wasm_code_filter.go); it refuses nothing below its protocol feature.
 		wasmkeeper.WithWasmEngineDecorator(app.wasmCodeFilter().DecorateEngine),
+		// The SDK-to-VM gas conversion follows wasm-gas-calibrated, set per
+		// block (wasm_gas_register.go).
+		wasmkeeper.WithGasRegister(app.wasmGasRegister()),
 	)
 
 	// ==========================================================================
@@ -1077,6 +1081,10 @@ func NewQoreChainApp(
 		panic(err)
 	}
 
+	// Before Load, so the runtime keeps it: the module PreBlockers, then the
+	// wasm gas multiplier for the block (wasm_gas_register.go).
+	app.SetPreBlocker(app.preBlockerSyncingWasmGas)
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
@@ -1093,6 +1101,9 @@ func NewQoreChainApp(
 		if err := app.checkWasmCodePresent(ctx, wasmDir); err != nil {
 			panic("x/wasm: " + err.Error())
 		}
+		// Queries and simulations before the first block use the price of
+		// the latest state.
+		app.syncWasmGasMultiplier(ctx)
 	}
 
 	return app
@@ -1200,6 +1211,7 @@ func (app *QoreChainApp) setAnteHandler(
 			StakingLockMempoolCheck: app.stakingTierMempoolGate,
 			RDKMempoolCheck:         app.rdkMempoolGate,
 			CrossVMMaxPayload:       app.crossVMMaxPayload,
+			CosmosTxGasCap:          app.cosmosTxGasCap,
 			PQCClient:               app.pqcClient,
 			AIKeeper:                app.AIKeeper,
 			SVMKeeper:               app.SVMKeeper,

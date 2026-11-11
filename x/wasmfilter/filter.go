@@ -41,7 +41,26 @@ var (
 	ErrParamIfWithoutElse = errors.New("if with block parameters and no else")
 	ErrBrTableTooLarge    = errors.New("br_table has too many targets")
 	ErrUnsupportedOpcode  = errors.New("opcode outside the supported feature set")
+	// ErrFloatOpcode is the refusal of a module that contains float
+	// operators, from the wasm-float-ops-refused switch (see CheckFloats).
+	ErrFloatOpcode = errors.New("float (f32/f64) operator")
 )
+
+// CheckFloats returns ErrFloatOpcode (wrapped, with the count) when a module
+// that passes Check contains float operators, and nil otherwise. The VM
+// meters every operator at one flat price, and float operators (with the
+// VM's NaN canonicalisation) cost the validator up to thousands of times the
+// CPU of the cheap ones per unit of gas; contracts built from the usual Rust
+// toolchain contain none (no release contract, no contract stored on the
+// testnet, none of wasmd's test contracts). A module Check refuses is left to
+// Check.
+func CheckFloats(code []byte) error {
+	st, err := Inspect(code)
+	if err != nil || st.FloatOps == 0 {
+		return nil
+	}
+	return fmt.Errorf("%w: %d float operators", ErrFloatOpcode, st.FloatOps)
+}
 
 const (
 	secCustom    = 0
@@ -148,6 +167,33 @@ type Stats struct {
 	MaxBrTable  int // largest br_table target count (default not counted)
 	TypedBlocks int // block, loop and if with a type-index block type
 	ParamBlocks int // of those, signatures with parameters
+	FloatOps    int // operators that read, write, compute or convert f32/f64 values
+	DivRemOps   int // integer div and rem operators
+	MemoryOps   int // memory.size and memory.grow
+}
+
+// IsFloatOp reports whether the single-byte opcode op handles a float value:
+// f32/f64 loads, stores and constants, comparisons, arithmetic and every
+// conversion from or to a float type. The 0xFC saturating truncations are
+// float operators too (see checkBody).
+func IsFloatOp(op byte) bool {
+	switch {
+	case op == 0x2A || op == 0x2B || op == 0x38 || op == 0x39: // f32/f64 load, store
+		return true
+	case op == 0x43 || op == 0x44: // f32.const, f64.const
+		return true
+	case op >= 0x5B && op <= 0x66: // f32/f64 comparisons
+		return true
+	case op >= 0x8B && op <= 0xA6: // f32/f64 arithmetic
+		return true
+	case op >= 0xA8 && op <= 0xAB, op >= 0xAE && op <= 0xBF: // conversions and reinterpretations
+		return true
+	}
+	return false
+}
+
+func isDivRemOp(op byte) bool {
+	return (op >= 0x6D && op <= 0x70) || (op >= 0x7F && op <= 0x82)
 }
 
 // Check parses a wasm module (already uncompressed) and returns nil when it
@@ -327,6 +373,16 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 		}
 		at := r.pos
 		op, _ := r.byte()
+		if st != nil {
+			switch {
+			case IsFloatOp(op):
+				st.FloatOps++
+			case isDivRemOp(op):
+				st.DivRemOps++
+			case op == 0x3F || op == 0x40:
+				st.MemoryOps++
+			}
+		}
 		switch {
 		case op == 0x00 || op == 0x01 || op == 0x0F || op == 0x1A || op == 0x1B:
 			// unreachable, nop, return, drop, select
@@ -447,6 +503,9 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 			}
 			if sub > 7 { // only the saturating float-to-int conversions
 				return fmt.Errorf("%w: 0xFC %d at offset %d", ErrUnsupportedOpcode, sub, at)
+			}
+			if st != nil {
+				st.FloatOps++
 			}
 		default:
 			return fmt.Errorf("%w: 0x%02x at offset %d", ErrUnsupportedOpcode, op, at)

@@ -6,6 +6,10 @@ import "encoding/json"
 type GenesisState struct {
 	Params   Params           `json:"params"`
 	Messages []CrossVMMessage `json:"messages"`
+	// MsgCounter is the message-ID counter, exported so that a chain started
+	// from an export never generates the ID of an exported record again.
+	// omitempty keeps genesis files that predate it valid and unchanged.
+	MsgCounter uint64 `json:"msg_counter,omitempty"`
 }
 
 func DefaultGenesisState() *GenesisState {

@@ -76,6 +76,61 @@ const (
 	// times out or executes in that block. Which calls run or time out, and in
 	// which order, is unchanged.
 	FeatureCrossVMQueueLazyDecode = "crossvm-queue-lazy-decode"
+
+	// FeatureWasmFloatOpsRefused extends the CosmWasm code filter to float
+	// (f32/f64) operators. The VM meters every operator at one flat price,
+	// and float operators cost the validator the most CPU per unit of gas of
+	// any (a loop of f64.sqrt ran thousands of times slower per gas than an
+	// EVM loop). No release contract, no contract stored on the testnet and
+	// none of wasmd's test contracts contains one, so from this switch storing
+	// a module with float operators is refused and so is running one. Code
+	// without them is unaffected.
+	FeatureWasmFloatOpsRefused = "wasm-float-ops-refused"
+
+	// FeatureWasmGasCalibrated prices CosmWasm execution closer to what it
+	// costs the validator. From this switch one unit of SDK gas buys 5,000
+	// units of VM gas instead of wasmd's 140,000 (app/wasm_gas_register.go),
+	// so ordinary contract compute costs about what EVM execution does per
+	// unit of gas; storage, events and instance setup are priced as before
+	// (typical contract calls cost 11 to 16 percent more gas).
+	FeatureWasmGasCalibrated = "wasm-gas-calibrated"
+
+	// FeatureCosmosTxGasCap bounds the gas limit one Cosmos-lane transaction
+	// may declare (crossvm params max_cosmos_tx_gas, default
+	// DefaultMaxCosmosTxGas, adjustable by governance). With the block gas
+	// unbounded, nothing else bounds what one transaction can ask for.
+	// Simulation is not affected; EVM-lane transactions keep their own bound.
+	FeatureCosmosTxGasCap = "cosmos-tx-gas-cap"
+
+	// FeatureCrossVMResponseCharged charges the data a queued call returns
+	// against the call's own prepaid budget, at the store write price, before
+	// it is stored. A call whose response does not fit fails like any other
+	// call that exceeds its budget (and stores no data). Before, the response
+	// was written at the end of the block outside any meter.
+	FeatureCrossVMResponseCharged = "crossvm-response-charged"
+
+	// FeatureCrossVMRecordPrune deletes the records of queued calls that have
+	// finished (executed, failed or timed out) once they are older than the
+	// retention window (crossvm params record_retention_blocks, default
+	// DefaultRecordRetentionBlocks), at most MaxRecordPrunePerBlock per block.
+	// Before, every record was kept forever.
+	FeatureCrossVMRecordPrune = "crossvm-record-prune"
+
+	// FeatureCrossVMAsyncFundsChecked refuses at submission an async call
+	// that attaches funds to a lane that cannot carry them, as the
+	// synchronous path does at execution, instead of queueing a call that can
+	// only fail at the end of the block after its budget was prepaid.
+	FeatureCrossVMAsyncFundsChecked = "crossvm-async-funds-checked"
+
+	// FeatureCrossVMReentryCanonical compares call frames by lane and
+	// canonical address bytes, so one contract spelled two ways (bech32 upper
+	// case, EVM hex case) is one frame for the re-entry guard.
+	FeatureCrossVMReentryCanonical = "crossvm-reentry-canonical"
+
+	// FeatureCrossVMQueueFIFO runs the async queue in order of creation
+	// height, then message ID, instead of the order of the hashed IDs, so a
+	// call queued earlier runs no later than one queued after it.
+	FeatureCrossVMQueueFIFO = "crossvm-queue-fifo"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -87,4 +142,12 @@ var V328WasmAuthzFeatures = []string{
 	FeatureCrossVMFailedCallCharged,
 	FeatureCrossVMErrorTextPlain,
 	FeatureCrossVMQueueLazyDecode,
+	FeatureWasmFloatOpsRefused,
+	FeatureWasmGasCalibrated,
+	FeatureCosmosTxGasCap,
+	FeatureCrossVMResponseCharged,
+	FeatureCrossVMRecordPrune,
+	FeatureCrossVMAsyncFundsChecked,
+	FeatureCrossVMReentryCanonical,
+	FeatureCrossVMQueueFIFO,
 }

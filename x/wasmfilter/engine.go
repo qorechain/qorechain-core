@@ -14,7 +14,22 @@ import (
 // decorator and the message server decorator.
 type Filter struct {
 	on       func(sdk.Context) bool
+	noFloat  func(sdk.Context) bool
 	verdicts *Verdicts
+}
+
+// WithFloatRefusal makes the filter also refuse, while both on(ctx) and
+// noFloat(ctx) are true, code that contains float operators (CheckFloats):
+// storing it, and every call that would run it. noFloat must read consensus
+// state only and must not charge gas.
+func (f *Filter) WithFloatRefusal(noFloat func(sdk.Context) bool) *Filter {
+	f.noFloat = noFloat
+	return f
+}
+
+// refusesFloats reports whether float operators are refused in ctx.
+func (f *Filter) refusesFloats(ctx sdk.Context) bool {
+	return f.noFloat != nil && f.on(ctx) && f.noFloat(ctx)
 }
 
 // New returns a filter that refuses only while on(ctx) is true. on must read
@@ -44,9 +59,9 @@ type Engine struct {
 
 var _ wasmtypes.WasmEngine = (*Engine)(nil)
 
-// verdict returns Check's result for a stored code, from the cache or by
+// verdict returns the filter's verdict on a stored code, from the cache or by
 // reading the code's bytes from the VM.
-func (e *Engine) verdict(checksum wasmvm.Checksum) (known bool, err error) {
+func (e *Engine) verdict(checksum wasmvm.Checksum) (known bool, v Verdict) {
 	if ok, v := e.f.verdicts.Get(checksum); ok {
 		return true, v
 	}
@@ -54,9 +69,12 @@ func (e *Engine) verdict(checksum wasmvm.Checksum) (known bool, err error) {
 	if gerr != nil {
 		// The call below fails on its own for a code the node does not hold;
 		// do not cache, the bytes may arrive (state-sync restore).
-		return false, nil
+		return false, Verdict{}
 	}
-	v := Check(code)
+	v = Verdict{Err: Check(code)}
+	if v.Err == nil {
+		v.Floats = CheckFloats(code)
+	}
 	e.f.verdicts.Put(checksum, v)
 	return true, v
 }
@@ -64,16 +82,28 @@ func (e *Engine) verdict(checksum wasmvm.Checksum) (known bool, err error) {
 // refuse decides one call. The switch is read only for a failing code, from the
 // sdk.Context wasmd hands the VM inside its querier. A failing code reached
 // without that context is refused: it cannot be shown that the switch is off.
+// Code with float operators fails only while the float switch is on too.
 func (e *Engine) refuse(checksum wasmvm.Checksum, querier wasmvm.Querier) error {
 	known, v := e.verdict(checksum)
-	if !known || v == nil {
+	if !known {
 		return nil
+	}
+	reason := v.Err
+	if reason == nil {
+		if v.Floats == nil || e.f.noFloat == nil {
+			return nil
+		}
+		ctx, ok := contextOf(querier)
+		if ok && !e.f.refusesFloats(ctx) {
+			return nil
+		}
+		return errorsmod.Wrapf(ErrCodeRefused, "code %X: %v", []byte(checksum), v.Floats)
 	}
 	ctx, ok := contextOf(querier)
 	if ok && !e.f.on(ctx) {
 		return nil
 	}
-	return errorsmod.Wrapf(ErrCodeRefused, "code %X: %v", []byte(checksum), v)
+	return errorsmod.Wrapf(ErrCodeRefused, "code %X: %v", []byte(checksum), reason)
 }
 
 func contextOf(q wasmvm.Querier) (sdk.Context, bool) {

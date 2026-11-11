@@ -41,6 +41,21 @@ const (
 	// least ten distinct senders are needed to fill it; anyone who needs more
 	// in flight can make the calls synchronously.
 	DefaultMaxPendingPerSender uint32 = 100
+
+	// DefaultMaxCosmosTxGas is the gas limit one Cosmos-lane transaction may
+	// declare when params.MaxCosmosTxGas is zero, from the cosmos-tx-gas-cap
+	// switch. MinMaxCosmosTxGas is the lowest value governance may set, so
+	// that no update can leave the chain unable to carry an ordinary
+	// transaction (a vote, a parameter change).
+	DefaultMaxCosmosTxGas uint64 = 50_000_000
+	MinMaxCosmosTxGas     uint64 = 10_000_000
+
+	// DefaultRecordRetentionBlocks is how long the record of a finished
+	// queued call is kept when params.RecordRetentionBlocks is zero, from the
+	// crossvm-record-prune switch (about 2.3 days at 2 s blocks).
+	// MaxRecordPrunePerBlock bounds how many records one EndBlock deletes.
+	DefaultRecordRetentionBlocks uint64 = 100_000
+	MaxRecordPrunePerBlock              = 200
 )
 
 // Params defines the parameters for the crossvm module.
@@ -67,6 +82,30 @@ type Params struct {
 	// a time (crossvm-queue-sender-cap); zero means
 	// DefaultMaxPendingPerSender. omitempty as above.
 	MaxPendingPerSender uint32 `json:"max_pending_per_sender,omitempty"`
+
+	// MaxCosmosTxGas bounds the gas limit of one Cosmos-lane transaction
+	// (cosmos-tx-gas-cap); zero means DefaultMaxCosmosTxGas.
+	MaxCosmosTxGas uint64 `json:"max_cosmos_tx_gas,omitempty"`
+
+	// RecordRetentionBlocks is how long finished queued call records are kept
+	// (crossvm-record-prune); zero means DefaultRecordRetentionBlocks.
+	RecordRetentionBlocks uint64 `json:"record_retention_blocks,omitempty"`
+}
+
+// CosmosTxGasLimit is the per-transaction gas bound in force.
+func (p Params) CosmosTxGasLimit() uint64 {
+	if p.MaxCosmosTxGas == 0 {
+		return DefaultMaxCosmosTxGas
+	}
+	return p.MaxCosmosTxGas
+}
+
+// RecordRetention is the retention of finished queued call records in force.
+func (p Params) RecordRetention() uint64 {
+	if p.RecordRetentionBlocks == 0 {
+		return DefaultRecordRetentionBlocks
+	}
+	return p.RecordRetentionBlocks
 }
 
 func DefaultParams() Params {
@@ -301,6 +340,9 @@ func (p Params) ValidateUpdate() error {
 	}
 	if len(p.BridgeAllowedTargets) > MaxBridgeAllowedTargets {
 		return fmt.Errorf("bridge allowlist has %d entries, max %d", len(p.BridgeAllowedTargets), MaxBridgeAllowedTargets)
+	}
+	if p.MaxCosmosTxGas != 0 && p.MaxCosmosTxGas < MinMaxCosmosTxGas {
+		return fmt.Errorf("max cosmos tx gas %d is below %d", p.MaxCosmosTxGas, MinMaxCosmosTxGas)
 	}
 	if p.MaxPendingPerSender > p.MaxQueueSize {
 		return fmt.Errorf("max pending per sender %d exceeds the queue size %d", p.MaxPendingPerSender, p.MaxQueueSize)

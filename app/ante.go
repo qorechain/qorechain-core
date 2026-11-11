@@ -70,6 +70,10 @@ type HandlerOptions struct {
 	// CrossVMMaxPayload is the crossvm max_message_size that
 	// CrossVMPayloadMempoolDecorator applies in CheckTx only. Nil is off.
 	CrossVMMaxPayload func(sdk.Context) uint64
+	// CosmosTxGasCap reports the per-transaction gas bound of the Cosmos lane
+	// and whether cosmos-tx-gas-cap is on (CosmosTxGasCapDecorator). Nil is
+	// off.
+	CosmosTxGasCap func(sdk.Context) (uint64, bool)
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
 	// and the min-gas-price floor exempt them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
@@ -313,6 +317,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// tier early unlock, nor MsgGrant itself.
 		pqcConsentAuthzLimiter(options.PQCKeeper),
 		ante.NewSetUpContextDecorator(),
+		// From cosmos-tx-gas-cap: a declared gas limit above the bound is
+		// refused before any fee is taken.
+		NewCosmosTxGasCapDecorator(options.CosmosTxGasCap),
 		// Mempool-only guard: refuse CosmWasm upload/instantiate into this
 		// node's mempool. CheckTx only, so block validity is unchanged and
 		// this can be rolled out per-node. From v3.2.5 instantiation is

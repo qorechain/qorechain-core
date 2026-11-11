@@ -90,6 +90,16 @@ message MsgUpdateParams {
   // crossvm-queue-sender-cap switch; below it the update is refused when this
   // is not zero.
   uint32 max_pending_per_sender = 8;
+  // max_cosmos_tx_gas bounds the gas limit one Cosmos-lane transaction may
+  // declare. Zero means the default (50,000,000); a set value is at least
+  // 10,000,000. Set from the cosmos-tx-gas-cap switch; below it the update is
+  // refused when this is not zero.
+  uint64 max_cosmos_tx_gas = 9;
+  // record_retention_blocks is how many blocks the record of a finished
+  // queued call is kept before it is pruned. Zero means the default
+  // (100,000). Set from the crossvm-record-prune switch; below it the update
+  // is refused when this is not zero.
+  uint64 record_retention_blocks = 10;
 }
 message MsgUpdateParamsResponse {}
 

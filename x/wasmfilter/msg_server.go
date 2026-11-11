@@ -33,10 +33,18 @@ func (s *msgServer) checkUpload(goCtx context.Context, code []byte) error {
 		return nil
 	}
 	checked, err := CheckUpload(code)
-	if !checked || err == nil {
+	if !checked {
 		return nil
 	}
-	return errorsmod.Wrap(ErrCodeRefused, err.Error())
+	if err != nil {
+		return errorsmod.Wrap(ErrCodeRefused, err.Error())
+	}
+	if s.f.refusesFloats(ctx) {
+		if err := CheckUploadFloats(code); err != nil {
+			return errorsmod.Wrap(ErrCodeRefused, err.Error())
+		}
+	}
+	return nil
 }
 
 func (s *msgServer) StoreCode(goCtx context.Context, msg *wasmtypes.MsgStoreCode) (*wasmtypes.MsgStoreCodeResponse, error) {
