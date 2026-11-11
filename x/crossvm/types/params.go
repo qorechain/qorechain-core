@@ -100,6 +100,15 @@ const (
 	// never starved out by transactions.
 	DefaultQueueWasmReserveBps uint32 = 2_500
 
+	// DefaultMaxBlockUploadBps is the block's code-upload pool when
+	// params.MaxBlockUploadBps is zero, in basis points of the transactions'
+	// wasm pool: 3,750 of 2,250,000 units at the default budget is 843,750,
+	// enough for one module of wasmd's maximum size (819,200 bytes at one
+	// unit per byte). Compiling costs far less validator CPU per unit than
+	// the slowest admitted operator, so the pool adds little to a block's
+	// worst case, and uploads cannot spend the execution pool.
+	DefaultMaxBlockUploadBps uint32 = 3_750
+
 	// MinQueueAdmission is the least gas a queued CosmWasm call is admitted
 	// on: below it the call stays pending for a later block rather than run
 	// on a meter too small to get through a contract's setup (which would
@@ -209,6 +218,19 @@ type Params struct {
 	// WasmCongestionTargetBps is the budget use above which the factor
 	// rises; zero means DefaultWasmCongestionTargetBps.
 	WasmCongestionTargetBps uint32 `json:"wasm_congestion_target_bps,omitempty"`
+
+	// MaxBlockUploadBps is the block's code-upload pool in basis points of
+	// the transactions' wasm pool; zero means DefaultMaxBlockUploadBps.
+	MaxBlockUploadBps uint32 `json:"max_block_upload_bps,omitempty"`
+}
+
+// BlockUploadBps is the block's code-upload pool in force, in basis points
+// of the transactions' wasm pool.
+func (p Params) BlockUploadBps() uint32 {
+	if p.MaxBlockUploadBps == 0 {
+		return DefaultMaxBlockUploadBps
+	}
+	return p.MaxBlockUploadBps
 }
 
 // QueueWasmReserve is the queue's reserved share in force, in basis points.
@@ -551,6 +573,9 @@ func (p Params) ValidateUpdate() error {
 	}
 	if p.MaxCosmosTxGas != 0 && (p.MaxCosmosTxGas < MinMaxCosmosTxGas || p.MaxCosmosTxGas > MaxMaxCosmosTxGas) {
 		return fmt.Errorf("max cosmos tx gas %d is outside %d..%d", p.MaxCosmosTxGas, MinMaxCosmosTxGas, MaxMaxCosmosTxGas)
+	}
+	if p.MaxBlockUploadBps > 10_000 {
+		return fmt.Errorf("max block upload %d bps is above 10000", p.MaxBlockUploadBps)
 	}
 	if p.QueueWasmReserveBps > 9_000 {
 		return fmt.Errorf("queue wasm reserve %d bps is above 9000", p.QueueWasmReserveBps)

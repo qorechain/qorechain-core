@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 
 	storetypes "cosmossdk.io/store/types"
 
@@ -157,4 +158,26 @@ func (app *QoreChainApp) preBlockerSyncingWasmGas(ctx sdk.Context, req *abci.Req
 // wasmd's default (one SDK gas per byte). Identity at the default.
 func (g *calibratedGasRegister) deserCostScale() (num, den uint64) {
 	return g.mult.Load(), wasmtypes.DefaultGasMultiplier
+}
+
+// ApplySnapshotChunk is BaseApp's, followed, once a chunk is accepted, by
+// setting the wasm gas multiplier from the restored state, so a node that
+// state-synced serves simulations and queries at the chain's price before
+// its first block (the restored state is complete after the last chunk;
+// earlier reads find the default).
+func (app *QoreChainApp) ApplySnapshotChunk(req *abci.RequestApplySnapshotChunk) (*abci.ResponseApplySnapshotChunk, error) {
+	res, err := app.App.ApplySnapshotChunk(req)
+	if err == nil && res != nil && res.Result == abci.ResponseApplySnapshotChunk_ACCEPT {
+		app.syncWasmGasMultiplierAfterRestore()
+	}
+	return res, err
+}
+
+// syncWasmGasMultiplierAfterRestore sets the multiplier from the restored
+// state. A read of a store still being restored must never fail the
+// restore: on any panic the multiplier keeps its value, and the first block
+// sets it again.
+func (app *QoreChainApp) syncWasmGasMultiplierAfterRestore() {
+	defer func() { _ = recover() }()
+	app.syncWasmGasMultiplier(app.NewUncachedContext(false, cmtproto.Header{}))
 }

@@ -58,18 +58,31 @@ var wasmMempoolInstantiateMsgs = map[string]struct{}{
 // switch is off.
 type WasmMempoolGuardDecorator struct {
 	governedDeploy func(sdk.Context) bool
-	uploadOpen     func(sdk.Context) bool
+	uploadAllowed  func(ctx sdk.Context, sender string) bool
 }
 
-// WithUploadPolicy makes the guard follow the chain's upload policy: once
-// governance has opened code upload (x/wasm code_upload_access other than
-// Nobody) and FeatureWasmGovernedDeploy is on, the upload messages are
-// admitted to the mempool too, as a contract may already dispatch them, and
-// execution applies the access rule, the code filter and the block wasm
-// budget to every route alike. A nil policy keeps uploads refused.
-func (d WasmMempoolGuardDecorator) WithUploadPolicy(uploadOpen func(sdk.Context) bool) WasmMempoolGuardDecorator {
-	d.uploadOpen = uploadOpen
+// WithUploadPolicy makes the guard follow the chain's upload policy: from
+// FeatureWasmGovernedDeploy an upload message is admitted to the mempool
+// when wasmd's upload access (governance-set x/wasm code_upload_access)
+// allows its sender, as a contract may already dispatch one, and execution
+// applies the access rule, the code filter and the block wasm budget to
+// every route alike. A nil policy keeps uploads refused.
+func (d WasmMempoolGuardDecorator) WithUploadPolicy(uploadAllowed func(ctx sdk.Context, sender string) bool) WasmMempoolGuardDecorator {
+	d.uploadAllowed = uploadAllowed
 	return d
+}
+
+// uploadSender is the account an upload message stores code for.
+func uploadSender(msg sdk.Msg) (string, bool) {
+	switch m := msg.(type) {
+	case *wasmtypes.MsgStoreCode:
+		return m.Sender, true
+	case *wasmtypes.MsgStoreAndInstantiateContract:
+		return m.Authority, true
+	case *wasmtypes.MsgStoreAndMigrateContract:
+		return m.Authority, true
+	}
+	return "", false
 }
 
 func NewWasmMempoolGuardDecorator(governedDeploy func(sdk.Context) bool) WasmMempoolGuardDecorator {
@@ -98,10 +111,14 @@ func (d WasmMempoolGuardDecorator) AnteHandle(
 		return next(ctx, tx, simulate)
 	}
 	allowInstantiate := d.governedDeploy != nil && d.governedDeploy(ctx)
-	if allowInstantiate && d.uploadOpen != nil && d.uploadOpen(ctx) {
-		return next(ctx, tx, simulate)
+	var allowUpload func(sdk.Msg) bool
+	if allowInstantiate && d.uploadAllowed != nil {
+		allowUpload = func(msg sdk.Msg) bool {
+			sender, ok := uploadSender(msg)
+			return ok && d.uploadAllowed(ctx, sender)
+		}
 	}
-	if err := rejectWasmMsgs(tx.GetMsgs(), 0, allowInstantiate); err != nil {
+	if err := rejectWasmMsgsWith(tx.GetMsgs(), 0, allowInstantiate, allowUpload); err != nil {
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
@@ -119,10 +136,19 @@ func rejectBlockedWasmMsgs(msgs []sdk.Msg, depth int) error {
 // where the walk starts (0 for a transaction's own messages).
 // allowInstantiate admits the instantiate-only messages.
 func rejectWasmMsgs(msgs []sdk.Msg, depth int, allowInstantiate bool) error {
+	return rejectWasmMsgsWith(msgs, depth, allowInstantiate, nil)
+}
+
+// rejectWasmMsgsWith is rejectWasmMsgs that also admits an upload message
+// allowUpload accepts.
+func rejectWasmMsgsWith(msgs []sdk.Msg, depth int, allowInstantiate bool, allowUpload func(sdk.Msg) bool) error {
 	return walkMempoolMsgsAt(msgs, depth, "CosmWasm upload messages", true, func(msg sdk.Msg) error {
 		url := sdk.MsgTypeURL(msg)
 		_, blocked := wasmMempoolBlockedMsgs[url]
 		if _, inst := wasmMempoolInstantiateMsgs[url]; inst && allowInstantiate {
+			blocked = false
+		}
+		if blocked && allowUpload != nil && allowUpload(msg) {
 			blocked = false
 		}
 		if !blocked {
@@ -139,9 +165,17 @@ func rejectWasmMsgs(msgs []sdk.Msg, depth int, allowInstantiate bool) error {
 	})
 }
 
-// wasmUploadOpen reports whether x/wasm code_upload_access admits anyone but
-// nobody. Read off the gas meter.
-func (app *QoreChainApp) wasmUploadOpen(ctx sdk.Context) bool {
+// wasmUploadPermitted reports whether wasmd would let sender store code:
+// the governance authority always, anyone else as x/wasm code_upload_access
+// says. Read off the gas meter.
+func (app *QoreChainApp) wasmUploadPermitted(ctx sdk.Context, sender string) bool {
+	if sender == app.WasmKeeper.GetAuthority() {
+		return true
+	}
+	addr, err := sdk.AccAddressFromBech32(sender)
+	if err != nil {
+		return false
+	}
 	free := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
-	return app.WasmKeeper.GetParams(free).CodeUploadAccess.Permission != wasmtypes.AccessTypeNobody
+	return app.WasmKeeper.GetParams(free).CodeUploadAccess.Allowed(addr)
 }

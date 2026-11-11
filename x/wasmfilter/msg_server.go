@@ -2,9 +2,11 @@ package wasmfilter
 
 import (
 	"context"
+	"math"
 
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 )
@@ -25,40 +27,90 @@ type msgServer struct {
 	f *Filter
 }
 
-// checkUpload refuses bytecode that fails Check while the switch is on. Bytes
-// that cannot be unpacked are left to wasmd, which refuses them itself.
-func (s *msgServer) checkUpload(goCtx context.Context, code []byte) error {
+// checkUpload decides an upload before wasmd stores it, while the filter's
+// switch is on. Below the upload-bounds switch it is the bytecode check, the
+// float check and the block budget's upload charge, as before.
+//
+// From the upload-bounds switch (WithUploadBounds), in this order, so that
+// no work is done and no budget is taken for an upload that wasmd would
+// refuse anyway:
+//
+//  1. a sender wasmd's upload access does not allow is left to wasmd, which
+//     refuses it with its own error: nothing parsed, nothing charged;
+//  2. the transaction must have the gas for the whole upload left, from the
+//     declared size (gzip's size field, or the length): wasmd's compile
+//     price (3 per byte), the code storage price and the inspection price,
+//     plus a margin; otherwise it fails with out of gas before anything is
+//     unpacked;
+//  3. the module is unpacked once and inspected in one pass (inspection
+//     charged per byte); a declared size that is not the real one, a module
+//     the check refuses, float operators (from their switch) and custom
+//     sections over MaxUploadCustomBytes are refused;
+//  4. the code storage price is charged on the uncompressed size, and only
+//     then the block wasm budget's upload units, when compiling is about to
+//     run.
+func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byte) error {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	if !s.f.on(ctx) {
 		return nil
 	}
-	checked, err := CheckUpload(code)
-	if !checked {
+	bounds := s.f.uploadBounds != nil && s.f.uploadBounds(ctx)
+	var declared uint64
+	if bounds {
+		if s.f.uploadPermitted != nil && !s.f.uploadPermitted(ctx, sender) {
+			return nil
+		}
+		size, ok := DeclaredUploadSize(code)
+		if !ok {
+			return nil
+		}
+		declared = size
+		need := saturatingMul(size, CompileGasPerByte+UploadStorageGasPerByte+UploadInspectGasPerByte) + UploadGasMargin
+		if left := ctx.GasMeter().GasRemaining(); left < need {
+			return errorsmod.Wrapf(sdkerrors.ErrOutOfGas,
+				"storing %d bytes of code needs %d gas, %d left", size, need, left)
+		}
+		ctx.GasMeter().ConsumeGas(saturatingMul(size, UploadInspectGasPerByte), "wasm code inspection")
+	}
+	insp, unpacked := InspectUpload(code)
+	if !unpacked {
 		return nil
 	}
-	if err != nil {
-		return errorsmod.Wrap(ErrCodeRefused, err.Error())
+	if insp.Err != nil {
+		return errorsmod.Wrap(ErrCodeRefused, insp.Err.Error())
 	}
-	if s.f.refusesFloats(ctx) {
-		if err := CheckUploadFloats(code); err != nil {
-			return errorsmod.Wrap(ErrCodeRefused, err.Error())
+	if s.f.refusesFloats(ctx) && insp.Stats.FloatOps > 0 {
+		return errorsmod.Wrapf(ErrCodeRefused, "%v: %d float operators", ErrFloatOpcode, insp.Stats.FloatOps)
+	}
+	if bounds {
+		if uint64(len(insp.Raw)) != declared {
+			return errorsmod.Wrapf(ErrCodeRefused, "%v: declared size %d, unpacked %d", ErrMalformed, declared, len(insp.Raw))
 		}
+		if insp.Stats.CustomBytes > MaxUploadCustomBytes {
+			return errorsmod.Wrapf(ErrCodeRefused, "%v: %d bytes, at most %d", ErrCustomSections, insp.Stats.CustomBytes, MaxUploadCustomBytes)
+		}
+		ctx.GasMeter().ConsumeGas(saturatingMul(uint64(len(insp.Raw)), UploadStorageGasPerByte), "wasm code storage")
 	}
 	// Compiling the module is validator CPU too: the block wasm budget
-	// charges it by size before the store.
+	// charges it by size just before the store.
 	if uc, ok := s.f.budget.(UploadCharger); ok {
-		if raw, ok := unpackUpload(code); ok {
-			if err := uc.ChargeUpload(ctx, len(raw)); err != nil {
-				return err
-			}
+		if err := uc.ChargeUpload(ctx, len(insp.Raw)); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
+func saturatingMul(a, b uint64) uint64 {
+	if b != 0 && a > math.MaxUint64/b {
+		return math.MaxUint64
+	}
+	return a * b
+}
+
 func (s *msgServer) StoreCode(goCtx context.Context, msg *wasmtypes.MsgStoreCode) (*wasmtypes.MsgStoreCodeResponse, error) {
 	if msg != nil {
-		if err := s.checkUpload(goCtx, msg.WASMByteCode); err != nil {
+		if err := s.checkUpload(goCtx, msg.Sender, msg.WASMByteCode); err != nil {
 			return nil, err
 		}
 	}
@@ -67,7 +119,7 @@ func (s *msgServer) StoreCode(goCtx context.Context, msg *wasmtypes.MsgStoreCode
 
 func (s *msgServer) StoreAndInstantiateContract(goCtx context.Context, msg *wasmtypes.MsgStoreAndInstantiateContract) (*wasmtypes.MsgStoreAndInstantiateContractResponse, error) {
 	if msg != nil {
-		if err := s.checkUpload(goCtx, msg.WASMByteCode); err != nil {
+		if err := s.checkUpload(goCtx, msg.Authority, msg.WASMByteCode); err != nil {
 			return nil, err
 		}
 	}
@@ -76,7 +128,7 @@ func (s *msgServer) StoreAndInstantiateContract(goCtx context.Context, msg *wasm
 
 func (s *msgServer) StoreAndMigrateContract(goCtx context.Context, msg *wasmtypes.MsgStoreAndMigrateContract) (*wasmtypes.MsgStoreAndMigrateContractResponse, error) {
 	if msg != nil {
-		if err := s.checkUpload(goCtx, msg.WASMByteCode); err != nil {
+		if err := s.checkUpload(goCtx, msg.Authority, msg.WASMByteCode); err != nil {
 			return nil, err
 		}
 	}

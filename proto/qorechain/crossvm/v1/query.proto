@@ -78,6 +78,9 @@ message QueryParamsResponse {
   // wasm_congestion_factor_micro is the congestion factor the next block
   // uses, in millionths (1,000,000 is the base price).
   uint64 wasm_congestion_factor_micro = 16;
+  // max_block_upload_bps is the code-upload pool in force, in basis points
+  // of the transactions' wasm pool.
+  uint32 max_block_upload_bps = 17;
 }
 
 // QueryPendingMessagesRequest pages through the queue in key order. A page

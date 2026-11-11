@@ -177,6 +177,19 @@ const (
 	// on exactly its units or not at all (it waits for a block with room, or
 	// its timeout), and a prepay buys one run.
 	FeatureCrossVMAsyncGasPriced = "crossvm-async-gas-priced"
+
+	// FeatureWasmUploadBounds orders and bounds code upload (x/wasmfilter
+	// msg_server.go): an upload from a sender wasmd's upload access does not
+	// allow is left to wasmd untouched; the transaction must have the gas for
+	// the whole upload (compile 3, storage 15 and inspection 1 per
+	// uncompressed byte, plus a margin) before anything is unpacked; the
+	// module is unpacked once and inspected in one pass; custom sections over
+	// 128 KiB and a declared size that is not the real one are refused; the
+	// storage price is charged on the uncompressed size, and the block wasm
+	// budget's upload units only when compiling is about to run, from a pool
+	// of their own that does not count towards congestion. Code already
+	// stored is never refused for its custom sections.
+	FeatureWasmUploadBounds = "wasm-upload-bounds"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -199,4 +212,5 @@ var V328WasmAuthzFeatures = []string{
 	FeatureWasmBlockGasBudget,
 	FeatureWasmCongestionPricing,
 	FeatureCrossVMAsyncGasPriced,
+	FeatureWasmUploadBounds,
 }

@@ -16,11 +16,21 @@ import (
 // Filter holds the switch and the per-checksum verdicts shared by the engine
 // decorator and the message server decorator.
 type Filter struct {
-	on         func(sdk.Context) bool
-	noFloat    func(sdk.Context) bool
-	budget     Budget
-	deserScale func() (num, den uint64)
-	verdicts   *Verdicts
+	uploadBounds    func(sdk.Context) bool
+	uploadPermitted func(ctx sdk.Context, sender string) bool
+	on              func(sdk.Context) bool
+	noFloat         func(sdk.Context) bool
+	budget          Budget
+	deserScale      func() (num, den uint64)
+	verdicts        *Verdicts
+}
+
+// WithUploadBounds turns on the upload ordering and bounds of
+// msgServer.checkUpload while on(ctx) is true; permitted reports whether
+// wasmd's upload access allows a sender (nil allows everyone).
+func (f *Filter) WithUploadBounds(on func(sdk.Context) bool, permitted func(ctx sdk.Context, sender string) bool) *Filter {
+	f.uploadBounds, f.uploadPermitted = on, permitted
+	return f
 }
 
 // Budget limits the VM gas a block's calls may use together (see

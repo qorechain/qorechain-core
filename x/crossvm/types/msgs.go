@@ -92,5 +92,6 @@ func (m *MsgUpdateParams) Params() Params {
 		QueueWasmReserveBps:     m.QueueWasmReserveBps,
 		WasmCongestionMaxFactor: m.WasmCongestionMaxFactor,
 		WasmCongestionTargetBps: m.WasmCongestionTargetBps,
+		MaxBlockUploadBps:       m.MaxBlockUploadBps,
 	}
 }

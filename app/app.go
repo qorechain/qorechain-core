@@ -1222,7 +1222,7 @@ func (app *QoreChainApp) setAnteHandler(
 			CrossVMMaxPayload:       app.crossVMMaxPayload,
 			CosmosTxGasCap:          app.cosmosTxGasCap,
 			WasmTxToken:             app.wasmTxToken,
-			WasmUploadOpen:          app.wasmUploadOpen,
+			WasmUploadAllowed:       app.wasmUploadPermitted,
 			PQCClient:               app.pqcClient,
 			AIKeeper:                app.AIKeeper,
 			SVMKeeper:               app.SVMKeeper,

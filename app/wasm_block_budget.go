@@ -67,6 +67,7 @@ type blockWasmBudget struct {
 	total      uint64 // transaction pool + queue reserve at the start
 	txPool     uint64
 	queuePool  uint64
+	uploadPool uint64 // compiling uploads; not counted for congestion
 	txCap      uint64
 	blockLevel uint64
 	tx         wasmTxKey
@@ -116,13 +117,14 @@ func bpsOf(v uint64, bps uint32) uint64 {
 }
 
 // reset starts a block. Limits are in VM gas.
-func (b *blockWasmBudget) reset(height int64, on bool, total uint64, reserveBps, shareBps uint32, blockLevel, unit uint64) {
+func (b *blockWasmBudget) reset(height int64, on bool, total uint64, reserveBps, shareBps uint32, blockLevel, unit uint64, uploadBps uint32) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.uploadMult = unit
 	b.on, b.height, b.total, b.blockLevel = on, height, total, blockLevel
 	b.queuePool = bpsOf(total, reserveBps)
 	b.txPool = total - b.queuePool
+	b.uploadPool = bpsOf(b.txPool, uploadBps)
 	b.txCap = bpsOf(total, shareBps)
 	b.tx, b.txUsed, b.nextToken = wasmTxKey{}, 0, 0
 	b.payers = map[string]uint64{}
@@ -207,14 +209,14 @@ func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed, gasExternal, limit uint
 	if !b.counts(ctx) {
 		margin, reg := b.simMargin, b.reg
 		b.mu.Unlock()
-		// A simulation is priced one exhaustion step (x1.5) above the
+		// A simulation is priced two exhaustion steps (x2.25) above the
 		// factor in force (wasm-congestion-pricing): the factor can rise by
-		// that much before the transaction lands, and a tightly estimated
-		// contract call would otherwise run out of gas.
+		// half per block before the transaction lands, and a tightly
+		// estimated contract call would otherwise run out of gas.
 		if margin && reg != nil && ctx.ExecMode() == sdk.ExecModeSimulate {
 			if m := reg.Multiplier(); m > 0 {
 				meter := ctx.GasMeter()
-				meter.ConsumeGas(min64(gasUsed/m/2, meter.GasRemaining()), "wasm simulation congestion margin")
+				meter.ConsumeGas(min64(gasUsed/m*5/4, meter.GasRemaining()), "wasm simulation congestion margin")
 			}
 		}
 		return
@@ -264,14 +266,16 @@ func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed, gasExternal, limit uint
 // the base price). Measured compile cost is 31 to 54 ns per byte on the
 // measuring host, below the 84 ns per unit of the slowest admitted operator
 // there, so one unit per byte bounds compiling as tightly as execution: a
-// maximum-size module (800 KiB) takes about 27 percent of the default
-// budget, within one transaction's share.
+// maximum-size module (800 KiB) takes 819,200 units of the block's upload
+// pool (843,750 at the default budget).
 const UploadBudgetUnitsPerByte = 1
 
-// ChargeUpload takes storing a module of wasmBytes from the budget, as a VM
-// call of that size would: a transaction's upload from its pool and share
-// (aborting the transaction when they cannot cover it), any other from the
-// block-level counter (refused when it cannot).
+// ChargeUpload takes compiling a module of wasmBytes from the block's
+// upload pool (a call outside a transaction from the block-level counter).
+// The upload pool is separate from the execution pools and does not count
+// towards congestion, so uploads cannot close the execution lane or set the
+// price; it bounds the compile CPU of a block. A transaction's upload that
+// does not fit aborts the transaction; any other is refused.
 func (b *blockWasmBudget) ChargeUpload(ctx sdk.Context, wasmBytes int) error {
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -281,22 +285,15 @@ func (b *blockWasmBudget) ChargeUpload(ctx sdk.Context, wasmBytes int) error {
 	need := saturatingVMGas(uint64(wasmBytes)*UploadBudgetUnitsPerByte, b.uploadMult)
 	switch {
 	case len(ctx.TxBytes()) > 0:
-		if key := txKeyOf(ctx); key != b.tx {
-			b.tx, b.txUsed = key, 0
+		if need > b.uploadPool {
+			abortTx("storing this code does not fit in what is left of the block's code-upload budget; retry in a later block")
 		}
-		if need > b.txPool || b.txUsed+need > b.txCap {
-			abortTx("storing this code does not fit in what is left of the block's CosmWasm execution budget")
-		}
-		b.txPool -= need
-		b.txUsed += need
+		b.uploadPool -= need
 	case crossvmtypes.IsQueueExecution(ctx):
-		avail := b.queuePool + b.txPool
-		if need > avail {
-			return ErrBlockWasmBudget.Wrap("storing this code does not fit in what is left of the block's CosmWasm execution budget")
+		if need > b.uploadPool {
+			return ErrBlockWasmBudget.Wrap("storing this code does not fit in what is left of the block's code-upload budget")
 		}
-		fromQueue := min64(need, b.queuePool)
-		b.queuePool -= fromQueue
-		b.txPool -= need - fromQueue
+		b.uploadPool -= need
 	default:
 		if need > b.blockLevel {
 			return ErrBlockWasmBudget.Wrap("storing this code does not fit in this block's CosmWasm budget for calls outside transactions")
@@ -304,6 +301,13 @@ func (b *blockWasmBudget) ChargeUpload(ctx sdk.Context, wasmBytes int) error {
 		b.blockLevel -= need
 	}
 	return nil
+}
+
+// UploadRemaining is what is left of the block's upload pool, in VM gas.
+func (b *blockWasmBudget) UploadRemaining() uint64 {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.uploadPool
 }
 
 // Remaining is what is left for transactions and the queue together, in VM
@@ -373,15 +377,16 @@ func (app *QoreChainApp) resetWasmBlockBudget(ctx sdk.Context) {
 	on := app.PQCKeeper != nil && app.CrossVMKeeper != nil &&
 		app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmBlockGasBudget)
 	var total, blockLevel uint64
-	var reserve, share uint32
+	var reserve, share, uploadBps uint32
 	if on {
 		p := app.CrossVMKeeper.GetParams(ctx)
 		m := app.wasmGasRegister().BaseMultiplier()
 		total = saturatingVMGas(p.BlockWasmGasLimit(), m)
 		blockLevel = saturatingVMGas(p.BlockLevelWasmGasLimit(), m)
 		reserve, share = p.QueueWasmReserve(), p.TxWasmShareBps()
+		uploadBps = p.BlockUploadBps()
 	}
-	app.wasmBlockBudget().reset(ctx.BlockHeight(), on, total, reserve, share, blockLevel, app.wasmGasRegister().BaseMultiplier())
+	app.wasmBlockBudget().reset(ctx.BlockHeight(), on, total, reserve, share, blockLevel, app.wasmGasRegister().BaseMultiplier(), uploadBps)
 }
 
 // queueWasmAdmit is how much SDK gas a queued call (prepaid sdkGas) may run

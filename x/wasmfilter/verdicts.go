@@ -1,7 +1,9 @@
 package wasmfilter
 
 import (
+	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"sync"
 
 	errorsmod "cosmossdk.io/errors"
@@ -82,4 +84,62 @@ func (v *Verdicts) Put(checksum []byte, verdict Verdict) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	v.byC[hex.EncodeToString(checksum)] = verdict
+}
+
+// Upload pricing and bounds from the upload-bounds switch (msg_server.go).
+const (
+	// CompileGasPerByte is wasmd's compile price at its default multiplier
+	// (wasmvm charges 3 x 140,000 VM gas per byte; the engine keeps it at 3
+	// SDK gas per byte whatever the multiplier).
+	CompileGasPerByte = 3
+	// UploadStorageGasPerByte is charged on the uncompressed size: the
+	// module is kept on every node uncompressed, while wasmd's own charge
+	// follows the compressed bytes a transaction carries. An 800 KiB module
+	// costs about 15.6M gas in all, well within a 50M transaction.
+	UploadStorageGasPerByte = 15
+	// UploadInspectGasPerByte prices unpacking and inspecting the module.
+	UploadInspectGasPerByte = 1
+	// UploadGasMargin covers wasmd's own fixed costs around the store.
+	UploadGasMargin = 200_000
+	// MaxUploadCustomBytes bounds the custom sections (names, debug info) of
+	// an uploaded module. Custom sections compress to almost nothing in a
+	// transaction and are kept forever; release builds carry none, and the
+	// largest stored on the testnet is 67,089 bytes. Code already stored is
+	// never refused for them.
+	MaxUploadCustomBytes = 128 * 1024
+)
+
+// ErrCustomSections is the refusal of an upload whose custom sections are
+// too large.
+var ErrCustomSections = errors.New("custom sections too large")
+
+// UploadInspection is what one pass over an upload found.
+type UploadInspection struct {
+	Raw   []byte
+	Stats Stats
+	Err   error // Check's verdict
+}
+
+// InspectUpload unpacks an upload once (as wasmd does) and inspects it in
+// one pass; false when it cannot be unpacked (wasmd refuses that itself).
+func InspectUpload(code []byte) (UploadInspection, bool) {
+	raw, ok := unpackUpload(code)
+	if !ok {
+		return UploadInspection{}, false
+	}
+	st, err := Inspect(raw)
+	return UploadInspection{Raw: raw, Stats: st, Err: err}, true
+}
+
+// DeclaredUploadSize is the size an upload says it unpacks to, without
+// unpacking it: gzip's size field (the length modulo 2^32, which a module
+// under wasmd's size limit fits) or the length of raw bytes.
+func DeclaredUploadSize(code []byte) (uint64, bool) {
+	if ioutils.IsGzip(code) {
+		if len(code) < 18 {
+			return 0, false
+		}
+		return uint64(binary.LittleEndian.Uint32(code[len(code)-4:])), true
+	}
+	return uint64(len(code)), true
 }
