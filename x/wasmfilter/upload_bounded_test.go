@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"runtime"
 	"testing"
-	"time"
 )
 
 // nopsModule is a valid module with one function of n nops.
@@ -65,26 +65,56 @@ func TestInspectUploadBounded(t *testing.T) {
 
 // The work a lying upload causes is bounded by what it declared (and paid
 // for): an 800 KiB module declared as 16 bytes stops after 17.
+//
+// Work is measured as the bytes the check allocates (what unpacking and
+// inspecting cost in memory, and what it touches), not as a ratio of wall
+// clock times, which a loaded machine distorts (confirmation review 2, I5).
+// Allocation is deterministic for a given input, so the bounds below are
+// exact properties, not timing luck:
+//   - refusing the lie costs the same whatever the real size behind it
+//     (an 800 KB module and one four times larger), so the work does not
+//     grow with what the upload would unpack to;
+//   - it costs a small fraction of unpacking and inspecting the honest
+//     800 KB module.
 func TestInspectUploadBoundedStopsAtTheDeclaredSize(t *testing.T) {
 	lie := withSizeField(gz(t, nopsModule(800_000)), 16)
+	lieLarger := withSizeField(gz(t, nopsModule(3_200_000)), 16)
 	honest := gz(t, nopsModule(800_000))
 	const n = 20
-	t0 := time.Now()
-	for i := 0; i < n; i++ {
+	lieB := allocPerRun(n, func() {
 		if _, err := InspectUploadBounded(lie, 16); err == nil {
 			t.Fatal("accepted")
 		}
-	}
-	lieT := time.Since(t0) / n
-	t0 = time.Now()
-	for i := 0; i < n; i++ {
+	})
+	lieLargerB := allocPerRun(n, func() {
+		if _, err := InspectUploadBounded(lieLarger, 16); err == nil {
+			t.Fatal("accepted")
+		}
+	})
+	honestB := allocPerRun(n, func() {
 		if _, err := InspectUploadBounded(honest, 800_000+30); err != nil && !errors.Is(err, ErrUploadSize) {
 			t.Fatal(err)
 		}
+	})
+	t.Logf("bytes allocated per check: lie over 800 KB %d, lie over 3.2 MB %d, honest 800 KB %d", lieB, lieLargerB, honestB)
+	if lieLargerB > lieB+lieB/4 {
+		t.Fatalf("the lie's work grows with the real size: %d bytes over 800 KB, %d over 3.2 MB", lieB, lieLargerB)
 	}
-	honestT := time.Since(t0) / n
-	t.Logf("refusing the lie: %v; unpacking and inspecting the honest 800 KB module: %v", lieT, honestT)
-	if lieT*20 > honestT {
-		t.Fatalf("the lie cost %v against %v for the whole module", lieT, honestT)
+	if lieB*20 > honestB {
+		t.Fatalf("the lie cost %d bytes against %d for the whole module", lieB, honestB)
 	}
+}
+
+// allocPerRun is the average number of bytes f allocates per call over n
+// calls (after one warm-up call).
+func allocPerRun(n int, f func()) uint64 {
+	f()
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	for i := 0; i < n; i++ {
+		f()
+	}
+	runtime.ReadMemStats(&after)
+	return (after.TotalAlloc - before.TotalAlloc) / uint64(n)
 }

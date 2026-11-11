@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sync"
 
 	"github.com/google/btree"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
@@ -358,11 +360,28 @@ func (m *evictingMempool) victim(newSender string, p math.Int) (poolKey, poolEnt
 // a panic there (the pool reads its own view of the latest state) left
 // CheckTx and stopped the node. Nothing a refused CheckTx does reaches
 // state.
+//
+// The panic is logged at error level with what an operator needs to find
+// the transaction and the faulty path: the transaction hash (as the RPC
+// reports it), its size, the check type (new or recheck), the panic value
+// and its type, and the stack of the panicking goroutine. A recovered
+// panic is a bug in the pool, not an expected refusal.
 func recoveringCheckTxHandler(inner sdk.CheckTxHandler, logger log.Logger) sdk.CheckTxHandler {
 	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (res *abci.ResponseCheckTx, err error) {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Error("CheckTx handler panicked; the transaction is refused", "panic", fmt.Sprint(r))
+				var txBytes []byte
+				checkType := abci.CheckTxType_New
+				if req != nil {
+					txBytes, checkType = req.Tx, req.Type
+				}
+				logger.Error("CheckTx handler panicked; the transaction is refused",
+					"tx_hash", fmt.Sprintf("%X", cmttypes.Tx(txBytes).Hash()),
+					"tx_bytes", len(txBytes),
+					"check_type", checkType.String(),
+					"panic", fmt.Sprint(r),
+					"panic_type", fmt.Sprintf("%T", r),
+					"stack", string(debug.Stack()))
 				res, err = sdkerrors.ResponseCheckTxWithEvents(
 					sdkerrors.ErrPanic.Wrapf("mempool: %v", r), 0, 0, nil, false), nil
 			}

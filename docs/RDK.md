@@ -334,7 +334,7 @@ The EndBlocker runs settlement logic each block:
 | `max_posted_data_bytes` | 0 (= 131,072) | Largest `MsgPostRollupData` payload (from v3.2.8) |
 | `max_posted_data_bytes_per_block` | 0 (= 524,288) | Billable bytes all posts of one block may total (from v3.2.8) |
 | `posted_data_fee_per_byte` | 0 (= 10 uqor) | Fee per billable byte, at least 1 KiB billed per post (from v3.2.8) |
-| `posted_data_retention_blocks` | 0 (= 648,000) | Blocks a posted-data commitment stays in state (from v3.2.8); at least the longest challenge window in seconds |
+| `posted_data_retention_blocks` | 0 (= 648,000) | Blocks a posted-data commitment stays in state (from v3.2.8); at least the longest challenge window in seconds, at most 25,920,000 (ten times the 30-day maximum window at 1 s blocks) |
 | `min_submitter_bond` | 0 (= 1,000,000,000 uqor) | Bond a qledger-v1 batch submitter must hold (from v3.2.8) |
 
 ## CLI Commands

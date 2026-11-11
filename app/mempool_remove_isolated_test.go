@@ -2,9 +2,12 @@ package app
 
 import (
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 	dbm "github.com/cosmos/cosmos-db"
 
 	"cosmossdk.io/log"
@@ -146,6 +149,37 @@ func TestCheckTxHandlerPanicIsARefusal(t *testing.T) {
 		t.Fatalf("a panicking handler answered %+v, %v; want a refusal", res, err)
 	}
 
+	// The recovered panic is logged at error level with the transaction's
+	// hash and size, the check type, the panic and the stack.
+	rec := &errorRecorder{}
+	txBytes := []byte("a transaction")
+	logged := recoveringCheckTxHandler(func(sdk.RunTx, *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
+		panic(storetypes.ErrorOutOfGas{Descriptor: "ReadFlat"})
+	}, rec)
+	if res, err := logged(nil, &abci.RequestCheckTx{Tx: txBytes, Type: abci.CheckTxType_Recheck}); err != nil || res == nil || res.Code == 0 {
+		t.Fatalf("a panicking handler answered %+v, %v; want a refusal", res, err)
+	}
+	if len(rec.errors) != 1 {
+		t.Fatalf("want one error-level line, got %d", len(rec.errors))
+	}
+	kv := rec.errors[0]
+	if got, want := kv["tx_hash"], fmt.Sprintf("%X", cmttypes.Tx(txBytes).Hash()); got != want {
+		t.Fatalf("tx_hash %v, want %v", got, want)
+	}
+	if kv["tx_bytes"] != len(txBytes) || kv["check_type"] != "RECHECK" || kv["panic_type"] != "types.ErrorOutOfGas" {
+		t.Fatalf("logged %v", kv)
+	}
+	if p, _ := kv["panic"].(string); !strings.Contains(p, "ReadFlat") {
+		t.Fatalf("panic value not logged: %v", kv["panic"])
+	}
+	if st, _ := kv["stack"].(string); !strings.Contains(st, "recoveringCheckTxHandler") {
+		t.Fatalf("stack not logged: %q", st)
+	}
+	// A request the handler cannot read (nil) is still refused and logged.
+	if res, err := logged(nil, nil); err != nil || res == nil || res.Code == 0 {
+		t.Fatalf("a panicking handler on a nil request answered %+v, %v; want a refusal", res, err)
+	}
+
 	want := &abci.ResponseCheckTx{GasWanted: 7}
 	passing := recoveringCheckTxHandler(func(sdk.RunTx, *abci.RequestCheckTx) (*abci.ResponseCheckTx, error) {
 		return want, nil
@@ -154,3 +188,19 @@ func TestCheckTxHandlerPanicIsARefusal(t *testing.T) {
 		t.Fatalf("answer changed: %+v, %v", got, err)
 	}
 }
+
+// errorRecorder keeps the key/value pairs of every error-level line.
+type errorRecorder struct{ errors []map[string]any }
+
+func (r *errorRecorder) Error(_ string, keyVals ...any) {
+	kv := map[string]any{}
+	for i := 0; i+1 < len(keyVals); i += 2 {
+		kv[fmt.Sprint(keyVals[i])] = keyVals[i+1]
+	}
+	r.errors = append(r.errors, kv)
+}
+func (r *errorRecorder) Info(string, ...any)    {}
+func (r *errorRecorder) Warn(string, ...any)    {}
+func (r *errorRecorder) Debug(string, ...any)   {}
+func (r *errorRecorder) With(...any) log.Logger { return r }
+func (r *errorRecorder) Impl() any              { return r }

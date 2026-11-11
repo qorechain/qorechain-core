@@ -66,6 +66,12 @@ const (
 	MaxPostedDataFeePerByte uint64 = 1_000_000
 	// MinPostedDataRetentionBlocks is the shortest non-zero retention.
 	MinPostedDataRetentionBlocks uint64 = 100
+	// MaxPostedDataRetentionBlocks is the longest retention: ten times the
+	// longest challenge window (MaxChallengeWindowSec, 30 days) counted at
+	// 1 s blocks, 25.92M blocks (300 days at 1 s). Every window in force is
+	// covered with room to spare, and height + retention, the expiry the
+	// keeper stores as an int64, cannot overflow (confirmation review 2, I3).
+	MaxPostedDataRetentionBlocks uint64 = 10 * MaxChallengeWindowSec
 	// MinBillablePostBytes is what a post is billed and counted at least,
 	// so many tiny posts cannot fill the commitment store cheaply.
 	MinBillablePostBytes uint64 = 1024
@@ -246,9 +252,9 @@ func (p Params) validatePostedData() error {
 		return ErrInvalidParams.Wrapf("posted_data_fee_per_byte must be 0 (default) or at most %d, got %d",
 			MaxPostedDataFeePerByte, n)
 	}
-	if r := p.PostedDataRetentionBlocks; r != 0 && r < MinPostedDataRetentionBlocks {
-		return ErrInvalidParams.Wrapf("posted_data_retention_blocks must be 0 (default) or at least %d, got %d",
-			MinPostedDataRetentionBlocks, r)
+	if r := p.PostedDataRetentionBlocks; r != 0 && (r < MinPostedDataRetentionBlocks || r > MaxPostedDataRetentionBlocks) {
+		return ErrInvalidParams.Wrapf("posted_data_retention_blocks must be 0 (default) or %d..%d, got %d",
+			MinPostedDataRetentionBlocks, MaxPostedDataRetentionBlocks, r)
 	}
 	return nil
 }

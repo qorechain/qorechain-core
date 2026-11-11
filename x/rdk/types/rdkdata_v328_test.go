@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"math"
 	"strings"
 	"testing"
 
@@ -61,6 +62,10 @@ func TestPostedDataParamsDefaultsAndBounds(t *testing.T) {
 		{"fee above its ceiling", func(p *Params) { p.PostedDataFeePerByte = MaxPostedDataFeePerByte + 1 }, false},
 		{"retention too short", func(p *Params) { p.PostedDataRetentionBlocks = 99 }, false},
 		{"retention minimum", func(p *Params) { p.PostedDataRetentionBlocks = 100 }, true},
+		{"retention maximum", func(p *Params) { p.PostedDataRetentionBlocks = MaxPostedDataRetentionBlocks }, true},
+		{"retention above the maximum", func(p *Params) { p.PostedDataRetentionBlocks = MaxPostedDataRetentionBlocks + 1 }, false},
+		{"retention that would overflow the expiry", func(p *Params) { p.PostedDataRetentionBlocks = math.MaxUint64 }, false},
+		{"retention past int64", func(p *Params) { p.PostedDataRetentionBlocks = 1 << 63 }, false},
 	} {
 		q := DefaultParams()
 		c.mod(&q)
@@ -237,6 +242,7 @@ func TestGenesisPostedDataValidation(t *testing.T) {
 		"duplicate record":     func(g *GenesisState) { g.PostedData = append(g.PostedData, g.PostedData[0]) },
 		"short hash":           func(g *GenesisState) { g.PostedData[0].DataHash = []byte{1} },
 		"bad params":           func(g *GenesisState) { g.Params.PostedDataRetentionBlocks = 1 },
+		"retention too long":   func(g *GenesisState) { g.Params.PostedDataRetentionBlocks = MaxPostedDataRetentionBlocks + 1 },
 	} {
 		g := good
 		g.Inboxes = append([]InboxState(nil), good.Inboxes...)
@@ -247,5 +253,28 @@ func TestGenesisPostedDataValidation(t *testing.T) {
 		} else if !strings.Contains(err.Error(), "") {
 			t.Fatal(err)
 		}
+	}
+}
+
+// The retention ceiling covers the longest challenge window a parameter set
+// can hold, and the expiry the keeper stores (height + retention, an int64)
+// cannot overflow at any height a chain reaches (confirmation review 2, I3).
+func TestPostedDataRetentionCeiling(t *testing.T) {
+	if MaxPostedDataRetentionBlocks < PostedDataRetentionFor(MaxChallengeWindowSec) {
+		t.Fatalf("ceiling %d below the longest window %d", MaxPostedDataRetentionBlocks, PostedDataRetentionFor(MaxChallengeWindowSec))
+	}
+	p := DefaultParams()
+	p.DefaultChallengeWindow = MaxChallengeWindowSec
+	p.PostedDataRetentionBlocks = MaxPostedDataRetentionBlocks
+	if err := p.ValidateUpdate(); err != nil {
+		t.Fatalf("longest window, longest retention: %v", err)
+	}
+	if err := p.CheckPostedDataRetention(MaxChallengeWindowSec); err != nil {
+		t.Fatalf("the ceiling does not cover the longest window: %v", err)
+	}
+	// A height of 10^15 (31 million years at 1 s blocks) still has room.
+	const height int64 = 1e15
+	if int64(MaxPostedDataRetentionBlocks) <= 0 || height > math.MaxInt64-int64(MaxPostedDataRetentionBlocks) {
+		t.Fatal("height + retention overflows int64")
 	}
 }
