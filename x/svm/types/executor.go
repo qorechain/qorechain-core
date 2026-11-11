@@ -47,14 +47,32 @@ type MeteredExecutor interface {
 // Runtime flags of the v3 entry (v3.2.8). Each mirrors a FLAG_* constant of
 // the Rust runtime and is set from the protocol feature named beside it.
 const (
-	RuntimeFlagByteMetering     uint64 = 1 << 0 // svm-compute-gas (v3.2.5)
-	RuntimeFlagFullResult       uint64 = 1 << 1 // svm-result-full-fields
-	RuntimeFlagTokenOwnerCheck  uint64 = 1 << 2 // svm-token-owner-checks
-	RuntimeFlagCPIDepthBounded  uint64 = 1 << 3 // svm-cpi-depth-bounded
-	RuntimeFlagMemcpyNoOverlap  uint64 = 1 << 4 // svm-memcpy-no-overlap
-	RuntimeFlagPDASeedLimits    uint64 = 1 << 5 // svm-pda-seed-limits
-	RuntimeFlagConsensusSysvars uint64 = 1 << 6 // svm-consensus-sysvars
-	RuntimeFlagNonzeroReturn    uint64 = 1 << 7 // svm-nonzero-return-fails
+	RuntimeFlagByteMetering     uint64 = 1 << 0  // svm-compute-gas (v3.2.5)
+	RuntimeFlagFullResult       uint64 = 1 << 1  // svm-result-full-fields
+	RuntimeFlagTokenOwnerCheck  uint64 = 1 << 2  // svm-token-owner-checks
+	RuntimeFlagCPIDepthBounded  uint64 = 1 << 3  // svm-cpi-depth-bounded
+	RuntimeFlagMemcpyNoOverlap  uint64 = 1 << 4  // svm-memcpy-no-overlap
+	RuntimeFlagPDASeedLimits    uint64 = 1 << 5  // svm-pda-seed-limits
+	RuntimeFlagConsensusSysvars uint64 = 1 << 6  // svm-consensus-sysvars
+	RuntimeFlagNonzeroReturn    uint64 = 1 << 7  // svm-nonzero-return-fails
+	RuntimeFlagHostPrivileges   uint64 = 1 << 8  // svm-cpi-host-privileges
+	RuntimeFlagTokenSPL         uint64 = 1 << 9  // svm-token-spl-semantics
+	RuntimeFlagMetadataNotNat   uint64 = 1 << 10 // svm-metadata-not-native
+	RuntimeFlagATAIdempotent    uint64 = 1 << 11 // svm-ata-idempotent-verified
+	RuntimeFlagCPICalleeRules   uint64 = 1 << 12 // svm-cpi-callee-rules
+	RuntimeFlagATAPrefunded     uint64 = 1 << 13 // svm-ata-prefunded-create
+	RuntimeFlagTokenCloseFrozen uint64 = 1 << 14 // svm-token-close-frozen-refused
+	RuntimeFlagCPICallerRules   uint64 = 1 << 15 // svm-cpi-caller-rules
+	RuntimeFlagCPIComposable    uint64 = 1 << 16 // svm-cpi-composable
+	RuntimeFlagSystemSeedBase   uint64 = 1 << 17 // svm-system-with-seed
+	RuntimeFlagPDASigningMeter  uint64 = 1 << 18 // svm-pda-signing-metered
+	RuntimeFlagReentrancyGuard  uint64 = 1 << 19 // svm-cpi-reentrancy-guard
+	RuntimeFlagATAPayerSystem   uint64 = 1 << 20 // svm-ata-payer-system
+	RuntimeFlagResultSizeExact  uint64 = 1 << 21 // svm-result-size-exact
+	RuntimeFlagSystemSeedCPI    uint64 = 1 << 22 // svm-system-with-seed-cpi
+	RuntimeFlagNestedAttrib     uint64 = 1 << 23 // svm-cpi-nested-attribution
+	RuntimeFlagResultBounded    uint64 = 1 << 24 // svm-result-buffer-bounded
+	RuntimeFlagSeedBases        uint64 = 1 << 25 // svm-relayed-seed-lock-canonical-base
 )
 
 // RuntimeSysvars are the consensus values of the Clock and Rent sysvars handed

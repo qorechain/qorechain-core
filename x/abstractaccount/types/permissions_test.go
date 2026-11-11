@@ -80,3 +80,20 @@ func TestValidPermissions(t *testing.T) {
 		t.Fatal("bogus is not a valid permission")
 	}
 }
+
+func TestSVMProgramPermission(t *testing.T) {
+	ok := PermSVMProgramPrefix + "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+	if !IsSVMProgramPermission(ok) {
+		t.Fatal("a valid program scope was refused")
+	}
+	for _, bad := range []string{"svm:program:", "svm:program:0OIl" + "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss", "svm", "svm:program:abc"} {
+		if IsSVMProgramPermission(bad) {
+			t.Fatalf("%q accepted", bad)
+		}
+	}
+	a := Authenticator{Scheme: SchemeEd25519, PubKey: make([]byte, 32), Permissions: []string{PermSVM, ok}}
+	if IsValidPermission(ok) {
+		t.Fatal("program scopes are not plain permissions")
+	}
+	_ = a
+}

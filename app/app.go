@@ -384,6 +384,12 @@ func NewQoreChainApp(
 
 	// Keep panic stack traces in the node log instead of the tx response.
 	app.AddRunTxRecoveryHandler(newQuietPanicRecoveryHandler(logger))
+	// svm-execution-thread-node-fault: a node-local SVM fault during block
+	// execution leaves the transaction instead of becoming its result, so the
+	// node halts before committing a block other nodes computed differently.
+	// Added last, so it runs before the handler above; every other panic is
+	// passed on unchanged.
+	app.AddRunTxRecoveryHandler(svmtypes.NodeFaultRecoveryHandler)
 
 	// Governance hooks (ProposalRewardHook) are installed via depinject —
 	// see ProvideGovHooks. They must NOT be set manually here: the gov module's

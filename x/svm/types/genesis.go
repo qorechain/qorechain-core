@@ -11,6 +11,30 @@ type GenesisState struct {
 	Accounts    []SVMAccount  `json:"accounts"`
 	Programs    []ProgramMeta `json:"programs"`
 	CurrentSlot uint64        `json:"current_slot"`
+	// Dust is every wallet's sub-uqor lamport remainder, so an export and
+	// import keeps it. Absent in older exports.
+	Dust []DustEntry `json:"dust,omitempty"`
+	// CustodyLiability (lamports, decimal), CustodyWindowStart and
+	// CustodyWindowNet (lamports, decimal, may be negative) carry the custody
+	// accounting of svm-custody-liability-window. Absent in older exports.
+	CustodyLiability   string `json:"custody_liability,omitempty"`
+	CustodyWindowStart int64  `json:"custody_window_start,omitempty"`
+	CustodyWindowNet   string `json:"custody_window_net,omitempty"`
+	// PQCKeys are the keys registered with MsgRegisterSVMPQCKey. Absent in
+	// older exports.
+	PQCKeys []PQCKeyEntry `json:"pqc_keys,omitempty"`
+}
+
+// PQCKeyEntry is one SVM address's registered PQC public key.
+type PQCKeyEntry struct {
+	Address [32]byte `json:"address"`
+	Key     []byte   `json:"key"`
+}
+
+// DustEntry is one address's dust in lamports (1..LamportsPerUqor-1).
+type DustEntry struct {
+	Address  [32]byte `json:"address"`
+	Lamports uint64   `json:"lamports"`
 }
 
 // DefaultGenesis returns a genesis state with default params and system program accounts.
@@ -76,6 +100,20 @@ func (gs GenesisState) Validate() error {
 		if prog.ProgramAddress == zeroAddr {
 			return fmt.Errorf("program address cannot be zero")
 		}
+	}
+	dust := make(map[[32]byte]bool, len(gs.Dust))
+	for _, d := range gs.Dust {
+		if d.Lamports == 0 || d.Lamports >= LamportsPerUqor || !IsCanonicalWalletAddress(d.Address) || dust[d.Address] {
+			return fmt.Errorf("invalid dust entry for %s", Base58Encode(d.Address))
+		}
+		dust[d.Address] = true
+	}
+	keys := make(map[[32]byte]bool, len(gs.PQCKeys))
+	for _, k := range gs.PQCKeys {
+		if len(k.Key) != SVMPQCPublicKeyLen || keys[k.Address] {
+			return fmt.Errorf("invalid pqc key entry for %s", Base58Encode(k.Address))
+		}
+		keys[k.Address] = true
 	}
 	return nil
 }

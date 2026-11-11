@@ -23,6 +23,13 @@ const (
 	// The cap is enforced only on a chain with the svm-lane-governed feature,
 	// whose release handler writes a finite value.
 	DefaultMaxCustodyUqor uint64 = 0
+	// DefaultMaxCustodyHardUqor is no ceiling. With svm-custody-hard-ceiling,
+	// governance must set a finite ceiling before the lane opens on any network
+	// (the v3.2.8 handler writes one on the public testnet).
+	DefaultMaxCustodyHardUqor uint64 = 0
+	// DefaultMaxAccountExcessUqor is no per-account cap
+	// (svm-account-excess-cap).
+	DefaultMaxAccountExcessUqor uint64 = 0
 )
 
 // Params defines the configurable parameters for the SVM runtime module.
@@ -40,21 +47,30 @@ type Params struct {
 	// cap. omitempty keeps the stored JSON of every params value written before
 	// the field existed byte-identical when it is rewritten on replay.
 	MaxCustodyUqor uint64 `json:"max_custody_uqor,omitempty"`
+	// MaxCustodyHardUqor is the absolute ceiling on the svm module account's
+	// raw uqor balance (svm-custody-hard-ceiling); 0 is no ceiling. omitempty
+	// for the same replay reason as MaxCustodyUqor.
+	MaxCustodyHardUqor uint64 `json:"max_custody_hard_uqor,omitempty"`
+	// MaxAccountExcessUqor caps the uqor a store account holds above its
+	// rent-exempt minimum (svm-account-excess-cap); 0 is no cap.
+	MaxAccountExcessUqor uint64 `json:"max_account_excess_uqor,omitempty"`
 }
 
 // DefaultParams returns a default set of SVM parameters.
 func DefaultParams() Params {
 	return Params{
-		MaxProgramSize:     DefaultMaxProgramSize,
-		MaxAccountDataSize: DefaultMaxAccountDataSize,
-		ComputeBudgetMax:   DefaultComputeBudgetMax,
-		LamportsPerByte:    DefaultLamportsPerByte,
-		RentExemptionMulti: DefaultRentExemptionMultiDec,
-		Enabled:            DefaultEnabled,
-		SVMSlotOffset:      DefaultSVMSlotOffset,
-		DefaultSigScheme:   DefaultSigScheme,
-		MaxCPI:             DefaultMaxCPI,
-		MaxCustodyUqor:     DefaultMaxCustodyUqor,
+		MaxProgramSize:       DefaultMaxProgramSize,
+		MaxAccountDataSize:   DefaultMaxAccountDataSize,
+		ComputeBudgetMax:     DefaultComputeBudgetMax,
+		LamportsPerByte:      DefaultLamportsPerByte,
+		RentExemptionMulti:   DefaultRentExemptionMultiDec,
+		Enabled:              DefaultEnabled,
+		SVMSlotOffset:        DefaultSVMSlotOffset,
+		DefaultSigScheme:     DefaultSigScheme,
+		MaxCPI:               DefaultMaxCPI,
+		MaxCustodyUqor:       DefaultMaxCustodyUqor,
+		MaxCustodyHardUqor:   DefaultMaxCustodyHardUqor,
+		MaxAccountExcessUqor: DefaultMaxAccountExcessUqor,
 	}
 }
 
@@ -77,6 +93,12 @@ func (p Params) Validate() error {
 	}
 	if p.MaxCPI == 0 {
 		return fmt.Errorf("max CPI depth must be positive")
+	}
+	// The ceiling sits above the monitor threshold; a ceiling below it would
+	// make the threshold meaningless.
+	if p.MaxCustodyHardUqor != 0 && p.MaxCustodyHardUqor < p.MaxCustodyUqor {
+		return fmt.Errorf("max_custody_hard_uqor %d is below max_custody_uqor %d",
+			p.MaxCustodyHardUqor, p.MaxCustodyUqor)
 	}
 	return nil
 }

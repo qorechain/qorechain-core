@@ -76,6 +76,14 @@ var (
 	// consumed at, so entries can be dropped once their blockhash leaves the
 	// window: 0x0E | slot(8 bytes, big-endian) | 32-byte-digest -> {1}
 	ConsumedAuthBySlotPrefix = []byte{0x0E}
+
+	// CustodyLiabilityKey holds the running SVM liability above rent reserves
+	// in lamports (svm-custody-liability-window): single key -> decimal string.
+	CustodyLiabilityKey = []byte{0x20}
+
+	// CustodyWindowKey holds the current custody window: single key ->
+	// start height(8, big-endian) | net growth in lamports (decimal string).
+	CustodyWindowKey = []byte{0x21}
 )
 
 // ConsumedAuthKey returns the store key recording that an authenticator digest

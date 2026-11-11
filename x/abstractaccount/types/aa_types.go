@@ -156,6 +156,23 @@ func ValidateAuthenticatorStrict(a Authenticator) error {
 	return nil
 }
 
+// ValidateAuthenticatorStrictScopes is ValidateAuthenticatorStrict that also
+// accepts SVM program scopes ("svm:program:<id>", svm-relayed-program-scope).
+func ValidateAuthenticatorStrictScopes(a Authenticator) error {
+	if err := ValidateAuthenticator(a); err != nil {
+		return err
+	}
+	if a.Scheme == SchemeSecp256k1 && len(a.PubKey) == 65 {
+		return fmt.Errorf("uncompressed (65-byte) secp256k1 keys cannot verify; register the 33-byte compressed key")
+	}
+	for _, p := range a.Permissions {
+		if !IsValidPermission(p) && !IsSVMProgramPermission(p) {
+			return fmt.Errorf("unknown permission %q", p)
+		}
+	}
+	return nil
+}
+
 // ValidateAccountAddress checks an AccountAddress field is a bech32 address
 // (QSR-2026-0436 b). The messages' ValidateBasic only checks that it is not
 // empty; the handler applies this from the abstractaccount-hardening protocol
