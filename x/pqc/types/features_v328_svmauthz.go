@@ -154,7 +154,71 @@ const (
 	// key signs for a relayed execution (types.SVMAuthSignBytesV3). Before it
 	// the v2 message carried no chain id.
 	FeatureSVMRelayedChainBound = "svm-relayed-chain-bound"
+	// FeatureSVMCustodyLiabilityWindow measures the custody cap against what
+	// the SVM owes (store lamports above each account's rent reserve, plus
+	// wallet dust), kept as a running total, instead of the svm module
+	// account's raw balance, and turns it into a limit on the net growth of
+	// that liability per window of CustodyWindowBlocks blocks. Rent reserves
+	// stay bound to their accounts and are released when an account drops
+	// below its reserve or is deleted. When the liability itself exceeds the
+	// cap an svm_custody_above_cap event is emitted for governance. Before it
+	// one holder could fill the shared cap with recoverable value (or the
+	// module balance could already exceed it from faucet funding) and block
+	// every other user's deposits.
+	FeatureSVMCustodyLiabilityWindow = "svm-custody-liability-window"
+	// FeatureSVMRelayedProgramScope refuses a relayed (linked-key) execution
+	// that changes the data or owner of an account owned by (or handed to) a
+	// program other than the built-ins, unless the key holds
+	// "svm:program:<program id>" or "all" among its permissions. Lamport moves,
+	// System transfers, ATA creation and Memo are unaffected. Before it value a
+	// user program kept for the account in its own records moved under a key
+	// whose QOR spending rule could not bound it.
+	FeatureSVMRelayedProgramScope = "svm-relayed-program-scope"
+	// FeatureSVMNoCreditCustodyOrProgram refuses lamports sent to the svm
+	// module account's own SVM address (nobody can ever sign for it) and to an
+	// executable account (a program account can never pay them out).
+	FeatureSVMNoCreditCustodyOrProgram = "svm-no-credit-custody-or-program"
+	// FeatureSVMCPICallerRules makes the runtime apply Solana's ownership rules
+	// to a program's own changes since the host last validated its accounts,
+	// at every cross-program invocation and at the end of every run: only the
+	// owner of an account changes its data or takes its lamports, only the
+	// owner gives it away (data zeroed), a read-only account does not change.
+	// Before it a caller could forge another program's state (a token
+	// balance) in its buffer and a callee took it as real.
+	FeatureSVMCPICallerRules = "svm-cpi-caller-rules"
+	// FeatureSVMCPIComposable lets cross-program invocations compose as on
+	// Solana: accounts may grow by up to 10 KiB in an instruction (padded
+	// layout), a callee's owner change reaches its caller, and the runtime
+	// attests every program that ran and every PDA a program signed for. The
+	// keeper then judges a user program's instruction per account by the
+	// programs that actually ran instead of requiring the top-level program to
+	// own every changed account. Token transfers from PDA-held accounts, ATA
+	// and PDA creation through invocations, state updates by called programs
+	// and debits of system-owned PDA vaults all work. Needs
+	// svm-cpi-caller-rules.
+	FeatureSVMCPIComposable = "svm-cpi-composable"
+	// FeatureSVMSystemWithSeed accepts System CreateAccountWithSeed,
+	// AllocateWithSeed, AssignWithSeed and TransferWithSeed at the top level
+	// when the base account signed and the derived address matches, as on
+	// Solana. Before it the derived account never signed, so all four were
+	// refused and System could not create an account in one message.
+	FeatureSVMSystemWithSeed = "svm-system-with-seed"
+	// FeatureSVMPQCKeyForWallets lets a plain wallet (no SVM store record)
+	// register its PQC key with MsgRegisterSVMPQCKey: the record is created on
+	// first registration, still only for the sender's own canonical address,
+	// and the key length is always checked.
+	FeatureSVMPQCKeyForWallets = "svm-pqc-key-for-wallets"
+	// FeatureSVMCreateAccountOwnerWritable refuses MsgCreateAccount for an
+	// owner that could never write the account: only the token program or a
+	// deployed (executable) program may own it. Before it the sender could
+	// lock its own lamports in an account owned by ATA, Memo, System or any
+	// address that is not a program.
+	FeatureSVMCreateAccountOwnerWritable = "svm-create-account-owner-writable"
 )
+
+// CustodyWindowBlocks is the window over which svm-custody-liability-window
+// limits the net growth of the SVM liability to max_custody_uqor.
+const CustodyWindowBlocks int64 = 3600
 
 // V328SVMAuthzFeatures are the v3.2.8 SVM authorization switches.
 var V328SVMAuthzFeatures = []string{
@@ -180,4 +244,12 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMCreateAccountOwnerChecked,
 	FeatureSVMNoStrandedZeroedData,
 	FeatureSVMRelayedChainBound,
+	FeatureSVMCustodyLiabilityWindow,
+	FeatureSVMRelayedProgramScope,
+	FeatureSVMNoCreditCustodyOrProgram,
+	FeatureSVMCPICallerRules,
+	FeatureSVMCPIComposable,
+	FeatureSVMSystemWithSeed,
+	FeatureSVMPQCKeyForWallets,
+	FeatureSVMCreateAccountOwnerWritable,
 }

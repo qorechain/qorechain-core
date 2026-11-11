@@ -62,6 +62,9 @@ const (
 	RuntimeFlagCPICalleeRules   uint64 = 1 << 12 // svm-cpi-callee-rules
 	RuntimeFlagATAPrefunded     uint64 = 1 << 13 // svm-ata-prefunded-create
 	RuntimeFlagTokenCloseFrozen uint64 = 1 << 14 // svm-token-close-frozen-refused
+	RuntimeFlagCPICallerRules   uint64 = 1 << 15 // svm-cpi-caller-rules
+	RuntimeFlagCPIComposable    uint64 = 1 << 16 // svm-cpi-composable
+	RuntimeFlagSystemSeedBase   uint64 = 1 << 17 // svm-system-with-seed
 )
 
 // RuntimeSysvars are the consensus values of the Clock and Rent sysvars handed

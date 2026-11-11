@@ -26,6 +26,7 @@ func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan,
 		return fromVM, err
 	}
 	app.upgradeV3_2_8SVMZeroLamportReport(sdkCtx)
+	app.upgradeV3_2_8SVMCustodyLiability(sdkCtx)
 	return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
 }
 
@@ -96,4 +97,22 @@ func (app *QoreChainApp) upgradeV3_2_8SVMLaneGoverned(ctx sdk.Context) error {
 		return err
 	}
 	return app.PQCKeeper.EnableProtocolFeature(ctx, pqctypes.FeatureSVMLaneGoverned)
+}
+
+// svmCustodyLiabilityInit is implemented by the full SVM keeper.
+type svmCustodyLiabilityInit interface {
+	InitCustodyLiabilityV328(ctx sdk.Context)
+}
+
+// upgradeV3_2_8SVMCustodyLiability starts the custody liability accounting of
+// svm-custody-liability-window from the store as it stands after the other
+// SVM steps of this handler, so the cap reads what the SVM owes from the first
+// block. A module balance above the cap (faucet pre-funding, donations) is not
+// a liability and blocks nothing.
+func (app *QoreChainApp) upgradeV3_2_8SVMCustodyLiability(ctx sdk.Context) {
+	l, ok := app.SVMKeeper.(svmCustodyLiabilityInit)
+	if !ok || !app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureSVMCustodyLiabilityWindow) {
+		return
+	}
+	l.InitCustodyLiabilityV328(ctx)
 }

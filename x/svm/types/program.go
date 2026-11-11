@@ -22,4 +22,11 @@ type ExecutionResult struct {
 	// derived them from the program id it holds (svm-cpi-host-privileges).
 	// Empty without that switch. Not part of any encoded output.
 	PDASigners [][32]byte `json:"-"`
+	// Attested is true when the runtime reported the attestation of
+	// svm-cpi-composable: InvokedPrograms (every program that ran, the
+	// top-level one first) and PDAPairs ({program, pda} for every PDA a program
+	// signed for), both from host memory. Not part of any encoded output.
+	Attested        bool          `json:"-"`
+	InvokedPrograms [][32]byte    `json:"-"`
+	PDAPairs        [][2][32]byte `json:"-"`
 }
