@@ -291,9 +291,10 @@ From v3.2.8 three more rules apply to every caller, not only to window-bound acc
   accepts an empty input). bech32 accepts at most 1 KiB of input and strings of at most 90
   characters; `aiRiskScore` at most twice the largest contract init code (96 KiB). `pqcVerify` is not
   size-capped: it carries whole messages and charges per byte.
-- **EVM gas per Cosmos transaction** (`evm-tx-total-gas-cap`): every EVM run the messages of one
-  Cosmos transaction make (a cross-VM call, an abstract-account execution, an ERC-20 conversion)
-  shares one budget, the same transaction gas cap.
+- **EVM gas per Cosmos message** (`evm-tx-total-gas-cap`): every EVM run one top-level message of a
+  Cosmos transaction makes (a cross-VM call, an abstract-account execution, an ERC-20 conversion, the
+  ERC-20 transfer of an incoming IBC packet; a `MsgRecvPacket` carries one packet) shares one budget,
+  the same transaction gas cap, counted on the gas each run used before refunds.
 - **Reading the limits:** `GET /qorechain/pqc/v1/evm_limits` (gRPC `EVMLimitsQuery/EVMLimits`) returns
   what governance set and the values in force; they are part of the module's genesis export.
 - **View calls** (`evm-precompile-static-readonly`): a stateful precompile reached from inside a

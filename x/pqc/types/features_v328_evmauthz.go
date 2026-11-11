@@ -265,12 +265,13 @@ const (
 	// selector.
 	FeatureEVMPrecompileInputPriced = "evm-precompile-input-priced"
 
-	// FeatureEVMTxTotalGasCap bounds the EVM gas one Cosmos transaction may
-	// use across every EVM run its messages make (a cross-VM call, an
-	// abstract-account execution, an ERC-20 conversion, any module's EVM
-	// run) by the same transaction gas cap as an EVM transaction (EVMLimits):
-	// each run may ask for no more than is left, and what it uses is taken
-	// from the transaction's budget.
+	// FeatureEVMTxTotalGasCap bounds the EVM gas each top-level message of a
+	// Cosmos transaction may use across every EVM run it makes (a cross-VM
+	// call, an abstract-account execution, an ERC-20 conversion, an IBC
+	// packet's ERC-20 transfer: a MsgRecvPacket is one packet, any module's
+	// EVM run) by the same transaction gas cap as an EVM transaction
+	// (EVMLimits): each run may ask for no more than is left, and what it
+	// used before refunds is taken from the message's budget.
 	FeatureEVMTxTotalGasCap = "evm-tx-total-gas-cap"
 )
 
