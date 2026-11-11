@@ -74,6 +74,7 @@ const (
 	RuntimeFlagResultBounded        uint64 = 1 << 24 // svm-result-buffer-bounded
 	RuntimeFlagSeedBases            uint64 = 1 << 25 // svm-relayed-seed-lock-canonical-base
 	RuntimeFlagRegistrySharedCharge uint64 = 1 << 26 // svm-cpi-registry-shared-charge
+	RuntimeFlagSystemOwnerChecks    uint64 = 1 << 27 // svm-system-owner-checks
 )
 
 // RuntimeSysvars are the consensus values of the Clock and Rent sysvars handed

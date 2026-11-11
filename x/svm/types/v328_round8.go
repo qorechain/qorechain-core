@@ -65,7 +65,8 @@ const AllRuntimeFlags = RuntimeFlagByteMetering | RuntimeFlagFullResult | Runtim
 	RuntimeFlagCPICallerRules | RuntimeFlagCPIComposable | RuntimeFlagSystemSeedBase |
 	RuntimeFlagPDASigningMeter | RuntimeFlagReentrancyGuard | RuntimeFlagATAPayerSystem |
 	RuntimeFlagResultSizeExact | RuntimeFlagSystemSeedCPI | RuntimeFlagNestedAttrib |
-	RuntimeFlagResultBounded | RuntimeFlagSeedBases | RuntimeFlagRegistrySharedCharge
+	RuntimeFlagResultBounded | RuntimeFlagSeedBases | RuntimeFlagRegistrySharedCharge |
+	RuntimeFlagSystemOwnerChecks
 
 // FlagReporter is a runtime that reports the v3 flags it knows.
 type FlagReporter interface {

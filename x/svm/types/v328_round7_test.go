@@ -84,8 +84,8 @@ func TestParamsHardCeilingValidation(t *testing.T) {
 }
 
 func TestAllRuntimeFlags(t *testing.T) {
-	if AllRuntimeFlags != 1<<27-1 {
-		t.Fatalf("AllRuntimeFlags %#x does not name every flag 1<<0..1<<26", uint64(AllRuntimeFlags))
+	if AllRuntimeFlags != 1<<28-1 {
+		t.Fatalf("AllRuntimeFlags %#x does not name every flag 1<<0..1<<27", uint64(AllRuntimeFlags))
 	}
 	if err := CheckRuntimeFlags(AllRuntimeFlags); err != nil {
 		t.Fatal(err)

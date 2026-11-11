@@ -451,6 +451,13 @@ const (
 	// current custody window, and emits svm_custody_growth_alarm when the
 	// window growth exceeds max_custody_uqor.
 	FeatureSVMCustodyGrowthSignal = "svm-custody-growth-signal"
+	// FeatureSVMSystemOwnerChecks makes the native System program apply
+	// Solana's own checks to the account it debits, assigns or allocates
+	// (runtime flag 1<<27): Transfer from a System-owned account without data,
+	// Assign of a System-owned account whose data is all zero (or already the
+	// new owner's, a no-op), Allocate of a System-owned account. Defence in
+	// depth: the keeper already refuses every such change it would not allow.
+	FeatureSVMSystemOwnerChecks = "svm-system-owner-checks"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -527,4 +534,5 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMLibraryFlagsChecked,
 	FeatureSVMAccountExcessAlarmOnly,
 	FeatureSVMCustodyGrowthSignal,
+	FeatureSVMSystemOwnerChecks,
 }
