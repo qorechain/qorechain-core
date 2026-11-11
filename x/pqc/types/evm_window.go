@@ -66,6 +66,23 @@ type EVMAuthWindow struct {
 	// and admits exactly what it always did.
 	NativeOnly     bool     `json:"native_only,omitempty"`
 	AllowedTargets []string `json:"allowed_targets,omitempty"`
+	// Validators names the contracts whose check of the account's signature
+	// counts for its actions (FeatureEVMWindowValidators). Optional, omitted
+	// when empty; it does not narrow the scope.
+	Validators []string `json:"validators,omitempty"`
+}
+
+// NamesValidator reports whether the window names a as a validator of the
+// account's signature: listed in validators or in allowed_targets.
+func (w EVMAuthWindow) NamesValidator(a common.Address) bool {
+	for _, l := range [][]string{w.Validators, w.AllowedTargets} {
+		for _, t := range l {
+			if common.HexToAddress(t) == a {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // WHY A SCOPE. The value bound counts native QOR only: the value a transaction
@@ -235,6 +252,20 @@ func (m MsgOpenEVMWindow) Validate() error {
 			return fmt.Errorf("allowed_targets lists %s more than once", a.Hex())
 		}
 		seen[a] = true
+	}
+	if len(m.Validators) > MaxEVMWindowTargets {
+		return fmt.Errorf("validators lists %d addresses, the maximum is %d", len(m.Validators), MaxEVMWindowTargets)
+	}
+	seenV := make(map[common.Address]bool, len(m.Validators))
+	for _, t := range m.Validators {
+		a, err := ParseDelegate(t)
+		if err != nil {
+			return fmt.Errorf("validators: %w", err)
+		}
+		if seenV[a] {
+			return fmt.Errorf("validators lists %s more than once", a.Hex())
+		}
+		seenV[a] = true
 	}
 	return nil
 }

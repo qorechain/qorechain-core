@@ -70,6 +70,15 @@ the account's funds (staking 0x...0800, distribution 0x...0801, ics20 0x...0802,
 gov 0x...0805) are reachable only through a window whose --allowed-targets
 lists them; the QOR they move is charged to the window's value.
 
+From v3.2.8 (evm-window-validators), for an account delegated to a smart
+wallet (EIP-7702):
+
+  --validators         the contracts whose check of the account's signature
+                       counts for its actions: a validator module the wallet
+                       STATICCALLs, or an ERC-4337 entry point
+                       (comma-separated 0x addresses); it does not narrow
+                       where the account's transactions go
+
 Opening replaces any existing window. Close one early with close-evm-window.`,
 		Example: `  qorechaind tx pqc open-evm-window 7200 20 1000qor --from me --generate-only > w.json
   qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id qorechain-vladi
@@ -105,6 +114,11 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 				return err
 			}
 
+			validators, err := cmd.Flags().GetStringSlice(flagValidators)
+			if err != nil {
+				return err
+			}
+
 			msg := &types.MsgOpenEVMWindow{
 				Sender:         clientCtx.GetFromAddress().String(),
 				Blocks:         blocks,
@@ -112,6 +126,7 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 				MaxValue:       maxValue,
 				NativeOnly:     nativeOnly,
 				AllowedTargets: targets,
+				Validators:     validators,
 			}
 			// Fail here rather than on chain: the bounds are a security parameter
 			// and a refusal should carry the reason, not a gas bill.
@@ -123,6 +138,7 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 	}
 	cmd.Flags().Bool(flagNativeOnly, false, "admit plain native QOR transfers only")
 	cmd.Flags().StringSlice(flagAllowedTargets, nil, "admit only these recipients (comma-separated 0x addresses)")
+	cmd.Flags().StringSlice(flagValidators, nil, "contracts whose check of the account's signature counts (comma-separated 0x addresses)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
@@ -134,6 +150,7 @@ var defaultEVMWindowArgs = []string{"3600", "10", "25qor"}
 const (
 	flagNativeOnly     = "native-only"
 	flagAllowedTargets = "allowed-targets"
+	flagValidators     = "validators"
 )
 
 // GetCmdCloseEVMWindow returns the command that revokes the window immediately.

@@ -157,6 +157,92 @@ qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id $QCHAIN 
 
 The standard precompiles are inactive on both networks until governance activates them.
 
+## Delegated accounts, signatures and allowances (from v3.2.8)
+
+- **Decided when the account acts** (`evm-delegated-actor-in-frame`). An EIP-7702 delegated account
+  other than the sender needs a usable post-quantum key and a live window at the moment its code
+  makes a CALL to code or a stateful precompile, creates a contract, sends QOR (a CALL with value, a
+  SELFDESTRUCT) or is debited by a precompile. Without one only that call fails, as a failed call
+  on Ethereum: the code that called the account sees the failure and carries on, so a payment to a
+  delegated account can no longer make the payer's whole transaction revert. A STATICCALL, a
+  DELEGATECALL and a CALLCODE are not actions in themselves.
+- **What a delegated account is charged** (`evm-delegated-actor-charge-on-cost`). In a transaction it
+  did not send, its actions are always checked (key, live window, scope), but it is charged window
+  transactions only for what the transaction costs it and it authorised: one per action its code
+  takes after its own code had its signature accepted (a wallet executing a signed batch, checking
+  the signature itself or through a proxy implementation or library it DELEGATECALLs; through a
+  validator module it STATICCALLs, when the window names that module; a wallet that validates and
+  executes in separate calls, ERC-4337, when the window names the entry point; an action beyond
+  what the window has left fails), and at least one when it lost QOR or granted a native
+  allowance, plus the QOR it lost. A stranger calling its code uses nothing, even after replaying
+  an old signature of it in a check of its own (by CALL or STATICCALL), in a read-only call the
+  account's code makes to the stranger, or in a callback.
+- **Validators** (`evm-window-validators`, `--validators a,b,...`, at most 16). The contracts whose
+  check of the account's signature counts for its actions: a validator module the wallet
+  STATICCALLs, or the ERC-4337 entry point that calls the wallet. `--allowed-targets` counts the
+  same way. Validators do not narrow where the account's transactions go.
+- **Value is counted gross for module payouts.** QOR a precompile pays the account during the
+  transaction (a staking reward claim, a module payout) does not offset what it sends; QOR it
+  receives from the transaction's own EVM calls does (a payment it forwards).
+- **Lasting authority changes** (`evm-precompile-authority-refused`). Setting the distribution
+  withdraw address, and creating or editing a validator, are refused through the EVM window
+  whatever it lists; send them as post-quantum signed Cosmos transactions.
+- **Simulations match.** `eth_call` and `eth_estimateGas` run the same in-frame rules and the
+  settlement's decision (node-local; nothing is recorded), so a preview fails where the
+  transaction would.
+
+**Known limit: verifiers without a nonce.** A wallet whose own public multicall runs its
+signature check without a nonce and then a public action, in one call, lets a stranger replay an
+old public signature and have that action counted against the window's transactions (never its
+value bound). Wallet verifiers must consume a nonce; this is the wallet's responsibility.
+
+**Known limit: what the transaction count does not bound.** The count applies only to the
+designs above. Actions taken under a signature checked by a validator module the wallet reaches
+with CALL (ERC-7579 modules), by a trusted forwarder (ERC-2771), or by the wallet's own
+arithmetic are checked (live window, scope) but not counted; at least one transaction is charged
+when native QOR is lost, and the value bound always holds. For such wallets name the validators
+you trust (`--validators`), or open scoped (`--allowed-targets`) short windows: the scope, not
+the count, is what bounds tokens.
+
+**Known limit: only `ecrecover` is seen.** The window gates signatures checked through the
+ecrecover precompile (`0x01`). A wallet or contract that verifies secp256k1 in its own code, or
+uses another scheme (P-256 at `0x100`, any other), is outside what the chain can tie to the
+account: such signatures are not refused without a window and their actions are not counted.
+Whoever chooses such a contract (a token issuer, a wallet) chooses that trust; the precompile
+path, which every standard library uses, is covered. No standard or QoreChain precompile verifies
+secp256k1 signatures natively, so there is no second precompile path.
+
+**Known limit: forwarder and session-key wallets.** The transaction count bounds a holder of the
+classical key only for wallets that verify the account's signature in the account's own frame (or
+in a validator it STATICCALLs). A wallet that trusts a forwarder (ERC-2771 meta-transactions:
+the forwarder verifies and then calls the account), or acts on an approval or session key stored
+earlier, takes actions the chain cannot tie to a signature; they are checked (live window, scope,
+value bound) but not counted. For an account delegated to such a wallet, open scoped windows
+(`--allowed-targets`) with short expiries.
+- **Scope applies to the account's own code** (`evm-delegated-actor-scope`). `--native-only` admits
+  no call to code and no creation by the account's delegated code; `--allowed-targets` admits calls
+  to the listed addresses only. This also holds for the sender's own delegated code.
+- **Signatures** (`evm-ecrecover-window`). When a contract verifies a signature with the ecrecover
+  precompile (`0x01`: EIP-2612 permits, Permit2, signed orders, meta-transactions) and the signer
+  holds a usable post-quantum key, the signature counts only inside the signer's live window. It is
+  never charged to the window (a signature is public once used; a charge would let anyone use the
+  window up by replaying it). `--native-only` admits no signature for another contract;
+  `--allowed-targets` must list the contract that verifies it, in the account's own transactions
+  too. A delegated wallet checking its own signature, the sender's own signature under an unscoped
+  window, and every account with no post-quantum record recover as always. An account whose record
+  authorises nothing (empty, classical-only, degenerate) is treated as a key without a window: its
+  signature is refused until it repairs the record and opens a window. Queries and gas
+  estimates are not affected. Open a window before signing a permit, as before sending a
+  transaction.
+- **Native-QOR allowances** (`evm-native-allowance-window`). If a token pair for native QOR is ever
+  registered, an approve that raises an allowance counts the increase against the owner's window
+  (an amount no window can hold, such as `approve(max)`, fails the approve). Spending it later with
+  `transferFrom` is not charged again, and the allowance stays usable after the owner's window
+  expires, as an ERC-20 allowance does.
+- **Usable key** (`evm-window-usable-key`). A window works only while the key is usable: not empty,
+  classical-only or degenerate, and its algorithm not disabled by governance.
+
+
 ## What is outside the window
 
 The window governs the EVM lane only, that is transactions signed with the classical key alone. These
@@ -181,6 +267,6 @@ authorities.
 | `no open EVM authorisation window` | 26 | no window, no registered key, or the window expired |
 | `EVM authorisation window exhausted` | 27 | a bound is used up, or the transaction is outside the window's scope, including a value-moving precompile the window does not list |
 | `invalid EVM authorisation window` | 28 | an open request outside the limits |
-| `delegated account has no window covering this action` | 62 | the settlement refused: the sender moved more than its window covers, or a delegated account acted without a window |
+| `delegated account has no window covering this action` | 62 | the settlement refused: the sender moved more than its window covers, or a delegated account acted without a window (from v3.2.8 the same rule fails only the offending call, in frame) |
 | `<method> is disabled: the circuit breaker has tripped <message>` | revert | a standard precompile method whose message is tripped |
 | `<method>: account ... has no open EVM authorisation window that lists 0x...` | revert | a value-moving precompile reached through code, for an account whose window does not list it |

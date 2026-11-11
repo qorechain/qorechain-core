@@ -13,6 +13,14 @@ import (
 
 // upgradeV3_2_8 is the v3.2.8 release handler. It runs once, at the plan height,
 // on every node and enables the release's switches.
+//
+// Step order: the release features are enabled first, because later steps
+// check them (the SVM zero-lamport report and the custody liability start).
+// Then the params writes: the SVM lane params, the crossvm bridge target pins,
+// and the removal of consent grants inside authz. The SVM store steps follow:
+// bytecode accounts move to the loader, zero-lamport accounts are reported,
+// and the custody liability is started last, from the store as the earlier
+// SVM steps leave it.
 func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)
 	for _, f := range pqctypes.ReleaseV3_2_8ProtocolFeatures {
@@ -24,6 +32,9 @@ func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan,
 		return fromVM, err
 	}
 	if err := app.upgradeV3_2_8PinBridgeTargets(sdkCtx); err != nil {
+		return fromVM, err
+	}
+	if err := app.upgradeV3_2_8RemoveConsentGrants(sdkCtx); err != nil {
 		return fromVM, err
 	}
 	return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
