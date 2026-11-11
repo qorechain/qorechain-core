@@ -185,7 +185,7 @@ func (f *Filter) WithCompiledSizeCharge(on func(sdk.Context) bool) *Filter {
 const (
 	LoadUnitsBase            = 1_000
 	LoadCompiledBytesPerUnit = 550 // 450 real compiled bytes: real is at most 0.81 of the estimate
-	LoadGasPerUnit           = 18
+	LoadGasPerUnit           = 18  // at least 1: see gas_per_unit.go
 )
 
 // LoadUnits is what loading one unpinned code of the given conservative

@@ -351,7 +351,7 @@ const (
 	CallSetupUnitsBase           = 350
 	CallSetupUnitsPerPage        = 150
 	CallSetupUnitsPerDataSegment = 9
-	CallSetupGasPerUnit          = 1
+	CallSetupGasPerUnit          = 1 // at least 1: see gas_per_unit.go
 )
 
 // CallSetupUnits is what setting up one call of the module costs, in budget

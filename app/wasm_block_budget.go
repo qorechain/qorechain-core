@@ -285,6 +285,10 @@ func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed, gasExternal, limit uint
 // 1,048,576, of the default pool of 1,125,000.
 const UploadBudgetUnitsPerByte = 1
 
+// An upload unit costs at least one gas (wasmfilter/gas_per_unit.go): the
+// build fails if UploadBudgetUnitsPerByte outgrows the per-byte upload gas.
+const _ = uint64(wasmfilter.CompileGasPerByte + wasmfilter.UploadStorageGasPerByte + wasmfilter.UploadInspectGasPerByte - UploadBudgetUnitsPerByte)
+
 // ChargeUpload takes compiling a module of the given upload units
 // (wasmfilter: its bytes, or its compiled size over
 // CompiledBytesPerUploadUnit) from the block's upload pool (a call outside a
