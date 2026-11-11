@@ -38,7 +38,8 @@ func (app *QoreChainApp) wasmCodeFilter() *wasmfilter.Filter {
 			WithDeserCostScale(app.wasmGasRegister().deserCostScale).
 			WithUploadBounds(app.featureSwitch(pqctypes.FeatureWasmUploadBounds), app.wasmUploadPermitted).
 			WithLoadPricing(app.featureSwitch(pqctypes.FeatureWasmCodeLoadPriced), app.wasmCodePinned).
-			WithCompiledSizeCharge(app.featureSwitch(pqctypes.FeatureWasmUploadCompiledSize))
+			WithCompiledSizeCharge(app.featureSwitch(pqctypes.FeatureWasmUploadCompiledSize)).
+			WithShapeBounds(app.featureSwitch(pqctypes.FeatureWasmModuleShapeBounds))
 	}
 	return app.codeFilter
 }

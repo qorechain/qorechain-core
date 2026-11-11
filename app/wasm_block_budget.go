@@ -89,9 +89,10 @@ type blockWasmBudget struct {
 	// its memory cache size: queries of them load nothing.
 	recent recentLoads
 	// loaded is the set of codes whose load the block has charged, in
-	// block execution order (reset with the block); loadedBytes their
-	// estimated compiled size together.
-	loaded      map[string]struct{}
+	// block execution order (reset with the block), with the number of
+	// repeated calls each has had since; loadedBytes their estimated
+	// compiled size together.
+	loaded      map[string]uint32
 	loadedBytes uint64
 }
 
@@ -140,7 +141,7 @@ func (b *blockWasmBudget) reset(height int64, on bool, total uint64, reserveBps,
 	b.txCap = bpsOf(total, shareBps)
 	b.tx, b.txUsed, b.nextToken = wasmTxKey{}, 0, 0
 	b.payers = map[string]uint64{}
-	b.loaded, b.loadedBytes = map[string]struct{}{}, 0
+	b.loaded, b.loadedBytes = map[string]uint32{}, 0
 }
 
 func (b *blockWasmBudget) counts(ctx sdk.Context) bool {
@@ -468,23 +469,34 @@ const QueryLoadUnitsPerSecond = 1_000_000
 // price in force on ctx's meter. The gas is taken first: a call that cannot
 // pay it fails before the budget or the set of loaded codes is touched.
 //
-// In block execution a code's load is charged on its first call in the
-// block only, while the block's distinct loads stay within what a node's
-// memory cache holds (FreeRepeatLoadBytes); past that every call is charged
-// again, since a repeat may load again. Simulation and CheckTx always
-// charge, as for a first call, and mark nothing. A query served by the node
-// pays only for a code that is not hot (loaded in this block or recently on
-// this node), and such loads share a node-local allowance per second.
+// In block execution a code's load is charged in full on its first call in
+// the block. While the block's distinct loads stay within what a node's
+// memory cache holds (FreeRepeatLoadBytes), its next FreeRepeatLoadsPerBlock
+// calls pay nothing and every later one pays RepeatLoadFraction of the
+// load: queries and simulations served beside the block share the node's
+// cache and can evict a code between two calls, so a repeat may load again,
+// and the fraction bounds that. Past FreeRepeatLoadBytes every call is
+// charged in full. The count is the block's own (block execution order,
+// reset every block), never the node's cache state. Simulation and CheckTx
+// always charge, as for a first call, and mark nothing. A query served by
+// the node pays only for a code that is not hot (loaded in this block or
+// recently on this node), and such loads share a node-local allowance per
+// second.
 func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, checksum []byte, units, gas, compiled uint64) error {
 	key := string(checksum)
 	b.mu.Lock()
 	counts := b.counts(ctx)
 	query := !counts && ctx.IsCheckTx() && len(ctx.TxBytes()) == 0 && ctx.ExecMode() == sdk.ExecModeCheck
-	_, seen := b.loaded[key]
+	repeats, seen := b.loaded[key]
 	if counts && seen && b.loadedBytes <= FreeRepeatLoadBytes {
+		repeats++
+		b.loaded[key] = repeats
 		b.recent.touch(key, compiled)
-		b.mu.Unlock()
-		return nil
+		if repeats <= FreeRepeatLoadsPerBlock {
+			b.mu.Unlock()
+			return nil
+		}
+		units, gas = repeatLoadShare(units), repeatLoadShare(gas)
 	}
 	if query && (seen || b.recent.has(key)) {
 		b.recent.touch(key, compiled)
@@ -529,6 +541,19 @@ func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, checksum []byte, units, g
 	return b.takeSetup(ctx, key, saturatingVMGas(units, base), compiled)
 }
 
+// FreeRepeatLoadsPerBlock is how many calls of a code after its first in a
+// block load nothing; RepeatLoadFraction is the share of the load every
+// later call in the block pays (wasm-code-load-priced).
+const (
+	FreeRepeatLoadsPerBlock = 8
+	RepeatLoadFraction      = 8 // one eighth
+)
+
+// repeatLoadShare is a repeated call's share of a load cost, at least 1.
+func repeatLoadShare(v uint64) uint64 {
+	return max(v/RepeatLoadFraction, min64(v, 1))
+}
+
 // takeSetup takes a charged load's VM gas from the block's budget and marks
 // the code loaded for the rest of the block.
 func (b *blockWasmBudget) takeSetup(ctx sdk.Context, key string, vm, compiled uint64) error {
@@ -566,7 +591,7 @@ func (b *blockWasmBudget) takeSetup(ctx sdk.Context, key string, vm, compiled ui
 	// Charged: the load happens (whether the transaction then succeeds or
 	// not), so the code counts as loaded for the rest of the block.
 	if _, seen := b.loaded[key]; !seen && b.loaded != nil {
-		b.loaded[key] = struct{}{}
+		b.loaded[key] = 0
 		b.loadedBytes += min64(compiled, math.MaxUint64-b.loadedBytes)
 	}
 	b.recent.touch(key, compiled)

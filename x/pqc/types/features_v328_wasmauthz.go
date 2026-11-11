@@ -205,16 +205,36 @@ const (
 	FeatureCrossVMAsyncEscrow = "crossvm-async-escrow"
 
 	// FeatureWasmCodeLoadPriced prices loading code: every call to a code
-	// that is not pinned takes wasmfilter.LoadUnits (from its size and
-	// function count) from the block wasm budget and the matching SDK gas at
-	// the price in force, before the call; pinned codes are exempt.
+	// that is not pinned takes wasmfilter.LoadUnits (from its conservative
+	// compiled size) from the block wasm budget and the matching SDK gas at
+	// the price in force, before the call; pinned codes are exempt. In block
+	// execution a code's first call in the block pays the whole load, its
+	// next eight calls nothing and every later call in the
+	// block an eighth of it (the code may have been evicted from a node's
+	// memory cache in between by queries or simulations).
 	FeatureWasmCodeLoadPriced = "wasm-code-load-priced"
 
 	// FeatureWasmUploadCompiledSize refuses uploads of more than 4,096
-	// functions (code already stored is never refused for it) and charges
-	// an upload 2 gas per byte of its estimated compiled size (16 per module
-	// byte plus 256 per function), which every node keeps on disk.
+	// functions (code already stored is never refused for it) or whose
+	// conservative compiled size (wasmfilter.ConservativeCompiledSize: per
+	// operator class, per operator run deep in the value stack, per
+	// function and signature) is over 32 MiB, and charges an upload 1 gas
+	// per byte of that size, which every node keeps on disk.
 	FeatureWasmUploadCompiledSize = "wasm-upload-compiled-size"
+
+	// FeatureWasmModuleShapeBounds bounds what the VM sets up again on every
+	// call. Every call instantiates the module afresh, and the work grows
+	// with its exports, globals, element segments (and the function
+	// indices they list) and data segments, which wasmd prices flat; a
+	// module with a hundred thousand of them made one call cost hundreds of
+	// times the CPU of an ordinary one for the same gas; loading and
+	// compiling grow with the declared function types. From this switch an
+	// upload with more than 512 function types, 128 exports, 256 globals,
+	// 16 element segments, 2,500 element entries or 1,024 data segments is
+	// refused (the largest release or test contract has 35, 24, 3, 1, 260
+	// and 149), and so is every call of stored code over them, as for code
+	// the filter refuses.
+	FeatureWasmModuleShapeBounds = "wasm-module-shape-bounds"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -241,4 +261,5 @@ var V328WasmAuthzFeatures = []string{
 	FeatureCrossVMAsyncEscrow,
 	FeatureWasmCodeLoadPriced,
 	FeatureWasmUploadCompiledSize,
+	FeatureWasmModuleShapeBounds,
 }

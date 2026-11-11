@@ -27,6 +27,7 @@ type Filter struct {
 	loadPriced      func(sdk.Context) bool
 	pinned          func(ctx sdk.Context, checksum []byte) bool
 	compiledSize    func(sdk.Context) bool
+	shape           func(sdk.Context) bool
 }
 
 // WithCompiledSizeCharge turns on, while on(ctx) is true and upload bounds
@@ -241,6 +242,20 @@ func (f *Filter) refusesFloats(ctx sdk.Context) bool {
 	return f.noFloat != nil && f.on(ctx) && f.noFloat(ctx)
 }
 
+// WithShapeBounds makes the filter also refuse, while both on(ctx) and
+// shape(ctx) are true, code over the module shape bounds (CheckShape):
+// storing it, and every call that would run it. shape must read consensus
+// state only and must not charge gas.
+func (f *Filter) WithShapeBounds(shape func(sdk.Context) bool) *Filter {
+	f.shape = shape
+	return f
+}
+
+// refusesShape reports whether the module shape bounds apply in ctx.
+func (f *Filter) refusesShape(ctx sdk.Context) bool {
+	return f.shape != nil && f.on(ctx) && f.shape(ctx)
+}
+
 // New returns a filter that refuses only while on(ctx) is true. on must read
 // consensus state only and must not charge gas.
 func New(on func(sdk.Context) bool) *Filter {
@@ -292,6 +307,9 @@ func (f *Filter) verdictFor(checksum []byte, code func() ([]byte, error)) (bool,
 	if v.Err == nil && st.FloatOps > 0 {
 		v.Floats = fmt.Errorf("%w: %d float operators", ErrFloatOpcode, st.FloatOps)
 	}
+	if v.Err == nil {
+		v.Shape = CheckShape(st)
+	}
 	f.verdicts.Put(checksum, v)
 	return true, v
 }
@@ -299,7 +317,8 @@ func (f *Filter) verdictFor(checksum []byte, code func() ([]byte, error)) (bool,
 // refuse decides one call. The switch is read only for a failing code, from the
 // sdk.Context wasmd hands the VM inside its querier. A failing code reached
 // without that context is refused: it cannot be shown that the switch is off.
-// Code with float operators fails only while the float switch is on too.
+// Code with float operators fails only while the float switch is on too, and
+// code over the module shape bounds only while their switch is on too.
 func (e *Engine) refuse(checksum wasmvm.Checksum, querier wasmvm.Querier) error {
 	known, v := e.verdict(checksum)
 	if !known {
@@ -307,14 +326,24 @@ func (e *Engine) refuse(checksum wasmvm.Checksum, querier wasmvm.Querier) error 
 	}
 	reason := v.Err
 	if reason == nil {
-		if v.Floats == nil || e.f.noFloat == nil {
-			return nil
+		for _, c := range []struct {
+			err error
+			set bool // the switch is wired at all
+			on  func(sdk.Context) bool
+		}{
+			{v.Floats, e.f.noFloat != nil, e.f.refusesFloats},
+			{v.Shape, e.f.shape != nil, e.f.refusesShape},
+		} {
+			if c.err == nil || !c.set {
+				continue
+			}
+			ctx, ok := contextOf(querier)
+			if ok && !c.on(ctx) {
+				continue
+			}
+			return errorsmod.Wrapf(ErrCodeRefused, "code %X: %v", []byte(checksum), c.err)
 		}
-		ctx, ok := contextOf(querier)
-		if ok && !e.f.refusesFloats(ctx) {
-			return nil
-		}
-		return errorsmod.Wrapf(ErrCodeRefused, "code %X: %v", []byte(checksum), v.Floats)
+		return nil
 	}
 	ctx, ok := contextOf(querier)
 	if ok && !e.f.on(ctx) {

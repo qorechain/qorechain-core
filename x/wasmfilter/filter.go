@@ -65,7 +65,16 @@ func CheckFloats(code []byte) error {
 const (
 	secCustom    = 0
 	secType      = 1
+	secImport    = 2
+	secFunction  = 3
+	secTable     = 4
+	secMemory    = 5
+	secGlobal    = 6
+	secExport    = 7
+	secStart     = 8
+	secElement   = 9
 	secCode      = 10
+	secData      = 11
 	secDataCount = 12
 
 	opBlock = 0x02
@@ -178,7 +187,35 @@ type Stats struct {
 	// BrTableTargets is the number of br_table targets (defaults
 	// included) in all bodies together.
 	BrTableTargets int
+
+	// The parts of a module the VM sets up again on every call (every
+	// call instantiates the module afresh): imports of any kind, tables,
+	// defined globals, exports, element segments and the function indices
+	// they list together, and data segments.
+	Imports      int
+	Tables       int
+	Globals      int
+	Exports      int
+	ElemSegments int
+	ElemEntries  int
+	DataSegments int
+	// Types is the number of declared function types and TypeParams their
+	// parameters together (the VM makes call trampolines per signature).
+	Types      int
+	TypeParams int
+	// DeepOps counts the operators walked with more than
+	// StackRegisterDepth values live on the value stack (for a call, below
+	// its arguments), DeepByClass by class: the compiler keeps the top of
+	// the value stack in registers, and past them every operand and
+	// result goes through memory, which makes several times the code.
+	DeepOps     int
+	DeepByClass [NumOpClasses]int
 }
+
+// StackRegisterDepth is the value-stack height up to which an operator is
+// taken to work on registers only (see Stats.DeepOps). Measured: x86-64
+// spills from 5 live values, arm64 progressively from about 9.
+const StackRegisterDepth = 3
 
 // OpClass groups operators by how much compiled code one of them makes.
 type OpClass int
@@ -259,6 +296,31 @@ func Inspect(code []byte) (Stats, error) {
 	return st, err
 }
 
+// modInfo is what the walk of the bodies needs from the sections before
+// them: the declared types and the type of every function (imported ones
+// first).
+type modInfo struct {
+	types     []funcType
+	funcs     []uint32
+	nImported int // imported functions (the first entries of funcs)
+}
+
+// funcSig is the signature of function idx, false when the index or its
+// type is unknown (the VM refuses such a module; the walk only estimates).
+func (m *modInfo) funcSig(idx uint32) (funcType, bool) {
+	if uint64(idx) >= uint64(len(m.funcs)) {
+		return funcType{}, false
+	}
+	return m.typeSig(m.funcs[idx])
+}
+
+func (m *modInfo) typeSig(t uint32) (funcType, bool) {
+	if uint64(t) >= uint64(len(m.types)) {
+		return funcType{}, false
+	}
+	return m.types[t], true
+}
+
 func check(code []byte, st *Stats) error {
 	if len(code) < 8 || string(code[:4]) != "\x00asm" {
 		return fmt.Errorf("%w: missing wasm header", ErrMalformed)
@@ -267,7 +329,7 @@ func check(code []byte, st *Stats) error {
 		return fmt.Errorf("%w: unsupported wasm version", ErrMalformed)
 	}
 	r := &reader{b: code, pos: 8}
-	var types []funcType
+	var m modInfo
 	sawType := false
 	for !r.eof() {
 		id, err := r.byte()
@@ -288,12 +350,119 @@ func check(code []byte, st *Stats) error {
 				return fmt.Errorf("%w: duplicate type section", ErrMalformed)
 			}
 			sawType = true
-			if types, err = parseTypes(body); err != nil {
+			if m.types, err = parseTypes(body); err != nil {
 				return err
 			}
-		case id == secCode:
-			if err := checkCode(body, types, st); err != nil {
+			if st != nil {
+				st.Types += len(m.types)
+				for _, t := range m.types {
+					st.TypeParams += int(t.params)
+				}
+			}
+		case id == secImport:
+			if err := parseImports(body, &m, st); err != nil {
 				return err
+			}
+		case id == secFunction:
+			if err := parseFunctions(body, &m); err != nil {
+				return err
+			}
+		case id == secTable:
+			n, err := parseVec(body, "table", func(r *reader) error {
+				return readTable(r)
+			})
+			if err != nil {
+				return err
+			}
+			if st != nil {
+				st.Tables += n
+			}
+		case id == secMemory:
+			if _, err := parseVec(body, "memory", readLimits); err != nil {
+				return err
+			}
+		case id == secGlobal:
+			n, err := parseVec(body, "global", func(r *reader) error {
+				if err := readGlobalType(r); err != nil {
+					return err
+				}
+				return readConstExpr(r)
+			})
+			if err != nil {
+				return err
+			}
+			if st != nil {
+				st.Globals += n
+			}
+		case id == secExport:
+			n, err := parseVec(body, "export", func(r *reader) error {
+				if err := readName(r); err != nil {
+					return err
+				}
+				kind, err := r.byte()
+				if err != nil || kind > 3 {
+					return ErrMalformed
+				}
+				_, err = r.u32()
+				return err
+			})
+			if err != nil {
+				return err
+			}
+			if st != nil {
+				st.Exports += n
+			}
+		case id == secStart:
+			sr := &reader{b: body}
+			if _, err := sr.u32(); err != nil || !sr.eof() {
+				return fmt.Errorf("%w: start section", ErrMalformed)
+			}
+		case id == secElement:
+			entries := 0
+			n, err := parseVec(body, "element", func(r *reader) error {
+				if err := readActiveSegmentHead(r, "element"); err != nil {
+					return err
+				}
+				cnt, err := r.u32()
+				if err != nil || uint64(cnt) > uint64(len(r.b)-r.pos) {
+					return ErrMalformed
+				}
+				for k := uint32(0); k < cnt; k++ {
+					if _, err := r.u32(); err != nil {
+						return err
+					}
+				}
+				entries += int(cnt)
+				return nil
+			})
+			if err != nil {
+				return err
+			}
+			if st != nil {
+				st.ElemSegments += n
+				st.ElemEntries += entries
+			}
+		case id == secCode:
+			if err := checkCode(body, &m, st); err != nil {
+				return err
+			}
+		case id == secData:
+			n, err := parseVec(body, "data", func(r *reader) error {
+				if err := readActiveSegmentHead(r, "data"); err != nil {
+					return err
+				}
+				sz, err := r.u32()
+				if err != nil {
+					return err
+				}
+				_, err = r.bytes(int(sz))
+				return err
+			})
+			if err != nil {
+				return err
+			}
+			if st != nil {
+				st.DataSegments += n
 			}
 		case id == secCustom:
 			if st != nil {
@@ -313,6 +482,182 @@ func check(code []byte, st *Stats) error {
 		}
 	}
 	return nil
+}
+
+// parseVec reads a section that is a vector of entries, each read by item,
+// and returns the entry count. The count must fit the section (every entry
+// is at least one byte) and the entries must fill it exactly.
+func parseVec(body []byte, what string, item func(r *reader) error) (int, error) {
+	r := &reader{b: body}
+	n, err := r.u32()
+	if err != nil || uint64(n) > uint64(len(body)) {
+		return 0, fmt.Errorf("%w: %s count", ErrMalformed, what)
+	}
+	for i := uint32(0); i < n; i++ {
+		if err := item(r); err != nil {
+			if errors.Is(err, ErrUnsupportedOpcode) {
+				return 0, fmt.Errorf("%s %d: %w", what, i, err)
+			}
+			return 0, fmt.Errorf("%w: %s %d", ErrMalformed, what, i)
+		}
+	}
+	if !r.eof() {
+		return 0, fmt.Errorf("%w: trailing bytes in %s section", ErrMalformed, what)
+	}
+	return int(n), nil
+}
+
+func readName(r *reader) error {
+	n, err := r.u32()
+	if err != nil {
+		return err
+	}
+	_, err = r.bytes(int(n))
+	return err
+}
+
+// readLimits reads table or memory limits: a minimum, or a minimum and a
+// maximum. Shared (threads) and 64-bit forms are outside the feature set.
+func readLimits(r *reader) error {
+	flag, err := r.byte()
+	if err != nil {
+		return err
+	}
+	if flag > 1 {
+		return fmt.Errorf("%w: limits form 0x%02x", ErrUnsupportedOpcode, flag)
+	}
+	if _, err := r.u32(); err != nil {
+		return err
+	}
+	if flag == 1 {
+		_, err = r.u32()
+	}
+	return err
+}
+
+// readTable reads a table type: funcref and limits.
+func readTable(r *reader) error {
+	t, err := r.byte()
+	if err != nil {
+		return err
+	}
+	if t != 0x70 {
+		return fmt.Errorf("%w: table element type 0x%02x", ErrUnsupportedOpcode, t)
+	}
+	return readLimits(r)
+}
+
+func readGlobalType(r *reader) error {
+	t, err := r.byte()
+	if err != nil {
+		return err
+	}
+	if !isNumType(t) {
+		return fmt.Errorf("%w: global type 0x%02x", ErrUnsupportedOpcode, t)
+	}
+	mut, err := r.byte()
+	if err != nil || mut > 1 {
+		return ErrMalformed
+	}
+	return nil
+}
+
+// readConstExpr reads an initializer: one constant or global.get, then end.
+func readConstExpr(r *reader) error {
+	op, err := r.byte()
+	if err != nil {
+		return err
+	}
+	switch op {
+	case 0x41:
+		_, err = r.signed(32, 5)
+	case 0x42:
+		_, err = r.signed(64, 10)
+	case 0x43:
+		_, err = r.bytes(4)
+	case 0x44:
+		_, err = r.bytes(8)
+	case 0x23:
+		_, err = r.u32()
+	default:
+		return fmt.Errorf("%w: initializer 0x%02x", ErrUnsupportedOpcode, op)
+	}
+	if err != nil {
+		return err
+	}
+	if end, err := r.byte(); err != nil || end != opEnd {
+		return ErrMalformed
+	}
+	return nil
+}
+
+// readActiveSegmentHead reads the start of an element or data segment. The
+// feature set has no bulk memory or reference types, so only the active
+// form on table or memory 0 (flags 0) exists.
+func readActiveSegmentHead(r *reader, what string) error {
+	flags, err := r.u32()
+	if err != nil {
+		return err
+	}
+	if flags != 0 {
+		return fmt.Errorf("%w: %s segment form %d", ErrUnsupportedOpcode, what, flags)
+	}
+	return readConstExpr(r)
+}
+
+// parseImports reads the import section, recording the type of every
+// imported function (they come first in the function index space).
+func parseImports(body []byte, m *modInfo, st *Stats) error {
+	n, err := parseVec(body, "import", func(r *reader) error {
+		if err := readName(r); err != nil {
+			return err
+		}
+		if err := readName(r); err != nil {
+			return err
+		}
+		kind, err := r.byte()
+		if err != nil {
+			return err
+		}
+		switch kind {
+		case 0:
+			t, err := r.u32()
+			if err != nil {
+				return err
+			}
+			m.funcs = append(m.funcs, t)
+			return nil
+		case 1:
+			return readTable(r)
+		case 2:
+			return readLimits(r)
+		case 3:
+			return readGlobalType(r)
+		}
+		return ErrMalformed
+	})
+	if err != nil {
+		return err
+	}
+	m.nImported = len(m.funcs)
+	if st != nil {
+		st.Imports += n
+	}
+	return nil
+}
+
+// parseFunctions reads the function section: the type of every defined
+// function.
+func parseFunctions(body []byte, m *modInfo) error {
+	_, err := parseVec(body, "function", func(r *reader) error {
+		t, err := r.u32()
+		if err != nil {
+			return err
+		}
+		m.funcs = append(m.funcs, t)
+		return nil
+	})
+	return err
 }
 
 func parseTypes(body []byte) ([]funcType, error) {
@@ -364,7 +709,7 @@ func parseTypes(body []byte) ([]funcType, error) {
 	return types, nil
 }
 
-func checkCode(body []byte, types []funcType, st *Stats) error {
+func checkCode(body []byte, m *modInfo, st *Stats) error {
 	r := &reader{b: body}
 	n, err := r.u32()
 	if err != nil {
@@ -385,7 +730,7 @@ func checkCode(body []byte, types []funcType, st *Stats) error {
 		if st != nil {
 			st.Functions++
 		}
-		if err := checkBody(fb, types, st); err != nil {
+		if err := checkBody(fb, m, m.nImported+int(i), st); err != nil {
 			return fmt.Errorf("function body %d: %w", i, err)
 		}
 	}
@@ -399,9 +744,70 @@ type frame struct {
 	op      byte
 	paramIf bool // an if whose type-index signature has parameters
 	sawElse bool
+	// For the value-stack height: the height below the block (after its
+	// parameters are taken), its parameter and result counts.
+	base, params, results int
 }
 
-func checkBody(body []byte, types []funcType, st *Stats) error {
+// stackEffect is what a plain operator (no immediates that change it, no
+// control flow) takes from and puts on the value stack.
+func stackEffect(op byte) (pop, push int) {
+	switch {
+	case op == 0x01: // nop
+		return 0, 0
+	case op == 0x1A: // drop
+		return 1, 0
+	case op == 0x1B: // select
+		return 3, 1
+	case op == 0x20 || op == 0x23: // local.get, global.get
+		return 0, 1
+	case op == 0x21 || op == 0x24: // local.set, global.set
+		return 1, 0
+	case op == 0x22: // local.tee
+		return 1, 1
+	case op >= 0x28 && op <= 0x35: // loads
+		return 1, 1
+	case op >= 0x36 && op <= 0x3E: // stores
+		return 2, 0
+	case op == 0x3F: // memory.size
+		return 0, 1
+	case op == 0x40: // memory.grow
+		return 1, 1
+	case op >= 0x41 && op <= 0x44: // constants
+		return 0, 1
+	case op == 0x45 || op == 0x50: // eqz
+		return 1, 1
+	case op >= 0x46 && op <= 0x66: // comparisons
+		return 2, 1
+	case op >= 0x67 && op <= 0x69, op >= 0x79 && op <= 0x7B: // clz, ctz, popcnt
+		return 1, 1
+	case op >= 0x6A && op <= 0x78, op >= 0x7C && op <= 0x8A: // integer binary
+		return 2, 1
+	case op >= 0x8B && op <= 0x91, op >= 0x99 && op <= 0x9F: // float unary
+		return 1, 1
+	case op >= 0x92 && op <= 0x98, op >= 0xA0 && op <= 0xA6: // float binary
+		return 2, 1
+	case op >= 0xA7 && op <= 0xC4: // conversions, sign extension
+		return 1, 1
+	case op == 0xFC: // saturating truncations
+		return 1, 1
+	}
+	return 0, 0
+}
+
+// valueStack tracks the value-stack height of one body, for Stats.DeepOps.
+type valueStack struct {
+	h int
+}
+
+func (v *valueStack) pop(n, floor int) {
+	v.h -= n
+	if v.h < floor {
+		v.h = floor
+	}
+}
+
+func checkBody(body []byte, m *modInfo, fnIdx int, st *Stats) error {
 	r := &reader{b: body}
 	groups, err := r.u32()
 	if err != nil {
@@ -418,7 +824,9 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 	}
 
 	// The function body itself is the outermost frame.
-	stack := []frame{{op: opBlock}}
+	self, _ := m.funcSig(uint32(fnIdx))
+	stack := []frame{{op: opBlock, results: int(self.results)}}
+	var vs valueStack
 	var typed error // first type-index block seen; reported once the body is walked
 	for {
 		if r.eof() {
@@ -426,6 +834,8 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 		}
 		at := r.pos
 		op, _ := r.byte()
+		before := vs.h
+		live := -1 // values below the operands, for calls
 		if st != nil {
 			st.Ops++
 			st.ByClass[opClass(op)]++
@@ -438,42 +848,56 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 				st.MemoryOps++
 			}
 		}
+		top := &stack[len(stack)-1]
 		switch {
-		case op == 0x00 || op == 0x01 || op == 0x0F || op == 0x1A || op == 0x1B:
-			// unreachable, nop, return, drop, select
+		case op == 0x00 || op == 0x0F: // unreachable, return: the rest of the block is unreachable
+			vs.h = top.base
+		case op == 0x01 || op == 0x1A || op == 0x1B:
+			// nop, drop, select
+			pop, push := stackEffect(op)
+			vs.pop(pop, top.base)
+			vs.h += push
 		case op == opBlock || op == opLoop || op == opIf:
 			f := frame{op: op}
+			if op == opIf {
+				vs.pop(1, top.base)
+			}
 			idx, isIndex, err := readBlockType(r)
 			if err != nil {
 				return err
 			}
+			if r.b[r.pos-1] != 0x40 && !isIndex {
+				f.results = 1
+			}
 			if isIndex {
-				if uint64(idx) >= uint64(len(types)) {
+				if uint64(idx) >= uint64(len(m.types)) {
 					return fmt.Errorf("%w: block type index %d out of range", ErrMalformed, idx)
 				}
 				if st != nil {
 					st.TypedBlocks++
-					if types[idx].params > 0 {
+					if m.types[idx].params > 0 {
 						st.ParamBlocks++
 					}
 				}
 				if typed == nil {
 					typed = fmt.Errorf("%w at offset %d", ErrTypedBlock, at)
 				}
-				f.paramIf = op == opIf && types[idx].params > 0
+				f.paramIf = op == opIf && m.types[idx].params > 0
+				f.params, f.results = int(m.types[idx].params), int(m.types[idx].results)
 			}
+			f.base = max(vs.h-f.params, top.base)
 			stack = append(stack, f)
 		case op == opElse:
-			top := &stack[len(stack)-1]
 			if len(stack) == 1 || top.op != opIf || top.sawElse {
 				return fmt.Errorf("%w: else without if at offset %d", ErrMalformed, at)
 			}
 			top.sawElse = true
+			vs.h = top.base + top.params
 		case op == opEnd:
-			top := stack[len(stack)-1]
 			if top.paramIf && !top.sawElse {
 				return fmt.Errorf("%w at offset %d", ErrParamIfWithoutElse, at)
 			}
+			vs.h = top.base + top.results
 			stack = stack[:len(stack)-1]
 			if len(stack) == 0 {
 				if !r.eof() {
@@ -484,6 +908,11 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 		case op == 0x0C || op == 0x0D: // br, br_if
 			if _, err := r.u32(); err != nil {
 				return fmt.Errorf("%w: branch depth", ErrMalformed)
+			}
+			if op == 0x0C {
+				vs.h = top.base
+			} else {
+				vs.pop(1, top.base)
 			}
 		case op == 0x0E: // br_table
 			cnt, err := r.u32()
@@ -504,22 +933,36 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 					return fmt.Errorf("%w: br_table", ErrMalformed)
 				}
 			}
+			vs.h = top.base
 		case op == 0x10: // call
-			if _, err := r.u32(); err != nil {
+			fi, err := r.u32()
+			if err != nil {
 				return fmt.Errorf("%w: call", ErrMalformed)
 			}
+			sig, _ := m.funcSig(fi)
+			live = max(vs.h-int(sig.params), top.base)
+			vs.pop(int(sig.params), top.base)
+			vs.h += int(sig.results)
 		case op == 0x11: // call_indirect type, table
-			if _, err := r.u32(); err != nil {
+			ti, err := r.u32()
+			if err != nil {
 				return fmt.Errorf("%w: call_indirect", ErrMalformed)
 			}
 			tbl, err := r.u32()
 			if err != nil || tbl != 0 {
 				return fmt.Errorf("%w: call_indirect table at offset %d", ErrUnsupportedOpcode, at)
 			}
+			sig, _ := m.typeSig(ti)
+			live = max(vs.h-1-int(sig.params), top.base)
+			vs.pop(1+int(sig.params), top.base)
+			vs.h += int(sig.results)
 		case op >= 0x20 && op <= 0x24: // local.get/set/tee, global.get/set
 			if _, err := r.u32(); err != nil {
 				return fmt.Errorf("%w: variable index", ErrMalformed)
 			}
+			pop, push := stackEffect(op)
+			vs.pop(pop, top.base)
+			vs.h += push
 		case op >= 0x28 && op <= 0x3E: // loads and stores
 			align, err := r.u32()
 			if err != nil {
@@ -531,29 +974,42 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 			if _, err := r.u32(); err != nil {
 				return fmt.Errorf("%w: memarg", ErrMalformed)
 			}
+			pop, push := stackEffect(op)
+			vs.pop(pop, top.base)
+			vs.h += push
 		case op == 0x3F || op == 0x40: // memory.size, memory.grow
 			mem, err := r.u32()
 			if err != nil || mem != 0 {
 				return fmt.Errorf("%w: memory index at offset %d", ErrUnsupportedOpcode, at)
 			}
+			pop, push := stackEffect(op)
+			vs.pop(pop, top.base)
+			vs.h += push
 		case op == 0x41: // i32.const
 			if _, err := r.signed(32, 5); err != nil {
 				return fmt.Errorf("%w: i32.const", ErrMalformed)
 			}
+			vs.h++
 		case op == 0x42: // i64.const
 			if _, err := r.signed(64, 10); err != nil {
 				return fmt.Errorf("%w: i64.const", ErrMalformed)
 			}
+			vs.h++
 		case op == 0x43: // f32.const
 			if _, err := r.bytes(4); err != nil {
 				return fmt.Errorf("%w: f32.const", ErrMalformed)
 			}
+			vs.h++
 		case op == 0x44: // f64.const
 			if _, err := r.bytes(8); err != nil {
 				return fmt.Errorf("%w: f64.const", ErrMalformed)
 			}
+			vs.h++
 		case op >= 0x45 && op <= 0xC4:
 			// MVP numeric operators (0x45..0xBF) and sign extension (0xC0..0xC4).
+			pop, push := stackEffect(op)
+			vs.pop(pop, top.base)
+			vs.h += push
 		case op == 0xFC:
 			sub, err := r.u32()
 			if err != nil {
@@ -565,8 +1021,20 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 			if st != nil {
 				st.FloatOps++
 			}
+			vs.pop(1, top.base)
+			vs.h++
 		default:
 			return fmt.Errorf("%w: 0x%02x at offset %d", ErrUnsupportedOpcode, op, at)
+		}
+		if st != nil {
+			depth := max(before, vs.h)
+			if live >= 0 {
+				depth = live
+			}
+			if depth > StackRegisterDepth {
+				st.DeepOps++
+				st.DeepByClass[opClass(op)]++
+			}
 		}
 	}
 }

@@ -55,6 +55,20 @@ func ccModule(n int, locals []byte, body []byte) []byte {
 	return mod
 }
 
+// ccModuleTypes is ccModule with extra (unused) function types declared
+// after its own.
+func ccModuleTypes(extra [][]byte) []byte {
+	m := ccModule(0, nil, nil)
+	r := &reader{b: m, pos: 8}
+	_, _ = r.byte()
+	n, _ := r.u32()
+	typeEnd := r.pos + int(n)
+	types := [][]byte{{0x60, 1, 0x7f, 1, 0x7f}, {0x60, 1, 0x7f, 0}, {0x60, 0, 0}, {0x60, 3, 0x7f, 0x7f, 0x7f, 1, 0x7f}}
+	out := append([]byte{}, m[:8]...)
+	out = append(out, section(1, ccVec(append(types, extra...)...))...)
+	return append(out, m[typeEnd:]...)
+}
+
 func ccDir(root string) int64 {
 	var n int64
 	_ = filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
@@ -177,6 +191,57 @@ func TestConservativeCompiledSizeCoversCompiled(t *testing.T) {
 	}
 	for _, l := range []uint64{0, 25, 50, 100} {
 		cases[fmt.Sprintf("68 fns of %d locals", l)] = ccModule(68, loc(l, 0x7e), nil)
+	}
+	// Straight-line code that keeps many values on the value stack: past
+	// the registers every operand and result goes through memory, and a
+	// call saves every live value (round 13). Depth is the values kept
+	// below the chain.
+	deep := func(depth int, op []byte) []byte {
+		const fns, size = 16, 200 * 1024
+		b := ccRep(depth+1, 0x20, 0x00)
+		b = append(b, ccRep((size/fns-2*depth-24)/len(op), op...)...)
+		return ccModule(fns, loc(2, 0x7e), append(b, ccRep(depth+1, 0x1A)...))
+	}
+	for _, d := range []int{0, 3, 4, 32} {
+		cases[fmt.Sprintf("memory.size+grow;ext;add d%d", d)] = deep(d, []byte{0x3f, 0x00, 0x40, 0x00, 0xac, 0x7c})
+		cases[fmt.Sprintf("memory.size;drop d%d", d)] = deep(d, []byte{0x3f, 0x00, 0x1a})
+		cases[fmt.Sprintf("call d%d", d)] = deep(d, []byte{0x10, 0x02})
+		cases[fmt.Sprintf("call_indirect d%d", d)] = deep(d, []byte{0x41, 0x00, 0x11, 0x02, 0x00})
+		cases[fmt.Sprintf("loop d%d", d)] = deep(d, []byte{0x03, 0x40, 0x0b})
+		cases[fmt.Sprintf("if/else d%d", d)] = deep(d, []byte{0x41, 0x00, 0x04, 0x40, 0x05, 0x0b})
+		cases[fmt.Sprintf("block/br_if d%d", d)] = deep(d, []byte{0x02, 0x40, 0x41, 0x00, 0x0d, 0x00, 0x0b})
+		cases[fmt.Sprintf("i64.load offset d%d", d)] = deep(d, []byte{0xa7, 0x29, 0x03, 0xff, 0xff, 0xff, 0xff, 0x0f})
+		cases[fmt.Sprintf("i64.eqz;ext d%d", d)] = deep(d, []byte{0x50, 0xad})
+		cases[fmt.Sprintf("i64.extend32_s d%d", d)] = deep(d, []byte{0xc4})
+		cases[fmt.Sprintf("i64.clz d%d", d)] = deep(d, []byte{0x79})
+		cases[fmt.Sprintf("i64.rem_s d%d", d)] = deep(d, []byte{0x20, 0x01, 0x81})
+		cases[fmt.Sprintf("global.get/add d%d", d)] = deep(d, []byte{0x23, 0x00, 0xad, 0x7c})
+	}
+	// The review's accepted 790 KiB upload of this shape compiled to 44.5
+	// MB, 3.2 times the estimate then: now over the upload bound.
+	cases["memory.size+grow;ext;add d40 790 KiB"] = func() []byte {
+		b := ccRep(41, 0x20, 0x00)
+		b = append(b, ccRep((790*1024/64-120)/6, 0x3f, 0x00, 0x40, 0x00, 0xac, 0x7c)...)
+		return ccModule(64, loc(2, 0x7e), append(b, ccRep(41, 0x1A)...))
+	}()
+	// Many distinct signatures: the VM makes trampolines for each.
+	for _, np := range []int{4, 100} {
+		var types [][]byte
+		for k := 0; len(types)*(np+3) < 200*1024; k++ {
+			p := ccRep(np, 0x7e)
+			p[k%np], p[(k/np)%np], p[(k/(np*np))%np] = 0x7f, 0x7d, 0x7c
+			types = append(types, append(append([]byte{0x60}, uleb(uint64(np))...), append(p, 0x01, 0x7e)...))
+		}
+		cases[fmt.Sprintf("%d types of %d params", len(types), np)] = ccModuleTypes(types)
+	}
+	for name, code := range map[string][]byte{
+		"reflect_2_0": wasmtestdata.ReflectContractWasm(),
+		"reflect_1_1": wasmtestdata.MigrateReflectContractWasm(),
+		"cyberpunk":   wasmtestdata.CyberpunkContractWasm(),
+		"ibc_reflect": wasmtestdata.IBCReflectContractWasm(),
+		"burner":      wasmtestdata.BurnerContractWasm(),
+	} {
+		cases[name] = code
 	}
 	rel, _ := filepath.Glob(os.Getenv("QORE_HANDLER_ROOTS") + "/app/testdata/*.wasm.gz")
 	for _, f := range rel {

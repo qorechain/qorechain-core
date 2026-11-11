@@ -100,6 +100,11 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 	if s.f.refusesFloats(ctx) && insp.Stats.FloatOps > 0 {
 		return errorsmod.Wrapf(ErrCodeRefused, "%v: %d float operators", ErrFloatOpcode, insp.Stats.FloatOps)
 	}
+	if s.f.refusesShape(ctx) {
+		if err := CheckShape(insp.Stats); err != nil {
+			return errorsmod.Wrap(ErrCodeRefused, err.Error())
+		}
+	}
 	if bounds {
 		if insp.Stats.CustomBytes > MaxUploadCustomBytes {
 			return errorsmod.Wrapf(ErrCodeRefused, "%v: %d bytes, at most %d", ErrCustomSections, insp.Stats.CustomBytes, MaxUploadCustomBytes)
