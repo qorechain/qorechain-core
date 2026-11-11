@@ -217,6 +217,33 @@ const (
 	// from the EVM origin. A contract acting for itself is unaffected. Below
 	// the switch a request with ibc_receivers is refused.
 	FeatureEVMPrecompileMethodAllowlist = "evm-precompile-method-allowlist"
+
+	// FeatureEVMPrecompileInputCanonical makes every guarded stateful
+	// precompile (the standard ones and QoreChain's own) check its input
+	// before anything decodes it: no larger than the precompile input cap
+	// (EVMLimits, 16 KiB by default) and in canonical ABI form (each dynamic
+	// value's offset where the previous one ends, every length in bounds),
+	// checked in one pass without allocating. A non-canonical encoding can
+	// point many array elements at one value, which the ABI decoder then
+	// copies once per element (memory quadratic in the input); every
+	// standard encoder produces the canonical form.
+	FeatureEVMPrecompileInputCanonical = "evm-precompile-input-canonical"
+
+	// FeatureEVMTxGasCap refuses, in the ante handler, an EVM transaction
+	// asking for more gas than the transaction gas cap (EVMLimits, 30
+	// million by default, changeable by governance with MsgUpdateEVMLimits),
+	// so no single transaction can buy unbounded work, whatever the block
+	// gas limit.
+	FeatureEVMTxGasCap = "evm-tx-gas-cap"
+
+	// FeatureEVMPrecompileStaticReadOnly runs a stateful precompile reached
+	// by CALL from inside a STATICCALL read-only (go-ethereum 0002), as every
+	// state change below a STATICCALL must fail: its transaction methods
+	// refuse there. The standard precompile guard also refuses a transaction
+	// method in a read-only run, and holds a window-bound caller to the
+	// in-frame decision for the call (a usable key, a live window with a
+	// transaction left, the scope).
+	FeatureEVMPrecompileStaticReadOnly = "evm-precompile-static-readonly"
 )
 
 // V328EVMAuthzFeatures are the v3.2.8 switches for EVM-lane authorisation (delegated actors in frame and in scope, ecrecover, usable keys, native allowances), consent messages being the account's own, and the Prague precompiles.
@@ -234,4 +261,7 @@ var V328EVMAuthzFeatures = []string{
 	FeatureEVMPrecompileAuthorityRefused,
 	FeatureEVMWindowStakingValidators,
 	FeatureEVMPrecompileMethodAllowlist,
+	FeatureEVMPrecompileInputCanonical,
+	FeatureEVMTxGasCap,
+	FeatureEVMPrecompileStaticReadOnly,
 }

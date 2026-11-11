@@ -270,6 +270,21 @@ what that bypassed:
   QOR to named receivers, token moves of native QOR or of a listed token). The table is in
   [EVM_WINDOW.md](./EVM_WINDOW.md#deny-by-default-per-method-from-v328-evm-precompile-method-allowlist).
 
+From v3.2.8 three more rules apply to every caller, not only to window-bound accounts:
+
+- **Input form** (`evm-precompile-input-canonical`): before anything decodes it, a guarded stateful
+  precompile (the standard ones and QoreChain's own) checks that its input is in canonical ABI form,
+  the form every standard encoder (Solidity, ethers, viem, go-ethereum) produces: each dynamic value
+  starts where the previous one ends and every length fits. Standard precompile input is also capped
+  at 16 KiB by default (governance can change it with `MsgUpdateEVMLimits`). Every ordinary call
+  fits well under it; a larger governance proposal (a code upload) is submitted as a Cosmos
+  transaction.
+- **Gas per transaction** (`evm-tx-gas-cap`): an EVM transaction may ask for at most 30 million gas
+  by default (governance can change it with `MsgUpdateEVMLimits`).
+- **View calls** (`evm-precompile-static-readonly`): a stateful precompile reached from inside a
+  `STATICCALL` runs read-only, so its state-changing methods (a transfer, a delegation, a bridge
+  call) are refused there, as any state change below a `STATICCALL` is.
+
 The bank precompile is read-only (`balances`, `totalSupply`, `supplyOf`) and slashing can only
 unjail the caller's own validator, so neither needs a window listing.
 

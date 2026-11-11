@@ -179,10 +179,19 @@ depositing on, voting on or cancelling a proposal, and any method added upstream
 stay available as post-quantum signed Cosmos transactions. Native QOR the admitted methods move is
 charged to the window's value. A contract acting for itself is unaffected.
 
+A stateful precompile reached inside a view call (`STATICCALL`) runs read-only
+(`evm-precompile-static-readonly`), and for a window-bound account the guard also takes the same
+decision as for any call the account's code makes: a usable key, a live window with a transaction
+left, and the scope.
+
 Who the window binds is decided from the transaction's sender and the caller's own EIP-7702
 delegation, never from the EVM origin: a delegated account is bound by its own window wherever its
 code runs, including inside an EVM run a precompile starts for it, and a sender a module
 authorised (a post-quantum signed cross-VM call) is not.
+
+**IBC receivers match exactly.** The channel and the receiver are compared byte for byte, case
+included: write the channel as the chain shows it (`channel-0`) and the receiver as its lowercase
+bech32 address, exactly as the transfer will carry it.
 
 **Why `--ibc-receivers` rather than refusing IBC.** Bridging QOR out from an EVM wallet is a common
 need, so it stays possible, but only to destinations the post-quantum key chose: an exact channel

@@ -30,6 +30,8 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgRemoveKEMKey{},
 		// Post-quantum multisig registry (v3.2.7).
 		&MsgRegisterPQCMultisig{},
+		// EVM execution limits, governance only (v3.2.8).
+		&MsgUpdateEVMLimits{},
 	)
 
 	// PQCHybridSignature is a TX extension option carried in
@@ -63,6 +65,7 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgRegisterKEMKey{}, "pqc/MsgRegisterKEMKey", nil)
 	cdc.RegisterConcrete(&MsgRemoveKEMKey{}, "pqc/MsgRemoveKEMKey", nil)
 	cdc.RegisterConcrete(&MsgRegisterPQCMultisig{}, "pqc/MsgRegisterPQCMultisig", nil)
+	cdc.RegisterConcrete(&MsgUpdateEVMLimits{}, "pqc/MsgUpdateEVMLimits", nil)
 	cdc.RegisterConcrete(&PQCHybridSignature{}, "pqc/PQCHybridSignature", nil)
 	cdc.RegisterConcrete(&PQCMultisigSignature{}, "pqc/PQCMultisigSignature", nil)
 }
