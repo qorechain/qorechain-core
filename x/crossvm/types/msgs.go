@@ -32,6 +32,14 @@ func (m *MsgCrossVMCall) ValidateBasic() error {
 	if !m.Funds.IsValid() {
 		return errorsmod.Wrap(ErrInvalidMessage, "invalid funds")
 	}
+	if m.AsyncGasLimit != 0 {
+		if !m.Async || m.TargetVM != VMTypeCosmWasm {
+			return errorsmod.Wrap(ErrInvalidMessage, "async_gas_limit is for async calls into CosmWasm only")
+		}
+		if m.AsyncGasLimit < MinAsyncGasLimit || m.AsyncGasLimit > MaxAsyncGasLimit {
+			return errorsmod.Wrapf(ErrInvalidMessage, "async_gas_limit %d is outside %d..%d", m.AsyncGasLimit, MinAsyncGasLimit, MaxAsyncGasLimit)
+		}
+	}
 	return nil
 }
 
@@ -69,10 +77,20 @@ func (m *MsgUpdateParams) ValidateBasic() error {
 // Params returns the parameter set the message installs.
 func (m *MsgUpdateParams) Params() Params {
 	return Params{
-		MaxMessageSize:       m.MaxMessageSize,
-		MaxQueueSize:         m.MaxQueueSize,
-		QueueTimeoutBlocks:   m.QueueTimeoutBlocks,
-		Enabled:              m.Enabled,
-		BridgeAllowedTargets: m.BridgeAllowedTargets,
+		MaxMessageSize:          m.MaxMessageSize,
+		MaxQueueSize:            m.MaxQueueSize,
+		QueueTimeoutBlocks:      m.QueueTimeoutBlocks,
+		Enabled:                 m.Enabled,
+		BridgeAllowedTargets:    m.BridgeAllowedTargets,
+		BridgeTargetPins:        m.BridgeTargetPins,
+		MaxPendingPerSender:     m.MaxPendingPerSender,
+		MaxCosmosTxGas:          m.MaxCosmosTxGas,
+		RecordRetentionBlocks:   m.RecordRetentionBlocks,
+		MaxBlockWasmGas:         m.MaxBlockWasmGas,
+		MaxTxWasmShareBps:       m.MaxTxWasmShareBps,
+		MaxBlockLevelWasmGas:    m.MaxBlockLevelWasmGas,
+		QueueWasmReserveBps:     m.QueueWasmReserveBps,
+		WasmCongestionMaxFactor: m.WasmCongestionMaxFactor,
+		WasmCongestionTargetBps: m.WasmCongestionTargetBps,
 	}
 }

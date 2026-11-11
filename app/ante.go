@@ -70,6 +70,13 @@ type HandlerOptions struct {
 	// CrossVMMaxPayload is the crossvm max_message_size that
 	// CrossVMPayloadMempoolDecorator applies in CheckTx only. Nil is off.
 	CrossVMMaxPayload func(sdk.Context) uint64
+	// CosmosTxGasCap reports the per-transaction gas bound of the Cosmos lane
+	// and whether cosmos-tx-gas-cap is on (CosmosTxGasCapDecorator). Nil is
+	// off.
+	CosmosTxGasCap func(sdk.Context) (uint64, bool)
+	// WasmTxToken numbers the block's transactions for the per-transaction
+	// share of the block wasm budget (WasmTxTokenDecorator). Nil is off.
+	WasmTxToken func(sdk.Context) sdk.Context
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
 	// and the min-gas-price floor exempt them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
@@ -231,6 +238,9 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 // what it was.
 func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
+		// A contract reached through the EVM bridge counts against this
+		// transaction's share of the block wasm budget.
+		NewWasmTxTokenDecorator(options.WasmTxToken),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
 		NewEVMReplayGuardDecorator(options.PQCKeeper),
 		evmante.NewEVMMonoDecorator(
@@ -289,6 +299,8 @@ func (d genesisExemptDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate 
 //   - EVM gas wanted tracking
 func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
+		// Numbers the transaction for its share of the block wasm budget.
+		NewWasmTxTokenDecorator(options.WasmTxToken),
 		// Reject MsgEthereumTx on the Cosmos SDK path — must use ExtensionOptionsEthereumTx
 		cosmosante.NewRejectMessagesDecorator(),
 		// Refuse MsgEthereumTx and every vesting-creation message inside authz,
@@ -313,6 +325,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// tier early unlock, nor MsgGrant itself.
 		pqcConsentAuthzLimiter(options.PQCKeeper),
 		ante.NewSetUpContextDecorator(),
+		// From cosmos-tx-gas-cap: a declared gas limit above the bound is
+		// refused before any fee is taken.
+		NewCosmosTxGasCapDecorator(options.CosmosTxGasCap),
 		// Mempool-only guard: refuse CosmWasm upload/instantiate into this
 		// node's mempool. CheckTx only, so block validity is unchanged and
 		// this can be rolled out per-node. From v3.2.5 instantiation is
@@ -337,7 +352,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// is covered from the v3.2.2 plan height (FeatureMultisigSignatureBound).
 		NewMultisigDepthGuardDecorator(multisigBoundFeature(options.PQCKeeper)),
 		// CosmWasm decorators — limit simulation gas and track tx position
-		wasmkeeper.NewLimitSimulationGasDecorator(options.WasmConfig.SimulationGasLimit),
+		// The limit is never nil (boundedSimulationGasLimit), so a simulation
+		// never runs on an infinite meter when the block max_gas is -1.
+		wasmkeeper.NewLimitSimulationGasDecorator(boundedSimulationGasLimit(options.WasmConfig)),
 		// The counter is written in delivery only; a simulation is charged
 		// its gas on a discarded branch (node-local, ante_simulate_gas.go).
 		simulateChargedDecorator{wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService)},

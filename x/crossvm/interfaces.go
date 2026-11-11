@@ -35,4 +35,18 @@ type CrossVMKeeper interface {
 
 	// ExportGenesis exports the module's current state.
 	ExportGenesis(ctx sdk.Context) *types.GenesisState
+
+	// WasmCongestionFactor is the CosmWasm congestion factor the next block
+	// uses, in millionths (types.CongestionFactorOne when none is stored).
+	WasmCongestionFactor(ctx sdk.Context) uint64
+
+	// WasmCongestion is the factor and the height of the last block that
+	// exhausted its wasm transaction pool.
+	WasmCongestion(ctx sdk.Context) (factor uint64, lastExhausted int64)
+
+	// SetWasmCongestionFactor stores the factor the next block uses.
+	SetWasmCongestionFactor(ctx sdk.Context, factor uint64)
+
+	// SetWasmCongestion stores the factor and the last exhausted height.
+	SetWasmCongestion(ctx sdk.Context, factor uint64, lastExhausted int64)
 }

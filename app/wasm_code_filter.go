@@ -25,7 +25,10 @@ import (
 //     restore), pinning, AnalyzeCode and GetCode.
 func (app *QoreChainApp) wasmCodeFilter() *wasmfilter.Filter {
 	if app.codeFilter == nil {
-		app.codeFilter = wasmfilter.New(app.featureSwitch(pqctypes.FeatureWasmCodeFilter))
+		app.codeFilter = wasmfilter.New(app.featureSwitch(pqctypes.FeatureWasmCodeFilter)).
+			WithFloatRefusal(app.featureSwitch(pqctypes.FeatureWasmFloatOpsRefused)).
+			WithBudget(app.wasmBlockBudget()).
+			WithDeserCostScale(app.wasmGasRegister().deserCostScale)
 	}
 	return app.codeFilter
 }

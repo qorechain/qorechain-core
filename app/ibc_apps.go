@@ -130,7 +130,13 @@ func wasmClientDataDir(appOpts servertypes.AppOptions) string {
 	return filepath.Join(home, "data")
 }
 
-// newWasmClientKeeper builds the 08-wasm keeper on its own VM. The VM keeps no
+// newWasmClientKeeper builds the 08-wasm keeper on its own VM.
+//
+// This VM is not behind the CosmWasm code filter (x/wasmfilter, wired into
+// x/wasm's engine only), so the filter's guarantee does not cover light
+// client code. That is deliberate: the code it runs is stored by governance
+// alone and only from FeatureIBCWasmLightClient, so nothing an account
+// uploads reaches it. The VM keeps no
 // memory cache (ibcwasmtypes.MemoryCacheSize is 0) and runs with the shared
 // contract memory limit, so the extra instance costs little when idle. Light
 // client code reaches the VM only through MsgStoreCode, which the keeper accepts

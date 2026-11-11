@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"sync"
 	"testing"
 
@@ -27,7 +28,14 @@ var (
 func sharedTestApp(t *testing.T) *app.QoreChainApp {
 	t.Helper()
 	testAppOnce.Do(func() {
-		opts := simtestutil.AppOptionsMap{flags.FlagHome: t.TempDir()}
+		// The app outlives the test that builds it, and so must its home (the
+		// x/wasm VM directory is under it); a t.TempDir is removed when that
+		// first test ends.
+		home, err := os.MkdirTemp("", "qorechain-cmd-test-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		opts := simtestutil.AppOptionsMap{flags.FlagHome: home}
 		testApp = app.NewQoreChainApp(log.NewNopLogger(), dbm.NewMemDB(), nil, true, opts)
 	})
 	return testApp

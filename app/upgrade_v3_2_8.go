@@ -7,6 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
+	crossvmtypes "github.com/qorechain/qorechain-core/x/crossvm/types"
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
 
@@ -20,6 +21,9 @@ func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan,
 		}
 	}
 	if err := app.upgradeV3_2_8SVMLaneGoverned(sdkCtx); err != nil {
+		return fromVM, err
+	}
+	if err := app.upgradeV3_2_8PinBridgeTargets(sdkCtx); err != nil {
 		return fromVM, err
 	}
 	return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
@@ -47,4 +51,50 @@ func (app *QoreChainApp) upgradeV3_2_8SVMLaneGoverned(ctx sdk.Context) error {
 		return err
 	}
 	return app.PQCKeeper.EnableProtocolFeature(ctx, pqctypes.FeatureSVMLaneGoverned)
+}
+
+// upgradeV3_2_8PinBridgeTargets carries the EVM bridge allowlist over to
+// crossvm-bridge-code-pin: every entry whose contract exists is pinned to the
+// code ID that contract runs at the upgrade height and to its code history
+// length, so each target the bridge reached before still answers, and a later
+// migration by a non-governance admin (even one that returns to the pinned
+// code) no longer changes what it reaches. An entry naming no contract is
+// removed, with a crossvm_bridge_target_removed event: left in place it would
+// become callable as soon as someone instantiated a contract at that address.
+// With an empty allowlist (mainnet) nothing is written.
+func (app *QoreChainApp) upgradeV3_2_8PinBridgeTargets(ctx sdk.Context) error {
+	params, changed, removed := app.CrossVMKeeper.GetParams(ctx).PinBridgeTargets(func(contract string) crossvmtypes.BridgeContractState {
+		return app.bridgeContractState(ctx, contract)
+	})
+	if !changed {
+		return nil
+	}
+	if err := app.CrossVMKeeper.SetParams(ctx, params); err != nil {
+		return err
+	}
+	for _, entry := range removed {
+		ctx.EventManager().EmitEvent(sdk.NewEvent(crossvmtypes.EventTypeBridgeTargetRemoved,
+			sdk.NewAttribute(crossvmtypes.AttributeKeyTarget, entry),
+			sdk.NewAttribute(crossvmtypes.AttributeKeyReason, "names no contract"),
+		))
+	}
+	return nil
+}
+
+// bridgeContractState reads what the bridge code pin needs to know about a
+// CosmWasm contract from the wasm keeper: its code, its admin and the length
+// of its code history (one entry for instantiation, one per migration).
+func (app *QoreChainApp) bridgeContractState(ctx sdk.Context, contract string) crossvmtypes.BridgeContractState {
+	addr, err := sdk.AccAddressFromBech32(contract)
+	if err != nil {
+		return crossvmtypes.BridgeContractState{}
+	}
+	info := app.WasmKeeper.GetContractInfo(ctx, addr)
+	if info == nil {
+		return crossvmtypes.BridgeContractState{}
+	}
+	return crossvmtypes.BridgeContractState{
+		Found: true, CodeID: info.CodeID, Admin: info.Admin,
+		HistoryLen: uint64(len(app.WasmKeeper.GetContractHistory(ctx, addr))),
+	}
 }

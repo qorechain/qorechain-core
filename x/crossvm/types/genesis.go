@@ -6,6 +6,14 @@ import "encoding/json"
 type GenesisState struct {
 	Params   Params           `json:"params"`
 	Messages []CrossVMMessage `json:"messages"`
+	// MsgCounter is the message-ID counter, exported so that a chain started
+	// from an export never generates the ID of an exported record again.
+	// omitempty keeps genesis files that predate it valid and unchanged.
+	MsgCounter uint64 `json:"msg_counter,omitempty"`
+	// WasmCongestionFactor and WasmCongestionExhaustedHeight carry the
+	// CosmWasm congestion state (wasm-congestion-pricing) across an export.
+	WasmCongestionFactor          uint64 `json:"wasm_congestion_factor,omitempty"`
+	WasmCongestionExhaustedHeight int64  `json:"wasm_congestion_exhausted_height,omitempty"`
 }
 
 func DefaultGenesisState() *GenesisState {

@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 
 	"github.com/spf13/cast"
 
@@ -243,7 +242,9 @@ type QoreChainApp struct {
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	WasmClientKeeper    ibcwasmkeeper.Keeper
 	rateLimitStore      hostedStoreService
-	codeFilter          *wasmfilter.Filter // see wasm_code_filter.go
+	codeFilter          *wasmfilter.Filter     // see wasm_code_filter.go
+	gasRegister         *calibratedGasRegister // see wasm_gas_register.go
+	blockBudget         *blockWasmBudget       // see wasm_block_budget.go
 
 	// EVM keepers (QoreChain EVM)
 	FeeMarketKeeper   feemarketkeeper.Keeper
@@ -521,8 +522,11 @@ func NewQoreChainApp(
 	wasmStoreKey := storetypes.NewKVStoreKey(wasmtypes.StoreKey)
 	app.MountStores(wasmStoreKey)
 
-	wasmDir := filepath.Join(DefaultNodeHome, "wasm")
-	wasmNodeConfig := wasmtypes.DefaultNodeConfig()
+	// The node's [wasm] app.toml settings and --home (wasm_node_config.go).
+	// Node-local: the VM directory, cache size, smart query and simulation
+	// gas limits change no consensus result.
+	wasmDir := wasmDataDir(appOpts)
+	wasmNodeConfig := readWasmNodeConfig(appOpts)
 
 	app.WasmKeeper = wasmkeeper.NewKeeper(
 		app.appCodec,
@@ -544,6 +548,9 @@ func NewQoreChainApp(
 		// The code filter sits between the keeper and the VM (see
 		// wasm_code_filter.go); it refuses nothing below its protocol feature.
 		wasmkeeper.WithWasmEngineDecorator(app.wasmCodeFilter().DecorateEngine),
+		// The SDK-to-VM gas conversion follows wasm-gas-calibrated, set per
+		// block (wasm_gas_register.go).
+		wasmkeeper.WithGasRegister(app.wasmGasRegister()),
 	)
 
 	// ==========================================================================
@@ -1045,11 +1052,8 @@ func NewQoreChainApp(
 	// Default is 0 (unlimited) if not configured.
 	maxGasWanted := cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted))
 
-	// Read CosmWasm node config from app options.
-	wasmNodeConfig, err := wasm.ReadNodeConfig(appOpts)
-	if err != nil {
-		panic("failed to read wasm node config: " + err.Error())
-	}
+	// The same CosmWasm node config the keeper was built with: the simulation
+	// gas limit is always bounded (boundedSimulationGasLimit).
 	app.setAnteHandler(app.txConfig, maxGasWanted, wasmNodeConfig, wasmStoreKey)
 
 	// SIGN_MODE_TEXTUAL sign documents for wallets without a renderer
@@ -1078,6 +1082,17 @@ func NewQoreChainApp(
 		panic(err)
 	}
 
+	// Before Load, so the runtime keeps it: the module PreBlockers, then the
+	// wasm gas multiplier for the block (wasm_gas_register.go).
+	app.SetPreBlocker(app.preBlockerSyncingWasmGas)
+	// A transaction aborted by the block wasm budget fails like any other
+	// (wasm_block_budget.go).
+	app.AddRunTxRecoveryHandler(budgetAbortRecovery)
+	// After every commit, CheckTx and simulations price contract execution
+	// at the congestion factor the next block will use (it was stored by
+	// this block's end), not the one this block used.
+	app.SetPrepareCheckStater(app.syncWasmGasMultiplier)
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
@@ -1089,6 +1104,14 @@ func NewQoreChainApp(
 		if err := app.WasmClientKeeper.InitializePinnedCodes(ctx); err != nil {
 			panic(fmt.Sprintf("08-wasm: initialize pinned codes: %s", err))
 		}
+		// Node-local: a VM directory without the chain's contract code would
+		// make this node diverge at its first contract call.
+		if err := app.checkWasmCodePresent(ctx, wasmDir); err != nil {
+			panic("x/wasm: " + err.Error())
+		}
+		// Queries and simulations before the first block use the price of
+		// the latest state.
+		app.syncWasmGasMultiplier(ctx)
 	}
 
 	return app
@@ -1196,6 +1219,8 @@ func (app *QoreChainApp) setAnteHandler(
 			StakingLockMempoolCheck: app.stakingTierMempoolGate,
 			RDKMempoolCheck:         app.rdkMempoolGate,
 			CrossVMMaxPayload:       app.crossVMMaxPayload,
+			CosmosTxGasCap:          app.cosmosTxGasCap,
+			WasmTxToken:             app.wasmTxToken,
 			PQCClient:               app.pqcClient,
 			AIKeeper:                app.AIKeeper,
 			SVMKeeper:               app.SVMKeeper,

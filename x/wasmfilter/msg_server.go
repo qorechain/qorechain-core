@@ -33,10 +33,27 @@ func (s *msgServer) checkUpload(goCtx context.Context, code []byte) error {
 		return nil
 	}
 	checked, err := CheckUpload(code)
-	if !checked || err == nil {
+	if !checked {
 		return nil
 	}
-	return errorsmod.Wrap(ErrCodeRefused, err.Error())
+	if err != nil {
+		return errorsmod.Wrap(ErrCodeRefused, err.Error())
+	}
+	if s.f.refusesFloats(ctx) {
+		if err := CheckUploadFloats(code); err != nil {
+			return errorsmod.Wrap(ErrCodeRefused, err.Error())
+		}
+	}
+	// Compiling the module is validator CPU too: the block wasm budget
+	// charges it by size before the store.
+	if uc, ok := s.f.budget.(UploadCharger); ok {
+		if raw, ok := unpackUpload(code); ok {
+			if err := uc.ChargeUpload(ctx, len(raw)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (s *msgServer) StoreCode(goCtx context.Context, msg *wasmtypes.MsgStoreCode) (*wasmtypes.MsgStoreCodeResponse, error) {
