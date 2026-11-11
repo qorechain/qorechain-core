@@ -18,6 +18,12 @@ const (
 	// call the block cannot admit (its lane's budget is spent) is looked at
 	// and left pending, so the bound is a few times the execution bound.
 	MaxQueueVisitsPerBlock = 4 * MaxAsyncCallsPerBlock
+
+	// MaxQueueScanPerBlock bounds how many index keys of calls that have not
+	// timed out one block reads to take senders in turn, from the
+	// crossvm-queue-sender-round-robin switch (two default queues; a key is
+	// a few dozen bytes and nothing is decoded).
+	MaxQueueScanPerBlock = 2 * int(DefaultMaxQueueSize)
 )
 
 // QueueTimeoutsPerBlock is the per-block timeout bound in force.

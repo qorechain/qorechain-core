@@ -37,6 +37,7 @@ func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan,
 	if err := app.upgradeV3_2_8RemoveConsentGrants(sdkCtx); err != nil {
 		return fromVM, err
 	}
+	app.upgradeV3_2_8CrossVMQueueOnBehalf(sdkCtx)
 	if err := app.upgradeV3_2_8SVMBytecodeOwners(sdkCtx); err != nil {
 		return fromVM, err
 	}

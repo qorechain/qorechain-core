@@ -65,6 +65,28 @@ const (
 	// while the queue holds no more than one block's worth of timeouts and
 	// visits; a backlog is worked through over the following blocks.
 	FeatureCrossVMQueueHeightIndex = "crossvm-queue-height-index"
+
+	// FeatureERC20ConvertOnBehalfEVMWindow applies the EVM authorisation
+	// window to a MsgConvertERC20 executed under an authz grant (by a
+	// person, a contract or a group policy, directly or as a nested
+	// self-exec). The conversion runs the token contract with the sender as
+	// msg.sender, so it is an EVM action of the sender: from this switch the
+	// sender must hold a usable post-quantum key and a live window whose scope
+	// admits a call to the token contract, with a transaction left, and the
+	// conversion uses one window transaction. A conversion the account sends
+	// itself is unchanged.
+	FeatureERC20ConvertOnBehalfEVMWindow = "erc20-convert-on-behalf-evm-window"
+
+	// FeatureCrossVMQueueSenderRoundRobin makes the end-of-block queue take
+	// its senders in turn. From the height index (crossvm-queue-height-index)
+	// the walk reads up to MaxQueueScanPerBlock index keys that have not
+	// timed out, each carrying its call's sender, and lists them one call per
+	// sender per round (senders in the order of their oldest call, each
+	// sender's calls oldest first), up to MaxQueueVisitsPerBlock calls. One
+	// sender with many calls queued ahead of others no longer keeps their
+	// calls from running until they time out; a queue with one sender runs
+	// exactly as before.
+	FeatureCrossVMQueueSenderRoundRobin = "crossvm-queue-sender-round-robin"
 )
 
 // V328XVMAuthzFeatures are the v3.2.8 switches for the cross-VM
@@ -74,4 +96,6 @@ var V328XVMAuthzFeatures = []string{
 	FeatureCrossVMOnBehalfEVMWindow,
 	FeatureCrossVMTruncatedCallerNoValue,
 	FeatureCrossVMQueueHeightIndex,
+	FeatureERC20ConvertOnBehalfEVMWindow,
+	FeatureCrossVMQueueSenderRoundRobin,
 }
