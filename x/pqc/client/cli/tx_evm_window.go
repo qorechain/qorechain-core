@@ -89,6 +89,15 @@ EIP-7702 code):
                        window (send them as post-quantum signed Cosmos
                        transactions instead)
 
+From v3.2.8 (evm-precompile-method-allowlist) the standard precompiles admit
+only a short list of methods through the window (claiming rewards to the
+account, staking to --staking-validators, native QOR transfers); for IBC:
+
+  --ibc-receivers      the IBC destinations native QOR may be sent to with the
+                       ICS-20 precompile, comma-separated
+                       <source channel>/<receiver> pairs; empty refuses ICS-20
+                       transfers through the window
+
 Token approvals (ERC-20 approve, permits, setApprovalForAll) granted inside a
 window outlive it: revoke them when the window ends.
 
@@ -137,6 +146,11 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 				return err
 			}
 
+			ibcReceivers, err := cmd.Flags().GetStringSlice(flagIBCReceivers)
+			if err != nil {
+				return err
+			}
+
 			msg := &types.MsgOpenEVMWindow{
 				Sender:         clientCtx.GetFromAddress().String(),
 				Blocks:         blocks,
@@ -147,6 +161,7 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 				Validators:     validators,
 
 				StakingValidators: stakingValidators,
+				IbcReceivers:      ibcReceivers,
 			}
 			// Fail here rather than on chain: the bounds are a security parameter
 			// and a refusal should carry the reason, not a gas bill.
@@ -160,6 +175,7 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 	cmd.Flags().StringSlice(flagAllowedTargets, nil, "admit only these recipients (comma-separated 0x addresses)")
 	cmd.Flags().StringSlice(flagValidators, nil, "contracts whose check of the account's signature counts (comma-separated 0x addresses)")
 	cmd.Flags().StringSlice(flagStakingValidators, nil, "validators the account's stake may be delegated or redelegated to through the window (comma-separated bech32 operator addresses)")
+	cmd.Flags().StringSlice(flagIBCReceivers, nil, "IBC destinations native QOR may be sent to through the window (comma-separated <source channel>/<receiver>)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
@@ -174,6 +190,7 @@ const (
 	flagValidators     = "validators"
 
 	flagStakingValidators = "staking-validators"
+	flagIBCReceivers      = "ibc-receivers"
 )
 
 // GetCmdCloseEVMWindow returns the command that revokes the window immediately.

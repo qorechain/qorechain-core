@@ -157,6 +157,52 @@ qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id $QCHAIN 
 
 The standard precompiles are inactive on both networks until governance activates them.
 
+### Deny by default, per method (from v3.2.8, `evm-precompile-method-allowlist`)
+
+For an account the window authorises (the EVM-lane sender, or a delegated account's code), every
+transaction method of a standard precompile (staking, distribution, ICS-20, gov, slashing, the
+ERC-20 token precompiles, and any other non-QoreChain stateful precompile) is refused through the
+window unless it is one of these, and the window lists the precompile in `--allowed-targets`:
+
+| Precompile | Method | Admitted when |
+|---|---|---|
+| distribution | `claimRewards`, `withdrawDelegatorRewards` | the rewards are paid to the account itself (its withdraw address is its own) |
+| distribution | `withdrawValidatorCommission` | the validator is the account's own and pays the account itself |
+| distribution | `depositValidatorRewardsPool` | the validator is named in `--staking-validators` and every coin is native QOR |
+| staking | `delegate`, `redelegate` | the destination validator is named in `--staking-validators` |
+| ics20 | `transfer` | native QOR, over the `transfer` port, with no memo, to a `<source channel>/<receiver>` named in `--ibc-receivers` |
+| ERC-20 token precompiles | `transfer`, `transferFrom`, `approve` | native QOR; another token only when the window lists that token's address in `--allowed-targets` |
+
+Everything else is refused through the window: setting the withdraw address, funding the community
+pool, undelegating, cancelling an unbonding, creating or editing a validator, unjailing, submitting,
+depositing on, voting on or cancelling a proposal, and any method added upstream later. All of them
+stay available as post-quantum signed Cosmos transactions. Native QOR the admitted methods move is
+charged to the window's value. A contract acting for itself is unaffected.
+
+Who the window binds is decided from the transaction's sender and the caller's own EIP-7702
+delegation, never from the EVM origin: a delegated account is bound by its own window wherever its
+code runs, including inside an EVM run a precompile starts for it, and a sender a module
+authorised (a post-quantum signed cross-VM call) is not.
+
+**Why `--ibc-receivers` rather than refusing IBC.** Bridging QOR out from an EVM wallet is a common
+need, so it stays possible, but only to destinations the post-quantum key chose: an exact channel
+and receiver, native QOR only (its value counts against the window), and no memo, since a memo can
+make the other chain pass the coins on. Listing ICS-20 without `--ibc-receivers` admits no transfer.
+
+**Wallet guidance.**
+
+- Listing a precompile or a contract in `--allowed-targets` is the account's consent to what that
+  contract can do with its assets. For ICS-20 that consent is now narrowed to the named receivers;
+  for any other listed contract that holds the account's tokens (a vault, a router, a token), the
+  window does not bound which tokens move or where.
+- To claim staking rewards from MetaMask: list the distribution precompile, keep the withdraw
+  address as the account itself.
+- To stake from MetaMask: list the staking precompile and name the validators.
+- To bridge QOR out: list the ICS-20 precompile and name the exact `channel/receiver` pairs.
+- To move an IBC token held as an ERC-20 precompile: list that token's address.
+- Anything else (undelegating, voting, governance deposits, changing the withdraw address): send a
+  post-quantum signed Cosmos transaction.
+
 ## Delegated accounts, signatures and allowances (from v3.2.8)
 
 - **Decided when the account acts** (`evm-delegated-actor-in-frame`). An EIP-7702 delegated account
@@ -190,6 +236,9 @@ The standard precompiles are inactive on both networks until governance activate
   claim, a module payout) do not: a holder of the classical key cannot move the account's
   positions out past the window's value, whoever triggers the payout. Forwarding such a payment in
   the same transaction uses window value.
+- **Standard precompiles** (`evm-precompile-method-allowlist`): deny by default per method, see
+  [Deny by default, per method](#deny-by-default-per-method-from-v328-evm-precompile-method-allowlist).
+  The two items below are the narrower rules it replaces.
 - **Lasting authority changes** (`evm-precompile-authority-refused`). Setting the distribution
   withdraw address, creating or editing a validator, undelegating, and governance votes, weighted
   votes and proposal cancellation are refused through the EVM window whatever it lists; send them

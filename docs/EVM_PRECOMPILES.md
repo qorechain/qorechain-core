@@ -264,6 +264,11 @@ what that bypassed:
   `setWithdrawAddress` and gov `vote`, `voteWeighted`, `cancelProposal` are refused through the
   window; `delegate` and `redelegate` run only to a validator the window names in
   `staking_validators`. All of them remain available as post-quantum signed Cosmos transactions.
+- **`evm-precompile-method-allowlist`** (v3.2.8): for such an account every transaction method of a
+  standard precompile, and of the ERC-20 token precompiles, is refused unless a rule admits it
+  (claims paid to the account, staking and reward-pool deposits to named validators, ICS-20 native
+  QOR to named receivers, token moves of native QOR or of a listed token). The table is in
+  [EVM_WINDOW.md](./EVM_WINDOW.md#deny-by-default-per-method-from-v328-evm-precompile-method-allowlist).
 
 The bank precompile is read-only (`balances`, `totalSupply`, `supplyOf`) and slashing can only
 unjail the caller's own validator, so neither needs a window listing.

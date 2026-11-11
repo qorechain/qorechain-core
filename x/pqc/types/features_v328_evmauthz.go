@@ -190,6 +190,33 @@ const (
 	// through the window cannot make a validator "its own". Below the switch
 	// a request with staking_validators is refused.
 	FeatureEVMWindowStakingValidators = "evm-window-staking-validators"
+
+	// FeatureEVMPrecompileMethodAllowlist makes the standard precompiles
+	// (staking, distribution, ICS-20, gov, slashing, the ERC-20 token
+	// precompiles and any other non-QoreChain stateful precompile)
+	// deny-by-default, per method, for an account that only the EVM
+	// authorisation window authorises: the EVM-lane sender, or a delegated
+	// account's code. Only these run through the window:
+	//   - distribution claimRewards, withdrawDelegatorRewards and (for the
+	//     account's own validator) withdrawValidatorCommission, when the
+	//     rewards are paid to the account itself;
+	//   - staking delegate and redelegate to a validator the window names in
+	//     staking_validators, and distribution depositValidatorRewardsPool
+	//     to such a validator in native QOR only;
+	//   - ICS-20 transfer of native QOR, without a memo, over the transfer
+	//     port, to a "<source channel>/<receiver>" the window names in
+	//     ibc_receivers (a new optional window field);
+	//   - ERC-20 precompile transfer, transferFrom and approve of native QOR;
+	//     of another denomination only when the window lists that token
+	//     precompile in allowed_targets.
+	// Native QOR they move stays within the window's value. Every other
+	// transaction method is refused through the window and stays available as
+	// a post-quantum signed Cosmos message. Who the window binds is decided
+	// from the execution's sender (a module-authorised sender is not bound)
+	// and from the caller's EIP-7702 delegation, which always binds, never
+	// from the EVM origin. A contract acting for itself is unaffected. Below
+	// the switch a request with ibc_receivers is refused.
+	FeatureEVMPrecompileMethodAllowlist = "evm-precompile-method-allowlist"
 )
 
 // V328EVMAuthzFeatures are the v3.2.8 switches for EVM-lane authorisation (delegated actors in frame and in scope, ecrecover, usable keys, native allowances), consent messages being the account's own, and the Prague precompiles.
@@ -206,4 +233,5 @@ var V328EVMAuthzFeatures = []string{
 	FeatureEVMWindowValidators,
 	FeatureEVMPrecompileAuthorityRefused,
 	FeatureEVMWindowStakingValidators,
+	FeatureEVMPrecompileMethodAllowlist,
 }

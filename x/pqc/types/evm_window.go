@@ -76,6 +76,44 @@ type EVMAuthWindow struct {
 	// (FeatureEVMWindowStakingValidators). Optional, omitted when empty;
 	// empty refuses delegate and redelegate through the window.
 	StakingValidators []string `json:"staking_validators,omitempty"`
+	// IBCReceivers names the IBC destinations ("<source channel>/<receiver>")
+	// native QOR may be sent to through the window with the ICS-20
+	// precompile (FeatureEVMPrecompileMethodAllowlist). Optional, omitted when
+	// empty; empty refuses ICS-20 transfers through the window.
+	IBCReceivers []string `json:"ibc_receivers,omitempty"`
+}
+
+// MaxIBCReceiverLen bounds one ibc_receivers entry.
+const MaxIBCReceiverLen = 256
+
+// ParseIBCReceiver splits an ibc_receivers entry into its source channel and
+// receiver: both non-empty, the channel without '/', no whitespace or comma.
+func ParseIBCReceiver(entry string) (channel, receiver string, err error) {
+	if len(entry) == 0 || len(entry) > MaxIBCReceiverLen {
+		return "", "", fmt.Errorf("%q must be 1 to %d characters", entry, MaxIBCReceiverLen)
+	}
+	if strings.ContainsAny(entry, " \t\r\n,") {
+		return "", "", fmt.Errorf("%q contains whitespace or a comma", entry)
+	}
+	i := strings.IndexByte(entry, '/')
+	if i <= 0 || i == len(entry)-1 {
+		return "", "", fmt.Errorf("%q is not <source channel>/<receiver>", entry)
+	}
+	return entry[:i], entry[i+1:], nil
+}
+
+// NamesIBCReceiver reports whether the window admits an ICS-20 transfer of
+// native QOR over sourceChannel to receiver: the exact pair is listed.
+func (w EVMAuthWindow) NamesIBCReceiver(sourceChannel, receiver string) bool {
+	if sourceChannel == "" || receiver == "" {
+		return false
+	}
+	for _, e := range w.IBCReceivers {
+		if c, r, err := ParseIBCReceiver(e); err == nil && c == sourceChannel && r == receiver {
+			return true
+		}
+	}
+	return false
 }
 
 // NamesStakingValidator reports whether the window admits delegating or
@@ -318,6 +356,19 @@ func (m MsgOpenEVMWindow) Validate() error {
 			return fmt.Errorf("staking_validators lists %s more than once", val.String())
 		}
 		seenS[val.String()] = true
+	}
+	if len(m.IbcReceivers) > MaxEVMWindowTargets {
+		return fmt.Errorf("ibc_receivers lists %d destinations, the maximum is %d", len(m.IbcReceivers), MaxEVMWindowTargets)
+	}
+	seenI := make(map[string]bool, len(m.IbcReceivers))
+	for _, e := range m.IbcReceivers {
+		if _, _, err := ParseIBCReceiver(e); err != nil {
+			return fmt.Errorf("ibc_receivers: %w", err)
+		}
+		if seenI[e] {
+			return fmt.Errorf("ibc_receivers lists %s more than once", e)
+		}
+		seenI[e] = true
 	}
 	return nil
 }

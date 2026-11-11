@@ -192,6 +192,14 @@ message MsgOpenEVMWindow {
   // available as post-quantum signed Cosmos transactions. Optional; honoured
   // from the evm-window-staking-validators feature on.
   repeated string staking_validators = 8;
+  // ibc_receivers, when non-empty, names the IBC destinations native QOR may
+  // be sent to through this window with the ICS-20 precompile, each as
+  // "<source channel>/<receiver>" (the channel on this chain and the
+  // receiving address on the other chain). Empty: ICS-20 transfers are
+  // refused through the window and remain available as post-quantum signed
+  // Cosmos transactions. Optional; honoured from the
+  // evm-precompile-method-allowlist feature on.
+  repeated string ibc_receivers = 9;
 }
 message MsgOpenEVMWindowResponse {
   uint64 expiry_height = 1;
