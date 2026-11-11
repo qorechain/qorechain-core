@@ -68,8 +68,12 @@ func LoadUnits(size, functions int) uint64 {
 // ChargeSetup takes units from the block's budget and gas (SDK gas at the
 // base price, scaled by the price in force) from ctx's meter; it may refuse
 // (an error) or abort the transaction (BudgetAbort).
+//
+// The charger may charge a code's load once per block: checksum names the
+// code and compiled is its estimated compiled size (EstimatedCompiledSize),
+// for bounding what a block may load before repeats are charged again.
 type SetupCharger interface {
-	ChargeSetup(ctx sdk.Context, units, gas uint64) error
+	ChargeSetup(ctx sdk.Context, checksum []byte, units, gas, compiled uint64) error
 }
 
 // WithLoadPricing prices loading unpinned code (wasm-code-load-priced) while
@@ -101,7 +105,7 @@ func (e *Engine) chargeLoad(checksum wasmvm.Checksum, querier wasmvm.Querier) er
 		return nil
 	}
 	units := LoadUnits(v.Size, v.Functions)
-	return sc.ChargeSetup(ctx, units, units*LoadGasPerUnit)
+	return sc.ChargeSetup(ctx, checksum, units, units*LoadGasPerUnit, EstimatedCompiledSize(v.Size, v.Functions))
 }
 
 // WithUploadBounds turns on the upload ordering and bounds of

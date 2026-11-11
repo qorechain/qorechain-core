@@ -84,6 +84,11 @@ type blockWasmBudget struct {
 	simMargin bool
 	// queryLoads bounds code loading by queries (node-local).
 	queryLoads loadAllowance
+	// loaded is the set of codes whose load the block has charged, in
+	// block execution order (reset with the block); loadedBytes their
+	// estimated compiled size together.
+	loaded      map[string]struct{}
+	loadedBytes uint64
 }
 
 type wasmTxPayerKey struct{}
@@ -131,6 +136,7 @@ func (b *blockWasmBudget) reset(height int64, on bool, total uint64, reserveBps,
 	b.txCap = bpsOf(total, shareBps)
 	b.tx, b.txUsed, b.nextToken = wasmTxKey{}, 0, 0
 	b.payers = map[string]uint64{}
+	b.loaded, b.loadedBytes = map[string]struct{}{}, 0
 }
 
 func (b *blockWasmBudget) counts(ctx sdk.Context) bool {
@@ -457,8 +463,8 @@ const QueryLoadUnitsPerSecond = 1_000_000
 // block-level counter, refused or aborting as Limit does), and gas at the
 // price in force on ctx's meter. In a query a node-local
 // allowance per second bounds what queries may load.
-func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, units, gas uint64) error {
-	sdkGas, err := b.takeSetup(ctx, units, gas)
+func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, checksum []byte, units, gas, compiled uint64) error {
+	sdkGas, err := b.takeSetup(ctx, checksum, units, gas, compiled)
 	if err != nil {
 		return err
 	}
@@ -466,9 +472,20 @@ func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, units, gas uint64) error 
 	return nil
 }
 
-func (b *blockWasmBudget) takeSetup(ctx sdk.Context, units, gas uint64) (uint64, error) {
+func (b *blockWasmBudget) takeSetup(ctx sdk.Context, checksum []byte, units, gas, compiled uint64) (uint64, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// In block execution a code's load is charged on its first call in the
+	// block only, while the block's distinct loads stay within what a
+	// node's memory cache holds (FreeRepeatLoadBytes); past that every call
+	// is charged again, since a repeat may load again. Simulation, CheckTx
+	// and queries always charge, as for a first call, and mark nothing.
+	key := string(checksum)
+	if b.counts(ctx) {
+		if _, seen := b.loaded[key]; seen && b.loadedBytes <= FreeRepeatLoadBytes {
+			return 0, nil
+		}
+	}
 	reg := b.reg
 	base, eff := CalibratedWasmGasMultiplier, CalibratedWasmGasMultiplier
 	if reg != nil {
@@ -521,8 +538,21 @@ func (b *blockWasmBudget) takeSetup(ctx sdk.Context, units, gas uint64) (uint64,
 		}
 		b.blockLevel -= vm
 	}
+	// Charged: the load happens (whether the transaction then succeeds or
+	// not), so the code counts as loaded for the rest of the block.
+	if _, seen := b.loaded[key]; !seen && b.loaded != nil {
+		b.loaded[key] = struct{}{}
+		b.loadedBytes += min64(compiled, math.MaxUint64-b.loadedBytes)
+	}
 	return sdkGas, nil
 }
+
+// FreeRepeatLoadBytes is the estimated compiled size of the distinct codes a
+// block may load before repeated calls to them are charged again: below
+// wasmd's default in-memory cache (100 MiB), so a code loaded earlier in the
+// block is still in memory when called again. Validators must keep
+// memory_cache_size at least at the default.
+const FreeRepeatLoadBytes = 64 << 20
 
 // loadAllowance is a per-second allowance (node-local, wall clock).
 type loadAllowance struct {
