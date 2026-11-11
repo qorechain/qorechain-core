@@ -65,6 +65,11 @@ const (
 	RuntimeFlagCPICallerRules   uint64 = 1 << 15 // svm-cpi-caller-rules
 	RuntimeFlagCPIComposable    uint64 = 1 << 16 // svm-cpi-composable
 	RuntimeFlagSystemSeedBase   uint64 = 1 << 17 // svm-system-with-seed
+	RuntimeFlagPDASigningMeter  uint64 = 1 << 18 // svm-pda-signing-metered
+	RuntimeFlagReentrancyGuard  uint64 = 1 << 19 // svm-cpi-reentrancy-guard
+	RuntimeFlagATAPayerSystem   uint64 = 1 << 20 // svm-ata-payer-system
+	RuntimeFlagResultSizeExact  uint64 = 1 << 21 // svm-result-size-exact
+	RuntimeFlagSystemSeedCPI    uint64 = 1 << 22 // svm-system-with-seed-cpi
 )
 
 // RuntimeSysvars are the consensus values of the Clock and Rent sysvars handed

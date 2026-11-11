@@ -214,6 +214,45 @@ const (
 	// lock its own lamports in an account owned by ATA, Memo, System or any
 	// address that is not a program.
 	FeatureSVMCreateAccountOwnerWritable = "svm-create-account-owner-writable"
+	// FeatureSVMPDASigningMetered charges every signer-seed set of
+	// sol_invoke_signed like sol_create_program_address (1,500 compute units)
+	// before deriving it, and refuses an instruction that signs for more than
+	// 1,024 distinct PDAs. Before it the derivations were free and the logs
+	// grew quadratically, so a flood cost validators far more CPU than gas.
+	FeatureSVMPDASigningMetered = "svm-pda-signing-metered"
+	// FeatureSVMCPIReentrancyGuard refuses, as Solana does, an invocation of a
+	// program that is already executing unless it is the immediate caller
+	// invoking itself; direct self-recursion, the top-level program included,
+	// works. Before it V -> Y -> V re-entered V through a third program.
+	FeatureSVMCPIReentrancyGuard = "svm-cpi-reentrancy-guard"
+	// FeatureSVMATAPayerSystem requires a system-owned ATA payer and lets the
+	// associated token program change only system-owned accounts.
+	FeatureSVMATAPayerSystem = "svm-ata-payer-system"
+	// FeatureSVMTokenLamportsCloseOnly lets a token-program account lose
+	// lamports only when it is closed (zero lamports, data zeroed), whoever
+	// ran. Before it any decrease was accepted once the token program ran.
+	FeatureSVMTokenLamportsCloseOnly = "svm-token-lamports-close-only"
+	// FeatureSVMResultSizeExact makes the runtime report the size a result
+	// needs instead of cutting it to the buffer, and the keeper run once more
+	// with a buffer of that size, so large legitimate results (accounts grown
+	// in an invocation, System creations over 64 KiB) settle.
+	FeatureSVMResultSizeExact = "svm-result-size-exact"
+	// FeatureSVMAttestedCreatedAccounts makes the keeper's attested rule check
+	// a created account independently: its new owner is System or a program
+	// that ran, and its data is zero unless that owner ran.
+	FeatureSVMAttestedCreatedAccounts = "svm-attested-created-accounts"
+	// FeatureSVMAccountSizeRentChecked refuses an account larger than
+	// max_account_data_size after execution, and an account whose data grew
+	// without holding the rent-exempt minimum for its new size, as Solana does.
+	FeatureSVMAccountSizeRentChecked = "svm-account-size-rent-checked"
+	// FeatureSVMLiabilityLiveRent computes the custody liability's rent
+	// reserves with the live rent params and recounts the liability when
+	// governance changes them. Before it the default rates were used.
+	FeatureSVMLiabilityLiveRent = "svm-liability-live-rent"
+	// FeatureSVMSystemWithSeedCPI accepts System *WithSeed instructions run
+	// through an invocation: the runtime attests the derived account when its
+	// base signed in the calling frame, and the keeper treats it as signed.
+	FeatureSVMSystemWithSeedCPI = "svm-system-with-seed-cpi"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -252,4 +291,13 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMSystemWithSeed,
 	FeatureSVMPQCKeyForWallets,
 	FeatureSVMCreateAccountOwnerWritable,
+	FeatureSVMPDASigningMetered,
+	FeatureSVMCPIReentrancyGuard,
+	FeatureSVMATAPayerSystem,
+	FeatureSVMTokenLamportsCloseOnly,
+	FeatureSVMResultSizeExact,
+	FeatureSVMAttestedCreatedAccounts,
+	FeatureSVMAccountSizeRentChecked,
+	FeatureSVMLiabilityLiveRent,
+	FeatureSVMSystemWithSeedCPI,
 }

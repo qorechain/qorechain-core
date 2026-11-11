@@ -29,4 +29,8 @@ type ExecutionResult struct {
 	Attested        bool          `json:"-"`
 	InvokedPrograms [][32]byte    `json:"-"`
 	PDAPairs        [][2][32]byte `json:"-"`
+	// SeedSigned are accounts a System *WithSeed instruction run through an
+	// invocation derived from a base that signed in the calling frame
+	// (svm-system-with-seed-cpi). Not part of any encoded output.
+	SeedSigned [][32]byte `json:"-"`
 }
