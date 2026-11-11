@@ -169,11 +169,20 @@ The standard precompiles are inactive on both networks until governance activate
 - **What a delegated account is charged** (`evm-delegated-actor-charge-on-cost`). In a transaction it
   did not send, its actions are always checked (key, live window, scope), but it is charged window
   transactions only for what the transaction costs it and it authorised: one per action its code
-  takes in the frame where its own signature was accepted (a wallet executing a signed batch,
-  whether it checks the signature itself or through a validator contract; an action beyond what
-  the window has left fails), and at least one when it lost QOR or granted a native allowance,
-  plus the QOR it lost. A stranger calling its code uses nothing, even after replaying an old
-  signature of it in another call.
+  takes after its own code had its signature accepted in that frame (a wallet executing a signed
+  batch, checking the signature itself, through a library it DELEGATECALLs or through a validator
+  it STATICCALLs, in a frame that did not revert; an action beyond what the window has left
+  fails), and at least one when it lost QOR or granted a native allowance, plus the QOR it lost.
+  A stranger calling its code uses nothing, even after replaying an old signature of it in another
+  call or in a callback the account's code made.
+
+**Known limit: forwarder and session-key wallets.** The transaction count bounds a holder of the
+classical key only for wallets that verify the account's signature in the account's own frame (or
+in a validator it STATICCALLs). A wallet that trusts a forwarder (ERC-2771 meta-transactions:
+the forwarder verifies and then calls the account), or acts on an approval or session key stored
+earlier, takes actions the chain cannot tie to a signature; they are checked (live window, scope,
+value bound) but not counted. For an account delegated to such a wallet, open scoped windows
+(`--allowed-targets`) with short expiries.
 - **Scope applies to the account's own code** (`evm-delegated-actor-scope`). `--native-only` admits
   no call to code and no creation by the account's delegated code; `--allowed-targets` admits calls
   to the listed addresses only. This also holds for the sender's own delegated code.

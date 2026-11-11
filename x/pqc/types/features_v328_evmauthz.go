@@ -132,13 +132,14 @@ const (
 	// checked (usable key, live window, scope), in frame and at settlement,
 	// but window transactions are charged only for what the execution costs
 	// the account and it authorised: one for each action its code takes in
-	// a frame where its own signature was accepted (the frame of its code
-	// that encloses the ecrecover call, whatever contract asked for it, a
-	// validator module included; an action beyond what the window has left
-	// fails in frame), and at least one when it lost native value or granted
-	// a native allowance. A signature accepted in one frame does not count
-	// for another, so a stranger replaying an old public signature and then
-	// calling the account's fallback uses nothing. Before it every action was
+	// a frame where its own code had its own signature accepted (verified
+	// in its frame, by a library it DELEGATECALLed, or by a validator it
+	// STATICCALLed, in a frame that did not revert; an action beyond what the
+	// window has left fails in frame), and at least one when it lost native
+	// value or granted a native allowance. A signature accepted in another
+	// frame, or by a contract the account's code CALLed (a callback), does
+	// not count, so a stranger replaying an old public signature uses
+	// nothing. Before it every action was
 	// charged, so anyone could use up the window of an account whose
 	// delegated code calls out on an incoming call by calling it repeatedly.
 	FeatureEVMDelegatedActorChargeOnCost = "evm-delegated-actor-charge-on-cost"
