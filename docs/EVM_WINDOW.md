@@ -179,17 +179,26 @@ The standard precompiles are inactive on both networks until governance activate
   account's code makes to the stranger, or in a callback.
 - **Validators** (`evm-window-validators`, `--validators a,b,...`, at most 16). The contracts whose
   check of the account's signature counts for its actions: a validator module the wallet
-  STATICCALLs, or the ERC-4337 entry point that calls the wallet. `--allowed-targets` counts the
-  same way. Validators do not narrow where the account's transactions go.
-- **Value is counted gross for module payouts.** QOR a precompile pays the account during the
-  transaction (a staking reward claim, a module payout) does not offset what it sends; QOR it
-  receives from the transaction's own EVM calls does (a payment it forwards).
+  STATICCALLs, or the ERC-4337 entry point that calls the wallet. Only this list counts; a contract
+  listed in `--allowed-targets` (a router, a relay) is not thereby a validator. Validators do not
+  narrow where the account's transactions go.
+- **What offsets what the account sends.** QOR paid into the account by others during the
+  transaction (the sender, a payer whose call reached it) offsets what it then sends, so it can
+  forward a payment. QOR that comes back from a call the account's own code made (a vault
+  withdrawal, an unwrap, a refund to msg.sender) and QOR a precompile pays it (a staking reward
+  claim, a module payout) do not: a holder of the classical key cannot move the account's contract
+  positions out past the window's value.
 - **Lasting authority changes** (`evm-precompile-authority-refused`). Setting the distribution
-  withdraw address, and creating or editing a validator, are refused through the EVM window
-  whatever it lists; send them as post-quantum signed Cosmos transactions.
-- **Simulations match.** `eth_call` and `eth_estimateGas` run the same in-frame rules and the
-  settlement's decision (node-local; nothing is recorded), so a preview fails where the
-  transaction would.
+  withdraw address, creating or editing a validator, undelegating, redelegating to a validator the
+  account does not already delegate to, and governance votes, weighted votes and proposal
+  cancellation are refused through the EVM window whatever it lists; send them as post-quantum
+  signed Cosmos transactions. Delegating and claiming rewards stay available through a window
+  that lists the precompile.
+- **Simulations match.** `eth_call` and `eth_estimateGas` (and a module's read-only EVM call) run
+  the same in-frame rules and the settlement's decision for every account other than the sender,
+  and record nothing, so a preview fails where the transaction would. The sender is taken as
+  authorised: a wallet can estimate a transaction before opening the window that will pay for it;
+  delivery then needs that window.
 
 **Known limit: verifiers without a nonce.** A wallet whose own public multicall runs its
 signature check without a nonce and then a public action, in one call, lets a stranger replay an
