@@ -79,6 +79,28 @@ wallet (EIP-7702):
                        (comma-separated 0x addresses); it does not narrow
                        where the account's transactions go
 
+From v3.2.8 (evm-window-staking-validators), staking through the window
+(the staking precompile, from the account's EVM transactions or its
+EIP-7702 code):
+
+  --staking-validators the validators (comma-separated bech32 operator
+                       addresses) the account's stake may be delegated or
+                       redelegated to; empty refuses both through the
+                       window (send them as post-quantum signed Cosmos
+                       transactions instead)
+
+From v3.2.8 (evm-precompile-method-allowlist) the standard precompiles admit
+only a short list of methods through the window (claiming rewards to the
+account, staking to --staking-validators, native QOR transfers); for IBC:
+
+  --ibc-receivers      the IBC destinations native QOR may be sent to with the
+                       ICS-20 precompile, comma-separated
+                       <source channel>/<receiver> pairs; empty refuses ICS-20
+                       transfers through the window
+
+Token approvals (ERC-20 approve, permits, setApprovalForAll) granted inside a
+window outlive it: revoke them when the window ends.
+
 Opening replaces any existing window. Close one early with close-evm-window.`,
 		Example: `  qorechaind tx pqc open-evm-window 7200 20 1000qor --from me --generate-only > w.json
   qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id qorechain-vladi
@@ -119,6 +141,16 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 				return err
 			}
 
+			stakingValidators, err := cmd.Flags().GetStringSlice(flagStakingValidators)
+			if err != nil {
+				return err
+			}
+
+			ibcReceivers, err := cmd.Flags().GetStringSlice(flagIBCReceivers)
+			if err != nil {
+				return err
+			}
+
 			msg := &types.MsgOpenEVMWindow{
 				Sender:         clientCtx.GetFromAddress().String(),
 				Blocks:         blocks,
@@ -127,6 +159,9 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 				NativeOnly:     nativeOnly,
 				AllowedTargets: targets,
 				Validators:     validators,
+
+				StakingValidators: stakingValidators,
+				IbcReceivers:      ibcReceivers,
 			}
 			// Fail here rather than on chain: the bounds are a security parameter
 			// and a refusal should carry the reason, not a gas bill.
@@ -139,6 +174,8 @@ Opening replaces any existing window. Close one early with close-evm-window.`,
 	cmd.Flags().Bool(flagNativeOnly, false, "admit plain native QOR transfers only")
 	cmd.Flags().StringSlice(flagAllowedTargets, nil, "admit only these recipients (comma-separated 0x addresses)")
 	cmd.Flags().StringSlice(flagValidators, nil, "contracts whose check of the account's signature counts (comma-separated 0x addresses)")
+	cmd.Flags().StringSlice(flagStakingValidators, nil, "validators the account's stake may be delegated or redelegated to through the window (comma-separated bech32 operator addresses)")
+	cmd.Flags().StringSlice(flagIBCReceivers, nil, "IBC destinations native QOR may be sent to through the window (comma-separated <source channel>/<receiver>)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
@@ -151,6 +188,9 @@ const (
 	flagNativeOnly     = "native-only"
 	flagAllowedTargets = "allowed-targets"
 	flagValidators     = "validators"
+
+	flagStakingValidators = "staking-validators"
+	flagIBCReceivers      = "ibc-receivers"
 )
 
 // GetCmdCloseEVMWindow returns the command that revokes the window immediately.

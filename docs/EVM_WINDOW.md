@@ -157,6 +157,61 @@ qorechaind tx pqc cosign w.json --from me --pqc-key me-mldsa --chain-id $QCHAIN 
 
 The standard precompiles are inactive on both networks until governance activates them.
 
+### Deny by default, per method (from v3.2.8, `evm-precompile-method-allowlist`)
+
+For an account the window authorises (the EVM-lane sender, or a delegated account's code), every
+transaction method of a standard precompile (staking, distribution, ICS-20, gov, slashing, the
+ERC-20 token precompiles, and any other non-QoreChain stateful precompile) is refused through the
+window unless it is one of these, and the window lists the precompile in `--allowed-targets`:
+
+| Precompile | Method | Admitted when |
+|---|---|---|
+| distribution | `claimRewards`, `withdrawDelegatorRewards` | the rewards are paid to the account itself (its withdraw address is its own) |
+| distribution | `withdrawValidatorCommission` | the validator is the account's own and pays the account itself |
+| distribution | `depositValidatorRewardsPool` | the validator is named in `--staking-validators` and every coin is native QOR |
+| staking | `delegate`, `redelegate` | the destination validator is named in `--staking-validators` |
+| ics20 | `transfer` | native QOR, over the `transfer` port, with no memo, to a `<source channel>/<receiver>` named in `--ibc-receivers` |
+| ERC-20 token precompiles | `transfer`, `transferFrom`, `approve` | native QOR; another token only when the window lists that token's address in `--allowed-targets` |
+
+Everything else is refused through the window: setting the withdraw address, funding the community
+pool, undelegating, cancelling an unbonding, creating or editing a validator, unjailing, submitting,
+depositing on, voting on or cancelling a proposal, and any method added upstream later. All of them
+stay available as post-quantum signed Cosmos transactions. Native QOR the admitted methods move is
+charged to the window's value. A contract acting for itself is unaffected.
+
+A stateful precompile reached inside a view call (`STATICCALL`) runs read-only
+(`evm-precompile-static-readonly`), and for a window-bound account the guard also takes the same
+decision as for any call the account's code makes: a usable key, a live window with a transaction
+left, and the scope.
+
+Who the window binds is decided from the transaction's sender and the caller's own EIP-7702
+delegation, never from the EVM origin: a delegated account is bound by its own window wherever its
+code runs, including inside an EVM run a precompile starts for it, and a sender a module
+authorised (a post-quantum signed cross-VM call) is not.
+
+**IBC receivers match exactly.** The channel and the receiver are compared byte for byte, case
+included: write the channel as the chain shows it (`channel-0`) and the receiver as its lowercase
+bech32 address, exactly as the transfer will carry it.
+
+**Why `--ibc-receivers` rather than refusing IBC.** Bridging QOR out from an EVM wallet is a common
+need, so it stays possible, but only to destinations the post-quantum key chose: an exact channel
+and receiver, native QOR only (its value counts against the window), and no memo, since a memo can
+make the other chain pass the coins on. Listing ICS-20 without `--ibc-receivers` admits no transfer.
+
+**Wallet guidance.**
+
+- Listing a precompile or a contract in `--allowed-targets` is the account's consent to what that
+  contract can do with its assets. For ICS-20 that consent is now narrowed to the named receivers;
+  for any other listed contract that holds the account's tokens (a vault, a router, a token), the
+  window does not bound which tokens move or where.
+- To claim staking rewards from MetaMask: list the distribution precompile, keep the withdraw
+  address as the account itself.
+- To stake from MetaMask: list the staking precompile and name the validators.
+- To bridge QOR out: list the ICS-20 precompile and name the exact `channel/receiver` pairs.
+- To move an IBC token held as an ERC-20 precompile: list that token's address.
+- Anything else (undelegating, voting, governance deposits, changing the withdraw address): send a
+  post-quantum signed Cosmos transaction.
+
 ## Delegated accounts, signatures and allowances (from v3.2.8)
 
 - **Decided when the account acts** (`evm-delegated-actor-in-frame`). An EIP-7702 delegated account
@@ -182,23 +237,50 @@ The standard precompiles are inactive on both networks until governance activate
   STATICCALLs, or the ERC-4337 entry point that calls the wallet. Only this list counts; a contract
   listed in `--allowed-targets` (a router, a relay) is not thereby a validator. Validators do not
   narrow where the account's transactions go.
-- **What offsets what the account sends.** QOR paid into the account by others during the
-  transaction (the sender, a payer whose call reached it) offsets what it then sends, so it can
-  forward a payment. QOR that comes back from a call the account's own code made (a vault
-  withdrawal, an unwrap, a refund to msg.sender) and QOR a precompile pays it (a staking reward
-  claim, a module payout) do not: a holder of the classical key cannot move the account's contract
-  positions out past the window's value.
+- **What offsets what the account sends.** Only QOR the transaction's sender pays the account
+  (the transaction's own value, or a payment by the sender's own code) offsets what it then sends,
+  so it can forward what the sender paid it. QOR any contract or other account pays it (a vault
+  withdrawal or an unwrap, a refund, an escrow, bridge or withdrawal queue that anyone may
+  finalise, a contract that SELFDESTRUCTs to it) and QOR a precompile pays it (a staking reward
+  claim, a module payout) do not: a holder of the classical key cannot move the account's
+  positions out past the window's value, whoever triggers the payout. Forwarding such a payment in
+  the same transaction uses window value.
+- **Standard precompiles** (`evm-precompile-method-allowlist`): deny by default per method, see
+  [Deny by default, per method](#deny-by-default-per-method-from-v328-evm-precompile-method-allowlist).
+  The two items below are the narrower rules it replaces.
 - **Lasting authority changes** (`evm-precompile-authority-refused`). Setting the distribution
-  withdraw address, creating or editing a validator, undelegating, redelegating to a validator the
-  account does not already delegate to, and governance votes, weighted votes and proposal
-  cancellation are refused through the EVM window whatever it lists; send them as post-quantum
-  signed Cosmos transactions. Delegating and claiming rewards stay available through a window
+  withdraw address, creating or editing a validator, undelegating, and governance votes, weighted
+  votes and proposal cancellation are refused through the EVM window whatever it lists; send them
+  as post-quantum signed Cosmos transactions. Claiming rewards stays available through a window
   that lists the precompile.
+- **Staking validators** (`evm-window-staking-validators`, `--staking-validators v1,v2,...`,
+  bech32 operator addresses, at most 16). Delegating and redelegating through the window (the
+  account's EVM transactions or its EIP-7702 code calling the staking precompile, which the window
+  must also list in `--allowed-targets`) go only to a validator this list names; with the list
+  empty both are refused through the window and stay available as post-quantum signed Cosmos
+  transactions. The account's existing delegations grant nothing, so a classical key cannot make
+  a validator "its own" with a dust delegation and then move the whole stake there.
 - **Simulations match.** `eth_call` and `eth_estimateGas` (and a module's read-only EVM call) run
   the same in-frame rules and the settlement's decision for every account other than the sender,
   and record nothing, so a preview fails where the transaction would. The sender is taken as
   authorised: a wallet can estimate a transaction before opening the window that will pay for it;
-  delivery then needs that window.
+  delivery then needs that window. A module's EVM call made inside a precompile (an ERC-20 balance
+  query during an IBC transfer) is part of the transaction that reached the precompile and is
+  judged with it, under its sender.
+
+**Known limit: token approvals outlive the window.** An ERC-20 `approve`, a permit, Permit2 or
+`setApprovalForAll` granted inside a window (by the account, or by a holder of its classical key
+within the window's scope) stays after the window closes, expires or is revoked: the chain cannot
+price contract tokens or undo another contract's records. Native QOR allowances are charged as
+outflow. When a window ends, review and revoke the approvals it granted (a wallet's approval
+manager or a revoke tool), and keep `--allowed-targets` to the contracts you mean to approve.
+
+**Known limit: modular wallets and the transaction count.** An account is charged window
+transactions only for actions taken under a signature check the chain recognises as the account's
+own (see above). A wallet whose validator module is reached with CALL rather than STATICCALL, or
+is not named in `--validators`, produces no such mark: actions through it are checked (live
+window, scope, value) but not counted. Wallet integrators: name the validator module in
+`--validators`.
 
 **Known limit: verifiers without a nonce.** A wallet whose own public multicall runs its
 signature check without a nonce and then a public action, in one call, lets a stranger replay an

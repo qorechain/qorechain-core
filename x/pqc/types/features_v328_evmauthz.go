@@ -27,9 +27,12 @@ const (
 	// own calls, creations and value are checked in turn. The
 	// end-of-execution settlement stays as the backstop. Value a stateful
 	// precompile pays the account (a reward claim, a module payout), and
-	// value coming back from a call the account's own code made (a vault
-	// withdrawal, an unwrap, a refund to msg.sender), do not offset what it
-	// sends; a payment made into it by others does (a payment it forwards).
+	// any value another contract or account pays it (a vault withdrawal, an
+	// unwrap, a refund, an escrow or withdrawal queue finalised by anyone, a
+	// SELFDESTRUCT naming it), do not offset what it sends. Only value the
+	// execution's sender pays it (the transaction's own value, or a payment
+	// by the sender's own code) does, so the account can forward what the
+	// sender paid it.
 	// Runs that commit nothing (eth_call, eth_estimateGas, a module's
 	// read-only call) apply the same rules to every account but the sender,
 	// whose window the ante handler checks at delivery.
@@ -168,14 +171,79 @@ const (
 	// delegated account's code), the standard precompile methods that change
 	// a lasting authority or position of the account rather than move value
 	// it can see: the distribution withdraw address; creating or editing a
-	// validator; undelegating; redelegating, except to a validator the
-	// account already delegates to; and governance votes, weighted votes and
-	// proposal cancellation. A stolen classical key inside a window could
+	// validator; undelegating; redelegating (admitted from
+	// evm-window-staking-validators only to a validator the window names);
+	// and governance votes, weighted votes and proposal cancellation. A stolen classical key inside a window could
 	// otherwise redirect every future reward, move the whole stake to a
 	// validator of its choosing, or vote with it. They stay available as
-	// post-quantum signed Cosmos messages; delegating and claiming rewards
-	// stay available through a window that lists the precompile.
+	// post-quantum signed Cosmos messages; claiming rewards stays available
+	// through a window that lists the precompile.
 	FeatureEVMPrecompileAuthorityRefused = "evm-precompile-authority-refused"
+
+	// FeatureEVMWindowStakingValidators adds the optional staking_validators
+	// list to MsgOpenEVMWindow, set with the post-quantum key: delegate and
+	// redelegate through the window (the EVM-lane sender, or a delegated
+	// account's code, calling the staking precompile) are admitted only to a
+	// validator it names; with the list empty both are refused through the
+	// window. They stay available as post-quantum signed Cosmos messages. The
+	// account's current delegations grant nothing: a dust delegation made
+	// through the window cannot make a validator "its own". Below the switch
+	// a request with staking_validators is refused.
+	FeatureEVMWindowStakingValidators = "evm-window-staking-validators"
+
+	// FeatureEVMPrecompileMethodAllowlist makes the standard precompiles
+	// (staking, distribution, ICS-20, gov, slashing, the ERC-20 token
+	// precompiles and any other non-QoreChain stateful precompile)
+	// deny-by-default, per method, for an account that only the EVM
+	// authorisation window authorises: the EVM-lane sender, or a delegated
+	// account's code. Only these run through the window:
+	//   - distribution claimRewards, withdrawDelegatorRewards and (for the
+	//     account's own validator) withdrawValidatorCommission, when the
+	//     rewards are paid to the account itself;
+	//   - staking delegate and redelegate to a validator the window names in
+	//     staking_validators, and distribution depositValidatorRewardsPool
+	//     to such a validator in native QOR only;
+	//   - ICS-20 transfer of native QOR, without a memo, over the transfer
+	//     port, to a "<source channel>/<receiver>" the window names in
+	//     ibc_receivers (a new optional window field);
+	//   - ERC-20 precompile transfer, transferFrom and approve of native QOR;
+	//     of another denomination only when the window lists that token
+	//     precompile in allowed_targets.
+	// Native QOR they move stays within the window's value. Every other
+	// transaction method is refused through the window and stays available as
+	// a post-quantum signed Cosmos message. Who the window binds is decided
+	// from the execution's sender (a module-authorised sender is not bound)
+	// and from the caller's EIP-7702 delegation, which always binds, never
+	// from the EVM origin. A contract acting for itself is unaffected. Below
+	// the switch a request with ibc_receivers is refused.
+	FeatureEVMPrecompileMethodAllowlist = "evm-precompile-method-allowlist"
+
+	// FeatureEVMPrecompileInputCanonical makes every guarded stateful
+	// precompile (the standard ones and QoreChain's own) check its input
+	// before anything decodes it: no larger than the precompile input cap
+	// (EVMLimits, 16 KiB by default) and in canonical ABI form (each dynamic
+	// value's offset where the previous one ends, every length in bounds),
+	// checked in one pass without allocating. A non-canonical encoding can
+	// point many array elements at one value, which the ABI decoder then
+	// copies once per element (memory quadratic in the input); every
+	// standard encoder produces the canonical form.
+	FeatureEVMPrecompileInputCanonical = "evm-precompile-input-canonical"
+
+	// FeatureEVMTxGasCap refuses, in the ante handler, an EVM transaction
+	// asking for more gas than the transaction gas cap (EVMLimits, 30
+	// million by default, changeable by governance with MsgUpdateEVMLimits),
+	// so no single transaction can buy unbounded work, whatever the block
+	// gas limit.
+	FeatureEVMTxGasCap = "evm-tx-gas-cap"
+
+	// FeatureEVMPrecompileStaticReadOnly runs a stateful precompile reached
+	// by CALL from inside a STATICCALL read-only (go-ethereum 0002), as every
+	// state change below a STATICCALL must fail: its transaction methods
+	// refuse there. The standard precompile guard also refuses a transaction
+	// method in a read-only run, and holds a window-bound caller to the
+	// in-frame decision for the call (a usable key, a live window with a
+	// transaction left, the scope).
+	FeatureEVMPrecompileStaticReadOnly = "evm-precompile-static-readonly"
 )
 
 // V328EVMAuthzFeatures are the v3.2.8 switches for EVM-lane authorisation (delegated actors in frame and in scope, ecrecover, usable keys, native allowances), consent messages being the account's own, and the Prague precompiles.
@@ -191,4 +259,9 @@ var V328EVMAuthzFeatures = []string{
 	FeatureEVMDelegatedActorChargeOnCost,
 	FeatureEVMWindowValidators,
 	FeatureEVMPrecompileAuthorityRefused,
+	FeatureEVMWindowStakingValidators,
+	FeatureEVMPrecompileMethodAllowlist,
+	FeatureEVMPrecompileInputCanonical,
+	FeatureEVMTxGasCap,
+	FeatureEVMPrecompileStaticReadOnly,
 }
