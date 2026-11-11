@@ -213,3 +213,34 @@ func TestWasmMempoolGuard_AllowsBenignGroupProposal(t *testing.T) {
 		t.Fatalf("benign group proposal was rejected: %v", err)
 	}
 }
+
+// With an upload policy the mempool admits an upload only from a sender the
+// policy allows, directly and inside authz or nested wrappers alike.
+func TestWasmMempoolGuard_UploadOnlyFromAllowedSenders(t *testing.T) {
+	allowed := func(_ sdk.Context, sender string) bool { return sender == "allowed" }
+	guard := NewWasmMempoolGuardDecorator(featureSwitch(true)).WithUploadPolicy(allowed)
+	checkTx := sdk.Context{}.WithIsCheckTx(true)
+	for _, c := range []struct {
+		name   string
+		msg    sdk.Msg
+		admits bool
+	}{
+		{"store, allowed", &wasmtypes.MsgStoreCode{Sender: "allowed"}, true},
+		{"store, other", &wasmtypes.MsgStoreCode{Sender: "other"}, false},
+		{"store and instantiate, allowed", &wasmtypes.MsgStoreAndInstantiateContract{Authority: "allowed"}, true},
+		{"store and instantiate, other", &wasmtypes.MsgStoreAndInstantiateContract{Authority: "other"}, false},
+		{"store and migrate, other", &wasmtypes.MsgStoreAndMigrateContract{Authority: "other"}, false},
+	} {
+		n := 0
+		_, err := guard.AnteHandle(checkTx, &memTx{msgs: []sdk.Msg{c.msg}}, false, reached(&n))
+		if c.admits != (err == nil && n == 1) {
+			t.Errorf("%s: err %v, next reached %d times; want admitted %v", c.name, err, n, c.admits)
+		}
+	}
+	// Below the deploy switch the policy is not consulted: uploads stay out.
+	off := NewWasmMempoolGuardDecorator(featureSwitch(false)).WithUploadPolicy(allowed)
+	n := 0
+	if _, err := off.AnteHandle(checkTx, &memTx{msgs: []sdk.Msg{&wasmtypes.MsgStoreCode{Sender: "allowed"}}}, false, reached(&n)); err == nil {
+		t.Error("an upload was admitted below the deploy switch")
+	}
+}

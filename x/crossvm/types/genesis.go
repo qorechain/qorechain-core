@@ -1,6 +1,9 @@
 package types
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 // GenesisState defines the crossvm module's genesis state.
 type GenesisState struct {
@@ -26,6 +29,10 @@ func DefaultGenesisState() *GenesisState {
 func (gs GenesisState) Validate() error {
 	if err := gs.Params.Validate(); err != nil {
 		return err
+	}
+	if f := gs.WasmCongestionFactor; f != 0 &&
+		(f < CongestionFactorOne || f > uint64(MaxWasmCongestionMaxFactor)*CongestionFactorOne) {
+		return fmt.Errorf("wasm congestion factor %d is outside %d..%d", f, CongestionFactorOne, uint64(MaxWasmCongestionMaxFactor)*CongestionFactorOne)
 	}
 	for _, msg := range gs.Messages {
 		if err := msg.Validate(); err != nil {

@@ -29,7 +29,8 @@ func TestScanCorpus(t *testing.T) {
 			files = append(files, m...)
 		}
 	}
-	var pass, refused, withFloat, withDiv, withMem int
+	var pass, refused, withFloat, withDiv, withMem, maxCustom int
+	var maxCustomName string
 	var floatNames []string
 	for _, f := range files {
 		bz, err := os.ReadFile(f)
@@ -62,9 +63,13 @@ func TestScanCorpus(t *testing.T) {
 		if st.MemoryOps > 0 {
 			withMem++
 		}
+		if st.CustomBytes > maxCustom {
+			maxCustom, maxCustomName = st.CustomBytes, filepath.Base(f)
+		}
 	}
 	t.Logf("%d codes: %d pass, %d refused; with float ops %d, with div/rem %d, with memory.size/grow %d",
 		len(files), pass, refused, withFloat, withDiv, withMem)
+	t.Logf("largest custom sections: %d bytes (%s)", maxCustom, maxCustomName)
 	if len(floatNames) > 0 {
 		t.Logf("codes with float ops: %s", strings.Join(floatNames, " "))
 	}

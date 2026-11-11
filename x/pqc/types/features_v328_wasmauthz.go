@@ -158,23 +158,51 @@ const (
 	// block wasm budget has been. A factor kept in state (crossvm,
 	// default 1) multiplies the SDK gas one unit of contract execution costs;
 	// after every block it rises by 1/8 when the block used more than
-	// wasm_congestion_target_bps of its wasm budget and falls by 1/9 when it
-	// used less, bounded by wasm_congestion_max_factor (default 1,000). The
-	// budget itself is unchanged (it bounds validator CPU); keeping it full
-	// becomes exponentially expensive, and ordinary use, which leaves most of
-	// the budget unused, stays at the base price.
+	// wasm_congestion_target_bps of its wasm budget (by half when the
+	// transactions' pool was exhausted by at least two fee payers, each using
+	// 5 percent of the budget or more) and falls by 1/9 when it used less,
+	// bounded by wasm_congestion_max_factor (default 20, at most 100). The
+	// budget itself is unchanged (it bounds validator CPU), storage, setup and
+	// code upload are not priced by it, and estimates are taken one
+	// exhaustion step up.
 	FeatureWasmCongestionPricing = "wasm-congestion-pricing"
 
 	// FeatureCrossVMAsyncGasPriced prices async calls into CosmWasm by the
-	// congestion factor. The sender may choose how much contract execution
-	// the call may use (MsgCrossVMCall async_gas_limit, base units, 250,000
-	// to 10,000,000, default 1,000,000) and prepays that times the factor
-	// in force (at most 50,000,000; above that the call is refused at
-	// submission). The queue runs the call on what it prepaid, bounded by the
-	// block wasm budget and by 50,000,000 SDK gas for the whole queue per
-	// block; a call admitted on less than it prepaid that runs short is rolled
-	// back and stays pending until a block with room, or its timeout.
+	// congestion factor and the queue by its occupancy. A call runs on a
+	// fixed amount of contract execution (MsgCrossVMCall async_gas_limit,
+	// base units, 250,000 up to what the queue can run in a block, default
+	// 500,000) and prepays that times the factor in force (at most
+	// 50,000,000, refused above); every async call also pays a queue-slot fee
+	// growing with the square of the queue's occupancy. The queue runs a call
+	// on exactly its units or not at all (it waits for a block with room, or
+	// its timeout), and a prepay buys one run.
 	FeatureCrossVMAsyncGasPriced = "crossvm-async-gas-priced"
+
+	// FeatureWasmUploadBounds orders and bounds code upload (x/wasmfilter
+	// msg_server.go): an upload from a sender wasmd's upload access does not
+	// allow is left to wasmd untouched; the transaction must have the gas for
+	// the whole upload (compile 3, storage 15 and inspection 1 per
+	// uncompressed byte, plus a margin) before anything is unpacked; the
+	// module is unpacked once and inspected in one pass; custom sections over
+	// 128 KiB and a declared size that is not the real one are refused; the
+	// storage price is charged on the uncompressed size, and the block wasm
+	// budget's upload units only when compiling is about to run, from a pool
+	// of their own that does not count towards congestion. Code already
+	// stored is never refused for its custom sections.
+	FeatureWasmUploadBounds = "wasm-upload-bounds"
+
+	// FeatureCrossVMAsyncEscrow holds an async call's prepaid execution in
+	// escrow instead of charging it as gas at submission: the sender chooses
+	// the highest congestion factor it will pay (async_max_factor, default
+	// four times the factor in force, capped at the chain's maximum; not
+	// below the factor in force), escrows its
+	// units at that factor at the fee market's minimum gas price, and the call
+	// runs while the factor in force is at or below it. When it finishes the
+	// gas it used at the factor in force goes to validators as fee and the
+	// rest back to the sender; a call that times out, or is never run, gets
+	// all of it back (its queue-slot fee is the processing fee, paid as gas at
+	// submission).
+	FeatureCrossVMAsyncEscrow = "crossvm-async-escrow"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -197,4 +225,6 @@ var V328WasmAuthzFeatures = []string{
 	FeatureWasmBlockGasBudget,
 	FeatureWasmCongestionPricing,
 	FeatureCrossVMAsyncGasPriced,
+	FeatureWasmUploadBounds,
+	FeatureCrossVMAsyncEscrow,
 }

@@ -28,7 +28,8 @@ func (app *QoreChainApp) wasmCodeFilter() *wasmfilter.Filter {
 		app.codeFilter = wasmfilter.New(app.featureSwitch(pqctypes.FeatureWasmCodeFilter)).
 			WithFloatRefusal(app.featureSwitch(pqctypes.FeatureWasmFloatOpsRefused)).
 			WithBudget(app.wasmBlockBudget()).
-			WithDeserCostScale(app.wasmGasRegister().deserCostScale)
+			WithDeserCostScale(app.wasmGasRegister().deserCostScale).
+			WithUploadBounds(app.featureSwitch(pqctypes.FeatureWasmUploadBounds), app.wasmUploadPermitted)
 	}
 	return app.codeFilter
 }

@@ -10,6 +10,10 @@ const (
 	// allowlist entry that names no contract.
 	EventTypeBridgeTargetRemoved = "crossvm_bridge_target_removed"
 
+	// EventTypeEscrowSettled: a finished async call's escrow was paid out
+	// (crossvm-async-escrow): the fee to validators, the refund to its sender.
+	EventTypeEscrowSettled = "crossvm_escrow_settled"
+
 	AttributeKeyMessageID            = "message_id"
 	AttributeKeySourceVM             = "source_vm"
 	AttributeKeyTargetVM             = "target_vm"
@@ -22,4 +26,6 @@ const (
 	AttributeKeyBridgeAllowedTargets = "bridge_allowed_targets"
 	AttributeKeyTarget               = "target"
 	AttributeKeyReason               = "reason"
+	AttributeKeyEscrowFee            = "escrow_fee"
+	AttributeKeyEscrowRefund         = "escrow_refund"
 )

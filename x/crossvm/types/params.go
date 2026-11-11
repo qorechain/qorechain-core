@@ -92,12 +92,22 @@ const (
 	// instantiate, migrate or execute a proposal makes needs.
 	// MinMaxBlockLevelWasmGas is the lowest value governance may set.
 	DefaultMaxBlockLevelWasmGas uint64 = 10_000_000
+	MinMaxBlockLevelWasmGas     uint64 = 1_000_000
 
 	// DefaultQueueWasmReserveBps is the share of the block wasm budget
 	// reserved for the end-of-block async queue when params.QueueWasmReserveBps
 	// is zero: transactions cannot spend it, so queued CosmWasm calls are
 	// never starved out by transactions.
 	DefaultQueueWasmReserveBps uint32 = 2_500
+
+	// DefaultMaxBlockUploadBps is the block's code-upload pool when
+	// params.MaxBlockUploadBps is zero, in basis points of the transactions'
+	// wasm pool: 3,750 of 2,250,000 units at the default budget is 843,750,
+	// enough for one module of wasmd's maximum size (819,200 bytes at one
+	// unit per byte). Compiling costs far less validator CPU per unit than
+	// the slowest admitted operator, so the pool adds little to a block's
+	// worst case, and uploads cannot spend the execution pool.
+	DefaultMaxBlockUploadBps uint32 = 3_750
 
 	// MinQueueAdmission is the least gas a queued CosmWasm call is admitted
 	// on: below it the call stays pending for a later block rather than run
@@ -113,28 +123,48 @@ const (
 	// than run a meter whose storage work the end-of-block queue could not
 	// bound. MaxAsyncQueueGasPerBlock bounds the SDK gas all queued calls of
 	// one block may run on together (the bound lane-bounds gave the queue).
-	MinAsyncGasLimit         uint64 = MinQueueAdmission
+	MinAsyncGasLimit uint64 = MinQueueAdmission
+	// DefaultAsyncWasmGas is the contract execution an async call into
+	// CosmWasm runs on when it sets no async_gas_limit: less than the
+	// queue's reserve of the default budget, so it can run even in a block
+	// whose transactions spend their whole pool.
+	DefaultAsyncWasmGas      uint64 = 500_000
 	MaxAsyncGasLimit         uint64 = 10_000_000
 	MaxAsyncPrepaid          uint64 = 50_000_000
 	MaxAsyncQueueGasPerBlock uint64 = MaxAsyncCallsPerBlock * AsyncCallGas
 
+	// QueueSlotBaseGas is the queue-slot fee of an async call submitted to
+	// an empty queue (crossvm-async-gas-priced). The fee grows with the
+	// square of (capacity + occupied) / capacity, to four times this at a
+	// full queue, so holding the shared queue full gets expensive while an
+	// ordinary call into a quiet queue pays little more than before.
+	QueueSlotBaseGas uint64 = 500_000
+
 	// Congestion pricing (wasm-congestion-pricing): a factor, kept in state,
 	// by which one unit of contract execution costs more than the base
 	// price. After every block it rises by 1/8 when the block used more than
-	// the target share of its wasm budget and falls by 1/9 (back by the same
-	// step) when it used less, between 1 and the maximum, so sustained
-	// filling becomes exponentially expensive while ordinary use stays at
-	// the base price. CongestionFactorOne is the factor 1 in millionths.
-	DefaultWasmCongestionMaxFactor uint32 = 1_000
+	// the target share of its wasm budget (by half when the transactions'
+	// pool was exhausted by at least two fee payers, each using a material
+	// share of it) and falls by 1/9 when it used less, between 1 and the
+	// maximum. One sender exhausting the pool alone raises it by 1/8 only,
+	// so one sender cannot set the price for everyone cheaply.
+	// CongestionFactorOne is the factor 1 in millionths; the maximum is
+	// governance-set up to MaxWasmCongestionMaxFactor.
+	DefaultWasmCongestionMaxFactor uint32 = 20
+	MaxWasmCongestionMaxFactor     uint32 = 100
 	DefaultWasmCongestionTargetBps uint32 = 5_000
 	CongestionFactorOne            uint64 = 1_000_000
 
-	// CongestionHoldBlocks is how many blocks after a block whose
-	// transaction pool was exhausted the factor does not fall (hysteresis):
-	// alternating closed and idle blocks cannot keep it near 1. A block that
-	// exhausts the pool raises the factor by half instead of by 1/8.
-	CongestionHoldBlocks    int64  = 10
-	MinMaxBlockLevelWasmGas uint64 = 1_000_000
+	// CongestionPayerShareBps is the share of the block wasm budget a fee
+	// payer's transactions must use to count among the payers that exhausted
+	// the pool.
+	CongestionPayerShareBps uint64 = 500
+
+	// CongestionHalfStepEveryBlocks is how often, at most, the congestion
+	// factor may rise by half for a pool exhausted by many payers; in the
+	// blocks between, such a block raises it by 1/8 like any block above
+	// the target.
+	CongestionHalfStepEveryBlocks int64 = 5
 )
 
 // Params defines the parameters for the crossvm module.
@@ -199,6 +229,19 @@ type Params struct {
 	// out (crossvm-queue-height-index); zero means
 	// DefaultMaxQueueTimeoutsPerBlock.
 	MaxQueueTimeoutsPerBlock uint32 `json:"max_queue_timeouts_per_block,omitempty"`
+
+	// MaxBlockUploadBps is the block's code-upload pool in basis points of
+	// the transactions' wasm pool; zero means DefaultMaxBlockUploadBps.
+	MaxBlockUploadBps uint32 `json:"max_block_upload_bps,omitempty"`
+}
+
+// BlockUploadBps is the block's code-upload pool in force, in basis points
+// of the transactions' wasm pool.
+func (p Params) BlockUploadBps() uint32 {
+	if p.MaxBlockUploadBps == 0 {
+		return DefaultMaxBlockUploadBps
+	}
+	return p.MaxBlockUploadBps
 }
 
 // QueueWasmReserve is the queue's reserved share in force, in basis points.
@@ -226,19 +269,17 @@ func (p Params) CongestionTargetBps() uint32 {
 }
 
 // NextCongestionFactor is the factor (in millionths) the next block uses,
-// and the height of the last block that exhausted its transaction pool,
-// given this block's factor, its wasm budget use, whether its transaction
-// pool was exhausted, its height and the last exhausted height:
+// given this block's factor, its wasm budget use and whether its
+// transactions' pool was exhausted by at least two fee payers:
 //
-//   - pool exhausted: up by half (and the height is recorded);
-//   - above the target share: up by 1/8;
-//   - below it: down by 1/9 (back by exactly one 1/8 step), but not within
-//     CongestionHoldBlocks of the last exhausted block;
+//   - pool exhausted by two or more payers: up by half;
+//   - above the target share (an exhaustion by one payer included): up by 1/8;
+//   - below it: down by 1/9 (back by exactly one 1/8 step);
 //   - at it: unchanged;
 //
 // always between CongestionFactorOne and the maximum. Integer arithmetic on
 // stored values only, so every node computes the same factor.
-func (p Params) NextCongestionFactor(cur, used, total uint64, exhausted bool, height, lastExhausted int64) (uint64, int64) {
+func (p Params) NextCongestionFactor(cur, used, total uint64, exhaustedByMany bool) uint64 {
 	if cur < CongestionFactorOne {
 		cur = CongestionFactorOne
 	}
@@ -247,15 +288,12 @@ func (p Params) NextCongestionFactor(cur, used, total uint64, exhausted bool, he
 	next := cur
 	switch {
 	case total == 0:
-	case exhausted:
+	case exhaustedByMany:
 		next = cur + cur/2
-		lastExhausted = height
 	case used*10_000 > total*target:
 		next = cur + cur/8
 	case used*10_000 < total*target:
-		if height-lastExhausted > CongestionHoldBlocks {
-			next = cur - cur/9
-		}
+		next = cur - cur/9
 	}
 	if next < CongestionFactorOne {
 		next = CongestionFactorOne
@@ -263,7 +301,7 @@ func (p Params) NextCongestionFactor(cur, used, total uint64, exhausted bool, he
 	if next > maxF {
 		next = maxF
 	}
-	return next, lastExhausted
+	return next
 }
 
 // TxWasmShareBps is the per-transaction share of the block wasm budget in
@@ -547,11 +585,14 @@ func (p Params) ValidateUpdate() error {
 	if p.MaxCosmosTxGas != 0 && (p.MaxCosmosTxGas < MinMaxCosmosTxGas || p.MaxCosmosTxGas > MaxMaxCosmosTxGas) {
 		return fmt.Errorf("max cosmos tx gas %d is outside %d..%d", p.MaxCosmosTxGas, MinMaxCosmosTxGas, MaxMaxCosmosTxGas)
 	}
+	if p.MaxBlockUploadBps > 10_000 {
+		return fmt.Errorf("max block upload %d bps is above 10000", p.MaxBlockUploadBps)
+	}
 	if p.QueueWasmReserveBps > 9_000 {
 		return fmt.Errorf("queue wasm reserve %d bps is above 9000", p.QueueWasmReserveBps)
 	}
-	if p.WasmCongestionMaxFactor > 10_000 {
-		return fmt.Errorf("wasm congestion max factor %d is above 10000", p.WasmCongestionMaxFactor)
+	if p.WasmCongestionMaxFactor > MaxWasmCongestionMaxFactor {
+		return fmt.Errorf("wasm congestion max factor %d is above %d", p.WasmCongestionMaxFactor, MaxWasmCongestionMaxFactor)
 	}
 	if p.WasmCongestionTargetBps > 10_000 {
 		return fmt.Errorf("wasm congestion target %d bps is above 10000", p.WasmCongestionTargetBps)

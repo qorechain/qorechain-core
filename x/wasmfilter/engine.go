@@ -1,6 +1,9 @@
 package wasmfilter
 
 import (
+	"math"
+	"math/big"
+
 	errorsmod "cosmossdk.io/errors"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -13,11 +16,21 @@ import (
 // Filter holds the switch and the per-checksum verdicts shared by the engine
 // decorator and the message server decorator.
 type Filter struct {
-	on         func(sdk.Context) bool
-	noFloat    func(sdk.Context) bool
-	budget     Budget
-	deserScale func() (num, den uint64)
-	verdicts   *Verdicts
+	uploadBounds    func(sdk.Context) bool
+	uploadPermitted func(ctx sdk.Context, sender string) bool
+	on              func(sdk.Context) bool
+	noFloat         func(sdk.Context) bool
+	budget          Budget
+	deserScale      func() (num, den uint64)
+	verdicts        *Verdicts
+}
+
+// WithUploadBounds turns on the upload ordering and bounds of
+// msgServer.checkUpload while on(ctx) is true; permitted reports whether
+// wasmd's upload access allows a sender (nil allows everyone).
+func (f *Filter) WithUploadBounds(on func(sdk.Context) bool, permitted func(ctx sdk.Context, sender string) bool) *Filter {
+	f.uploadBounds, f.uploadPermitted = on, permitted
+	return f
 }
 
 // Budget limits the VM gas a block's calls may use together (see
@@ -432,4 +445,66 @@ func (e *Engine) IBCDestinationCallback(checksum wasmvm.Checksum, env wasmvmtype
 	res, used, err := e.WasmEngine.IBCDestinationCallback(checksum, env, msg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
 	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
 	return res, used, err
+}
+
+// StoreCode prices compiling at wasmd's own rate whatever multiplier the
+// application converts SDK gas at (the calibrated price, a congestion
+// factor): the VM charges compiling in VM gas at wasmd's default
+// multiplier, and both the VM's limit and the gas it reports are rescaled
+// so that a byte costs the same SDK gas as at that default (3). Compiling
+// does not get slower with congestion, and the block wasm budget already
+// bounds its CPU (by size); pricing it at the calibrated multiplier would
+// only make ordinary contracts too large to store. Without a scale the call
+// is passed through.
+func (e *Engine) StoreCode(code wasmvm.WasmCode, gasLimit uint64) (wasmvm.Checksum, uint64, error) {
+	num, den, ok := e.uploadScale()
+	if !ok {
+		return e.WasmEngine.StoreCode(code, gasLimit)
+	}
+	cs, used, err := e.WasmEngine.StoreCode(code, rescale(gasLimit, den, num))
+	return cs, rescaleUp(used, num, den), err
+}
+
+// SimulateStoreCode is StoreCode for simulation.
+func (e *Engine) SimulateStoreCode(code wasmvm.WasmCode, gasLimit uint64) (wasmvm.Checksum, uint64, error) {
+	num, den, ok := e.uploadScale()
+	if !ok {
+		return e.WasmEngine.SimulateStoreCode(code, gasLimit)
+	}
+	cs, used, err := e.WasmEngine.SimulateStoreCode(code, rescale(gasLimit, den, num))
+	return cs, rescaleUp(used, num, den), err
+}
+
+// uploadScale is the multiplier in force over wasmd's default (num/den), or
+// false when there is none or it is the default.
+func (e *Engine) uploadScale() (num, den uint64, ok bool) {
+	if e.f.deserScale == nil {
+		return 0, 0, false
+	}
+	num, den = e.f.deserScale()
+	if num == 0 || den == 0 || num == den {
+		return 0, 0, false
+	}
+	return num, den, true
+}
+
+// rescale is v*mul/div, saturating at the maximum uint64.
+func rescale(v, mul, div uint64) uint64 {
+	r := new(big.Int).Mul(new(big.Int).SetUint64(v), new(big.Int).SetUint64(mul))
+	r.Quo(r, new(big.Int).SetUint64(div))
+	if !r.IsUint64() {
+		return math.MaxUint64
+	}
+	return r.Uint64()
+}
+
+// rescaleUp is v*mul/div rounded up, saturating.
+func rescaleUp(v, mul, div uint64) uint64 {
+	r := new(big.Int).Mul(new(big.Int).SetUint64(v), new(big.Int).SetUint64(mul))
+	r.Add(r, new(big.Int).SetUint64(div-1))
+	r.Quo(r, new(big.Int).SetUint64(div))
+	if !r.IsUint64() {
+		return math.MaxUint64
+	}
+	return r.Uint64()
 }

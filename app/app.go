@@ -1097,6 +1097,7 @@ func NewQoreChainApp(
 	// After every commit, CheckTx and simulations price contract execution
 	// at the congestion factor the next block will use (it was stored by
 	// this block's end), not the one this block used.
+	assertRuntimeKeepsWasmHooks()
 	app.SetPrepareCheckStater(app.syncWasmGasMultiplier)
 
 	if err := app.Load(loadLatest); err != nil {
@@ -1227,6 +1228,7 @@ func (app *QoreChainApp) setAnteHandler(
 			CrossVMMaxPayload:       app.crossVMMaxPayload,
 			CosmosTxGasCap:          app.cosmosTxGasCap,
 			WasmTxToken:             app.wasmTxToken,
+			WasmUploadAllowed:       app.wasmUploadPermitted,
 			PQCClient:               app.pqcClient,
 			AIKeeper:                app.AIKeeper,
 			SVMKeeper:               app.SVMKeeper,

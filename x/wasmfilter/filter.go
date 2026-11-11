@@ -170,6 +170,7 @@ type Stats struct {
 	FloatOps    int // operators that read, write, compute or convert f32/f64 values
 	DivRemOps   int // integer div and rem operators
 	MemoryOps   int // memory.size and memory.grow
+	CustomBytes int // bytes in custom sections (names, debug info, producers)
 }
 
 // IsFloatOp reports whether the single-byte opcode op handles a float value:
@@ -246,6 +247,9 @@ func check(code []byte, st *Stats) error {
 				return err
 			}
 		case id == secCustom:
+			if st != nil {
+				st.CustomBytes += len(body)
+			}
 			// A custom section must still carry a well-formed name.
 			sr := &reader{b: body}
 			n, err := sr.u32()

@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	abci "github.com/cometbft/cometbft/abci/types"
+	cmtproto "github.com/cometbft/cometbft/proto/tendermint/types"
 
 	storetypes "cosmossdk.io/store/types"
 
@@ -99,11 +100,13 @@ func (app *QoreChainApp) syncWasmGasMultiplier(ctx sdk.Context) {
 	}
 	g := app.wasmGasRegister()
 	g.base.Store(m)
-	if app.PQCKeeper != nil && app.CrossVMKeeper != nil &&
-		app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmCongestionPricing) {
+	congestion := app.PQCKeeper != nil && app.CrossVMKeeper != nil &&
+		app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmCongestionPricing)
+	if congestion {
 		m = congestedMultiplier(m, app.CrossVMKeeper.WasmCongestionFactor(ctx))
 	}
 	g.mult.Store(m)
+	app.wasmBlockBudget().setSimulationMargin(congestion)
 }
 
 // congestedMultiplier is base / (factor / 1e6), at least 1.
@@ -128,12 +131,22 @@ func (app *QoreChainApp) updateWasmCongestion(ctx sdk.Context) {
 		!app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmCongestionPricing) {
 		return
 	}
-	used, total, exhausted := app.wasmBlockBudget().utilisation(ctx)
+	used, total, exhaustedByMany := app.wasmBlockBudget().utilisation(ctx)
 	p := app.CrossVMKeeper.GetParams(ctx)
-	cur, last := app.CrossVMKeeper.WasmCongestion(ctx)
-	next, nextLast := p.NextCongestionFactor(cur, used, total, exhausted, ctx.BlockHeight(), last)
-	if next != cur || nextLast != last {
-		app.CrossVMKeeper.SetWasmCongestion(ctx, next, nextLast)
+	cur, lastHalf := app.CrossVMKeeper.WasmCongestion(ctx)
+	// The half step for a pool exhausted by many payers is taken at most
+	// once per CongestionHalfStepEveryBlocks blocks (otherwise the block
+	// counts as above target, 1/8), so a few accounts cannot multiply the
+	// price by 1.5 every block. The height of the last half step is kept
+	// with the factor.
+	h := ctx.BlockHeight()
+	many := exhaustedByMany && (lastHalf <= 0 || h-lastHalf >= crossvmtypes.CongestionHalfStepEveryBlocks)
+	next := p.NextCongestionFactor(cur, used, total, many)
+	switch {
+	case many:
+		app.CrossVMKeeper.SetWasmCongestion(ctx, next, h)
+	case next != cur:
+		app.CrossVMKeeper.SetWasmCongestion(ctx, next, lastHalf)
 	}
 }
 
@@ -156,4 +169,26 @@ func (app *QoreChainApp) preBlockerSyncingWasmGas(ctx sdk.Context, req *abci.Req
 // wasmd's default (one SDK gas per byte). Identity at the default.
 func (g *calibratedGasRegister) deserCostScale() (num, den uint64) {
 	return g.mult.Load(), wasmtypes.DefaultGasMultiplier
+}
+
+// ApplySnapshotChunk is BaseApp's, followed, once a chunk is accepted, by
+// setting the wasm gas multiplier from the restored state, so a node that
+// state-synced serves simulations and queries at the chain's price before
+// its first block (the restored state is complete after the last chunk;
+// earlier reads find the default).
+func (app *QoreChainApp) ApplySnapshotChunk(req *abci.RequestApplySnapshotChunk) (*abci.ResponseApplySnapshotChunk, error) {
+	res, err := app.App.ApplySnapshotChunk(req)
+	if err == nil && res != nil && res.Result == abci.ResponseApplySnapshotChunk_ACCEPT {
+		app.syncWasmGasMultiplierAfterRestore()
+	}
+	return res, err
+}
+
+// syncWasmGasMultiplierAfterRestore sets the multiplier from the restored
+// state. A read of a store still being restored must never fail the
+// restore: on any panic the multiplier keeps its value, and the first block
+// sets it again.
+func (app *QoreChainApp) syncWasmGasMultiplierAfterRestore() {
+	defer func() { _ = recover() }()
+	app.syncWasmGasMultiplier(app.NewUncachedContext(false, cmtproto.Header{}))
 }

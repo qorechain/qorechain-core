@@ -48,11 +48,20 @@ message MsgCrossVMCall {
   bool async = 7;
   // async_gas_limit is, for an async call into CosmWasm, the contract
   // execution it may use, in base gas units (what it would cost with no
-  // congestion). Zero means 1,000,000; a set value is 250,000 to
-  // 10,000,000. The call prepays it times the wasm congestion factor at
-  // submission. Set from the crossvm-async-gas-priced switch; refused for
+  // congestion). Zero means 500,000; a set value is 250,000 to
+  // 10,000,000, and at most what the queue can run in a block. The call
+  // prepays it times the wasm congestion factor at submission, and runs on
+  // exactly that much execution. Set from the crossvm-async-gas-priced switch; refused for
   // synchronous calls and for other lanes.
   uint64 async_gas_limit = 8;
+  // async_max_factor is, for an async call into CosmWasm, the highest wasm
+  // congestion factor (in millionths, 1,000,000 = 1x) the sender is willing
+  // to pay: the call is held in escrow at async_gas_limit times this factor
+  // and runs while the factor in force is at or below it. Zero means four
+  // times the factor at submission; any value is capped at the chain's
+  // maximum factor, and a value below the factor in force is refused. What the call did not use is refunded when it finishes. Set from
+  // the crossvm-async-escrow switch.
+  uint64 async_max_factor = 9;
 }
 message MsgCrossVMCallResponse {
   string message_id = 1 [(gogoproto.customname) = "MessageID"];
@@ -138,6 +147,12 @@ message MsgUpdateParams {
   // which it falls by 1/9. Zero means the default (5,000); a set value is 1 to
   // 10,000. Set from the wasm-congestion-pricing switch.
   uint32 wasm_congestion_target_bps = 16;
+  // max_block_upload_bps is the code-upload pool of a block, in basis
+  // points of the transactions' wasm pool: compiling uploads draws from it,
+  // not from the execution pool, and does not count towards congestion. Zero
+  // means the default (3,750, enough for one maximum-size module); a set
+  // value is 1 to 10,000. Set from the wasm-block-gas-budget switch.
+  uint32 max_block_upload_bps = 17;
   // max_queue_timeouts_per_block bounds how many queued calls one block
   // times out, oldest first; the rest time out in the following blocks.
   // Zero means the default (100); a set value is at most 1,000. Set from the

@@ -76,7 +76,11 @@ type HandlerOptions struct {
 	CosmosTxGasCap func(sdk.Context) (uint64, bool)
 	// WasmTxToken numbers the block's transactions for the per-transaction
 	// share of the block wasm budget (WasmTxTokenDecorator). Nil is off.
-	WasmTxToken func(sdk.Context) sdk.Context
+	WasmTxToken func(sdk.Context, sdk.Tx) sdk.Context
+	// WasmUploadAllowed reports whether wasmd's upload access allows a
+	// sender; the mempool guard admits that sender's upload messages
+	// (WasmMempoolGuardDecorator.WithUploadPolicy). Nil keeps them refused.
+	WasmUploadAllowed func(ctx sdk.Context, sender string) bool
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
 	// and the min-gas-price floor exempt them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
@@ -332,7 +336,7 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// node's mempool. CheckTx only, so block validity is unchanged and
 		// this can be rolled out per-node. From v3.2.5 instantiation is
 		// admitted and only upload stays refused (FeatureWasmGovernedDeploy).
-		NewWasmMempoolGuardDecorator(wasmGovernedDeployFeature(options.PQCKeeper)),
+		NewWasmMempoolGuardDecorator(wasmGovernedDeployFeature(options.PQCKeeper)).WithUploadPolicy(options.WasmUploadAllowed),
 		// Mempool-only: refuse an undelegation or redelegation of locked stake,
 		// which execution refuses with stakingtier code 13 after the fee is
 		// paid. CheckTx only, no consensus change.

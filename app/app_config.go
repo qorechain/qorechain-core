@@ -113,6 +113,9 @@ var (
 		// or held a coin on either network, so adding it changes no history.
 		{Account: "bridge", Permissions: []string{authtypes.Minter, authtypes.Burner}},
 		{Account: "multilayer"},
+		// crossvm_async_escrow holds what pending async cross-VM calls
+		// prepaid until they finish (crossvm-async-escrow); no mint or burn.
+		{Account: "crossvm_async_escrow"},
 		// lightnode receives the 3% light-node share of the fee split (burn
 		// DistributeFees) and pays it out to registered light nodes.
 		{Account: "lightnode"},
