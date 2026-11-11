@@ -165,8 +165,12 @@ The standard precompiles are inactive on both networks until governance activate
   SELFDESTRUCT) or is debited by a precompile. Without one only that call fails, as a failed call
   on Ethereum: the code that called the account sees the failure and carries on, so a payment to a
   delegated account can no longer make the payer's whole transaction revert. A STATICCALL, a
-  DELEGATECALL and a CALLCODE are not actions in themselves. Each admitted account is charged one
-  window transaction per transaction, plus what it lost.
+  DELEGATECALL and a CALLCODE are not actions in themselves.
+- **What a delegated account is charged** (`evm-delegated-actor-charge-on-cost`). In a transaction it
+  did not send, its actions are always checked (key, live window, scope), but it is charged one
+  window transaction only when the transaction costs it something it authorised: QOR it lost, a
+  native allowance it granted, or actions its own code took after accepting its own signature (a
+  wallet executing a signed batch), plus the QOR it lost. A stranger calling its code uses nothing.
 - **Scope applies to the account's own code** (`evm-delegated-actor-scope`). `--native-only` admits
   no call to code and no creation by the account's delegated code; `--allowed-targets` admits calls
   to the listed addresses only. This also holds for the sender's own delegated code.
@@ -177,7 +181,9 @@ The standard precompiles are inactive on both networks until governance activate
   window up by replaying it). `--native-only` admits no signature for another contract;
   `--allowed-targets` must list the contract that verifies it, in the account's own transactions
   too. A delegated wallet checking its own signature, the sender's own signature under an unscoped
-  window, and every account without a post-quantum key recover as always. Queries and gas
+  window, and every account with no post-quantum record recover as always. An account whose record
+  authorises nothing (empty, classical-only, degenerate) is treated as a key without a window: its
+  signature is refused until it repairs the record and opens a window. Queries and gas
   estimates are not affected. Open a window before signing a permit, as before sending a
   transaction.
 - **Native-QOR allowances** (`evm-native-allowance-window`). If a token pair for native QOR is ever

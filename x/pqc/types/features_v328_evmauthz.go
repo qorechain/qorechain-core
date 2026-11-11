@@ -53,9 +53,11 @@ const (
 	// replay it to use the window up. The sender's own signature is bounded
 	// by its window's scope when the window has one. A delegated account's
 	// own code checking its own signature is not bounded by the scope (what
-	// that code then does is, action by action). Addresses without a usable
-	// post-quantum key (contracts, accounts that never registered one)
-	// recover as before. The gas is unchanged (3000) and the reads are off the
+	// that code then does is, action by action). Addresses without any
+	// post-quantum record (contracts, accounts that never registered one)
+	// recover as before; an account whose record authorises nothing (empty,
+	// classical-only, degenerate) is treated as a key without a window, its
+	// signature refused. The gas is unchanged (3000) and the reads are off the
 	// meter. Before it a stolen classical key could sign an EIP-2612 permit, a
 	// Permit2 or order-book signature, or a meta transaction for a protected
 	// account and have someone else submit it, without the account's window
@@ -123,6 +125,19 @@ const (
 	// an internal error, and an end-of-block cross-VM call that did not
 	// contain panics failed the block.
 	FeatureEVMPraguePrecompiles = "evm-prague-precompiles"
+
+	// FeatureEVMDelegatedActorChargeOnCost changes what the delegated-actor
+	// settlement (evm-delegated-actor-settlement) charges to the window of a
+	// delegated account that is not the sender. Its actions are still
+	// checked (usable key, live window, scope), in frame and at settlement,
+	// but a window transaction is charged only when the execution costs the
+	// account something it authorised: native value it lost, a native
+	// allowance it granted, or actions its own code took after accepting its
+	// own signature (a delegated wallet executing a signed batch). Before it
+	// every action was charged, so anyone could use up the window of an
+	// account whose delegated code calls out on an incoming call (a fallback
+	// handler, a receive hook) by calling it repeatedly.
+	FeatureEVMDelegatedActorChargeOnCost = "evm-delegated-actor-charge-on-cost"
 )
 
 // V328EVMAuthzFeatures are the v3.2.8 switches for EVM-lane authorisation (delegated actors in frame and in scope, ecrecover, usable keys, native allowances), consent messages being the account's own, and the Prague precompiles.
@@ -135,4 +150,5 @@ var V328EVMAuthzFeatures = []string{
 	FeatureEVMNativeAllowanceWindow,
 	FeaturePQCConsentOwnMessage,
 	FeatureEVMPraguePrecompiles,
+	FeatureEVMDelegatedActorChargeOnCost,
 }
