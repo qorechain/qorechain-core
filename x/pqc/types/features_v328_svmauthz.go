@@ -253,6 +253,44 @@ const (
 	// through an invocation: the runtime attests the derived account when its
 	// base signed in the calling frame, and the keeper treats it as signed.
 	FeatureSVMSystemWithSeedCPI = "svm-system-with-seed-cpi"
+	// FeatureSVMResultBufferBounded makes the keeper size the result buffer
+	// once, from the most an instruction can produce (account data, 10 KiB of
+	// growth per account, the largest native allocation the instruction asks
+	// for, the attestation header), so an instruction is never executed twice;
+	// a failed run returns its header only, and the runtime charges 100 compute
+	// units per attested entry. Before it a large result made the keeper run
+	// the whole instruction again for one charge.
+	FeatureSVMResultBufferBounded = "svm-result-buffer-bounded"
+	// FeatureSVMRentStateTransition applies Solana's rent-state rule to every
+	// account other than a wallet: an account that was rent-exempt may end the
+	// instruction below its rent-exempt minimum only by ending at zero lamports
+	// (closed); one that was below may stay below only with the same data length
+	// and no fewer lamports. Before it the minimum was checked only when data grew.
+	FeatureSVMRentStateTransition = "svm-rent-state-transition"
+	// FeatureSVMSizeBoundOnGrowth checks max_account_data_size only for an
+	// account whose data grows, so lowering the param never freezes an existing
+	// larger account (its owner can still use and close it).
+	FeatureSVMSizeBoundOnGrowth = "svm-size-bound-on-growth"
+	// FeatureSVMCustodyWindowMonitor turns the custody window into a monitor:
+	// no operation is refused because of it. max_custody_uqor becomes the
+	// liability growth per window above which an svm_custody_window_exceeded
+	// event is emitted (and svm_custody_above_cap when the liability itself is
+	// above it); the liability stays queryable. Exposure is controlled by
+	// governance (the lane switch, the param) and the circuit breaker. Before
+	// it one holder could fill the window and block everyone's deposits.
+	FeatureSVMCustodyWindowMonitor = "svm-custody-window-monitor"
+	// FeatureSVMCPINestedAttribution judges a called program's result by the
+	// rules its own run already applied, so a change made by a native program
+	// it invoked (System debiting a signer passed down to it, a token transfer)
+	// counts as that native program's: router -> pool -> token works. Keys,
+	// executable flags, the callee's writable grants and the lamport total are
+	// still checked at the boundary.
+	FeatureSVMCPINestedAttribution = "svm-cpi-nested-attribution"
+	// FeatureSVMRelayedSeedLock refuses a relayed (linked-key) execution that
+	// changes the owner or data of an account derived with a seed from a base
+	// that signed (the canonical account): such an account belongs to the holder
+	// the same way the canonical account does.
+	FeatureSVMRelayedSeedLock = "svm-relayed-seed-lock"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -300,4 +338,10 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMAccountSizeRentChecked,
 	FeatureSVMLiabilityLiveRent,
 	FeatureSVMSystemWithSeedCPI,
+	FeatureSVMResultBufferBounded,
+	FeatureSVMRentStateTransition,
+	FeatureSVMSizeBoundOnGrowth,
+	FeatureSVMCustodyWindowMonitor,
+	FeatureSVMCPINestedAttribution,
+	FeatureSVMRelayedSeedLock,
 }

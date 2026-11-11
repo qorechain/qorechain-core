@@ -70,6 +70,8 @@ const (
 	RuntimeFlagATAPayerSystem   uint64 = 1 << 20 // svm-ata-payer-system
 	RuntimeFlagResultSizeExact  uint64 = 1 << 21 // svm-result-size-exact
 	RuntimeFlagSystemSeedCPI    uint64 = 1 << 22 // svm-system-with-seed-cpi
+	RuntimeFlagNestedAttrib     uint64 = 1 << 23 // svm-cpi-nested-attribution
+	RuntimeFlagResultBounded    uint64 = 1 << 24 // svm-result-buffer-bounded
 )
 
 // RuntimeSysvars are the consensus values of the Clock and Rent sysvars handed

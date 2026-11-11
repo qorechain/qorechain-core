@@ -20,6 +20,15 @@ type GenesisState struct {
 	CustodyLiability   string `json:"custody_liability,omitempty"`
 	CustodyWindowStart int64  `json:"custody_window_start,omitempty"`
 	CustodyWindowNet   string `json:"custody_window_net,omitempty"`
+	// PQCKeys are the keys registered with MsgRegisterSVMPQCKey. Absent in
+	// older exports.
+	PQCKeys []PQCKeyEntry `json:"pqc_keys,omitempty"`
+}
+
+// PQCKeyEntry is one SVM address's registered PQC public key.
+type PQCKeyEntry struct {
+	Address [32]byte `json:"address"`
+	Key     []byte   `json:"key"`
 }
 
 // DustEntry is one address's dust in lamports (1..LamportsPerUqor-1).
@@ -98,6 +107,13 @@ func (gs GenesisState) Validate() error {
 			return fmt.Errorf("invalid dust entry for %s", Base58Encode(d.Address))
 		}
 		dust[d.Address] = true
+	}
+	keys := make(map[[32]byte]bool, len(gs.PQCKeys))
+	for _, k := range gs.PQCKeys {
+		if len(k.Key) == 0 || keys[k.Address] {
+			return fmt.Errorf("invalid pqc key entry for %s", Base58Encode(k.Address))
+		}
+		keys[k.Address] = true
 	}
 	return nil
 }
