@@ -433,6 +433,24 @@ const (
 	// failed transactions no other node has. The node also refuses to start
 	// with such a library (checked whatever the features).
 	FeatureSVMLibraryFlagsChecked = "svm-library-flags-checked"
+	// FeatureSVMAccountExcessAlarmOnly makes the per-account excess cap
+	// (max_account_excess_uqor) a monitoring threshold too: a credit that
+	// leaves a store account above rent plus the cap emits
+	// svm_account_above_excess_cap (account, owner, excess) and is not
+	// refused. DECISION (round 12), the same as for the hard ceiling: a
+	// refusal on a shared account (a program vault, a pool) can be pinned by
+	// one depositor with refundable capital and then blocks every other
+	// depositor. With it, no SVM refusal depends on how much value others put
+	// in; exposure is controlled by monitoring (the alarms, the per-block
+	// svm_custody_summary with growth, svm_custody_growth_alarm), the lane
+	// switch and the circuit breaker (handoff-v328/SVM-CUSTODY-MONITORING.md).
+	FeatureSVMAccountExcessAlarmOnly = "svm-account-excess-alarm-only"
+	// FeatureSVMCustodyGrowthSignal adds growth to the per-block
+	// svm_custody_summary: the liability growth since the previous block
+	// (the previous value is kept in the store) and the growth over the
+	// current custody window, and emits svm_custody_growth_alarm when the
+	// window growth exceeds max_custody_uqor.
+	FeatureSVMCustodyGrowthSignal = "svm-custody-growth-signal"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -507,4 +525,6 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMCPIRegistrySharedCharge,
 	FeatureSVMCustodyCeilingAlarmOnly,
 	FeatureSVMLibraryFlagsChecked,
+	FeatureSVMAccountExcessAlarmOnly,
+	FeatureSVMCustodyGrowthSignal,
 }
