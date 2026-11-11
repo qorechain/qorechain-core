@@ -219,11 +219,15 @@ const (
 	FeatureEVMPrecompileMethodAllowlist = "evm-precompile-method-allowlist"
 
 	// FeatureEVMPrecompileInputCanonical makes every guarded stateful
-	// precompile (the standard ones and QoreChain's own) check its input
-	// before anything decodes it: no larger than the precompile input cap
-	// (EVMLimits, 16 KiB by default) and in canonical ABI form (each dynamic
-	// value's offset where the previous one ends, every length in bounds),
-	// checked in one pass without allocating. A non-canonical encoding can
+	// precompile (the standard ones and QoreChain's own) check its input in
+	// canonical ABI form before anything decodes it (each dynamic value's
+	// offset where the previous one ends, every length in bounds), checked in
+	// one pass without allocating; the standard precompiles also refuse an
+	// input larger than the precompile input cap (EVMLimits, 16 KiB by
+	// default). QoreChain's own are capped from
+	// evm-precompile-input-priced (bech32 1 KiB, aiRiskScore twice the
+	// largest init code), pqcVerify not at all: it carries whole messages and
+	// charges per byte. A non-canonical encoding can
 	// point many array elements at one value, which the ABI decoder then
 	// copies once per element (memory quadratic in the input); every
 	// standard encoder produces the canonical form.
@@ -244,6 +248,31 @@ const (
 	// in-frame decision for the call (a usable key, a live window with a
 	// transaction left, the scope).
 	FeatureEVMPrecompileStaticReadOnly = "evm-precompile-static-readonly"
+
+	// FeatureEVMPrecompileInputPriced makes every precompile call pay for
+	// its input before anything is copied or decoded (go-ethereum 0003): 3
+	// gas per 32-byte word, plus 100 for a precompile that is not one of
+	// Ethereum's (identity, sha256 and ripemd160, which already price their
+	// input by the word, are left as they are). A call that cannot pay fails
+	// out of gas. The precompile guards refuse an unknown method selector,
+	// an over-cap or non-canonical input as an error that consumes the
+	// call's gas (not a revert), before the precompile takes a store
+	// snapshot; the ERC-20 token precompiles refuse an unknown selector the
+	// same way. The bech32 precompile accepts at most 1 KiB of input and
+	// strings of at most 90 characters (a whole bech32 address), aiRiskScore
+	// at most twice the largest contract init code. Every QoreChain
+	// precompile, and the bank and bech32 precompiles, refuse an unknown
+	// selector.
+	FeatureEVMPrecompileInputPriced = "evm-precompile-input-priced"
+
+	// FeatureEVMTxTotalGasCap bounds the EVM gas each top-level message of a
+	// Cosmos transaction may use across every EVM run it makes (a cross-VM
+	// call, an abstract-account execution, an ERC-20 conversion, an IBC
+	// packet's ERC-20 transfer: a MsgRecvPacket is one packet, any module's
+	// EVM run) by the same transaction gas cap as an EVM transaction
+	// (EVMLimits): each run may ask for no more than is left, and what it
+	// used before refunds is taken from the message's budget.
+	FeatureEVMTxTotalGasCap = "evm-tx-total-gas-cap"
 )
 
 // V328EVMAuthzFeatures are the v3.2.8 switches for EVM-lane authorisation (delegated actors in frame and in scope, ecrecover, usable keys, native allowances), consent messages being the account's own, and the Prague precompiles.
@@ -264,4 +293,6 @@ var V328EVMAuthzFeatures = []string{
 	FeatureEVMPrecompileInputCanonical,
 	FeatureEVMTxGasCap,
 	FeatureEVMPrecompileStaticReadOnly,
+	FeatureEVMPrecompileInputPriced,
+	FeatureEVMTxTotalGasCap,
 }

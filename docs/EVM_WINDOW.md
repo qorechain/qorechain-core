@@ -295,6 +295,13 @@ when native QOR is lost, and the value bound always holds. For such wallets name
 you trust (`--validators`), or open scoped (`--allowed-targets`) short windows: the scope, not
 the count, is what bounds tokens.
 
+**Design limit: inline signature checks are not counted.** The transaction count (`max_txs`) is
+charged for actions taken under a signature check the chain can see, an `ecrecover` call made by the
+account's own code or by a validator it names. A delegated wallet that checks the account's
+signature in its own code (secp256k1 arithmetic inline, without calling `0x01`) takes actions the
+chain cannot tie to a signature: they are checked (live window, scope, value bound) but not counted
+against `max_txs`.
+
 **Known limit: only `ecrecover` is seen.** The window gates signatures checked through the
 ecrecover precompile (`0x01`). A wallet or contract that verifies secp256k1 in its own code, or
 uses another scheme (P-256 at `0x100`, any other), is outside what the chain can tie to the
