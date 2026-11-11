@@ -73,13 +73,13 @@ type EVMAuthWindow struct {
 }
 
 // NamesValidator reports whether the window names a as a validator of the
-// account's signature: listed in validators or in allowed_targets.
+// account's signature: listed in validators. allowed_targets does not count:
+// a target the account calls (a router, a relay that makes calls for anyone)
+// is not thereby trusted to vouch for its signature.
 func (w EVMAuthWindow) NamesValidator(a common.Address) bool {
-	for _, l := range [][]string{w.Validators, w.AllowedTargets} {
-		for _, t := range l {
-			if common.HexToAddress(t) == a {
-				return true
-			}
+	for _, t := range w.Validators {
+		if common.HexToAddress(t) == a {
+			return true
 		}
 	}
 	return false
