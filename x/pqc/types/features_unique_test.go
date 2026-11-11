@@ -44,6 +44,7 @@ func TestV328ReleaseListsComposeOnce(t *testing.T) {
 		"QSR2":       V328QSR2Features,
 		"WasmFilter": V328WasmFilterFeatures,
 		"AMMRLAI":    V328AMMRLAIFeatures,
+		"EVMAuthz":   V328EVMAuthzFeatures,
 	}
 	total := 0
 	for area, l := range areas {
