@@ -54,7 +54,7 @@ func cmdDepositToRollup() *cobra.Command {
 func cmdBondSubmitter() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "bond-submitter [rollup-id] [amount-uqor]",
-		Short: "Add to your submitter bond on a qledger-v1 rollup (chain v3.2.8+); an upheld fraud proof pays it to the challenger",
+		Short: "Add to your submitter bond on a qledger-v1 rollup (chain v3.2.8+); an upheld fraud proof slashes it (half burned, half to the challenger)",
 		Args:  cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)

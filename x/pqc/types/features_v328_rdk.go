@@ -32,7 +32,9 @@ const (
 	// field a withdrawal, the latest-batch pointer or a query needs is kept,
 	// so withdrawals stay executable without a time limit. The walk follows a
 	// per-rollup cursor in index order and is bounded per rollup and per
-	// block. MsgUpdateParams may set the retention from the switch; before it
+	// block; the rollups take turns (each block starts after the rollup the
+	// previous one visited last), so a busy rollup cannot starve the others.
+	// MsgUpdateParams may set the retention from the switch; before it
 	// a non-zero value is refused. Before it no finalized batch was ever
 	// pruned and the store grew by every proof ever settled.
 	FeatureRDKBatchCompaction = "rdk-batch-compaction"

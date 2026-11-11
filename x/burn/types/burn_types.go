@@ -24,6 +24,11 @@ const (
 	// (v3.2.4): a share of a delegation lock taken out of the stake and burned
 	// when the holder ends the lock before it expires.
 	BurnSourceStakingTierPenalty BurnSource = "staking_tier_penalty"
+	// BurnSourceRollupSlash is the burned share of a qledger-v1 submitter
+	// bond slashed by an upheld fraud proof (v3.2.8). It is accepted by
+	// IsValidBurnSource but not listed in ValidBurnSources, which seeds the
+	// default burn stats: stats written by older binaries keep their bytes.
+	BurnSourceRollupSlash BurnSource = "rollup_slash"
 )
 
 // ValidBurnSources returns all valid burn sources.
@@ -39,6 +44,9 @@ func ValidBurnSources() []BurnSource {
 
 // IsValidBurnSource checks if a burn source is valid.
 func IsValidBurnSource(s BurnSource) bool {
+	if s == BurnSourceRollupSlash {
+		return true
+	}
 	for _, v := range ValidBurnSources() {
 		if v == s {
 			return true

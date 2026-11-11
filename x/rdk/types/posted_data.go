@@ -24,6 +24,10 @@ type PostedDataRecord struct {
 	InboxAcc []byte `json:"inbox_acc"`
 	// ExpiresAt is the height from which EndBlock prunes the commitment.
 	ExpiresAt int64 `json:"expires_at"`
+	// Holds counts the retention periods a qledger-v1 rollup kept the
+	// commitment past its expiry because no finalized batch covered it yet;
+	// at MaxQLedgerPostHolds it is pruned like any other.
+	Holds uint32 `json:"holds,omitempty"`
 }
 
 // InboxState is a rollup's inbox: the last post (head) and the position the

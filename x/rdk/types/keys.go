@@ -57,7 +57,35 @@ var (
 	// PostedDataBlockKey records the height of the last block with a post and
 	// the billable bytes posted in it.
 	PostedDataBlockKey = []byte("rdk/pdblock")
+	// PostedDataSharePrefix holds the billable bytes one rollup and one
+	// poster used in the current block: <height be64><kind><id>. EndBlock
+	// deletes the block's entries, so nothing stays in state.
+	PostedDataSharePrefix = []byte("rdk/pdshare/")
+	// CompactRollupCursorKey records the rollup the finalized-batch
+	// compaction walk visited last, so the next block starts after it.
+	CompactRollupCursorKey = []byte("rdk/ccrollup")
 )
+
+// Kinds of a PostedDataShareKey.
+const (
+	PostedDataShareRollup byte = 'r'
+	PostedDataSharePoster byte = 'p'
+)
+
+// PostedDataShareKey returns the key of what one rollup (kind
+// PostedDataShareRollup) or one poster (PostedDataSharePoster) posted at
+// height.
+func PostedDataShareKey(height int64, kind byte, id string) []byte {
+	k := append(append([]byte{}, PostedDataSharePrefix...), be64(uint64(height))...)
+	k = append(k, kind)
+	return append(k, PostedDataRollupKey(id)...)
+}
+
+// PostedDataShareHeightEnd returns the first key after every share entry of
+// heights up to and including height.
+func PostedDataShareHeightEnd(height int64) []byte {
+	return append(append([]byte{}, PostedDataSharePrefix...), be64(uint64(height)+1)...)
+}
 
 // PostedDataRollupKey is the length-prefixed rollup id used inside the
 // posted-data keys.

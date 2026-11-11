@@ -51,7 +51,11 @@ const (
 	// recovery counted agent steps against a block count, ten times too long.
 	// The outputs stay inside the module's own store and the existing hard
 	// limits (1 to 30 seconds, gas price floor at least 1, pool weights 0.05
-	// to 0.80).
+	// to 0.80), and the gas price floor is also held at most
+	// RelativeGasFloorCeiling (default_base_gas_price times 1,000,000, at
+	// most 10^24): a relative step grows the floor geometrically, and without
+	// a ceiling an agent that kept asking for more would overflow the
+	// decimal arithmetic after about 1,800 steps.
 	FeatureRLRelativeBounds = "rl-relative-bounds"
 
 	// FeatureEVMAIRiskScoreBytecode makes the aiRiskScore precompile (0x0B01)
@@ -79,14 +83,31 @@ const (
 	// refused.
 	FeatureRLApplyGasFloor = "rl-apply-gas-floor"
 
-	// FeatureGovQDRWTally lets governance tally with QDRW (quadratic
-	// delegation with reputation weighting) while the x/qca QDRW configuration
-	// is enabled (MsgUpdateQDRWConfig, false by default): each voter's power
-	// is the square root of its bonded stake times a bounded reputation
-	// multiplier, scaled so quorum is still judged on participating stake.
-	// LegacyDec arithmetic only; xQORE adds nothing. With the configuration
-	// disabled the stock tally runs. Before it the message was refused.
+	// FeatureGovQDRWTally lets governance tally with QDRW (delegation with
+	// reputation weighting) while the x/qca QDRW configuration is enabled
+	// (MsgUpdateQDRWConfig, false by default): each voter's power is its
+	// bonded stake times a bounded reputation multiplier (the stake-weighted
+	// reputation of the validators it delegates to), scaled so quorum is
+	// still judged on participating stake. The power is linear in stake: a
+	// square root per account, as first designed, let one holder outvote a
+	// larger one by splitting its stake over many accounts, and nothing on
+	// chain ties an account to a person. Splitting or merging stake therefore
+	// changes nothing; only moving it to validators with a better reputation
+	// does. LegacyDec arithmetic only; xQORE adds nothing. With the
+	// configuration disabled the stock tally runs. Before it the message was
+	// refused.
 	FeatureGovQDRWTally = "gov-qdrw-tally"
+
+	// FeatureRLStepGuard keeps a fault in the RL agent's step from halting
+	// the chain. The x/rlconsensus EndBlock step (reward, inference, applying
+	// the action, circuit breaker) runs in a cache branch: if it panics, the
+	// branch is discarded, the panic is logged and an rl_step_skipped event
+	// is emitted, and the block goes on without the step. Every node runs the
+	// same state through the same code, so every node skips the same step.
+	// The decimal arithmetic of applying an action is also guarded: a value
+	// that would overflow keeps its current value instead. Before it such a
+	// panic left EndBlock and halted the chain.
+	FeatureRLStepGuard = "rl-step-guard"
 )
 
 // V328AMMRLAIFeatures are the v3.2.8 switches of the AMM, RL consensus and AI
@@ -101,4 +122,5 @@ var V328AMMRLAIFeatures = []string{
 	FeatureAIFlaggedTxRetention,
 	FeatureRLApplyGasFloor,
 	FeatureGovQDRWTally,
+	FeatureRLStepGuard,
 }
