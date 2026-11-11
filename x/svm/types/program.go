@@ -33,4 +33,7 @@ type ExecutionResult struct {
 	// invocation derived from a base that signed in the calling frame
 	// (svm-system-with-seed-cpi). Not part of any encoded output.
 	SeedSigned [][32]byte `json:"-"`
+	// SeedBases holds, with RuntimeFlagSeedBases, the base each SeedSigned
+	// account was derived from (same order and length). Not encoded.
+	SeedBases [][32]byte `json:"-"`
 }

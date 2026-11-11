@@ -110,7 +110,7 @@ func (gs GenesisState) Validate() error {
 	}
 	keys := make(map[[32]byte]bool, len(gs.PQCKeys))
 	for _, k := range gs.PQCKeys {
-		if len(k.Key) == 0 || keys[k.Address] {
+		if len(k.Key) != SVMPQCPublicKeyLen || keys[k.Address] {
 			return fmt.Errorf("invalid pqc key entry for %s", Base58Encode(k.Address))
 		}
 		keys[k.Address] = true

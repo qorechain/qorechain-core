@@ -92,6 +92,12 @@ message SVMParams {
   // custody backing program, PDA and data-account lamports). 0 means no cap.
   // Enforced only while the svm-lane-governed protocol feature is on.
   uint64 max_custody_uqor = 10;
+  // max_custody_hard_uqor is the absolute ceiling on the svm module account's
+  // raw uqor balance (rent reserves, pre-funding and donations included):
+  // with svm-custody-hard-ceiling any operation that would leave the balance
+  // above it is refused. 0 means no ceiling; governance must set one before
+  // opening the lane on any network. It should be well above max_custody_uqor.
+  uint64 max_custody_hard_uqor = 11;
 }
 
 // MsgUpdateParams replaces the SVM runtime parameters wholesale.

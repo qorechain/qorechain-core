@@ -291,6 +291,46 @@ const (
 	// that signed (the canonical account): such an account belongs to the holder
 	// the same way the canonical account does.
 	FeatureSVMRelayedSeedLock = "svm-relayed-seed-lock"
+	// FeatureSVMCustodyHardCeiling adds an absolute ceiling on the svm module
+	// account, max_custody_hard_uqor, beside the custody window monitor: any
+	// operation that would leave the module's raw uqor balance (rent reserves,
+	// pre-funding and donations included) above it is refused. An SVM
+	// settlement is judged on its net change, so a transfer that only passes
+	// through custody is never refused. 0 means no ceiling; governance must set
+	// one before the lane opens on any network. Outflows are never limited.
+	FeatureSVMCustodyHardCeiling = "svm-custody-hard-ceiling"
+	// FeatureSVMNativeAllocationCharged charges the account space a top-level
+	// System CreateAccount or Allocate (or a WithSeed form) asks for before it
+	// runs, as serialized bytes, because the keeper allocates the result buffer
+	// for it. Nothing is refunded on failure; on success the copy-back charge is
+	// reduced by the same bytes, so an honest instruction pays the same.
+	FeatureSVMNativeAllocationCharged = "svm-native-allocation-charged"
+	// FeatureSVMExecutionThreadNodeFault treats a node that cannot create the
+	// execution thread during block execution as a node fault: the runtime
+	// retries a bounded number of times and then the node halts with a clear
+	// error instead of recording a failed transaction other nodes would not.
+	FeatureSVMExecutionThreadNodeFault = "svm-execution-thread-node-fault"
+	// FeatureSVMSimulationBounded caps concurrent SVM simulations (gRPC
+	// Simulate and the SVM RPC simulateTransaction); a simulation that finds
+	// every slot taken returns a busy error at once. Node-local only.
+	FeatureSVMSimulationBounded = "svm-simulation-bounded"
+	// FeatureSVMNoCreditNativeProgram refuses lamports sent to a native program
+	// id (System, Token, ATA, Memo, the loader, the QoreChain built-ins,
+	// sysvars and the other well-known Solana program ids) whatever the store
+	// holds at that address: nobody can ever spend them.
+	FeatureSVMNoCreditNativeProgram = "svm-no-credit-native-program"
+	// FeatureSVMAttestedOwnerHandoff accepts two Solana patterns the attested
+	// rule refused: a program that gives its account away (data zero at the
+	// hand-off, which the runtime enforces in every frame) to a program that
+	// then writes it in the same instruction, and a created account assigned,
+	// with zero data, to the token program or a deployed program that did not
+	// run in the instruction. No other change of owner or data is allowed.
+	FeatureSVMAttestedOwnerHandoff = "svm-attested-owner-handoff"
+	// FeatureSVMRelayedSeedLockCanonicalBase narrows svm-relayed-seed-lock to
+	// seed accounts whose base is the canonical account the linked key acts
+	// for; the runtime attests the base of every seed account. Accounts derived
+	// from a program's PDA base are left to that program's rules.
+	FeatureSVMRelayedSeedLockCanonicalBase = "svm-relayed-seed-lock-canonical-base"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -344,4 +384,11 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMCustodyWindowMonitor,
 	FeatureSVMCPINestedAttribution,
 	FeatureSVMRelayedSeedLock,
+	FeatureSVMCustodyHardCeiling,
+	FeatureSVMNativeAllocationCharged,
+	FeatureSVMExecutionThreadNodeFault,
+	FeatureSVMSimulationBounded,
+	FeatureSVMNoCreditNativeProgram,
+	FeatureSVMAttestedOwnerHandoff,
+	FeatureSVMRelayedSeedLockCanonicalBase,
 }

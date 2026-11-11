@@ -72,6 +72,7 @@ const (
 	RuntimeFlagSystemSeedCPI    uint64 = 1 << 22 // svm-system-with-seed-cpi
 	RuntimeFlagNestedAttrib     uint64 = 1 << 23 // svm-cpi-nested-attribution
 	RuntimeFlagResultBounded    uint64 = 1 << 24 // svm-result-buffer-bounded
+	RuntimeFlagSeedBases        uint64 = 1 << 25 // svm-relayed-seed-lock-canonical-base
 )
 
 // RuntimeSysvars are the consensus values of the Clock and Rent sysvars handed

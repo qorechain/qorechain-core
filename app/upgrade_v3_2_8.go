@@ -93,6 +93,9 @@ func (app *QoreChainApp) upgradeV3_2_8SVMLaneGoverned(ctx sdk.Context) error {
 	params := app.SVMKeeper.GetParams(ctx)
 	params.Enabled = false
 	params.MaxCustodyUqor = pqctypes.SVMLaneGovernedInitialCustodyCapUqor
+	// svm-custody-hard-ceiling: the absolute ceiling is written with the
+	// threshold; it is inert until that feature is enabled with the release.
+	params.MaxCustodyHardUqor = pqctypes.SVMLaneGovernedInitialCustodyHardCeilingUqor
 	if err := app.SVMKeeper.SetParams(ctx, params); err != nil {
 		return err
 	}
