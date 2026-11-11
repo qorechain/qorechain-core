@@ -121,12 +121,12 @@ const (
 	// it), its conservative compiled size (ConservativeCompiledSize) may be
 	// at most MaxUploadCompiledSize, and it pays CompiledGasPerByte per byte
 	// of that size, which every node keeps on disk. The largest release
-	// contract (cw721_base, about 11.9 MB estimated) stores for about 37.7M
+	// contract (cw721_base, about 16.8 MB estimated) stores for about 31M
 	// gas, inside the 50M transaction cap.
 	MaxUploadFunctions       = 4_096
 	CompiledBytesPerWasmByte = 16
 	CompiledBytesPerFunction = 256
-	CompiledGasPerByte       = 2
+	CompiledGasPerByte       = 1
 )
 
 // ErrTooManyFunctions is the refusal of an upload with more functions than
@@ -140,34 +140,43 @@ func EstimatedCompiledSize(size, functions int) uint64 {
 	return uint64(size)*CompiledBytesPerWasmByte + uint64(functions)*CompiledBytesPerFunction
 }
 
-// Compiled bytes per operator kind, measured (the machine code and
-// metadata the VM keeps for one operator; an uploader chooses the mix, so
-// the estimate follows the operators, not the module size).
-const (
-	CompiledBytesPerCall         = 180
-	CompiledBytesPerCallIndirect = 250
-	CompiledBytesPerBranch       = 270 // block, loop, if, br_if, br_table
-	CompiledBytesPerDivRem       = 70
-	CompiledBytesPerOtherOp      = 16
-)
+// CompiledBytesPerClass is the compiled code one operator of each class
+// makes, the largest measured over the architectures validators run (x86-64
+// and arm64) with a 1.25x margin; CompiledBytesPerFunctionOps is the same
+// for a function's own overhead. The VM compiles for the machine it runs
+// on, and x86-64 makes up to 2.3 times the code arm64 does for some
+// operators (memory loads, bit counts, division by constants, if/else), so
+// the weights follow the larger. Provisional x86-64 figures, from probes run
+// on x86-64 under emulation, until the validator-hardware table replaces
+// them.
+var CompiledBytesPerClass = [NumOpClasses]uint64{
+	OpOther:        20,
+	OpCall:         225,
+	OpCallIndirect: 366,
+	OpBranch:       337,
+	OpFlow:         125,
+	OpLoad:         146,
+	OpStore:        139,
+	OpDivRem:       160,
+	OpBitCount:     40,
+	OpMemory:       50,
+}
+
+// CompiledBytesPerFunctionOps is a function's own compiled overhead in the
+// per-operator estimate.
+const CompiledBytesPerFunctionOps = 500
 
 // ConservativeCompiledSize is the compiled size a module is charged and
 // bounded by: the larger of the size-based floor and the per-operator
-// estimate from its inspection. Measured compiled sizes of the release
-// contracts, the testnet's codes and adversarial shapes are all at or
-// below it.
+// estimate from its inspection (CompiledBytesPerClass). Measured compiled
+// sizes of the release contracts, the testnet's codes and adversarial shapes
+// are at or below it on both architectures.
 func ConservativeCompiledSize(size int, st Stats) uint64 {
 	floor := EstimatedCompiledSize(size, st.Functions)
-	other := st.Ops - st.Calls - st.CallIndirects - st.Branches - st.DivRemOps
-	if other < 0 {
-		other = 0
+	ops := uint64(st.Functions) * CompiledBytesPerFunctionOps
+	for c, n := range st.ByClass {
+		ops += uint64(n) * CompiledBytesPerClass[c]
 	}
-	ops := uint64(st.Functions)*CompiledBytesPerFunction +
-		uint64(st.Calls)*CompiledBytesPerCall +
-		uint64(st.CallIndirects)*CompiledBytesPerCallIndirect +
-		uint64(st.Branches)*CompiledBytesPerBranch +
-		uint64(st.DivRemOps)*CompiledBytesPerDivRem +
-		uint64(other)*CompiledBytesPerOtherOp
 	return max(floor, ops)
 }
 

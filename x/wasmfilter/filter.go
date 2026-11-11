@@ -171,9 +171,52 @@ type Stats struct {
 	DivRemOps   int // integer div and rem operators
 	MemoryOps   int // memory.size and memory.grow
 	CustomBytes int // bytes in custom sections (names, debug info, producers)
-	// Operators walked, and of them calls, indirect calls and branches
-	// (block, loop, if, br_if, br_table), for the compiled-size estimate.
-	Ops, Calls, CallIndirects, Branches int
+	// Operators walked, and the count of each operator class
+	// (OpClass), for the compiled-size estimate.
+	Ops     int
+	ByClass [NumOpClasses]int
+}
+
+// OpClass groups operators by how much compiled code one of them makes.
+type OpClass int
+
+const (
+	OpOther        OpClass = iota // everything below not listed
+	OpCall                        // call
+	OpCallIndirect                // call_indirect
+	OpBranch                      // block, loop, if, br_if, br_table
+	OpFlow                        // else, end, br, return
+	OpLoad                        // memory loads
+	OpStore                       // memory stores
+	OpDivRem                      // integer division and remainder
+	OpBitCount                    // eqz, clz, ctz, popcnt
+	OpMemory                      // memory.size, memory.grow
+	NumOpClasses
+)
+
+// opClass is the class of a single-byte operator.
+func opClass(op byte) OpClass {
+	switch {
+	case op == 0x10:
+		return OpCall
+	case op == 0x11:
+		return OpCallIndirect
+	case op == opBlock || op == opLoop || op == opIf || op == 0x0D || op == 0x0E:
+		return OpBranch
+	case op == opElse || op == opEnd || op == 0x0C || op == 0x0F:
+		return OpFlow
+	case op >= 0x28 && op <= 0x35:
+		return OpLoad
+	case op >= 0x36 && op <= 0x3E:
+		return OpStore
+	case isDivRemOp(op):
+		return OpDivRem
+	case op == 0x45 || op == 0x50 || (op >= 0x67 && op <= 0x69) || (op >= 0x79 && op <= 0x7B):
+		return OpBitCount
+	case op == 0x3F || op == 0x40:
+		return OpMemory
+	}
+	return OpOther
 }
 
 // IsFloatOp reports whether the single-byte opcode op handles a float value:
@@ -382,6 +425,7 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 		op, _ := r.byte()
 		if st != nil {
 			st.Ops++
+			st.ByClass[opClass(op)]++
 			switch {
 			case IsFloatOp(op):
 				st.FloatOps++
@@ -389,12 +433,6 @@ func checkBody(body []byte, types []funcType, st *Stats) error {
 				st.DivRemOps++
 			case op == 0x3F || op == 0x40:
 				st.MemoryOps++
-			case op == 0x10:
-				st.Calls++
-			case op == 0x11:
-				st.CallIndirects++
-			case op == opBlock || op == opLoop || op == opIf || op == 0x0D || op == 0x0E:
-				st.Branches++
 			}
 		}
 		switch {

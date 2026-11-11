@@ -506,6 +506,10 @@ func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, checksum []byte, units, g
 	}
 	if !counts && !query {
 		ctx.GasMeter().ConsumeGas(sdkGas, "wasm code load")
+		// A simulation or CheckTx loads the code on this node too.
+		b.mu.Lock()
+		b.recent.touch(key, compiled)
+		b.mu.Unlock()
 		return nil
 	}
 	if query {
@@ -569,12 +573,12 @@ func (b *blockWasmBudget) takeSetup(ctx sdk.Context, key string, vm, compiled ui
 	return nil
 }
 
-// FreeRepeatLoadBytes is the estimated compiled size of the distinct codes a
-// block may load before repeated calls to them are charged again: below
-// wasmd's default in-memory cache (100 MiB), so a code loaded earlier in the
-// block is still in memory when called again. Validators must keep
-// memory_cache_size at least at the default.
-const FreeRepeatLoadBytes = 64 << 20
+// FreeRepeatLoadBytes is the conservative compiled size of the distinct
+// codes a block may load before repeated calls to them are charged again:
+// an eighth of the minimum memory cache (MinWasmMemoryCacheMiB), so a code
+// loaded earlier in the block is still in memory when called again even if
+// real compiled sizes were well above the estimate.
+const FreeRepeatLoadBytes = 32 << 20
 
 // loadAllowance is a per-second allowance (node-local, wall clock).
 type loadAllowance struct {
@@ -618,7 +622,7 @@ func (r *recentLoads) touch(key string, size uint64) {
 		r.order, r.byKey = list.New(), map[string]*list.Element{}
 	}
 	if r.capacity == 0 {
-		r.capacity = uint64(MinWasmMemoryCacheMiB) << 20
+		r.capacity = uint64(MinWasmMemoryCacheMiB) << 19
 	}
 	if e, ok := r.byKey[key]; ok {
 		r.order.MoveToFront(e)
@@ -635,9 +639,20 @@ func (r *recentLoads) touch(key string, size uint64) {
 	}
 }
 
-// setRecentLoadCapacity sets the node's memory cache size in bytes.
+// setRecentLoadCapacity sizes the recent-loads set from the node's memory
+// cache size in bytes: half of it, so a code the set calls hot is still in
+// memory even if real compiled sizes were twice the estimate.
 func (b *blockWasmBudget) setRecentLoadCapacity(bytes uint64) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	b.recent.capacity = bytes
+	b.recent.capacity = bytes / 2
+}
+
+// resetNodeLocalLoads empties the node-local load state (the recent-loads
+// set and the query allowance). For tests that share one app.
+func (b *blockWasmBudget) resetNodeLocalLoads() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.recent = recentLoads{capacity: b.recent.capacity}
+	b.queryLoads = loadAllowance{}
 }

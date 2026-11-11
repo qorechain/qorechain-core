@@ -54,7 +54,7 @@ func TestAppTomlWasmSimulationGasLimit(t *testing.T) {
 		"[wasm]",
 		"simulation_gas_limit = 50000000",
 		"query_gas_limit = 3000000",
-		"memory_cache_size = 100",
+		"memory_cache_size = 256",
 	} {
 		require.True(t, strings.Contains(out, want), "app.toml lacks %q", want)
 	}
@@ -67,5 +67,5 @@ func TestAppTomlWasmSimulationGasLimit(t *testing.T) {
 	require.NotNil(t, nodeCfg.SimulationGasLimit)
 	require.Equal(t, DefaultWasmSimulationGasLimit, *nodeCfg.SimulationGasLimit)
 	require.Equal(t, uint64(3_000_000), nodeCfg.SmartQueryGasLimit)
-	require.Equal(t, uint32(100), nodeCfg.MemoryCacheSize)
+	require.Equal(t, uint32(256), nodeCfg.MemoryCacheSize)
 }

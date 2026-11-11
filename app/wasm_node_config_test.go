@@ -98,14 +98,16 @@ func TestBoundedSimulationGasLimit(t *testing.T) {
 	}
 }
 
-// A node refuses to start with a [wasm] memory cache below the minimum.
+// A node runs with at least the minimum memory cache: a smaller configured
+// value, or none, is raised to it.
 func TestWasmMemoryCacheMinimum(t *testing.T) {
-	defer func() {
-		r := recover()
-		if r == nil {
-			t.Fatal("a 7 MiB memory cache was accepted")
-		}
-		t.Logf("refused: %v", r)
-	}()
-	readWasmNodeConfig(homeOpts{"wasm.memory_cache_size": uint32(7)})
+	if cfg := readWasmNodeConfig(homeOpts{"wasm.memory_cache_size": uint32(100)}); cfg.MemoryCacheSize != MinWasmMemoryCacheMiB {
+		t.Fatalf("100 MiB configured: running with %d", cfg.MemoryCacheSize)
+	}
+	if cfg := readWasmNodeConfig(homeOpts{}); cfg.MemoryCacheSize != MinWasmMemoryCacheMiB {
+		t.Fatalf("none configured: running with %d", cfg.MemoryCacheSize)
+	}
+	if err := checkWasmMemoryCache(wasmtypes.NodeConfig{MemoryCacheSize: 7}); err == nil {
+		t.Fatal("7 MiB reported as enough")
+	}
 }

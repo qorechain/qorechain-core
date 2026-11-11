@@ -102,12 +102,14 @@ const (
 
 	// DefaultMaxBlockUploadBps is the block's code-upload pool when
 	// params.MaxBlockUploadBps is zero, in basis points of the transactions'
-	// wasm pool: 3,750 of 2,250,000 units at the default budget is 843,750,
-	// enough for one module of wasmd's maximum size (819,200 bytes at one
-	// unit per byte). Compiling costs far less validator CPU per unit than
+	// wasm pool: 5,000 of 2,250,000 units at the default budget is 1,125,000,
+	// enough for the largest release contract (an upload takes the larger of
+	// its bytes and a sixteenth of its conservative compiled size: cw721_base
+	// about 1,050,000), so modules up to about 18 MB of conservative compiled
+	// size fit one block. Compiling costs far less validator CPU per unit than
 	// the slowest admitted operator, so the pool adds little to a block's
 	// worst case, and uploads cannot spend the execution pool.
-	DefaultMaxBlockUploadBps uint32 = 3_750
+	DefaultMaxBlockUploadBps uint32 = 5_000
 
 	// MinQueueAdmission is the least gas a queued CosmWasm call is admitted
 	// on: below it the call stays pending for a later block rather than run

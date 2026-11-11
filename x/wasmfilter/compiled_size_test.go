@@ -113,6 +113,11 @@ func ccMeasure(t *testing.T, name string, code []byte, timeLoad bool) (ccRes, bo
 	return ccRes{name, len(code), st.Functions, real, est, 0, load}, true
 }
 
+// The VM compiles for the machine it runs on, and validators run x86-64:
+// CI must run this test on x86-64 as well as arm64 (on Apple silicon:
+// GOARCH=amd64 CC="clang -arch x86_64" under Rosetta; libwasmvm.dylib is
+// universal).
+//
 // The conservative compiled size is at or above what the VM really keeps
 // (on disk and in its memory cache) for the release contracts and for
 // shapes an uploader chooses; the shapes that compile largest are over the

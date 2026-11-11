@@ -50,7 +50,7 @@ func (f *Filter) WithCompiledSizeCharge(on func(sdk.Context) bool) *Filter {
 // executing code (within 2x on the measured shapes).
 const (
 	LoadUnitsBase            = 1_000
-	LoadCompiledBytesPerUnit = 450
+	LoadCompiledBytesPerUnit = 560 // 450 real compiled bytes; the estimate carries a 1.25x margin
 	LoadGasPerUnit           = 18
 )
 

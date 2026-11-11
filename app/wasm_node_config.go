@@ -52,24 +52,35 @@ func readWasmNodeConfig(appOpts servertypes.AppOptions) wasmtypes.NodeConfig {
 		panic("failed to read wasm node config: " + err.Error())
 	}
 	cfg.SimulationGasLimit = boundedSimulationGasLimit(&cfg)
+	// The node runs with at least the minimum memory cache: without the key
+	// in app.toml it gets the minimum, and a smaller value (wasmd's and
+	// earlier releases' default is 100) is raised to it with a warning, so
+	// an upgraded node with an old app.toml starts rather than halting at
+	// the upgrade height.
+	if appOpts == nil || appOpts.Get("wasm.memory_cache_size") == nil {
+		cfg.MemoryCacheSize = MinWasmMemoryCacheMiB
+	}
 	if err := checkWasmMemoryCache(cfg); err != nil {
-		panic(err.Error())
+		fmt.Fprintf(os.Stderr, "WARNING x/wasm: %s; using %d MiB\n", err, MinWasmMemoryCacheMiB)
+		cfg.MemoryCacheSize = MinWasmMemoryCacheMiB
 	}
 	return cfg
 }
 
 // MinWasmMemoryCacheMiB is the smallest [wasm] memory_cache_size a node may
-// run with (wasmd's default). The once-per-block price of loading a code
+// run with: eight times the free-repeat bound (FreeRepeatLoadBytes), so the
+// once-per-block load price holds even if real compiled sizes were several
+// times the estimate. The once-per-block price of loading a code
 // assumes a code loaded earlier in a block is still in memory while the
 // block's distinct loads stay within FreeRepeatLoadBytes; a smaller cache
 // would make this node reload modules nobody paid for.
-const MinWasmMemoryCacheMiB = 100
+const MinWasmMemoryCacheMiB = 256
 
-// checkWasmMemoryCache refuses a [wasm] memory_cache_size below
+// checkWasmMemoryCache reports a [wasm] memory_cache_size below
 // MinWasmMemoryCacheMiB.
 func checkWasmMemoryCache(cfg wasmtypes.NodeConfig) error {
 	if cfg.MemoryCacheSize < MinWasmMemoryCacheMiB {
-		return fmt.Errorf("[wasm] memory_cache_size = %d MiB in app.toml is below the minimum of %d MiB; set it to at least %d and restart",
+		return fmt.Errorf("[wasm] memory_cache_size = %d MiB in app.toml is below the minimum of %d MiB; set it to at least %d",
 			cfg.MemoryCacheSize, MinWasmMemoryCacheMiB, MinWasmMemoryCacheMiB)
 	}
 	return nil
