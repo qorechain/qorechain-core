@@ -1,9 +1,12 @@
 package wasmfilter
 
 import (
+	"bytes"
+	"compress/gzip"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
+	"io"
 	"sync"
 
 	errorsmod "cosmossdk.io/errors"
@@ -129,6 +132,56 @@ func InspectUpload(code []byte) (UploadInspection, bool) {
 	}
 	st, err := Inspect(raw)
 	return UploadInspection{Raw: raw, Stats: st, Err: err}, true
+}
+
+// ErrUploadSize is the refusal of a gzip upload that does not unpack to
+// exactly the size it declares in one member: more bytes than declared, a
+// failed integrity check, bytes after the first member or broken data.
+var ErrUploadSize = errors.New("upload does not unpack to its declared size")
+
+// unpackUploadBounded unpacks an upload reading at most limit bytes: raw
+// bytes over the limit are refused; gzip bytes must form exactly one member
+// whose data ends within the limit (so the end-of-member integrity check,
+// which verifies the size field against the data, has run) and nothing may
+// follow it (so the size field read from the end is that member's). The work
+// done is bounded by limit whatever the bytes claim. Unlike wasmd's own
+// unpacking it does not bound the compressed length by limit: a small honest
+// module's gzip is larger than the module.
+func unpackUploadBounded(code []byte, limit uint64) ([]byte, error) {
+	if !ioutils.IsGzip(code) {
+		if uint64(len(code)) > limit {
+			return nil, ErrUploadSize
+		}
+		return code, nil
+	}
+	src := bytes.NewReader(code)
+	zr, err := gzip.NewReader(src)
+	if err != nil {
+		return nil, ErrUploadSize
+	}
+	zr.Multistream(false)
+	defer zr.Close()
+	raw, err := io.ReadAll(io.LimitReader(zr, int64(limit)+1))
+	if err != nil || uint64(len(raw)) > limit || src.Len() != 0 {
+		return nil, ErrUploadSize
+	}
+	return raw, nil
+}
+
+// InspectUploadBounded is InspectUpload for an upload whose declared size
+// has been paid for: it never unpacks more than min(declared, wasmd's size
+// limit) bytes, and an upload that does not unpack to exactly its declared
+// size in one member is an error (Err), not a pass to wasmd.
+func InspectUploadBounded(code []byte, declared uint64) (UploadInspection, error) {
+	raw, err := unpackUploadBounded(code, min(declared, uint64(wasmtypes.MaxWasmSize)))
+	if err != nil {
+		return UploadInspection{}, err
+	}
+	if uint64(len(raw)) != declared {
+		return UploadInspection{}, ErrUploadSize
+	}
+	st, ierr := Inspect(raw)
+	return UploadInspection{Raw: raw, Stats: st, Err: ierr}, nil
 }
 
 // DeclaredUploadSize is the size an upload says it unpacks to, without

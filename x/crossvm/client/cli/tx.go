@@ -84,7 +84,7 @@ func cmdCrossVMCall() *cobra.Command {
 	cmd.Flags().Uint64("async-gas-limit", 0, "for an async call into CosmWasm, the contract execution it runs on in base "+
 		"gas units (from v3.2.8; 0 means 500,000); it prepays this times the wasm congestion factor")
 	cmd.Flags().Float64("async-max-factor", 0, "for an async call into CosmWasm, the highest wasm congestion factor it will pay, "+
-		"e.g. 2.5 (from v3.2.8; 0 means twice the factor at submission); its execution is held in escrow at this factor, "+
+		"e.g. 2.5 (from v3.2.8; 0 means four times the factor at submission; not below the factor in force); its execution is held in escrow at this factor, "+
 		"it runs while the factor is at or below it, and what it does not use is refunded")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd

@@ -133,9 +133,20 @@ func (app *QoreChainApp) updateWasmCongestion(ctx sdk.Context) {
 	}
 	used, total, exhaustedByMany := app.wasmBlockBudget().utilisation(ctx)
 	p := app.CrossVMKeeper.GetParams(ctx)
-	cur := app.CrossVMKeeper.WasmCongestionFactor(ctx)
-	if next := p.NextCongestionFactor(cur, used, total, exhaustedByMany); next != cur {
-		app.CrossVMKeeper.SetWasmCongestionFactor(ctx, next)
+	cur, lastHalf := app.CrossVMKeeper.WasmCongestion(ctx)
+	// The half step for a pool exhausted by many payers is taken at most
+	// once per CongestionHalfStepEveryBlocks blocks (otherwise the block
+	// counts as above target, 1/8), so a few accounts cannot multiply the
+	// price by 1.5 every block. The height of the last half step is kept
+	// with the factor.
+	h := ctx.BlockHeight()
+	many := exhaustedByMany && (lastHalf <= 0 || h-lastHalf >= crossvmtypes.CongestionHalfStepEveryBlocks)
+	next := p.NextCongestionFactor(cur, used, total, many)
+	switch {
+	case many:
+		app.CrossVMKeeper.SetWasmCongestion(ctx, next, h)
+	case next != cur:
+		app.CrossVMKeeper.SetWasmCongestion(ctx, next, lastHalf)
 	}
 }
 

@@ -42,8 +42,10 @@ type msgServer struct {
 //     price (3 per byte), the code storage price and the inspection price,
 //     plus a margin; otherwise it fails with out of gas before anything is
 //     unpacked;
-//  3. the module is unpacked once and inspected in one pass (inspection
-//     charged per byte); a declared size that is not the real one, a module
+//  3. the module is unpacked once, never past its declared size (and
+//     wasmd's limit), and inspected in one pass (inspection charged per
+//     byte); gzip bytes that are not exactly one member of the declared
+//     size (bytes after it included) are refused, as are a module
 //     the check refuses, float operators (from their switch) and custom
 //     sections over MaxUploadCustomBytes are refused;
 //  4. the code storage price is charged on the uncompressed size, and only
@@ -72,9 +74,19 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 		}
 		ctx.GasMeter().ConsumeGas(saturatingMul(size, UploadInspectGasPerByte), "wasm code inspection")
 	}
-	insp, unpacked := InspectUpload(code)
-	if !unpacked {
-		return nil
+	var insp UploadInspection
+	if bounds {
+		// Never more unpacking than was charged, and the declared size is
+		// the real one or the upload is refused.
+		var uerr error
+		if insp, uerr = InspectUploadBounded(code, declared); uerr != nil {
+			return errorsmod.Wrapf(ErrCodeRefused, "%v: declared %d bytes", uerr, declared)
+		}
+	} else {
+		var unpacked bool
+		if insp, unpacked = InspectUpload(code); !unpacked {
+			return nil
+		}
 	}
 	if insp.Err != nil {
 		return errorsmod.Wrap(ErrCodeRefused, insp.Err.Error())
@@ -83,9 +95,6 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 		return errorsmod.Wrapf(ErrCodeRefused, "%v: %d float operators", ErrFloatOpcode, insp.Stats.FloatOps)
 	}
 	if bounds {
-		if uint64(len(insp.Raw)) != declared {
-			return errorsmod.Wrapf(ErrCodeRefused, "%v: declared size %d, unpacked %d", ErrMalformed, declared, len(insp.Raw))
-		}
 		if insp.Stats.CustomBytes > MaxUploadCustomBytes {
 			return errorsmod.Wrapf(ErrCodeRefused, "%v: %d bytes, at most %d", ErrCustomSections, insp.Stats.CustomBytes, MaxUploadCustomBytes)
 		}

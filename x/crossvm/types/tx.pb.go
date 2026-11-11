@@ -58,9 +58,9 @@ type MsgCrossVMCall struct {
 	// async_max_factor is, for an async call into CosmWasm, the highest wasm
 	// congestion factor (in millionths, 1,000,000 = 1x) the sender is willing
 	// to pay: the call is held in escrow at async_gas_limit times this factor
-	// and runs while the factor in force is at or below it. Zero means twice
-	// the factor at submission; any value is capped at the chain's maximum
-	// factor. What the call did not use is refunded when it finishes. Set from
+	// and runs while the factor in force is at or below it. Zero means four
+	// times the factor at submission; any value is capped at the chain's
+	// maximum factor, and a value below the factor in force is refused. What the call did not use is refunded when it finishes. Set from
 	// the crossvm-async-escrow switch.
 	AsyncMaxFactor uint64 `protobuf:"varint,9,opt,name=async_max_factor,json=asyncMaxFactor,proto3" json:"async_max_factor,omitempty"`
 }

@@ -159,6 +159,12 @@ const (
 	// payer's transactions must use to count among the payers that exhausted
 	// the pool.
 	CongestionPayerShareBps uint64 = 500
+
+	// CongestionHalfStepEveryBlocks is how often, at most, the congestion
+	// factor may rise by half for a pool exhausted by many payers; in the
+	// blocks between, such a block raises it by 1/8 like any block above
+	// the target.
+	CongestionHalfStepEveryBlocks int64 = 5
 )
 
 // Params defines the parameters for the crossvm module.

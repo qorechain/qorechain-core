@@ -194,7 +194,8 @@ const (
 	// FeatureCrossVMAsyncEscrow holds an async call's prepaid execution in
 	// escrow instead of charging it as gas at submission: the sender chooses
 	// the highest congestion factor it will pay (async_max_factor, default
-	// twice the factor in force, capped at the chain's maximum), escrows its
+	// four times the factor in force, capped at the chain's maximum; not
+	// below the factor in force), escrows its
 	// units at that factor at the fee market's minimum gas price, and the call
 	// runs while the factor in force is at or below it. When it finishes the
 	// gas it used at the factor in force goes to validators as fee and the
