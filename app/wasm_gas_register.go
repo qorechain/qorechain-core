@@ -97,3 +97,11 @@ func (app *QoreChainApp) preBlockerSyncingWasmGas(ctx sdk.Context, req *abci.Req
 	app.resetWasmBlockBudget(ctx)
 	return res, err
 }
+
+// deserCostScale is the factor wasmd's JSON deserialisation price (VM gas
+// per result byte, set at its default multiplier) is scaled by, so that a
+// result byte costs the same SDK gas at the multiplier in force as at
+// wasmd's default (one SDK gas per byte). Identity at the default.
+func (g *calibratedGasRegister) deserCostScale() (num, den uint64) {
+	return g.mult.Load(), wasmtypes.DefaultGasMultiplier
+}

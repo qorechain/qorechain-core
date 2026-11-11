@@ -142,9 +142,14 @@ const (
 	// counted against crossvm params max_block_wasm_gas (default
 	// DefaultMaxBlockWasmGas); a VM call is given at most what is left, and
 	// once it is spent every further VM call in the block fails ("block wasm
-	// gas budget exhausted"). The next block starts with the full budget.
-	// EVM and native transactions, the end-of-block work and queries outside
-	// block execution are not counted.
+	// gas budget exhausted"). One transaction may use at most its share
+	// (max_tx_wasm_share_bps, half by default), so it cannot close the lane
+	// for the rest of the block. The end-of-block async queue counts too and
+	// leaves a CosmWasm call pending while the budget cannot cover its
+	// prepaid gas; a contract call made outside a transaction (a governance
+	// proposal) runs on at most max_block_level_wasm_gas and counts, without
+	// being refused. The next block starts with the full budget. EVM and
+	// native transactions, CheckTx, simulations and queries are not counted.
 	FeatureWasmBlockGasBudget = "wasm-block-gas-budget"
 )
 

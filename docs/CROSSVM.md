@@ -80,6 +80,10 @@ From the v3.2.8 `crossvm-response-charged` switch the data a queued call returns
 
 The pending-messages query (`/qorechain/crossvm/v1/pending`) is paginated (`pagination.key`, `pagination.limit`, at most 100 per page) and shows at most the first 1,024 bytes of each payload; the message query returns the whole payload.
 
+From the v3.2.8 `wasm-block-gas-budget` switch the queue's CosmWasm calls count against the block wasm budget: a queued call into CosmWasm runs only while the budget can cover its whole prepaid gas, and otherwise stays pending for a later block (its timeout still applies).
+
+**Block gas limit.** With `wasm-block-gas-budget` bounding contract execution separately, the consensus block `max_gas` (set by governance through x/consensus) should be 200,000,000, not 400,000,000: at the EVM's 3.7 to 3.9 ns per gas measured on validator hardware that bounds a block's EVM and native execution to under a second, plus at most about 0.85 s of wasm.
+
 From the v3.2.8 `crossvm-queue-sender-cap` switch one sender may have at most `max_pending_per_sender` calls queued at a time (default 100, a tenth of the default queue), so a single sender cannot fill the shared queue and keep everyone else off the async path. A call over the bound is refused at submission with `ErrQueueFull`; once the sender's calls have run or timed out it may queue again. Synchronous calls are not affected. Calls queued before the switch do not count against the bound.
 
 ### Address rules and failure handling (from v3.2.7)
@@ -152,8 +156,10 @@ Each message transitions through these states:
 | `bridge_allowed_targets` | string[] | empty | Targets the EVM bridge precompile may call, each `cosmwasm:<qor1 contract address>`. Empty keeps the bridge shut. |
 | `bridge_target_pins` | {target, code_id, history_len}[] | empty | From v3.2.8: the CosmWasm code ID each pinned allowlist entry must run, and the length of its code history when it was pinned, for the bridge to call it. |
 | `max_pending_per_sender` | uint32 | 0 (= 100) | From v3.2.8: how many async calls one sender may have queued at a time. |
-| `max_cosmos_tx_gas` | uint64 | 0 (= 50,000,000) | From v3.2.8 (`cosmos-tx-gas-cap`): the most gas one Cosmos-lane transaction may declare; at least 10,000,000 when set. A transaction above it is refused before its fee is taken. Kept here because these params are the chain's lane-level execution bounds. |
-| `max_block_wasm_gas` | uint64 | 0 (= 6,000,000) | From v3.2.8 (`wasm-block-gas-budget`): the CosmWasm execution (VM gas, in SDK gas units) one block's transactions may use together, failed ones included; at least 1,000,000 when set. Once spent, further contract calls in the block fail ("block wasm gas budget exhausted") and the next block starts full. An ordinary cw20 transfer uses about 11,600, so about 500 fit in a block. EVM and native transactions are not counted. |
+| `max_cosmos_tx_gas` | uint64 | 0 (= 50,000,000) | From v3.2.8 (`cosmos-tx-gas-cap`): the most gas one Cosmos-lane transaction may declare; 10,000,000 to 1,000,000,000 when set. A transaction above it is refused before its fee is taken. Kept here because these params are the chain's lane-level execution bounds. |
+| `max_block_wasm_gas` | uint64 | 0 (= 3,000,000) | From v3.2.8 (`wasm-block-gas-budget`): the CosmWasm execution (VM gas, in SDK gas units) one block may use, failed transactions, the async queue and proposal execution included; 1,000,000 to 50,000,000 when set. Once spent, further contract calls in the block fail ("block wasm gas budget exhausted") and the next block starts full. On validator hardware (Intel c6i, AMD m6a) the slowest admitted operator costs about 265 ns per unit, so the default bounds a block's wasm execution to about 0.85 s; an ordinary cw20 transfer uses about 4,600. EVM and native transactions are not counted. |
+| `max_tx_wasm_share_bps` | uint32 | 0 (= 5,000) | From v3.2.8: the share of the block wasm budget one transaction may use, in basis points (1 to 10,000). At the default one transaction may use up to 1,500,000; a single contract call needing more cannot run on this chain until governance raises the budget or the share. |
+| `max_block_level_wasm_gas` | uint64 | 0 (= 10,000,000) | From v3.2.8: the most CosmWasm execution one contract call made outside a transaction (a governance proposal executed at the end of the block) may use; 1,000,000 to 100,000,000 when set. A proposal whose contract call runs out of it fails; the chain goes on. |
 | `record_retention_blocks` | uint64 | 0 (= 100,000) | From v3.2.8 (`crossvm-record-prune`): how long the record of a finished queued call is kept before it is pruned (at most 200 records per block). |
 
 ### Governance

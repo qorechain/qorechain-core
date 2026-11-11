@@ -1,6 +1,10 @@
 package types
 
-import "regexp"
+import (
+	"regexp"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
+)
 
 // sourceFrame matches the " [<path>.go:<line>]" annotation that
 // cosmossdk.io/errors appends when one of its errors is formatted with %v or
@@ -39,4 +43,22 @@ func NewPlainError(prefix string, cause error) error {
 		text = prefix + ": " + text
 	}
 	return PlainError{Text: text, Cause: cause}
+}
+
+type queueExecutionKey struct{}
+
+// WithQueueExecution marks ctx as the end-of-block execution of the async
+// queue, so the application can count the CosmWasm work it does against the
+// block's wasm budget (wasm-block-gas-budget).
+func WithQueueExecution(ctx sdk.Context) sdk.Context {
+	return ctx.WithValue(queueExecutionKey{}, true)
+}
+
+// IsQueueExecution reports whether ctx carries the mark.
+func IsQueueExecution(ctx sdk.Context) bool {
+	if ctx.Context() == nil {
+		return false
+	}
+	v, _ := ctx.Value(queueExecutionKey{}).(bool)
+	return v
 }

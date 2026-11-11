@@ -79,5 +79,7 @@ func (m *MsgUpdateParams) Params() Params {
 		MaxCosmosTxGas:        m.MaxCosmosTxGas,
 		RecordRetentionBlocks: m.RecordRetentionBlocks,
 		MaxBlockWasmGas:       m.MaxBlockWasmGas,
+		MaxTxWasmShareBps:     m.MaxTxWasmShareBps,
+		MaxBlockLevelWasmGas:  m.MaxBlockLevelWasmGas,
 	}
 }

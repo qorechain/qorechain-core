@@ -61,6 +61,12 @@ message QueryParamsResponse {
   // max_block_wasm_gas is the per-block CosmWasm execution budget in force
   // (the default when the stored value is zero).
   uint64 max_block_wasm_gas = 10;
+  // max_tx_wasm_share_bps is the per-transaction share of the block wasm
+  // budget in force, in basis points.
+  uint32 max_tx_wasm_share_bps = 11;
+  // max_block_level_wasm_gas is the bound on one contract call made outside
+  // a transaction in force.
+  uint64 max_block_level_wasm_gas = 12;
 }
 
 // QueryPendingMessagesRequest pages through the queue in key order. A page

@@ -60,13 +60,39 @@ const (
 	// DefaultMaxBlockWasmGas is the CosmWasm execution budget of one block
 	// (VM gas in SDK gas units) when params.MaxBlockWasmGas is zero, from the
 	// wasm-block-gas-budget switch. The slowest operator class the VM admits
-	// (memory.grow) costs about 84 ns per unit at the calibrated price on the
-	// measuring host; 6,000,000 keeps a worst-case block's wasm execution
-	// near half a second there, with room for slower validator hardware,
-	// while an ordinary token transfer uses about 12,000 of it.
-	// MinMaxBlockWasmGas is the lowest value governance may set.
-	DefaultMaxBlockWasmGas uint64 = 6_000_000
+	// (memory.grow) costs 265 ns per unit at the calibrated price on an
+	// Intel c6i and 257 on an AMD m6a (validator-class hardware), so
+	// 3,000,000 bounds a worst-case block's wasm execution to about 0.85 s,
+	// while an ordinary token transfer uses about 4,600 of it (several
+	// hundred per block). MinMaxBlockWasmGas is the lowest value governance
+	// may set. Changing the default is a one-line change here.
+	DefaultMaxBlockWasmGas uint64 = 3_000_000
 	MinMaxBlockWasmGas     uint64 = 1_000_000
+	// MaxMaxBlockWasmGas, MaxMaxCosmosTxGas and MaxMaxBlockLevelWasmGas are
+	// the highest values governance may set: well above any useful value
+	// (50M of block wasm is about 13 s of worst-case execution on validator
+	// hardware), and low enough that converting them to VM gas cannot
+	// overflow at any multiplier wasmd uses (1e9 x 140,000 is far below
+	// 2^64).
+	MaxMaxBlockWasmGas      uint64 = 50_000_000
+	MaxMaxCosmosTxGas       uint64 = 1_000_000_000
+	MaxMaxBlockLevelWasmGas uint64 = 100_000_000
+
+	// DefaultMaxTxWasmShareBps is the share of the block wasm budget one
+	// transaction may use when params.MaxTxWasmShareBps is zero (half), so
+	// one transaction cannot spend the whole budget and close the lane for
+	// the rest of the block.
+	DefaultMaxTxWasmShareBps uint32 = 5_000
+
+	// DefaultMaxBlockLevelWasmGas bounds one contract call made outside a
+	// transaction (a governance proposal executed at the end of the block),
+	// which otherwise runs on the block's infinite gas meter, when
+	// params.MaxBlockLevelWasmGas is zero: 10,000,000 is about 2.7 s of the
+	// slowest admitted operator on validator hardware, and far above what an
+	// instantiate, migrate or execute a proposal makes needs.
+	// MinMaxBlockLevelWasmGas is the lowest value governance may set.
+	DefaultMaxBlockLevelWasmGas uint64 = 10_000_000
+	MinMaxBlockLevelWasmGas     uint64 = 1_000_000
 )
 
 // Params defines the parameters for the crossvm module.
@@ -105,6 +131,33 @@ type Params struct {
 	// MaxBlockWasmGas is the per-block CosmWasm execution budget
 	// (wasm-block-gas-budget); zero means DefaultMaxBlockWasmGas.
 	MaxBlockWasmGas uint64 `json:"max_block_wasm_gas,omitempty"`
+
+	// MaxTxWasmShareBps is the share of the block wasm budget one
+	// transaction may use, in basis points; zero means
+	// DefaultMaxTxWasmShareBps.
+	MaxTxWasmShareBps uint32 `json:"max_tx_wasm_share_bps,omitempty"`
+
+	// MaxBlockLevelWasmGas bounds one contract call made outside a
+	// transaction; zero means DefaultMaxBlockLevelWasmGas.
+	MaxBlockLevelWasmGas uint64 `json:"max_block_level_wasm_gas,omitempty"`
+}
+
+// TxWasmShareBps is the per-transaction share of the block wasm budget in
+// force, in basis points.
+func (p Params) TxWasmShareBps() uint32 {
+	if p.MaxTxWasmShareBps == 0 {
+		return DefaultMaxTxWasmShareBps
+	}
+	return p.MaxTxWasmShareBps
+}
+
+// BlockLevelWasmGasLimit is the bound on one contract call made outside a
+// transaction in force.
+func (p Params) BlockLevelWasmGasLimit() uint64 {
+	if p.MaxBlockLevelWasmGas == 0 {
+		return DefaultMaxBlockLevelWasmGas
+	}
+	return p.MaxBlockLevelWasmGas
 }
 
 // BlockWasmGasLimit is the per-block CosmWasm execution budget in force.
@@ -364,11 +417,17 @@ func (p Params) ValidateUpdate() error {
 	if len(p.BridgeAllowedTargets) > MaxBridgeAllowedTargets {
 		return fmt.Errorf("bridge allowlist has %d entries, max %d", len(p.BridgeAllowedTargets), MaxBridgeAllowedTargets)
 	}
-	if p.MaxBlockWasmGas != 0 && p.MaxBlockWasmGas < MinMaxBlockWasmGas {
-		return fmt.Errorf("max block wasm gas %d is below %d", p.MaxBlockWasmGas, MinMaxBlockWasmGas)
+	if p.MaxBlockWasmGas != 0 && (p.MaxBlockWasmGas < MinMaxBlockWasmGas || p.MaxBlockWasmGas > MaxMaxBlockWasmGas) {
+		return fmt.Errorf("max block wasm gas %d is outside %d..%d", p.MaxBlockWasmGas, MinMaxBlockWasmGas, MaxMaxBlockWasmGas)
 	}
-	if p.MaxCosmosTxGas != 0 && p.MaxCosmosTxGas < MinMaxCosmosTxGas {
-		return fmt.Errorf("max cosmos tx gas %d is below %d", p.MaxCosmosTxGas, MinMaxCosmosTxGas)
+	if p.MaxCosmosTxGas != 0 && (p.MaxCosmosTxGas < MinMaxCosmosTxGas || p.MaxCosmosTxGas > MaxMaxCosmosTxGas) {
+		return fmt.Errorf("max cosmos tx gas %d is outside %d..%d", p.MaxCosmosTxGas, MinMaxCosmosTxGas, MaxMaxCosmosTxGas)
+	}
+	if p.MaxTxWasmShareBps > 10_000 {
+		return fmt.Errorf("max tx wasm share %d bps is above 10000", p.MaxTxWasmShareBps)
+	}
+	if p.MaxBlockLevelWasmGas != 0 && (p.MaxBlockLevelWasmGas < MinMaxBlockLevelWasmGas || p.MaxBlockLevelWasmGas > MaxMaxBlockLevelWasmGas) {
+		return fmt.Errorf("max block-level wasm gas %d is outside %d..%d", p.MaxBlockLevelWasmGas, MinMaxBlockLevelWasmGas, MaxMaxBlockLevelWasmGas)
 	}
 	if p.MaxPendingPerSender > p.MaxQueueSize {
 		return fmt.Errorf("max pending per sender %d exceeds the queue size %d", p.MaxPendingPerSender, p.MaxQueueSize)
