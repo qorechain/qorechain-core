@@ -1,6 +1,7 @@
 package app
 
 import (
+	"math/big"
 	"sync/atomic"
 
 	abci "github.com/cometbft/cometbft/abci/types"
@@ -10,6 +11,7 @@ import (
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
+	crossvmtypes "github.com/qorechain/qorechain-core/x/crossvm/types"
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
 
@@ -40,11 +42,17 @@ const CalibratedWasmGasMultiplier uint64 = 5_000
 type calibratedGasRegister struct {
 	wasmtypes.WasmGasRegister
 	mult atomic.Uint64
+	// base is the multiplier before congestion pricing (the calibrated or
+	// the default one); the block wasm budget is converted to VM gas at it,
+	// so congestion raises the price of contract execution, not the amount
+	// of execution a block may hold.
+	base atomic.Uint64
 }
 
 func newCalibratedGasRegister() *calibratedGasRegister {
 	g := &calibratedGasRegister{WasmGasRegister: wasmtypes.NewDefaultWasmGasRegister()}
 	g.mult.Store(wasmtypes.DefaultGasMultiplier)
+	g.base.Store(wasmtypes.DefaultGasMultiplier)
 	return g
 }
 
@@ -67,6 +75,9 @@ func (g *calibratedGasRegister) FromWasmVMGas(source uint64) storetypes.Gas {
 // Multiplier is the conversion in force.
 func (g *calibratedGasRegister) Multiplier() uint64 { return g.mult.Load() }
 
+// BaseMultiplier is the conversion before congestion pricing.
+func (g *calibratedGasRegister) BaseMultiplier() uint64 { return g.base.Load() }
+
 // wasmGasRegister returns the app's one gas register.
 func (app *QoreChainApp) wasmGasRegister() *calibratedGasRegister {
 	if app.gasRegister == nil {
@@ -77,12 +88,53 @@ func (app *QoreChainApp) wasmGasRegister() *calibratedGasRegister {
 
 // syncWasmGasMultiplier sets the multiplier from the wasm-gas-calibrated
 // switch in ctx's state. The feature read is free of gas.
+//
+// From wasm-congestion-pricing the multiplier in force is the base one
+// divided by the congestion factor stored in state (so one unit of contract
+// execution costs factor times the SDK gas), never below 1.
 func (app *QoreChainApp) syncWasmGasMultiplier(ctx sdk.Context) {
 	m := wasmtypes.DefaultGasMultiplier
 	if app.PQCKeeper != nil && app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmGasCalibrated) {
 		m = CalibratedWasmGasMultiplier
 	}
-	app.wasmGasRegister().mult.Store(m)
+	g := app.wasmGasRegister()
+	g.base.Store(m)
+	if app.PQCKeeper != nil && app.CrossVMKeeper != nil &&
+		app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmCongestionPricing) {
+		m = congestedMultiplier(m, app.CrossVMKeeper.WasmCongestionFactor(ctx))
+	}
+	g.mult.Store(m)
+}
+
+// congestedMultiplier is base / (factor / 1e6), at least 1.
+func congestedMultiplier(base, factorMicro uint64) uint64 {
+	if factorMicro <= crossvmtypes.CongestionFactorOne {
+		return base
+	}
+	m := new(big.Int).Mul(new(big.Int).SetUint64(base), new(big.Int).SetUint64(crossvmtypes.CongestionFactorOne))
+	m.Quo(m, new(big.Int).SetUint64(factorMicro))
+	if m.Sign() == 0 {
+		return 1
+	}
+	return m.Uint64()
+}
+
+// updateWasmCongestion stores the factor the next block uses, from how much
+// of this block's wasm budget its transactions and queue used. It runs at
+// the end of the block (crossvm EndBlock, after the queue), so the factor is
+// state like any other, and a restarted node reads the same one.
+func (app *QoreChainApp) updateWasmCongestion(ctx sdk.Context) {
+	if app.PQCKeeper == nil || app.CrossVMKeeper == nil ||
+		!app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmCongestionPricing) {
+		return
+	}
+	used, total := app.wasmBlockBudget().utilisation(ctx)
+	p := app.CrossVMKeeper.GetParams(ctx)
+	cur := app.CrossVMKeeper.WasmCongestionFactor(ctx)
+	next := p.NextCongestionFactor(cur, used, total)
+	if next != cur {
+		app.CrossVMKeeper.SetWasmCongestionFactor(ctx, next)
+	}
 }
 
 // preBlockerSyncingWasmGas is the module manager's PreBlock followed by

@@ -69,17 +69,20 @@ func (m *MsgUpdateParams) ValidateBasic() error {
 // Params returns the parameter set the message installs.
 func (m *MsgUpdateParams) Params() Params {
 	return Params{
-		MaxMessageSize:        m.MaxMessageSize,
-		MaxQueueSize:          m.MaxQueueSize,
-		QueueTimeoutBlocks:    m.QueueTimeoutBlocks,
-		Enabled:               m.Enabled,
-		BridgeAllowedTargets:  m.BridgeAllowedTargets,
-		BridgeTargetPins:      m.BridgeTargetPins,
-		MaxPendingPerSender:   m.MaxPendingPerSender,
-		MaxCosmosTxGas:        m.MaxCosmosTxGas,
-		RecordRetentionBlocks: m.RecordRetentionBlocks,
-		MaxBlockWasmGas:       m.MaxBlockWasmGas,
-		MaxTxWasmShareBps:     m.MaxTxWasmShareBps,
-		MaxBlockLevelWasmGas:  m.MaxBlockLevelWasmGas,
+		MaxMessageSize:          m.MaxMessageSize,
+		MaxQueueSize:            m.MaxQueueSize,
+		QueueTimeoutBlocks:      m.QueueTimeoutBlocks,
+		Enabled:                 m.Enabled,
+		BridgeAllowedTargets:    m.BridgeAllowedTargets,
+		BridgeTargetPins:        m.BridgeTargetPins,
+		MaxPendingPerSender:     m.MaxPendingPerSender,
+		MaxCosmosTxGas:          m.MaxCosmosTxGas,
+		RecordRetentionBlocks:   m.RecordRetentionBlocks,
+		MaxBlockWasmGas:         m.MaxBlockWasmGas,
+		MaxTxWasmShareBps:       m.MaxTxWasmShareBps,
+		MaxBlockLevelWasmGas:    m.MaxBlockLevelWasmGas,
+		QueueWasmReserveBps:     m.QueueWasmReserveBps,
+		WasmCongestionMaxFactor: m.WasmCongestionMaxFactor,
+		WasmCongestionTargetBps: m.WasmCongestionTargetBps,
 	}
 }

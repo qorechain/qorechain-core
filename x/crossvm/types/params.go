@@ -92,7 +92,30 @@ const (
 	// instantiate, migrate or execute a proposal makes needs.
 	// MinMaxBlockLevelWasmGas is the lowest value governance may set.
 	DefaultMaxBlockLevelWasmGas uint64 = 10_000_000
-	MinMaxBlockLevelWasmGas     uint64 = 1_000_000
+
+	// DefaultQueueWasmReserveBps is the share of the block wasm budget
+	// reserved for the end-of-block async queue when params.QueueWasmReserveBps
+	// is zero: transactions cannot spend it, so queued CosmWasm calls are
+	// never starved out by transactions.
+	DefaultQueueWasmReserveBps uint32 = 2_500
+
+	// MinQueueAdmission is the least gas a queued CosmWasm call is admitted
+	// on: below it the call stays pending for a later block rather than run
+	// on a meter too small to get through a contract's setup (which would
+	// fail it, and every call after it, for nothing).
+	MinQueueAdmission uint64 = AsyncCallGas / 4
+
+	// Congestion pricing (wasm-congestion-pricing): a factor, kept in state,
+	// by which one unit of contract execution costs more than the base
+	// price. After every block it rises by 1/8 when the block used more than
+	// the target share of its wasm budget and falls by 1/9 (back by the same
+	// step) when it used less, between 1 and the maximum, so sustained
+	// filling becomes exponentially expensive while ordinary use stays at
+	// the base price. CongestionFactorOne is the factor 1 in millionths.
+	DefaultWasmCongestionMaxFactor uint32 = 1_000
+	DefaultWasmCongestionTargetBps uint32 = 5_000
+	CongestionFactorOne            uint64 = 1_000_000
+	MinMaxBlockLevelWasmGas        uint64 = 1_000_000
 )
 
 // Params defines the parameters for the crossvm module.
@@ -140,6 +163,73 @@ type Params struct {
 	// MaxBlockLevelWasmGas bounds one contract call made outside a
 	// transaction; zero means DefaultMaxBlockLevelWasmGas.
 	MaxBlockLevelWasmGas uint64 `json:"max_block_level_wasm_gas,omitempty"`
+
+	// QueueWasmReserveBps is the queue's reserved share of the block wasm
+	// budget, in basis points; zero means DefaultQueueWasmReserveBps.
+	QueueWasmReserveBps uint32 `json:"queue_wasm_reserve_bps,omitempty"`
+
+	// WasmCongestionMaxFactor bounds the congestion factor; zero means
+	// DefaultWasmCongestionMaxFactor.
+	WasmCongestionMaxFactor uint32 `json:"wasm_congestion_max_factor,omitempty"`
+
+	// WasmCongestionTargetBps is the budget use above which the factor
+	// rises; zero means DefaultWasmCongestionTargetBps.
+	WasmCongestionTargetBps uint32 `json:"wasm_congestion_target_bps,omitempty"`
+}
+
+// QueueWasmReserve is the queue's reserved share in force, in basis points.
+func (p Params) QueueWasmReserve() uint32 {
+	if p.QueueWasmReserveBps == 0 {
+		return DefaultQueueWasmReserveBps
+	}
+	return p.QueueWasmReserveBps
+}
+
+// CongestionMaxFactor is the bound on the congestion factor in force.
+func (p Params) CongestionMaxFactor() uint32 {
+	if p.WasmCongestionMaxFactor == 0 {
+		return DefaultWasmCongestionMaxFactor
+	}
+	return p.WasmCongestionMaxFactor
+}
+
+// CongestionTargetBps is the congestion target in force.
+func (p Params) CongestionTargetBps() uint32 {
+	if p.WasmCongestionTargetBps == 0 {
+		return DefaultWasmCongestionTargetBps
+	}
+	return p.WasmCongestionTargetBps
+}
+
+// NextCongestionFactor is the factor (in millionths) the next block uses,
+// given this block's factor, how much of its wasm budget it used and the
+// params: up by 1/8 above the target, down by 1/9 below it, unchanged at it,
+// always between CongestionFactorOne and the maximum. Integer arithmetic on
+// the stored value only, so every node computes the same factor.
+func (p Params) NextCongestionFactor(cur, used, total uint64) uint64 {
+	if cur < CongestionFactorOne {
+		cur = CongestionFactorOne
+	}
+	maxF := uint64(p.CongestionMaxFactor()) * CongestionFactorOne
+	target := uint64(p.CongestionTargetBps())
+	var next uint64
+	switch {
+	case total == 0:
+		next = cur
+	case used*10_000 > total*target:
+		next = cur + cur/8
+	case used*10_000 < total*target:
+		next = cur - cur/9
+	default:
+		next = cur
+	}
+	if next < CongestionFactorOne {
+		next = CongestionFactorOne
+	}
+	if next > maxF {
+		next = maxF
+	}
+	return next
 }
 
 // TxWasmShareBps is the per-transaction share of the block wasm budget in
@@ -422,6 +512,15 @@ func (p Params) ValidateUpdate() error {
 	}
 	if p.MaxCosmosTxGas != 0 && (p.MaxCosmosTxGas < MinMaxCosmosTxGas || p.MaxCosmosTxGas > MaxMaxCosmosTxGas) {
 		return fmt.Errorf("max cosmos tx gas %d is outside %d..%d", p.MaxCosmosTxGas, MinMaxCosmosTxGas, MaxMaxCosmosTxGas)
+	}
+	if p.QueueWasmReserveBps > 9_000 {
+		return fmt.Errorf("queue wasm reserve %d bps is above 9000", p.QueueWasmReserveBps)
+	}
+	if p.WasmCongestionMaxFactor > 10_000 {
+		return fmt.Errorf("wasm congestion max factor %d is above 10000", p.WasmCongestionMaxFactor)
+	}
+	if p.WasmCongestionTargetBps > 10_000 {
+		return fmt.Errorf("wasm congestion target %d bps is above 10000", p.WasmCongestionTargetBps)
 	}
 	if p.MaxTxWasmShareBps > 10_000 {
 		return fmt.Errorf("max tx wasm share %d bps is above 10000", p.MaxTxWasmShareBps)

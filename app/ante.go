@@ -74,6 +74,9 @@ type HandlerOptions struct {
 	// and whether cosmos-tx-gas-cap is on (CosmosTxGasCapDecorator). Nil is
 	// off.
 	CosmosTxGasCap func(sdk.Context) (uint64, bool)
+	// WasmTxToken numbers the block's transactions for the per-transaction
+	// share of the block wasm budget (WasmTxTokenDecorator). Nil is off.
+	WasmTxToken func(sdk.Context) sdk.Context
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
 	// and the min-gas-price floor exempt them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
@@ -235,6 +238,9 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 // what it was.
 func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
+		// A contract reached through the EVM bridge counts against this
+		// transaction's share of the block wasm budget.
+		NewWasmTxTokenDecorator(options.WasmTxToken),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
 		NewEVMReplayGuardDecorator(options.PQCKeeper),
 		evmante.NewEVMMonoDecorator(
@@ -293,6 +299,8 @@ func (d genesisExemptDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate 
 //   - EVM gas wanted tracking
 func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
+		// Numbers the transaction for its share of the block wasm budget.
+		NewWasmTxTokenDecorator(options.WasmTxToken),
 		// Reject MsgEthereumTx on the Cosmos SDK path — must use ExtensionOptionsEthereumTx
 		cosmosante.NewRejectMessagesDecorator(),
 		// Refuse MsgEthereumTx and every vesting-creation message inside authz,

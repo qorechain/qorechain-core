@@ -1085,6 +1085,9 @@ func NewQoreChainApp(
 	// Before Load, so the runtime keeps it: the module PreBlockers, then the
 	// wasm gas multiplier for the block (wasm_gas_register.go).
 	app.SetPreBlocker(app.preBlockerSyncingWasmGas)
+	// A transaction aborted by the block wasm budget fails like any other
+	// (wasm_block_budget.go).
+	app.AddRunTxRecoveryHandler(budgetAbortRecovery)
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
@@ -1213,6 +1216,7 @@ func (app *QoreChainApp) setAnteHandler(
 			RDKMempoolCheck:         app.rdkMempoolGate,
 			CrossVMMaxPayload:       app.crossVMMaxPayload,
 			CosmosTxGasCap:          app.cosmosTxGasCap,
+			WasmTxToken:             app.wasmTxToken,
 			PQCClient:               app.pqcClient,
 			AIKeeper:                app.AIKeeper,
 			SVMKeeper:               app.SVMKeeper,

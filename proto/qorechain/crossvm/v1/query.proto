@@ -67,6 +67,17 @@ message QueryParamsResponse {
   // max_block_level_wasm_gas is the bound on one contract call made outside
   // a transaction in force.
   uint64 max_block_level_wasm_gas = 12;
+  // queue_wasm_reserve_bps is the queue's reserved share of the block wasm
+  // budget in force, in basis points.
+  uint32 queue_wasm_reserve_bps = 13;
+  // wasm_congestion_max_factor is the bound on the congestion factor in
+  // force.
+  uint32 wasm_congestion_max_factor = 14;
+  // wasm_congestion_target_bps is the congestion target in force.
+  uint32 wasm_congestion_target_bps = 15;
+  // wasm_congestion_factor_micro is the congestion factor the next block
+  // uses, in millionths (1,000,000 is the base price).
+  uint64 wasm_congestion_factor_micro = 16;
 }
 
 // QueryPendingMessagesRequest pages through the queue in key order. A page

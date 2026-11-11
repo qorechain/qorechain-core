@@ -2,6 +2,7 @@ package app
 
 import (
 	"crypto/sha256"
+	"fmt"
 	"math"
 	"sync"
 
@@ -14,9 +15,9 @@ import (
 	"github.com/qorechain/qorechain-core/x/wasmfilter"
 )
 
-// ErrBlockWasmBudget is the refusal of a CosmWasm VM call once the block's
-// wasm execution budget, or the calling transaction's share of it, is spent
-// (wasm-block-gas-budget).
+// ErrBlockWasmBudget is the failure of a CosmWasm call, or of the whole
+// transaction, once the block's wasm execution budget, or the calling
+// transaction's share of it, is spent (wasm-block-gas-budget).
 var ErrBlockWasmBudget = errorsmod.Register(wasmfilter.ModuleName, 3, "block wasm gas budget exhausted")
 
 // blockWasmBudget is the per-block CosmWasm execution budget
@@ -39,29 +40,47 @@ var ErrBlockWasmBudget = errorsmod.Register(wasmfilter.ModuleName, 3, "block was
 //   - block execution is sequential, so every node counts the same calls in
 //     the same order and refuses the same one.
 //
-// Three kinds of call are told apart:
+// The budget is split in two pools, and calls outside a transaction have a
+// third counter of their own:
 //
-//   - a transaction's (the context carries its bytes): limited by what is
-//     left of the block budget and by the transaction's own share of it
-//     (max_tx_wasm_share_bps), and refused when either is spent;
-//   - the end-of-block async queue's (crossvmtypes.IsQueueExecution):
-//     limited by what is left; the queue itself leaves a call pending when
-//     the budget cannot cover the call's whole prepaid gas (queueWasmFits);
+//   - transactions draw from the transaction pool (the budget less the
+//     queue's reserve, queue_wasm_reserve_bps), one transaction at most its
+//     share of the whole budget (max_tx_wasm_share_bps). When a
+//     transaction's call is refused, or cut short and runs out, the whole
+//     transaction is aborted (wasmfilter.BudgetAbort), so nothing it
+//     started (a submessage, an IBC packet receive) can turn the cut into a
+//     handled error: the transaction fails and can be retried in a later
+//     block;
+//   - the end-of-block async queue draws from its reserve and then from what
+//     transactions left; it admits a queued call on at most that much
+//     (queueWasmAdmit), so a call is never starved out by transactions;
 //   - any other call outside a transaction (a governance proposal executed
-//     at the end of the block, on the block's infinite gas meter): limited to
-//     max_block_level_wasm_gas, so it ends with out of gas instead of running
-//     forever, and counted, but never refused because transactions spent the
-//     budget (that would let anyone make a proposal fail).
+//     at the end of the block, with every submessage and reply it makes)
+//     draws from its own per-block counter (max_block_level_wasm_gas) and is
+//     refused when it is spent; transactions cannot spend it, so they cannot
+//     make a proposal fail, and a proposal cannot run the block without
+//     bound.
 type blockWasmBudget struct {
 	mu         sync.Mutex
 	on         bool
 	height     int64
-	remaining  uint64
+	total      uint64 // transaction pool + queue reserve at the start
+	txPool     uint64
+	queuePool  uint64
 	txCap      uint64
 	blockLevel uint64
-	tx         [32]byte
+	tx         wasmTxKey
 	txUsed     uint64
+	nextToken  uint64
 }
+
+// wasmTxKey identifies the transaction a call belongs to.
+type wasmTxKey struct {
+	token uint64
+	hash  [32]byte
+}
+
+type wasmTxTokenKey struct{}
 
 // saturatingVMGas converts SDK gas to VM gas at multiplier m without
 // overflowing.
@@ -72,18 +91,6 @@ func saturatingVMGas(sdkGas, m uint64) uint64 {
 	return sdkGas * m
 }
 
-// reset starts a block. Limits are in VM gas.
-func (b *blockWasmBudget) reset(height int64, on bool, limit, txCap, blockLevel uint64) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.on, b.height, b.remaining, b.txCap, b.blockLevel = on, height, limit, txCap, blockLevel
-	b.tx, b.txUsed = [32]byte{}, 0
-}
-
-func (b *blockWasmBudget) counts(ctx sdk.Context) bool {
-	return b.on && ctx.ExecMode() == sdk.ExecModeFinalize && ctx.BlockHeight() == b.height
-}
-
 func min64(a, b uint64) uint64 {
 	if a < b {
 		return a
@@ -91,66 +98,155 @@ func min64(a, b uint64) uint64 {
 	return b
 }
 
-// Limit gives a VM call at most what its kind may still use.
-func (b *blockWasmBudget) Limit(ctx sdk.Context, gasLimit uint64) (uint64, error) {
+func bpsOf(v uint64, bps uint32) uint64 {
+	if v > math.MaxUint64/10_000 {
+		return v / 10_000 * uint64(bps)
+	}
+	return v * uint64(bps) / 10_000
+}
+
+// reset starts a block. Limits are in VM gas.
+func (b *blockWasmBudget) reset(height int64, on bool, total uint64, reserveBps, shareBps uint32, blockLevel uint64) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.on, b.height, b.total, b.blockLevel = on, height, total, blockLevel
+	b.queuePool = bpsOf(total, reserveBps)
+	b.txPool = total - b.queuePool
+	b.txCap = bpsOf(total, shareBps)
+	b.tx, b.txUsed, b.nextToken = wasmTxKey{}, 0, 0
+}
+
+func (b *blockWasmBudget) counts(ctx sdk.Context) bool {
+	return b.on && ctx.ExecMode() == sdk.ExecModeFinalize && ctx.BlockHeight() == b.height
+}
+
+// withTxToken gives a transaction executing in the block its identity for
+// the per-transaction share, once, in the ante handler: the block's
+// transactions are numbered in order. Nothing is hashed per VM call.
+func (b *blockWasmBudget) withTxToken(ctx sdk.Context) sdk.Context {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.counts(ctx) {
-		return gasLimit, nil
+		return ctx
 	}
-	switch txBytes := ctx.TxBytes(); {
-	case len(txBytes) > 0:
-		if b.remaining == 0 {
-			return 0, ErrBlockWasmBudget.Wrap("this block's CosmWasm execution budget is spent; retry in the next block")
-		}
-		if key := sha256.Sum256(txBytes); key != b.tx {
+	b.nextToken++
+	return ctx.WithValue(wasmTxTokenKey{}, b.nextToken)
+}
+
+// txKeyOf is the transaction's identity: its token, or (for a context that
+// did not pass the ante handler, which block execution does not produce)
+// the hash of its bytes.
+func txKeyOf(ctx sdk.Context) wasmTxKey {
+	if t, ok := ctx.Value(wasmTxTokenKey{}).(uint64); ok && t != 0 {
+		return wasmTxKey{token: t}
+	}
+	return wasmTxKey{hash: sha256.Sum256(ctx.TxBytes())}
+}
+
+func abortTx(reason string) {
+	panic(wasmfilter.BudgetAbort{Reason: reason})
+}
+
+// Limit gives a VM call at most what its kind may still use.
+func (b *blockWasmBudget) Limit(ctx sdk.Context, gasLimit uint64) (uint64, bool, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.counts(ctx) {
+		return gasLimit, false, nil
+	}
+	var limit uint64
+	switch {
+	case len(ctx.TxBytes()) > 0:
+		if key := txKeyOf(ctx); key != b.tx {
 			b.tx, b.txUsed = key, 0
 		}
+		if b.txPool == 0 {
+			abortTx("this block's CosmWasm execution budget is spent; retry in a later block")
+		}
 		if b.txUsed >= b.txCap {
-			return 0, ErrBlockWasmBudget.Wrap("this transaction has used its share of the block's CosmWasm execution budget")
+			abortTx("this transaction has used its share of the block's CosmWasm execution budget")
 		}
-		return min64(gasLimit, min64(b.remaining, b.txCap-b.txUsed)), nil
+		limit = min64(gasLimit, min64(b.txPool, b.txCap-b.txUsed))
 	case crossvmtypes.IsQueueExecution(ctx):
-		if b.remaining == 0 {
-			return 0, ErrBlockWasmBudget.Wrap("this block's CosmWasm execution budget is spent")
+		avail := b.queuePool + b.txPool
+		if avail == 0 {
+			return 0, false, ErrBlockWasmBudget.Wrap("this block's CosmWasm execution budget is spent")
 		}
-		return min64(gasLimit, b.remaining), nil
+		limit = min64(gasLimit, avail)
 	default:
-		return min64(gasLimit, b.blockLevel), nil
+		if b.blockLevel == 0 {
+			return 0, false, ErrBlockWasmBudget.Wrap("this block's CosmWasm budget for calls outside transactions is spent")
+		}
+		limit = min64(gasLimit, b.blockLevel)
 	}
+	return limit, limit < gasLimit, nil
 }
 
-// Used takes a VM call's gas from the budget (and from the transaction's
-// share).
-func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed uint64) {
+// Used takes a VM call's gas from its pool. A transaction's call that was
+// cut short by the budget and used all it was given aborts the transaction.
+func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed, limit uint64, clamped bool) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
 	if !b.counts(ctx) {
+		b.mu.Unlock()
 		return
 	}
-	if txBytes := ctx.TxBytes(); len(txBytes) > 0 && sha256.Sum256(txBytes) == b.tx {
-		b.txUsed += min64(gasUsed, math.MaxUint64-b.txUsed)
+	abort := false
+	switch {
+	case len(ctx.TxBytes()) > 0:
+		if txKeyOf(ctx) == b.tx {
+			b.txUsed += min64(gasUsed, math.MaxUint64-b.txUsed)
+		}
+		b.txPool -= min64(gasUsed, b.txPool)
+		abort = clamped && gasUsed >= limit
+	case crossvmtypes.IsQueueExecution(ctx):
+		fromQueue := min64(gasUsed, b.queuePool)
+		b.queuePool -= fromQueue
+		b.txPool -= min64(gasUsed-fromQueue, b.txPool)
+	default:
+		b.blockLevel -= min64(gasUsed, b.blockLevel)
 	}
-	if gasUsed >= b.remaining {
-		b.remaining = 0
-		return
+	b.mu.Unlock()
+	if abort {
+		abortTx(fmt.Sprintf("a contract call was cut at %d VM gas by the block's CosmWasm execution budget", limit))
 	}
-	b.remaining -= gasUsed
 }
 
-// Remaining is what is left, in VM gas. For tests and tools.
+// Remaining is what is left for transactions and the queue together, in VM
+// gas. For tests and tools.
 func (b *blockWasmBudget) Remaining() uint64 {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return b.remaining
+	return b.txPool + b.queuePool
 }
 
-// fits reports whether vmGas of block execution can still be covered (always
-// true when the budget is off or ctx is not block execution).
-func (b *blockWasmBudget) fits(ctx sdk.Context, vmGas uint64) bool {
+// BlockLevelRemaining is what is left for calls outside transactions.
+func (b *blockWasmBudget) BlockLevelRemaining() uint64 {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	return !b.counts(ctx) || b.remaining >= vmGas
+	return b.blockLevel
+}
+
+// admit is how much VM gas a queued call may use: at most vmGas, from the
+// queue's reserve and then what transactions left (all of vmGas when the
+// budget is off or ctx is not block execution).
+func (b *blockWasmBudget) admit(ctx sdk.Context, vmGas uint64) uint64 {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.counts(ctx) {
+		return vmGas
+	}
+	return min64(vmGas, b.queuePool+b.txPool)
+}
+
+// utilisation is how much of this block's budget (transactions and queue)
+// was used, for congestion pricing.
+func (b *blockWasmBudget) utilisation(ctx sdk.Context) (used, total uint64) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.counts(ctx) {
+		return 0, 0
+	}
+	return b.total - (b.txPool + b.queuePool), b.total
 }
 
 // wasmBlockBudget returns the app's one budget.
@@ -162,25 +258,51 @@ func (app *QoreChainApp) wasmBlockBudget() *blockWasmBudget {
 }
 
 // resetWasmBlockBudget starts the block's budget from ctx's state. It runs
-// after the gas multiplier is set, so the budget converts to VM gas at the
-// block's price, saturating rather than overflowing. Reads are free of gas.
+// after the gas multiplier is set and converts at the base multiplier (before
+// congestion pricing), saturating rather than overflowing. Reads are free of
+// gas.
 func (app *QoreChainApp) resetWasmBlockBudget(ctx sdk.Context) {
 	on := app.PQCKeeper != nil && app.CrossVMKeeper != nil &&
 		app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmBlockGasBudget)
-	var limit, txCap, blockLevel uint64
+	var total, blockLevel uint64
+	var reserve, share uint32
 	if on {
 		p := app.CrossVMKeeper.GetParams(ctx)
-		m := app.wasmGasRegister().Multiplier()
-		limit = saturatingVMGas(p.BlockWasmGasLimit(), m)
-		txCap = limit / 10_000 * uint64(p.TxWasmShareBps())
+		m := app.wasmGasRegister().BaseMultiplier()
+		total = saturatingVMGas(p.BlockWasmGasLimit(), m)
 		blockLevel = saturatingVMGas(p.BlockLevelWasmGasLimit(), m)
+		reserve, share = p.QueueWasmReserve(), p.TxWasmShareBps()
 	}
-	app.wasmBlockBudget().reset(ctx.BlockHeight(), on, limit, txCap, blockLevel)
+	app.wasmBlockBudget().reset(ctx.BlockHeight(), on, total, reserve, share, blockLevel)
 }
 
-// queueWasmFits reports whether the block's wasm budget can still cover a
-// queued call's whole prepaid gas; the queue leaves the call pending for a
-// later block when it cannot.
-func (app *QoreChainApp) queueWasmFits(ctx sdk.Context, sdkGas uint64) bool {
-	return app.wasmBlockBudget().fits(ctx, saturatingVMGas(sdkGas, app.wasmGasRegister().Multiplier()))
+// queueWasmAdmit is how much SDK gas a queued call (prepaid sdkGas) may run
+// on this block under the wasm budget, at the multiplier in force; zero
+// leaves it pending.
+func (app *QoreChainApp) queueWasmAdmit(ctx sdk.Context, sdkGas uint64) uint64 {
+	m := app.wasmGasRegister().Multiplier()
+	vm := app.wasmBlockBudget().admit(ctx, saturatingVMGas(sdkGas, m))
+	if m == 0 {
+		return sdkGas
+	}
+	admitted := min64(sdkGas, vm/m)
+	if admitted < min64(sdkGas, crossvmtypes.MinQueueAdmission) {
+		return 0
+	}
+	return admitted
+}
+
+// wasmTxToken is the ante step that numbers the block's transactions for the
+// per-transaction share.
+func (app *QoreChainApp) wasmTxToken(ctx sdk.Context) sdk.Context {
+	return app.wasmBlockBudget().withTxToken(ctx)
+}
+
+// budgetAbortRecovery turns a wasmfilter.BudgetAbort raised during a
+// transaction into the transaction's ordinary failure (run-tx recovery).
+func budgetAbortRecovery(r any) error {
+	if a, ok := r.(wasmfilter.BudgetAbort); ok {
+		return ErrBlockWasmBudget.Wrap(a.Reason)
+	}
+	return nil
 }

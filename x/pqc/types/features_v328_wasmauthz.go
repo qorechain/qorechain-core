@@ -151,6 +151,17 @@ const (
 	// being refused. The next block starts with the full budget. EVM and
 	// native transactions, CheckTx, simulations and queries are not counted.
 	FeatureWasmBlockGasBudget = "wasm-block-gas-budget"
+
+	// FeatureWasmCongestionPricing prices CosmWasm execution by how full the
+	// block wasm budget has been. A factor kept in state (crossvm,
+	// default 1) multiplies the SDK gas one unit of contract execution costs;
+	// after every block it rises by 1/8 when the block used more than
+	// wasm_congestion_target_bps of its wasm budget and falls by 1/9 when it
+	// used less, bounded by wasm_congestion_max_factor (default 1,000). The
+	// budget itself is unchanged (it bounds validator CPU); keeping it full
+	// becomes exponentially expensive, and ordinary use, which leaves most of
+	// the budget unused, stays at the base price.
+	FeatureWasmCongestionPricing = "wasm-congestion-pricing"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -171,4 +182,5 @@ var V328WasmAuthzFeatures = []string{
 	FeatureCrossVMReentryCanonical,
 	FeatureCrossVMQueueFIFO,
 	FeatureWasmBlockGasBudget,
+	FeatureWasmCongestionPricing,
 }
