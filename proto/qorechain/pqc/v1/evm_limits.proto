@@ -5,6 +5,7 @@ option go_package = "github.com/qorechain/qorechain-core/x/pqc/types";
 
 import "cosmos/msg/v1/msg.proto";
 import "cosmos_proto/cosmos.proto";
+import "google/api/annotations.proto";
 
 // EVM execution limits (v3.2.8). Governance may change them; until it does,
 // the defaults in x/pqc/types/evm_limits.go apply.
@@ -38,3 +39,21 @@ message MsgUpdateEVMLimits {
 }
 
 message MsgUpdateEVMLimitsResponse {}
+
+// EVMLimitsQuery is the query service for the EVM execution limits.
+service EVMLimitsQuery {
+  // EVMLimits returns the limits governance set and the ones in force.
+  rpc EVMLimits(QueryEVMLimitsRequest) returns (QueryEVMLimitsResponse) {
+    option (google.api.http).get = "/qorechain/pqc/v1/evm_limits";
+  }
+}
+
+message QueryEVMLimitsRequest {}
+
+message QueryEVMLimitsResponse {
+  // limits are what governance set (zero fields: not set).
+  EVMLimits limits = 1;
+  // tx_max_gas and precompile_input_max_bytes are the values in force.
+  uint64 tx_max_gas = 2;
+  uint64 precompile_input_max_bytes = 3;
+}

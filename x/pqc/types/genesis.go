@@ -39,6 +39,11 @@ type GenesisState struct {
 	// (v3.2.7). Omitted when there are none, so an export from before the
 	// registry existed is unchanged.
 	Multisigs []PQCMultisigInfo `json:"multisigs,omitempty"`
+
+	// EVMLimits are the EVM execution limits governance set (v3.2.8).
+	// Omitted when none were set (the defaults apply), so an export from
+	// before they existed is unchanged.
+	EVMLimits *EVMLimits `json:"evm_limits,omitempty"`
 }
 
 // GenesisEVMWindow is one account's window in a genesis file.
@@ -73,6 +78,11 @@ func DefaultGenesisState() *GenesisState {
 
 // Validate performs basic genesis state validation.
 func (gs GenesisState) Validate() error {
+	if gs.EVMLimits != nil {
+		if err := gs.EVMLimits.Validate(); err != nil {
+			return fmt.Errorf("evm_limits: %w", err)
+		}
+	}
 	seenFeature := map[string]bool{}
 	for _, f := range gs.ProtocolFeatures {
 		if !KnownProtocolFeature(f) {
