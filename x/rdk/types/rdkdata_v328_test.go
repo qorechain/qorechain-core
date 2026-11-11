@@ -40,7 +40,7 @@ func TestRDKDataFieldsOmittedWhenUnset(t *testing.T) {
 func TestPostedDataParamsDefaultsAndBounds(t *testing.T) {
 	p := DefaultParams()
 	if p.PostedDataMaxBytes() != 128<<10 || p.PostedDataMaxBytesPerBlock() != 512<<10 ||
-		p.PostedDataFee() != 10 || p.PostedDataRetention() != 201600 {
+		p.PostedDataFee() != 10 || p.PostedDataRetention() != 648000 {
 		t.Fatalf("defaults: %d %d %d %d", p.PostedDataMaxBytes(), p.PostedDataMaxBytesPerBlock(),
 			p.PostedDataFee(), p.PostedDataRetention())
 	}
