@@ -660,6 +660,75 @@ func (b *blockWasmBudget) ChargeCallSetup(ctx sdk.Context, units, gas uint64) er
 	return b.takeUnitsLocked(ctx, saturatingVMGas(units, base), "setting up this contract call")
 }
 
+// ChargeCallGrowth charges, after a call, the memory it grew into
+// (wasm-call-setup-priced): gas at the price in force first (out of gas when
+// the meter cannot cover it), then, in block execution only, units from the
+// call's pool. The work is already done, so when the units do not fit, what
+// is left of the pool they did not fit in is taken (the transactions' pool
+// or the transaction's share, the queue's pools, the block-level counter)
+// before the transaction is aborted or the call refused: later calls in
+// the block cannot repeat it on the same remainder.
+func (b *blockWasmBudget) ChargeCallGrowth(ctx sdk.Context, units, gas uint64) error {
+	b.mu.Lock()
+	counts := b.counts(ctx)
+	base, eff := CalibratedWasmGasMultiplier, CalibratedWasmGasMultiplier
+	if b.reg != nil {
+		base, eff = b.reg.BaseMultiplier(), b.reg.Multiplier()
+	}
+	b.mu.Unlock()
+	sdkGas := gas
+	if eff > 0 {
+		g := saturatingVMGas(gas, base)
+		sdkGas = g/eff + min64(g%eff, 1)
+	}
+	ctx.GasMeter().ConsumeGas(sdkGas, "wasm call memory growth")
+	if !counts {
+		return nil
+	}
+	vm := saturatingVMGas(units, base)
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	const what = "the memory this contract call grew into"
+	switch {
+	case len(ctx.TxBytes()) > 0:
+		if k := txKeyOf(ctx); k != b.tx {
+			b.tx, b.txUsed = k, 0
+		}
+		if vm > b.txPool {
+			b.drainTxLocked(ctx, b.txPool)
+			b.txPool = 0
+			abortTx(what + " does not fit in what is left of the block's CosmWasm execution budget; retry in a later block")
+		}
+		if b.txUsed+vm > b.txCap {
+			take := b.txCap - min64(b.txUsed, b.txCap)
+			b.drainTxLocked(ctx, take)
+			b.txPool -= take
+			b.txUsed = b.txCap
+			abortTx("this transaction has used its share of the block's CosmWasm execution budget")
+		}
+	case crossvmtypes.IsQueueExecution(ctx):
+		if vm > b.queuePool+b.txPool {
+			b.queuePool, b.txPool = 0, 0
+			return ErrBlockWasmBudget.Wrap(what + " does not fit in what is left of the block's CosmWasm execution budget")
+		}
+	default:
+		if vm > b.blockLevel {
+			b.blockLevel = 0
+			return ErrBlockWasmBudget.Wrap(what + " does not fit in this block's CosmWasm budget for calls outside transactions")
+		}
+	}
+	return b.takeUnitsLocked(ctx, vm, what)
+}
+
+// drainTxLocked records vm taken by ctx's transaction (its share and its
+// fee payer's use) without touching the pool.
+func (b *blockWasmBudget) drainTxLocked(ctx sdk.Context, vm uint64) {
+	b.txUsed += min64(vm, math.MaxUint64-b.txUsed)
+	if payer, ok := ctx.Value(wasmTxPayerKey{}).(string); ok && b.payers != nil {
+		b.payers[payer] += vm
+	}
+}
+
 // FreeRepeatLoadBytes is the conservative compiled size of the distinct
 // codes a block may load before repeated calls to them are charged again:
 // an eighth of the minimum memory cache (MinWasmMemoryCacheMiB), so a code

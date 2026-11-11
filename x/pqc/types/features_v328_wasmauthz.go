@@ -249,14 +249,15 @@ const (
 	// operating system's work for every 4 KiB page the call touches for the
 	// first time (1.26 us on Intel c6i, 1.93 us on AMD m6a), none of which
 	// the VM meters. From this switch every call, pinned codes and repeated
-	// calls included, takes wasmfilter.CallSetupUnits from the block wasm
-	// budget like its execution, and pays as much gas at the price in force,
-	// before it runs: 350, plus 150 per 64 KiB page of its initial memory
-	// (plus up to 32 pages of growth for a module with memory.grow), plus 9
-	// per data segment. A call that touches all the memory it starts with
+	// calls included, pays before it runs wasmfilter.CallSetupUnits (350,
+	// plus 150 per 64 KiB page of initial memory, plus 9 per data segment)
+	// and after it runs wasmfilter.CallGrowthUnits (150 per page it grew its
+	// memory by, as the patched VM reports), from the block wasm budget like
+	// its execution and as much gas at the price in force. Growth that does
+	// not fit takes what is left of the pool (or the transaction's share) and
+	// aborts the transaction, or fails the call outside one. Every call shape
 	// stays within the budget's design bound of 265 ns per unit on AMD. An
-	// ordinary contract call (17 initial pages, grows) takes about 7,700
-	// units and gas more than before.
+	// ordinary cw20 transfer takes about 3,250 units and gas more than before.
 	FeatureWasmCallSetupPriced = "wasm-call-setup-priced"
 )
 

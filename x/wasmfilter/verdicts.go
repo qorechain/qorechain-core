@@ -67,8 +67,10 @@ type Verdict struct {
 	Size, Functions int
 	Compiled        uint64
 	// SetupUnits is what every call of the code costs to set up
-	// (CallSetupUnits, wasm-call-setup-priced).
-	SetupUnits uint64
+	// (CallSetupUnits, wasm-call-setup-priced), and MemoryPages its initial
+	// memory, which the setup covers.
+	SetupUnits  uint64
+	MemoryPages uint64
 }
 
 // Verdicts caches the verdicts per code checksum. They depend on the bytes
@@ -330,62 +332,40 @@ func CheckShape(st Stats) error {
 // and 1.93 us on AMD m6a, so a call that touches its whole 32 MiB took
 // 10.4 ms and 15.9 ms; a minimal call 54 and 83 us.
 //
-// CallSetupUnits charges, before every call: CallSetupUnitsBase, plus
-// CallSetupUnitsPerPage per 64 KiB page the call is charged for
-// (ChargedSetupPages: its initial pages, plus for a module with
-// memory.grow up to CallSetupGrowPages more, never past its high-water
-// mark), plus CallSetupUnitsPerDataSegment per data segment, taken from the
-// block wasm budget like the call's execution, and CallSetupGasPerUnit gas
-// per unit at the price in force. The per-page and per-segment prices are
+// Before every call: CallSetupUnits, that is CallSetupUnitsBase, plus
+// CallSetupUnitsPerPage per 64 KiB page of initial memory, plus
+// CallSetupUnitsPerDataSegment per data segment. After it: CallGrowthUnits,
+// CallSetupUnitsPerPage per page the call grew its memory by (the VM, with
+// the QoreChain libwasmvm patch, reports the memory size a call ended with,
+// which is its high-water mark: Wasm memory never shrinks). Both are taken
+// from the block wasm budget like the call's execution, with
+// CallSetupGasPerUnit gas per unit at the price in force. The prices are
 // the AMD cost at the budget's design bound of 265 ns per unit with a 1.25
-// margin (16 x 1.93 us x 1.25 / 265 ns = 146 per page), so a call that
-// touches every page it starts with stays within the bound.
-//
-// How far a call grows its memory is known only while it runs (the VM does
-// not report it), and every contract can grow to the VM's limit; charging
-// every call for all 512 pages would cost an ordinary contract call about
-// 77,000 units and gas. CallSetupGrowPages is the growth charged instead
-// (2 MiB beyond the initial memory): one constant to retune in a release.
-// A call that grows past it and touches what it grew is not fully priced:
-// up to about 15.9 ms on AMD for about 12,000 units (1,300 ns per unit);
-// the bound for it needs the VM to report a call's memory high-water mark.
+// margin (16 x 1.93 us x 1.25 / 265 ns = 146 per page), so a call stays
+// within the bound however much of its memory it touches.
 const (
 	VMMemoryLimitPages           = 512 // wasmd's contract memory limit, 32 MiB
 	CallSetupUnitsBase           = 350
 	CallSetupUnitsPerPage        = 150
 	CallSetupUnitsPerDataSegment = 9
-	CallSetupGrowPages           = 32
 	CallSetupGasPerUnit          = 1
 )
 
-// MemoryHighWaterPages is the most linear memory, in 64 KiB pages, a call
-// of the module can touch: its initial pages without memory.grow, else the
-// VM's limit or the declared maximum if lower (never below the initial
-// pages).
-func MemoryHighWaterPages(st Stats) uint64 {
-	pages := uint64(st.MemoryPages)
-	if st.GrowOps > 0 {
-		top := uint64(VMMemoryLimitPages)
-		if st.MemoryHasMax && uint64(st.MemoryMaxPages) < top {
-			top = uint64(st.MemoryMaxPages)
-		}
-		pages = max(pages, top)
-	}
-	return min(pages, VMMemoryLimitPages)
-}
-
-// ChargedSetupPages is the memory, in 64 KiB pages, a call of the module is
-// charged for: its initial pages, plus for a module that can grow up to
-// CallSetupGrowPages more, at most its high-water mark.
-func ChargedSetupPages(st Stats) uint64 {
-	return min(MemoryHighWaterPages(st), uint64(st.MemoryPages)+CallSetupGrowPages)
-}
-
 // CallSetupUnits is what setting up one call of the module costs, in budget
-// units (wasm-call-setup-priced).
+// units, before it runs (wasm-call-setup-priced).
 func CallSetupUnits(st Stats) uint64 {
-	return CallSetupUnitsBase + ChargedSetupPages(st)*CallSetupUnitsPerPage +
+	return CallSetupUnitsBase + uint64(st.MemoryPages)*CallSetupUnitsPerPage +
 		uint64(st.DataSegments)*CallSetupUnitsPerDataSegment
+}
+
+// CallGrowthUnits is what a call that started with initial pages of memory
+// and ended with reached pages costs after it ran, in budget units: the
+// pages it grew by (none for a call whose report carries no memory size).
+func CallGrowthUnits(initial, reached uint64) uint64 {
+	if reached <= initial {
+		return 0
+	}
+	return (min(reached, VMMemoryLimitPages) - min(initial, VMMemoryLimitPages)) * CallSetupUnitsPerPage
 }
 
 // ErrCustomSections is the refusal of an upload whose custom sections are

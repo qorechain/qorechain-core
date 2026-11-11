@@ -63,37 +63,32 @@ func TestCheckShapeInitialPages(t *testing.T) {
 	}
 }
 
-// The high-water mark is the initial pages without memory.grow, else the
-// VM's limit or a lower declared maximum; the setup units follow it and
-// the data segments.
+// The setup charge follows the initial memory and the data segments; the
+// growth charge the pages a call grew by, up to the VM's limit.
 func TestCallSetupUnits(t *testing.T) {
 	for _, c := range []struct {
-		pages, max uint32
-		grow       bool
-		segs       int
-		hw         uint64
-	}{
-		{4, 0, false, 0, 4},
-		{64, 0, false, 1020, 64},
-		{17, 0, true, 0, VMMemoryLimitPages},
-		{17, 100, true, 2, 100},
-		{17, 10, true, 0, 17}, // a maximum below the minimum: the minimum
-		{17, 4000, true, 0, VMMemoryLimitPages},
-	} {
-		st, err := Inspect(memModule(c.pages, c.max, c.grow, c.segs, 1))
-		if err != nil && c.max >= c.pages {
+		pages uint32
+		grow  bool
+		segs  int
+	}{{4, false, 0}, {64, false, 1020}, {17, true, 0}, {17, true, 22}} {
+		st, err := Inspect(memModule(c.pages, 0, c.grow, c.segs, 1))
+		if err != nil {
 			t.Fatal(err)
 		}
-		if got := MemoryHighWaterPages(st); got != c.hw {
-			t.Fatalf("%+v: high-water %d, want %d", c, got, c.hw)
-		}
-		charged := min(c.hw, uint64(c.pages)+CallSetupGrowPages)
-		if got := ChargedSetupPages(st); got != charged {
-			t.Fatalf("%+v: charged %d pages, want %d", c, got, charged)
-		}
-		want := CallSetupUnitsBase + charged*CallSetupUnitsPerPage + uint64(c.segs)*CallSetupUnitsPerDataSegment
+		want := CallSetupUnitsBase + uint64(c.pages)*CallSetupUnitsPerPage + uint64(c.segs)*CallSetupUnitsPerDataSegment
 		if got := CallSetupUnits(st); got != want {
 			t.Fatalf("%+v: units %d, want %d", c, got, want)
+		}
+	}
+	for _, c := range []struct{ initial, reached, want uint64 }{
+		{17, 0, 0},  // no report
+		{17, 17, 0}, // did not grow
+		{17, 18, CallSetupUnitsPerPage},
+		{17, 512, 495 * CallSetupUnitsPerPage},
+		{17, 4000, 495 * CallSetupUnitsPerPage}, // never past the VM's limit
+	} {
+		if got := CallGrowthUnits(c.initial, c.reached); got != c.want {
+			t.Fatalf("%d -> %d pages: %d units, want %d", c.initial, c.reached, got, c.want)
 		}
 	}
 }
@@ -119,8 +114,8 @@ func TestRealContractsCallSetup(t *testing.T) {
 		if st.MemoryPages > 20 || st.MemoryPages == 0 {
 			t.Errorf("%s: %d initial pages", name, st.MemoryPages)
 		}
-		t.Logf("%-28s pages %2d max %v/%d grow %d data %3d (%6d B): high-water %3d, charged %2d, setup %5d units",
-			name, st.MemoryPages, st.MemoryHasMax, st.MemoryMaxPages, st.GrowOps, st.DataSegments, st.DataBytes, MemoryHighWaterPages(st), ChargedSetupPages(st), CallSetupUnits(st))
+		t.Logf("%-28s pages %2d max %v/%d grow %d data %3d (%6d B): setup %5d units",
+			name, st.MemoryPages, st.MemoryHasMax, st.MemoryMaxPages, st.GrowOps, st.DataSegments, st.DataBytes, CallSetupUnits(st))
 	}
 }
 
@@ -143,31 +138,35 @@ func TestUploadUnits(t *testing.T) {
 }
 
 // The native AMD m6a cost model (the slower validator host): 83 us per
-// call, 1.93 us per 4 KiB page touched for the first time. Every shape whose
-// touched pages are the ones it declares (initial memory, data segments) is
-// charged at least its time at the 265 ns design bound; a module that can
-// grow is charged CallSetupGrowPages more.
-func TestCallSetupUnitsCoverDeclaredMemory(t *testing.T) {
+// call, 1.93 us per 4 KiB page touched for the first time. Every shape,
+// whether it touches the memory it declares or memory it grew into, is
+// charged at least its time at the 265 ns design bound.
+func TestCallSetupUnitsCoverTouchedMemory(t *testing.T) {
 	const callNs, pageNs, bound = 83_000.0, 1_930.0, 265.0
 	for _, c := range []struct {
 		name      string
 		pages     uint32
 		segs      int
+		reached   uint64
 		touchedOS int
 	}{
-		{"minimal", 4, 0, 0},
-		{"64 pages, all touched", MaxModuleInitialPages, 0, MaxModuleInitialPages * 16},
-		{"64 pages, 1,020 one-page segments", MaxModuleInitialPages, 1020, 1020},
-		{"64 pages, segments and all touched", MaxModuleInitialPages, 1020, MaxModuleInitialPages * 16},
-		{"17 pages, all touched", 17, 3, 17 * 16},
+		{"minimal", 4, 0, 4, 0},
+		{"64 pages, all touched", MaxModuleInitialPages, 0, MaxModuleInitialPages, MaxModuleInitialPages * 16},
+		{"64 pages, 1,020 one-page segments", MaxModuleInitialPages, 1020, MaxModuleInitialPages, 1020},
+		{"64 pages, segments and all touched", MaxModuleInitialPages, 1020, MaxModuleInitialPages, MaxModuleInitialPages * 16},
+		{"17 pages, all touched", 17, 3, 17, 17 * 16},
+		{"17 pages, grow to 512, all touched", 17, 0, VMMemoryLimitPages, VMMemoryLimitPages * 16},
+		{"64 pages + segments, grow to 512, all touched", MaxModuleInitialPages, 1020, VMMemoryLimitPages, VMMemoryLimitPages * 16},
+		{"17 pages, grow 1, all touched", 17, 0, 18, 18 * 16},
 	} {
-		st, err := Inspect(memModule(c.pages, 0, false, c.segs, 1))
+		st, err := Inspect(memModule(c.pages, 0, c.reached > uint64(c.pages), c.segs, 1))
 		if err != nil {
 			t.Fatal(err)
 		}
+		units := CallSetupUnits(st) + CallGrowthUnits(uint64(c.pages), c.reached)
 		ns := callNs + pageNs*float64(c.touchedOS)
-		per := ns / float64(CallSetupUnits(st))
-		t.Logf("%-36s %6d units, modelled %7.0f us on AMD: %5.0f ns/unit", c.name, CallSetupUnits(st), ns/1e3, per)
+		per := ns / float64(units)
+		t.Logf("%-46s %6d units, modelled %7.0f us on AMD: %5.0f ns/unit", c.name, units, ns/1e3, per)
 		if per > bound {
 			t.Errorf("%s: %.0f ns per unit", c.name, per)
 		}
