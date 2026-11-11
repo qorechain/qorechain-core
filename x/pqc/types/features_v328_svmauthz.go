@@ -372,6 +372,26 @@ const (
 	// that validates a program during block execution a node fault (the node
 	// halts), as svm-execution-thread-node-fault does for execution.
 	FeatureSVMDeployThreadNodeFault = "svm-deploy-thread-node-fault"
+	// FeatureSVMCustodyCeilingLiabilityGrowth closes the way around the
+	// rent-only exemption of the hard ceiling: rent is not locked (its owner
+	// can move a created account's lamports to another account it owns, or
+	// shrink the account and keep them), so while the svm module account is
+	// above max_custody_hard_uqor an SVM instruction may not grow the custody
+	// liability (lamports above rent reserves plus wallet dust) by more than
+	// one uqor per wallet it touched. Rent-only creations, deploys, transfers
+	// and withdrawals still pass. Needs svm-custody-liability-window.
+	FeatureSVMCustodyCeilingLiabilityGrowth = "svm-custody-ceiling-liability-growth"
+	// FeatureSVMPDASignerBound makes the keeper's re-check bind a PDA
+	// signature to the program that made it: an account counts as signed by
+	// a PDA only for a change its own program (the owner the program gives
+	// it, or the program that owns it) could make. The runtime already binds
+	// them per frame; this makes the keeper independent of it.
+	FeatureSVMPDASignerBound = "svm-pda-signer-bound"
+	// FeatureSVMRelayedIdentityLockFirst checks the relayed identity lock
+	// before the per-account excess cap, so a linked key that tries to
+	// convert the canonical account is refused for what it is, whatever the
+	// balance.
+	FeatureSVMRelayedIdentityLockFirst = "svm-relayed-identity-lock-first"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -438,4 +458,7 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMSimulationMemoryBudget,
 	FeatureSVMDeployFullyVerified,
 	FeatureSVMDeployThreadNodeFault,
+	FeatureSVMCustodyCeilingLiabilityGrowth,
+	FeatureSVMPDASignerBound,
+	FeatureSVMRelayedIdentityLockFirst,
 }
