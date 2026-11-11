@@ -28,6 +28,38 @@ Batches include a validity proof (SNARK or STARK) that is verified on submission
 - **Finality**: Instant upon proof verification
 - **STARK verifier (v3.1.33+)**: A real, from-scratch transparent STARK verifier lives in `x/rdk/stark` (prime field, Fiat-Shamir transcript, Merkle commitments, FRI low-degree test, AIR + DEEP composition). It is wired into settlement behind an opt-in `QSTK` verification-key gate — rollups configured for STARK verification have their ZK batches cryptographically verified on-chain; others fall back to the optimistic challenge path. (Earlier releases up to v1.3.0 accepted any non-empty proof as a stub.)
 
+#### Groth16 public inputs (canonical inputs, from v3.2.8)
+
+A Groth16 (BLS12-381) batch is verified against four public inputs, in this
+order, each the 32-byte value read as a big-endian integer and reduced modulo
+the scalar field order
+
+```
+r = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
+input_i = int.from_bytes(value_i, "big") mod r
+values  = prev_state_root, state_root, data_hash, withdrawals_root
+```
+
+(three inputs, without `withdrawals_root`, for a batch submitted before the
+withdrawals binding). The circuit's witness must take the same reduced values.
+
+From `rdk-zk-canonical-inputs` the rule is: a value the chain derives or
+fixes is reduced modulo r by the chain and may be any 32 bytes; a value the
+prover chooses must already be below r, or the batch is refused.
+
+| Value | Who fixes it | Must be below r |
+|---|---|---|
+| `state_root` | the prover | yes |
+| `prev_state_root` | the chain (equals the latest settled `state_root`), except on a rollup's first batch | first batch only |
+| `data_hash` | the chain when bound (a based rollup's inbox range, a posted-data or native-blob commitment), otherwise the prover | only when not bound |
+| `withdrawals_root` | the chain (the SHAKE-256 withdrawal tree root that `MsgExecuteWithdrawal` recomputes from the leaves) | no |
+
+So an RDK client computes `withdrawals_root mod r` (and `data_hash mod r`
+for a bound data hash) for its circuit witness and submits the unreduced
+32-byte root; it keeps its own state roots below r. STARK batches check
+`prev_state_root` (first batch) and `state_root` against the Goldilocks
+modulus the same way.
+
 ### Based Settlement
 
 The host chain's block proposers directly sequence rollup transactions. This is the most decentralized sequencing model, as it inherits the full validator set of the host chain. Based rollups finalize after a short confirmation delay (2 blocks) since L1 finality equals rollup finality.

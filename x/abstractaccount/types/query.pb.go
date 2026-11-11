@@ -1231,8 +1231,8 @@ type QueryClient interface {
 	// and detect drift via schema_version (v3.1.85).
 	PermissionSchema(ctx context.Context, in *QueryPermissionSchemaRequest, opts ...grpc.CallOption) (*QueryPermissionSchemaResponse, error)
 	// AuthNonce returns the sequence a linked authenticator key must sign next
-	// for an account: the nonce MsgExecuteEVM and MsgExecuteCosmos must carry
-	// (QSR-2026-0596). It is the key's own counter, not the account's EVM nonce.
+	// for an account: the nonce MsgExecuteEVM and MsgExecuteCosmos must carry.
+	// It is the key's own counter, not the account's EVM nonce.
 	AuthNonce(ctx context.Context, in *QueryAuthNonceRequest, opts ...grpc.CallOption) (*QueryAuthNonceResponse, error)
 	// SpendingRules returns the spending rules stored for an account: the
 	// account-wide rules and the rule of every linked key that carries its own.
@@ -1331,8 +1331,8 @@ type QueryServer interface {
 	// and detect drift via schema_version (v3.1.85).
 	PermissionSchema(context.Context, *QueryPermissionSchemaRequest) (*QueryPermissionSchemaResponse, error)
 	// AuthNonce returns the sequence a linked authenticator key must sign next
-	// for an account: the nonce MsgExecuteEVM and MsgExecuteCosmos must carry
-	// (QSR-2026-0596). It is the key's own counter, not the account's EVM nonce.
+	// for an account: the nonce MsgExecuteEVM and MsgExecuteCosmos must carry.
+	// It is the key's own counter, not the account's EVM nonce.
 	AuthNonce(context.Context, *QueryAuthNonceRequest) (*QueryAuthNonceResponse, error)
 	// SpendingRules returns the spending rules stored for an account: the
 	// account-wide rules and the rule of every linked key that carries its own.

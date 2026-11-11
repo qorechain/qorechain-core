@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -100,22 +99,19 @@ func GetCmdQueryParams() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "params",
 		Short: "Query SVM module parameters",
-		Long:  "Query the current parameters of the SVM module, including compute budget, rent settings, and program size limits.",
-		Args:  cobra.NoArgs,
+		Long: "Query the SVM runtime parameters in force, every field (compute budget, rent settings, " +
+			"program size limits, the custody ceilings), in the shape MsgUpdateParams takes.",
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			clientCtx, err := client.GetClientQueryContext(cmd)
+			clientCtx, qc, err := svmQueryClient(cmd)
 			if err != nil {
 				return err
 			}
-			_ = clientCtx
-
-			params := types.DefaultParams()
-			bz, err := json.MarshalIndent(params, "", "  ")
+			res, err := qc.Params(cmd.Context(), &types.QueryParamsRequest{})
 			if err != nil {
 				return err
 			}
-			fmt.Println(string(bz))
-			return nil
+			return clientCtx.PrintProto(res)
 		},
 	}
 

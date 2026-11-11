@@ -371,7 +371,7 @@ type MsgUpdateParams struct {
 	QueueWasmReserveBps uint32 `protobuf:"varint,14,opt,name=queue_wasm_reserve_bps,json=queueWasmReserveBps,proto3" json:"queue_wasm_reserve_bps,omitempty"`
 	// wasm_congestion_max_factor bounds the CosmWasm congestion factor (how
 	// many times the base price one unit of contract execution costs). Zero
-	// means the default (1,000); a set value is 1 to 10,000. Set from the
+	// means the default (20); a set value is 1 to 100. Set from the
 	// wasm-congestion-pricing switch.
 	WasmCongestionMaxFactor uint32 `protobuf:"varint,15,opt,name=wasm_congestion_max_factor,json=wasmCongestionMaxFactor,proto3" json:"wasm_congestion_max_factor,omitempty"`
 	// wasm_congestion_target_bps is the block wasm budget use, in basis

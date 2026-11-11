@@ -364,6 +364,12 @@ func (p Params) Validate() error {
 	if p.MaxQueueSize == 0 {
 		return fmt.Errorf("max queue size must be positive")
 	}
+	// One block's queue walk scans MaxQueueScanPerBlock index keys
+	// (crossvm-queue-sender-round-robin): a larger queue could hold a
+	// sender's calls beyond it. Held in genesis and in every update.
+	if int(p.MaxQueueSize) > MaxQueueScanPerBlock {
+		return fmt.Errorf("max queue size %d is above %d, what one block's queue walk scans", p.MaxQueueSize, MaxQueueScanPerBlock)
+	}
 	if p.QueueTimeoutBlocks <= 0 {
 		return fmt.Errorf("queue timeout blocks must be positive")
 	}

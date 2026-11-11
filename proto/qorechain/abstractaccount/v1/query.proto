@@ -37,8 +37,8 @@ service Query {
     option (google.api.http).get = "/qorechain/abstractaccount/v1/permission_schema";
   }
   // AuthNonce returns the sequence a linked authenticator key must sign next
-  // for an account: the nonce MsgExecuteEVM and MsgExecuteCosmos must carry
-  // (QSR-2026-0596). It is the key's own counter, not the account's EVM nonce.
+  // for an account: the nonce MsgExecuteEVM and MsgExecuteCosmos must carry.
+  // It is the key's own counter, not the account's EVM nonce.
   rpc AuthNonce(QueryAuthNonceRequest) returns (QueryAuthNonceResponse) {
     option (google.api.http).get = "/qorechain/abstractaccount/v1/auth_nonce/{address}/{pubkey_hex}";
   }

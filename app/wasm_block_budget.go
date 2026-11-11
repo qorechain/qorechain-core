@@ -508,12 +508,17 @@ const QueryLoadUnitsPerSecond = 1_000_000
 // always charge, as for a first call, and mark nothing. A query served by
 // the node pays only for a code that is not hot (loaded in this block or
 // recently on this node), and such loads share a node-local allowance per
-// second.
+// second. A call reached through a synchronous cross-VM call in a query
+// (eth_estimateGas and eth_call through the 0x0901 bridge,
+// crossvmtypes.IsSyncCall) is an estimate of a transaction: it always pays
+// the load's gas as a first call in a block does, and only a code that is
+// not hot also uses the node's allowance.
 func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, checksum []byte, units, gas, compiled uint64) error {
 	key := string(checksum)
 	b.mu.Lock()
 	counts := b.counts(ctx)
 	query := !counts && ctx.IsCheckTx() && len(ctx.TxBytes()) == 0 && ctx.ExecMode() == sdk.ExecModeCheck
+	estimate := query && crossvmtypes.IsSyncCall(ctx)
 	repeats, seen := b.loaded[key]
 	if counts && seen && b.loadedBytes <= FreeRepeatLoadBytes {
 		repeats++
@@ -525,7 +530,8 @@ func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, checksum []byte, units, g
 		}
 		units, gas = repeatLoadShare(units), repeatLoadShare(gas)
 	}
-	if query && (seen || b.recent.has(key)) {
+	hot := seen || b.recent.has(key)
+	if query && hot && !estimate {
 		b.recent.touch(key, compiled)
 		b.mu.Unlock()
 		return nil
@@ -552,11 +558,13 @@ func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, checksum []byte, units, g
 		return nil
 	}
 	if query {
-		b.mu.Lock()
-		ok := b.queryLoads.take(units)
-		b.mu.Unlock()
-		if !ok {
-			return ErrBlockWasmBudget.Wrap("this node's allowance for loading contract code in queries is spent; retry shortly")
+		if !hot {
+			b.mu.Lock()
+			ok := b.queryLoads.take(units)
+			b.mu.Unlock()
+			if !ok {
+				return ErrBlockWasmBudget.Wrap("this node's allowance for loading contract code in queries is spent; retry shortly")
+			}
 		}
 		ctx.GasMeter().ConsumeGas(sdkGas, "wasm code load")
 		b.mu.Lock()

@@ -28,4 +28,8 @@ const (
 	AttributeKeyReason               = "reason"
 	AttributeKeyEscrowFee            = "escrow_fee"
 	AttributeKeyEscrowRefund         = "escrow_refund"
+	// AttributeKeyEscrowStranded is, on EventTypeEscrowSettled, an escrow
+	// that could be neither paid out nor moved to the community pool: the
+	// call finished as failed and the coins stay in the escrow account.
+	AttributeKeyEscrowStranded = "escrow_stranded"
 )

@@ -34,10 +34,17 @@ func (gs GenesisState) Validate() error {
 		(f < CongestionFactorOne || f > uint64(MaxWasmCongestionMaxFactor)*CongestionFactorOne) {
 		return fmt.Errorf("wasm congestion factor %d is outside %d..%d", f, CongestionFactorOne, uint64(MaxWasmCongestionMaxFactor)*CongestionFactorOne)
 	}
+	// One record per ID: a later duplicate would overwrite an imported
+	// pending record whose queue entry stays (an entry the walk then drops).
+	seen := make(map[string]bool, len(gs.Messages))
 	for _, msg := range gs.Messages {
 		if err := msg.Validate(); err != nil {
 			return err
 		}
+		if seen[msg.ID] {
+			return fmt.Errorf("message %s is listed twice", msg.ID)
+		}
+		seen[msg.ID] = true
 	}
 	return nil
 }

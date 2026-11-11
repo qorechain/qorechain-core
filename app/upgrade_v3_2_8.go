@@ -133,11 +133,20 @@ func (app *QoreChainApp) upgradeV3_2_8SVMLaneGoverned(ctx sdk.Context) error {
 // code) no longer changes what it reaches. An entry naming no contract is
 // removed, with a crossvm_bridge_target_removed event: left in place it would
 // become callable as soon as someone instantiated a contract at that address.
-// With an empty allowlist (mainnet) nothing is written.
+// With an empty allowlist (mainnet) nothing is written, unless the queue
+// size is above one block's scan (brought down to it).
 func (app *QoreChainApp) upgradeV3_2_8PinBridgeTargets(ctx sdk.Context) error {
 	params, changed, removed := app.CrossVMKeeper.GetParams(ctx).PinBridgeTargets(func(contract string) crossvmtypes.BridgeContractState {
 		return app.bridgeContractState(ctx, contract)
 	})
+	// Params.Validate now holds the queue to one block's scan: a stored
+	// queue size above it (1,000 is the default)
+	// is brought down to it, so the params stay writable.
+	if int(params.MaxQueueSize) > crossvmtypes.MaxQueueScanPerBlock {
+		params.MaxQueueSize = uint32(crossvmtypes.MaxQueueScanPerBlock)
+		params.MaxPendingPerSender = min(params.MaxPendingPerSender, params.MaxQueueSize)
+		changed = true
+	}
 	if !changed {
 		return nil
 	}

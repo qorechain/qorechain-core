@@ -62,3 +62,24 @@ func IsQueueExecution(ctx sdk.Context) bool {
 	v, _ := ctx.Value(queueExecutionKey{}).(bool)
 	return v
 }
+
+type syncCallKey struct{}
+
+// WithSyncCall marks ctx as the inside of a synchronous cross-VM call
+// (ExecuteSyncCall, the 0x0901 bridge among its callers). Outside block
+// execution such a call is an estimate of what the same call costs in a
+// block (eth_estimateGas, eth_call), so the application prices loading
+// contract code in it as a first call in a block, never through the
+// node-local hot path that plain smart queries use.
+func WithSyncCall(ctx sdk.Context) sdk.Context {
+	return ctx.WithValue(syncCallKey{}, true)
+}
+
+// IsSyncCall reports whether ctx carries the mark.
+func IsSyncCall(ctx sdk.Context) bool {
+	if ctx.Context() == nil {
+		return false
+	}
+	v, _ := ctx.Value(syncCallKey{}).(bool)
+	return v
+}

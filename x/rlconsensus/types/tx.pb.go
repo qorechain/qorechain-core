@@ -34,7 +34,7 @@ type MsgSetAgentMode struct {
 	// mode is one of the AgentMode values (0 shadow, 1 conservative,
 	// 2 autonomous, 3 paused). It stays a uint32 in Go: casting it to the uint8
 	// AgentMode at decode time wrapped 256 to 0 and 257 to 1 before any check
-	// could see the value that was sent (QSR-2026-0434).
+	// could see the value that was sent.
 	Mode uint32 `protobuf:"varint,2,opt,name=mode,proto3" json:"mode,omitempty"`
 }
 
