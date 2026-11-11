@@ -133,13 +133,16 @@ const (
 	// but window transactions are charged only for what the execution costs
 	// the account and it authorised: one for each action its code takes in
 	// a frame where its own code had its own signature accepted (verified
-	// in its frame, by a library it DELEGATECALLed, or by a validator it
-	// STATICCALLed, in a frame that did not revert; an action beyond what the
-	// window has left fails in frame), and at least one when it lost native
-	// value or granted a native allowance. A signature accepted in another
-	// frame, or by a contract the account's code CALLed (a callback), does
-	// not count, so a stranger replaying an old public signature uses
-	// nothing. Before it every action was
+	// in its frame, by a library or proxy implementation it DELEGATECALLed,
+	// counted at once and withdrawn if the verifying frame reverts, or by a
+	// validator it STATICCALLed, once that frame returns), or after a frame
+	// of its code entered by a state-changing call verified it and returned
+	// (a wallet that validates and executes in separate calls, ERC-4337);
+	// an action beyond what the window has left fails in frame. At least one
+	// is charged when it lost native value or granted a native allowance. A
+	// signature accepted by a contract the account's code CALLed (a
+	// callback), or by a read-only check, counts for no later action, so a
+	// stranger replaying an old public signature there uses nothing. Before it every action was
 	// charged, so anyone could use up the window of an account whose
 	// delegated code calls out on an incoming call by calling it repeatedly.
 	FeatureEVMDelegatedActorChargeOnCost = "evm-delegated-actor-charge-on-cost"

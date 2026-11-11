@@ -169,12 +169,27 @@ The standard precompiles are inactive on both networks until governance activate
 - **What a delegated account is charged** (`evm-delegated-actor-charge-on-cost`). In a transaction it
   did not send, its actions are always checked (key, live window, scope), but it is charged window
   transactions only for what the transaction costs it and it authorised: one per action its code
-  takes after its own code had its signature accepted in that frame (a wallet executing a signed
-  batch, checking the signature itself, through a library it DELEGATECALLs or through a validator
-  it STATICCALLs, in a frame that did not revert; an action beyond what the window has left
-  fails), and at least one when it lost QOR or granted a native allowance, plus the QOR it lost.
-  A stranger calling its code uses nothing, even after replaying an old signature of it in another
-  call or in a callback the account's code made.
+  takes after its own code had its signature accepted (a wallet executing a signed batch, checking
+  the signature itself, through a proxy implementation or library it DELEGATECALLs, or through a
+  validator it STATICCALLs; a wallet that validates and executes in separate calls, ERC-4337,
+  once the validation call returned; an action beyond what the window has left fails), and at
+  least one when it lost QOR or granted a native allowance, plus the QOR it lost. A stranger
+  calling its code uses nothing, even after replaying an old signature of it in a read-only check
+  (EIP-1271 `isValidSignature` through STATICCALL) or in a callback the account's code made.
+
+**Known limit: verifiers without a nonce.** A wallet that lets anyone run its signature check
+in a call that may change state (a public multicall, a public validation entry) with no nonce or
+replay protection lets a stranger replay an old public signature of the account and then have
+the account's code act, which counts against the window's transactions (never its value bound).
+Wallet verifiers must consume a nonce; this is the wallet's responsibility.
+
+**Known limit: only `ecrecover` is seen.** The window gates signatures checked through the
+ecrecover precompile (`0x01`). A wallet or contract that verifies secp256k1 in its own code, or
+uses another scheme (P-256 at `0x100`, any other), is outside what the chain can tie to the
+account: such signatures are not refused without a window and their actions are not counted.
+Whoever chooses such a contract (a token issuer, a wallet) chooses that trust; the precompile
+path, which every standard library uses, is covered. No standard or QoreChain precompile verifies
+secp256k1 signatures natively, so there is no second precompile path.
 
 **Known limit: forwarder and session-key wallets.** The transaction count bounds a holder of the
 classical key only for wallets that verify the account's signature in the account's own frame (or
@@ -206,12 +221,6 @@ value bound) but not counted. For an account delegated to such a wallet, open sc
 - **Usable key** (`evm-window-usable-key`). A window works only while the key is usable: not empty,
   classical-only or degenerate, and its algorithm not disabled by governance.
 
-**Known limit.** The chain sees signature checks made through the ecrecover precompile only. A
-contract that verifies secp256k1 signatures with its own arithmetic (bytecode elliptic-curve code,
-no precompile) is outside what the chain can see, and a classical signature it accepts is not
-bounded by the window. Whoever chooses such a contract (a token issuer, a wallet) chooses that
-trust; the precompile path, which every standard library uses, is covered. No standard or
-QoreChain precompile verifies secp256k1 signatures natively, so there is no second precompile path.
 
 ## What is outside the window
 
