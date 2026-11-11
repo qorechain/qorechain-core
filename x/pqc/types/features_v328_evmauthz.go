@@ -47,16 +47,20 @@ const (
 	// key and is not the sender of the transaction, the recovery succeeds only
 	// if the address has a live window whose scope admits the verifying
 	// contract (native_only admits none; allowed_targets must list the
-	// contract that called 0x01); the account is then charged one window
-	// transaction, once per execution, as for an action. Otherwise 0x01
-	// returns the empty result, as for an invalid signature. Addresses without
-	// a usable post-quantum key (contracts, accounts that never registered
-	// one) recover as before, as does the sender's own signature, which its
-	// own transaction already authorised. The gas is unchanged (3000) and the
-	// reads are off the meter. Before it a stolen classical key could sign an
-	// EIP-2612 permit, a Permit2 or order-book signature, or a meta
-	// transaction for a protected account and have someone else submit it,
-	// without the account's window being consulted at all.
+	// contract that called 0x01). Otherwise 0x01 returns the empty result, as
+	// for an invalid signature. An accepted signature is never charged to the
+	// window: a signature is public once used, and a charge would let anyone
+	// replay it to use the window up. The sender's own signature is bounded
+	// by its window's scope when the window has one. A delegated account's
+	// own code checking its own signature is not bounded by the scope (what
+	// that code then does is, action by action). Addresses without a usable
+	// post-quantum key (contracts, accounts that never registered one)
+	// recover as before. The gas is unchanged (3000) and the reads are off the
+	// meter. Before it a stolen classical key could sign an EIP-2612 permit, a
+	// Permit2 or order-book signature, or a meta transaction for a protected
+	// account and have someone else submit it, without the account's window
+	// being consulted at all. Known limit: signature checks a contract does
+	// with its own arithmetic, without 0x01, are outside what the chain sees.
 	FeatureEVMEcrecoverWindow = "evm-ecrecover-window"
 
 	// FeaturePQCRegistrationEndsEVMConsent makes MsgRegisterPQCKeyV2 that
@@ -84,9 +88,12 @@ const (
 	// holds a usable post-quantum key is a value outflow of the owner: it must
 	// fit in what remains of the owner's live window and is charged to it
 	// (the amount by which the allowance grows, in uqor rounded up), in frame,
-	// with the approve failing otherwise. A transferFrom then spends an
-	// allowance the owner's window already paid for. No such pair exists on
-	// any network; the guard makes one safe whenever it appears.
+	// with the approve failing otherwise (an amount no window can hold, such
+	// as approve(max), fails the approve as an ordinary error). A
+	// transferFrom then spends an allowance the owner's window already paid
+	// for: it is not charged again, and stays usable after the owner's window
+	// expires, as an ERC-20 allowance does. No such pair exists on any
+	// network; the guard makes one safe whenever it appears.
 	FeatureEVMNativeAllowanceWindow = "evm-native-allowance-window"
 
 	// FeaturePQCConsentOwnMessage tightens FeaturePQCConsentOuterSigner: a

@@ -172,14 +172,19 @@ The standard precompiles are inactive on both networks until governance activate
   to the listed addresses only. This also holds for the sender's own delegated code.
 - **Signatures** (`evm-ecrecover-window`). When a contract verifies a signature with the ecrecover
   precompile (`0x01`: EIP-2612 permits, Permit2, signed orders, meta-transactions) and the signer
-  holds a usable post-quantum key, the signature counts only inside the signer's live window, and
-  is charged one window transaction. `--native-only` admits no signature for another contract;
-  `--allowed-targets` must list the contract that verifies it. A delegated wallet checking its own
-  signature, the sender's own signature, and every account without a post-quantum key recover as
-  always. Queries and gas estimates are not affected. Open a window before signing a permit, as
-  before sending a transaction.
+  holds a usable post-quantum key, the signature counts only inside the signer's live window. It is
+  never charged to the window (a signature is public once used; a charge would let anyone use the
+  window up by replaying it). `--native-only` admits no signature for another contract;
+  `--allowed-targets` must list the contract that verifies it, in the account's own transactions
+  too. A delegated wallet checking its own signature, the sender's own signature under an unscoped
+  window, and every account without a post-quantum key recover as always. Queries and gas
+  estimates are not affected. Open a window before signing a permit, as before sending a
+  transaction.
 - **Native-QOR allowances** (`evm-native-allowance-window`). If a token pair for native QOR is ever
-  registered, an approve that raises an allowance counts the increase against the owner's window.
+  registered, an approve that raises an allowance counts the increase against the owner's window
+  (an amount no window can hold, such as `approve(max)`, fails the approve). Spending it later with
+  `transferFrom` is not charged again, and the allowance stays usable after the owner's window
+  expires, as an ERC-20 allowance does.
 - **Usable key** (`evm-window-usable-key`). A window works only while the key is usable: not empty,
   classical-only or degenerate, and its algorithm not disabled by governance.
 
@@ -187,7 +192,8 @@ The standard precompiles are inactive on both networks until governance activate
 contract that verifies secp256k1 signatures with its own arithmetic (bytecode elliptic-curve code,
 no precompile) is outside what the chain can see, and a classical signature it accepts is not
 bounded by the window. Whoever chooses such a contract (a token issuer, a wallet) chooses that
-trust; the precompile path, which every standard library uses, is covered.
+trust; the precompile path, which every standard library uses, is covered. No standard or
+QoreChain precompile verifies secp256k1 signatures natively, so there is no second precompile path.
 
 ## What is outside the window
 
