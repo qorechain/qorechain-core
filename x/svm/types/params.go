@@ -27,6 +27,9 @@ const (
 	// governance must set a finite ceiling before the lane opens on any network
 	// (the v3.2.8 handler writes one on the public testnet).
 	DefaultMaxCustodyHardUqor uint64 = 0
+	// DefaultMaxAccountExcessUqor is no per-account cap
+	// (svm-account-excess-cap).
+	DefaultMaxAccountExcessUqor uint64 = 0
 )
 
 // Params defines the configurable parameters for the SVM runtime module.
@@ -48,22 +51,26 @@ type Params struct {
 	// raw uqor balance (svm-custody-hard-ceiling); 0 is no ceiling. omitempty
 	// for the same replay reason as MaxCustodyUqor.
 	MaxCustodyHardUqor uint64 `json:"max_custody_hard_uqor,omitempty"`
+	// MaxAccountExcessUqor caps the uqor a store account holds above its
+	// rent-exempt minimum (svm-account-excess-cap); 0 is no cap.
+	MaxAccountExcessUqor uint64 `json:"max_account_excess_uqor,omitempty"`
 }
 
 // DefaultParams returns a default set of SVM parameters.
 func DefaultParams() Params {
 	return Params{
-		MaxProgramSize:     DefaultMaxProgramSize,
-		MaxAccountDataSize: DefaultMaxAccountDataSize,
-		ComputeBudgetMax:   DefaultComputeBudgetMax,
-		LamportsPerByte:    DefaultLamportsPerByte,
-		RentExemptionMulti: DefaultRentExemptionMultiDec,
-		Enabled:            DefaultEnabled,
-		SVMSlotOffset:      DefaultSVMSlotOffset,
-		DefaultSigScheme:   DefaultSigScheme,
-		MaxCPI:             DefaultMaxCPI,
-		MaxCustodyUqor:     DefaultMaxCustodyUqor,
-		MaxCustodyHardUqor: DefaultMaxCustodyHardUqor,
+		MaxProgramSize:       DefaultMaxProgramSize,
+		MaxAccountDataSize:   DefaultMaxAccountDataSize,
+		ComputeBudgetMax:     DefaultComputeBudgetMax,
+		LamportsPerByte:      DefaultLamportsPerByte,
+		RentExemptionMulti:   DefaultRentExemptionMultiDec,
+		Enabled:              DefaultEnabled,
+		SVMSlotOffset:        DefaultSVMSlotOffset,
+		DefaultSigScheme:     DefaultSigScheme,
+		MaxCPI:               DefaultMaxCPI,
+		MaxCustodyUqor:       DefaultMaxCustodyUqor,
+		MaxCustodyHardUqor:   DefaultMaxCustodyHardUqor,
+		MaxAccountExcessUqor: DefaultMaxAccountExcessUqor,
 	}
 }
 

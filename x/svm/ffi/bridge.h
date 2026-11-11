@@ -13,6 +13,7 @@ void qore_svm_free(void* handle);
 
 // Validation
 int32_t qore_svm_validate_elf(const uint8_t* elf_bytes, size_t elf_len);
+int32_t qore_svm_validate_elf_full(const uint8_t* elf_bytes, size_t elf_len);
 
 // Execution — input_data is mutable (program may modify the input region).
 int32_t qore_svm_execute(

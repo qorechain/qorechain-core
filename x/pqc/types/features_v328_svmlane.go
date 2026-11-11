@@ -45,6 +45,12 @@ const SVMLaneGovernedInitialCustodyCapUqor uint64 = 10_000 * 1_000_000
 // value an SVM runtime fault could reach stays bounded.
 const SVMLaneGovernedInitialCustodyHardCeilingUqor uint64 = 1_000_000 * 1_000_000
 
+// SVMLaneGovernedInitialAccountExcessUqor is the per-account cap on lamports
+// above rent (max_account_excess_uqor, svm-account-excess-cap) the v3.2.8
+// handler writes on SVMLaneGovernedChainID: 10,000 QOR, so filling the hard
+// ceiling takes at least 100 funded accounts.
+const SVMLaneGovernedInitialAccountExcessUqor uint64 = 10_000 * 1_000_000
+
 // ChainScopedProtocolFeatures are known to this binary and enabled only by a
 // release handler on a named chain, never at genesis and never on every chain.
 var ChainScopedProtocolFeatures = []string{

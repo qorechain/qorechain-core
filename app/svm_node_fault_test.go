@@ -52,3 +52,33 @@ func TestSVMNodeFaultLeavesTheBlock(t *testing.T) {
 	// Control: any other panic is a failed transaction, as before.
 	newApp("ordinary panic")()
 }
+
+// A NodeFault raised during the block fails the block even when something in
+// between recovered the panic; a block without one is untouched, and a fault
+// left over from before the block does not count.
+func TestSVMNodeFaultLatchFailsTheBlock(t *testing.T) {
+	t.Cleanup(svmtypes.ClearNodeFault)
+	ok := &abci.ResponseFinalizeBlock{AppHash: []byte{1}}
+	res, err := finalizeWithNodeFaultLatch(log.NewNopLogger(), 5, func() (*abci.ResponseFinalizeBlock, error) {
+		func() {
+			defer func() { _ = recover() }() // a caller that swallows every panic
+			svmtypes.RaiseNodeFault(svmtypes.NodeFault{Reason: "swallowed"})
+		}()
+		return ok, nil
+	})
+	if err == nil || res != nil {
+		t.Fatalf("a swallowed NodeFault let the block finish: %v %v", res, err)
+	}
+	if _, isFault := err.(svmtypes.NodeFault); !isFault {
+		t.Fatalf("error %T", err)
+	}
+	// A stale fault is cleared at the start of the block.
+	func() {
+		defer func() { _ = recover() }()
+		svmtypes.RaiseNodeFault(svmtypes.NodeFault{Reason: "stale"})
+	}()
+	res, err = finalizeWithNodeFaultLatch(log.NewNopLogger(), 6, func() (*abci.ResponseFinalizeBlock, error) { return ok, nil })
+	if err != nil || res != ok {
+		t.Fatalf("clean block failed: %v", err)
+	}
+}

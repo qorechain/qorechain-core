@@ -96,6 +96,9 @@ func (app *QoreChainApp) upgradeV3_2_8SVMLaneGoverned(ctx sdk.Context) error {
 	// svm-custody-hard-ceiling: the absolute ceiling is written with the
 	// threshold; it is inert until that feature is enabled with the release.
 	params.MaxCustodyHardUqor = pqctypes.SVMLaneGovernedInitialCustodyHardCeilingUqor
+	// svm-account-excess-cap: one account holds at most 10,000 QOR above rent,
+	// so pinning the ceiling takes at least 100 funded accounts.
+	params.MaxAccountExcessUqor = pqctypes.SVMLaneGovernedInitialAccountExcessUqor
 	if err := app.SVMKeeper.SetParams(ctx, params); err != nil {
 		return err
 	}

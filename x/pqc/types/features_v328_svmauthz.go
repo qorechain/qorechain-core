@@ -331,6 +331,47 @@ const (
 	// for; the runtime attests the base of every seed account. Accounts derived
 	// from a program's PDA base are left to that program's rules.
 	FeatureSVMRelayedSeedLockCanonicalBase = "svm-relayed-seed-lock-canonical-base"
+	// FeatureSVMAccountExcessCap caps, per store account, the lamports above
+	// its rent-exempt minimum (max_account_excess_uqor; 0 is no cap): an SVM
+	// instruction or MsgCreateAccount that leaves an account it credited above
+	// the cap is refused. An account already above it is never frozen (it can
+	// always pay out). TRADE-OFF: any global ceiling (max_custody_hard_uqor)
+	// can be filled by whoever brings enough capital, and that capital is
+	// refundable. The per-account cap does not remove that, it makes it costly:
+	// filling a ceiling of N times the cap needs at least N funded accounts,
+	// each paying rent and creation gas, and each to be closed again. The price
+	// is that one SVM account (a vault, a pool) holds at most the cap above its
+	// rent; larger holdings are spread over several accounts or wait for
+	// governance to raise the cap.
+	FeatureSVMAccountExcessCap = "svm-account-excess-cap"
+	// FeatureSVMCustodyCeilingRentOnly keeps the lane usable when the hard
+	// ceiling is reached: an inflow that pays only rent (a deploy, a
+	// MsgCreateAccount at exactly the rent-exempt minimum) and the rent of
+	// accounts an SVM instruction creates are not refused by the ceiling.
+	// Deposits above rent still are. Bounded: rent is locked for the account's
+	// life and every account costs creation gas.
+	FeatureSVMCustodyCeilingRentOnly = "svm-custody-ceiling-rent-only"
+	// FeatureSVMCustodyCeilingWalletDust judges an SVM settlement at the hard
+	// ceiling by what it stores: it is refused only when a non-wallet account
+	// gained lamports beyond the rent of an account it created, and custody may
+	// grow by up to one uqor per wallet debited (the dust borrow of a transfer
+	// with a sub-uqor part). Wallet-to-wallet transfers always pass.
+	FeatureSVMCustodyCeilingWalletDust = "svm-custody-ceiling-wallet-dust"
+	// FeatureSVMSimulationMemoryBudget replaces the simulation slots with a
+	// memory budget: a simulation reserves an estimate of its peak memory
+	// (12 times the bytes it loads, plus the native allocation it asks for and
+	// a fixed base) from a per-node budget (2 GiB, QORE_SVM_SIM_MEMORY_MB) or
+	// is answered busy. Node-local.
+	FeatureSVMSimulationMemoryBudget = "svm-simulation-memory-budget"
+	// FeatureSVMDeployFullyVerified runs, at deploy, the full loader and
+	// verifier an execution runs, and refuses a program that could never run
+	// (its rent would be locked for good). Before it only the ELF header was
+	// checked.
+	FeatureSVMDeployFullyVerified = "svm-deploy-fully-verified"
+	// FeatureSVMDeployThreadNodeFault makes a failure to create the thread
+	// that validates a program during block execution a node fault (the node
+	// halts), as svm-execution-thread-node-fault does for execution.
+	FeatureSVMDeployThreadNodeFault = "svm-deploy-thread-node-fault"
 )
 
 // CustodyWindowBlocks is the window over which svm-custody-liability-window
@@ -391,4 +432,10 @@ var V328SVMAuthzFeatures = []string{
 	FeatureSVMNoCreditNativeProgram,
 	FeatureSVMAttestedOwnerHandoff,
 	FeatureSVMRelayedSeedLockCanonicalBase,
+	FeatureSVMAccountExcessCap,
+	FeatureSVMCustodyCeilingRentOnly,
+	FeatureSVMCustodyCeilingWalletDust,
+	FeatureSVMSimulationMemoryBudget,
+	FeatureSVMDeployFullyVerified,
+	FeatureSVMDeployThreadNodeFault,
 }

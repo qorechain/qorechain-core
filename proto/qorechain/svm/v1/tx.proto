@@ -98,6 +98,9 @@ message SVMParams {
   // above it is refused. 0 means no ceiling; governance must set one before
   // opening the lane on any network. It should be well above max_custody_uqor.
   uint64 max_custody_hard_uqor = 11;
+  // max_account_excess_uqor caps, per store account, the uqor above its
+  // rent-exempt minimum (svm-account-excess-cap); 0 means no cap.
+  uint64 max_account_excess_uqor = 12;
 }
 
 // MsgUpdateParams replaces the SVM runtime parameters wholesale.
