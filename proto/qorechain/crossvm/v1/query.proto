@@ -78,6 +78,9 @@ message QueryParamsResponse {
   // wasm_congestion_factor_micro is the congestion factor the next block
   // uses, in millionths (1,000,000 is the base price).
   uint64 wasm_congestion_factor_micro = 16;
+  // max_queue_timeouts_per_block is how many queued calls one block times
+  // out in force.
+  uint32 max_queue_timeouts_per_block = 17;
 }
 
 // QueryPendingMessagesRequest pages through the queue in key order. A page

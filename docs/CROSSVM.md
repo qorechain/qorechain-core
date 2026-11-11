@@ -106,6 +106,20 @@ Any other sender length is refused on every lane.
 
 From the v3.2.7 `crossvm-panic-contained` switch a panic inside a call never reaches the block. A queued call that panics is recorded as `failed` with the error `cross-VM call aborted: the target VM panicked during execution`, its writes are dropped, its `crossvm_response` event carries an `error` attribute, and the queue goes on with the next call. On the synchronous path the panic becomes an `ErrExecutionFailed` error and the transaction fails; running out of gas still behaves as running out of gas. The async budget (1,000,000 gas) is charged at submission and is not refunded; coins attached to a CosmWasm call are only moved when the call succeeds.
 
+### Who sent the call (from v3.2.8)
+
+A `MsgCrossVMCall` into the EVM runs as the sender's EVM identity. Three v3.2.8 switches bound who can make that happen:
+
+- `crossvm-below-bridge-own-sender`: below the `0x0901` bridge (a CosmWasm contract the bridge called, and anything that contract dispatches) a `MsgCrossVMCall` is accepted only when its sender is a CosmWasm contract acting as itself, and an authz `MsgExec` there cannot carry a `MsgCrossVMCall` for another account. The EVM-lane account that called the bridge is authorised by its EVM window only; a contract holding an authz grant from it cannot use the bridge call to act in its name. A contract calling out as itself (sync to the SVM, async to the EVM) is unaffected.
+- `crossvm-on-behalf-evm-window`: a call into the EVM that the sender did not send itself (it is not one of the transaction's own messages and the sender is not a contract, a group policy or governance acting as itself; in practice, an authz grant exercised by a person, a contract or a group policy) runs under the sender's EVM authorisation window, exactly as the sender's EIP-7702 code would in someone else's transaction. The sender needs a usable post-quantum key and a live window whose scope admits the target (`allowed_targets`, `native_only`, the value-moving precompiles); each such call that succeeds uses one window transaction; native value the sender loses in it, and native allowances it grants, are bounded by and charged to the window's value; the standard precompiles treat the sender as an EVM-lane account (authority methods refused, value-moving precompiles only when listed). Without a window the call is refused, at submission for an async call and again when the queue runs it. A CosmWasm contract or a group policy holds no window, so an authz grant from one cannot carry a call into the EVM. A `MsgCrossVMCall` the account signs itself at top level executes as before.
+- `crossvm-truncated-caller-no-value`: see "Native value and 32-byte senders" below.
+
+### Native value and 32-byte senders (dApp authors)
+
+A CosmWasm contract or a group policy calls the EVM as the last 20 bytes of its address. Native QOR an EVM contract pays to `msg.sender` in such a call (a refund, an unwrap, a withdrawal) would land on the bank account with those 20 bytes, which is not the contract, and no cross-VM path carries native value back out of it. From the v3.2.8 `crossvm-truncated-caller-no-value` switch such a call fails instead (and is charged the gas it used): the sender's EVM identity may not end the call holding more native QOR than it started with. Calls that move no native value to the caller, ERC-20 transfers included, are unaffected, and so are 20-byte senders.
+
+EVM contracts meant to be called from CosmWasm should therefore not pay native QOR to `msg.sender`: pay an ERC-20 token, or let the recipient name a 20-byte account to be paid. CosmWasm contracts should not call EVM functions that refund or unwrap to the caller; the call will fail.
+
 ## Message Types
 
 ### MsgCrossVMCall
@@ -169,6 +183,7 @@ Each message transitions through these states:
 | `queue_wasm_reserve_bps` | uint32 | 0 (= 2,500) | From v3.2.8: the share of the block wasm budget reserved for the async queue (1 to 9,000); transactions cannot spend it. A queued CosmWasm call is admitted on what the reserve and the transactions' leftover hold, its prepaid gas at most and 250,000 at least; below that it stays pending. |
 | `wasm_congestion_max_factor` | uint32 | 0 (= 1,000) | From v3.2.8 (`wasm-congestion-pricing`): the most the congestion factor may reach (1 to 10,000). |
 | `wasm_congestion_target_bps` | uint32 | 0 (= 5,000) | From v3.2.8: after a block that used more than this share of its wasm budget the congestion factor rises by 1/8 (by half when the transactions' pool was exhausted, less than 5 percent left), after one that used less it falls by 1/9, but not within 10 blocks of an exhausted block. The factor (kept in state, shown by the params query in millionths) multiplies the SDK gas one unit of contract execution costs; storage and setup costs are not affected, so an ordinary transfer costs about 10 percent more at factor 3, while a contract that fills the budget pays the full factor. |
+| `max_queue_timeouts_per_block` | uint32 | 0 (= 100) | From v3.2.8 (`crossvm-queue-height-index`): how many queued calls one block times out, oldest first (at most 1,000 when set); the rest time out in the following blocks and never run. The queue is indexed by creation height, so a block reads only the timed-out calls it handles and at most 200 others, of which it executes at most 50. |
 | `record_retention_blocks` | uint64 | 0 (= 100,000) | From v3.2.8 (`crossvm-record-prune`): how long the record of a finished queued call is kept before it is pruned (at most 200 records per block). |
 
 ### Governance

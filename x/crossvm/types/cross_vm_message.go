@@ -64,6 +64,12 @@ type CrossVMMessage struct {
 	ExecutedHeight int64         `json:"executed_height,omitempty"`
 	Response       []byte        `json:"response,omitempty"`
 	Error          string        `json:"error,omitempty"`
+	// OnBehalf records that the call was sent on the sender's behalf, not by
+	// the sender itself at top level (crossvm-on-behalf-evm-window): a call
+	// into the EVM then runs under the sender's EVM authorisation window.
+	// Set by the message server only; omitempty keeps older records
+	// unchanged.
+	OnBehalf bool `json:"on_behalf,omitempty"`
 	// AsyncGas is the contract execution an async call into CosmWasm may
 	// use, in base gas units (zero: AsyncCallGas); PrepaidGas is the SDK gas
 	// it prepaid for it at submission (zero: AsyncCallGas), from

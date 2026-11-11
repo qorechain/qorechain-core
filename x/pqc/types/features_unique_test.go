@@ -47,6 +47,7 @@ func TestV328ReleaseListsComposeOnce(t *testing.T) {
 		"WasmAuthz":  V328WasmAuthzFeatures,
 		"EVMAuthz":   V328EVMAuthzFeatures,
 		"SVMAuthz":   V328SVMAuthzFeatures,
+		"XVMAuthz":   V328XVMAuthzFeatures,
 	}
 	total := 0
 	for area, l := range areas {

@@ -194,6 +194,11 @@ type Params struct {
 	// WasmCongestionTargetBps is the budget use above which the factor
 	// rises; zero means DefaultWasmCongestionTargetBps.
 	WasmCongestionTargetBps uint32 `json:"wasm_congestion_target_bps,omitempty"`
+
+	// MaxQueueTimeoutsPerBlock bounds how many queued calls one block times
+	// out (crossvm-queue-height-index); zero means
+	// DefaultMaxQueueTimeoutsPerBlock.
+	MaxQueueTimeoutsPerBlock uint32 `json:"max_queue_timeouts_per_block,omitempty"`
 }
 
 // QueueWasmReserve is the queue's reserved share in force, in basis points.
@@ -559,6 +564,9 @@ func (p Params) ValidateUpdate() error {
 	}
 	if p.MaxPendingPerSender > p.MaxQueueSize {
 		return fmt.Errorf("max pending per sender %d exceeds the queue size %d", p.MaxPendingPerSender, p.MaxQueueSize)
+	}
+	if err := p.validateQueueTimeouts(); err != nil {
+		return err
 	}
 	seen := make(map[string]bool, len(p.BridgeAllowedTargets))
 	for _, entry := range p.BridgeAllowedTargets {
