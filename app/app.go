@@ -1088,6 +1088,10 @@ func NewQoreChainApp(
 	// A transaction aborted by the block wasm budget fails like any other
 	// (wasm_block_budget.go).
 	app.AddRunTxRecoveryHandler(budgetAbortRecovery)
+	// After every commit, CheckTx and simulations price contract execution
+	// at the congestion factor the next block will use (it was stored by
+	// this block's end), not the one this block used.
+	app.SetPrepareCheckStater(app.syncWasmGasMultiplier)
 
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)

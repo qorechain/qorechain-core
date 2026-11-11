@@ -146,10 +146,12 @@ const (
 	// (max_tx_wasm_share_bps, half by default), so it cannot close the lane
 	// for the rest of the block. The end-of-block async queue counts too and
 	// leaves a CosmWasm call pending while the budget cannot cover its
-	// prepaid gas; a contract call made outside a transaction (a governance
-	// proposal) runs on at most max_block_level_wasm_gas and counts, without
-	// being refused. The next block starts with the full budget. EVM and
-	// native transactions, CheckTx, simulations and queries are not counted.
+	// prepaid gas; contract calls made outside transactions (a governance
+	// proposal, with everything it dispatches) draw from their own per-block
+	// counter, max_block_level_wasm_gas, and are refused once it is spent
+	// (transactions cannot spend it). Storing code is charged by size. The
+	// next block starts with the full budget. EVM and native transactions,
+	// CheckTx, simulations and queries are not counted.
 	FeatureWasmBlockGasBudget = "wasm-block-gas-budget"
 
 	// FeatureWasmCongestionPricing prices CosmWasm execution by how full the
@@ -162,6 +164,17 @@ const (
 	// becomes exponentially expensive, and ordinary use, which leaves most of
 	// the budget unused, stays at the base price.
 	FeatureWasmCongestionPricing = "wasm-congestion-pricing"
+
+	// FeatureCrossVMAsyncGasPriced prices async calls into CosmWasm by the
+	// congestion factor. The sender may choose how much contract execution
+	// the call may use (MsgCrossVMCall async_gas_limit, base units, 250,000
+	// to 10,000,000, default 1,000,000) and prepays that times the factor
+	// in force (at most 50,000,000; above that the call is refused at
+	// submission). The queue runs the call on what it prepaid, bounded by the
+	// block wasm budget and by 50,000,000 SDK gas for the whole queue per
+	// block; a call admitted on less than it prepaid that runs short is rolled
+	// back and stays pending until a block with room, or its timeout.
+	FeatureCrossVMAsyncGasPriced = "crossvm-async-gas-priced"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -183,4 +196,5 @@ var V328WasmAuthzFeatures = []string{
 	FeatureCrossVMQueueFIFO,
 	FeatureWasmBlockGasBudget,
 	FeatureWasmCongestionPricing,
+	FeatureCrossVMAsyncGasPriced,
 }

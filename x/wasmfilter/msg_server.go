@@ -44,6 +44,15 @@ func (s *msgServer) checkUpload(goCtx context.Context, code []byte) error {
 			return errorsmod.Wrap(ErrCodeRefused, err.Error())
 		}
 	}
+	// Compiling the module is validator CPU too: the block wasm budget
+	// charges it by size before the store.
+	if uc, ok := s.f.budget.(UploadCharger); ok {
+		if raw, ok := unpackUpload(code); ok {
+			if err := uc.ChargeUpload(ctx, len(raw)); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
 

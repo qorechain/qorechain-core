@@ -72,6 +72,7 @@ type blockWasmBudget struct {
 	tx         wasmTxKey
 	txUsed     uint64
 	nextToken  uint64
+	uploadMult uint64 // VM gas per budget unit (the base multiplier)
 }
 
 // wasmTxKey identifies the transaction a call belongs to.
@@ -106,9 +107,10 @@ func bpsOf(v uint64, bps uint32) uint64 {
 }
 
 // reset starts a block. Limits are in VM gas.
-func (b *blockWasmBudget) reset(height int64, on bool, total uint64, reserveBps, shareBps uint32, blockLevel uint64) {
+func (b *blockWasmBudget) reset(height int64, on bool, total uint64, reserveBps, shareBps uint32, blockLevel, unit uint64) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	b.uploadMult = unit
 	b.on, b.height, b.total, b.blockLevel = on, height, total, blockLevel
 	b.queuePool = bpsOf(total, reserveBps)
 	b.txPool = total - b.queuePool
@@ -182,9 +184,11 @@ func (b *blockWasmBudget) Limit(ctx sdk.Context, gasLimit uint64) (uint64, bool,
 	return limit, limit < gasLimit, nil
 }
 
-// Used takes a VM call's gas from its pool. A transaction's call that was
-// cut short by the budget and used all it was given aborts the transaction.
-func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed, limit uint64, clamped bool) {
+// Used takes a VM call's internal gas from its pool (external gas is the
+// storage and query work the SDK meter already prices; nested calls count
+// themselves). A transaction's call that was cut short by the budget and
+// used all it was given, inside and outside the VM, aborts the transaction.
+func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed, gasExternal, limit uint64, clamped bool) {
 	b.mu.Lock()
 	if !b.counts(ctx) {
 		b.mu.Unlock()
@@ -197,7 +201,12 @@ func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed, limit uint64, clamped b
 			b.txUsed += min64(gasUsed, math.MaxUint64-b.txUsed)
 		}
 		b.txPool -= min64(gasUsed, b.txPool)
-		abort = clamped && gasUsed >= limit
+		// The call ran out of what the budget gave it when its internal and
+		// external gas together reached the limit: wasmvm reports only the
+		// internal part, so a contract that touched storage before running
+		// out reports less than the limit.
+		total := gasUsed + min64(gasExternal, math.MaxUint64-gasUsed)
+		abort = clamped && total >= limit
 	case crossvmtypes.IsQueueExecution(ctx):
 		fromQueue := min64(gasUsed, b.queuePool)
 		b.queuePool -= fromQueue
@@ -209,6 +218,53 @@ func (b *blockWasmBudget) Used(ctx sdk.Context, gasUsed, limit uint64, clamped b
 	if abort {
 		abortTx(fmt.Sprintf("a contract call was cut at %d VM gas by the block's CosmWasm execution budget", limit))
 	}
+}
+
+// UploadBudgetUnitsPerByte is what storing (compiling) one byte of module
+// takes from the block wasm budget, in budget units (SDK gas of VM work at
+// the base price). Measured compile cost is 31 to 54 ns per byte on the
+// measuring host, below the 84 ns per unit of the slowest admitted operator
+// there, so one unit per byte bounds compiling as tightly as execution: a
+// maximum-size module (800 KiB) takes about 27 percent of the default
+// budget, within one transaction's share.
+const UploadBudgetUnitsPerByte = 1
+
+// ChargeUpload takes storing a module of wasmBytes from the budget, as a VM
+// call of that size would: a transaction's upload from its pool and share
+// (aborting the transaction when they cannot cover it), any other from the
+// block-level counter (refused when it cannot).
+func (b *blockWasmBudget) ChargeUpload(ctx sdk.Context, wasmBytes int) error {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if !b.counts(ctx) || wasmBytes <= 0 {
+		return nil
+	}
+	need := saturatingVMGas(uint64(wasmBytes)*UploadBudgetUnitsPerByte, b.uploadMult)
+	switch {
+	case len(ctx.TxBytes()) > 0:
+		if key := txKeyOf(ctx); key != b.tx {
+			b.tx, b.txUsed = key, 0
+		}
+		if need > b.txPool || b.txUsed+need > b.txCap {
+			abortTx("storing this code does not fit in what is left of the block's CosmWasm execution budget")
+		}
+		b.txPool -= need
+		b.txUsed += need
+	case crossvmtypes.IsQueueExecution(ctx):
+		avail := b.queuePool + b.txPool
+		if need > avail {
+			return ErrBlockWasmBudget.Wrap("storing this code does not fit in what is left of the block's CosmWasm execution budget")
+		}
+		fromQueue := min64(need, b.queuePool)
+		b.queuePool -= fromQueue
+		b.txPool -= need - fromQueue
+	default:
+		if need > b.blockLevel {
+			return ErrBlockWasmBudget.Wrap("storing this code does not fit in this block's CosmWasm budget for calls outside transactions")
+		}
+		b.blockLevel -= need
+	}
+	return nil
 }
 
 // Remaining is what is left for transactions and the queue together, in VM
@@ -239,14 +295,15 @@ func (b *blockWasmBudget) admit(ctx sdk.Context, vmGas uint64) uint64 {
 }
 
 // utilisation is how much of this block's budget (transactions and queue)
-// was used, for congestion pricing.
-func (b *blockWasmBudget) utilisation(ctx sdk.Context) (used, total uint64) {
+// was used, and whether the transactions' pool was exhausted, for
+// congestion pricing.
+func (b *blockWasmBudget) utilisation(ctx sdk.Context) (used, total uint64, exhausted bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if !b.counts(ctx) {
-		return 0, 0
+		return 0, 0, false
 	}
-	return b.total - (b.txPool + b.queuePool), b.total
+	return b.total - (b.txPool + b.queuePool), b.total, b.total > 0 && b.txPool < b.total/20
 }
 
 // wasmBlockBudget returns the app's one budget.
@@ -273,7 +330,7 @@ func (app *QoreChainApp) resetWasmBlockBudget(ctx sdk.Context) {
 		blockLevel = saturatingVMGas(p.BlockLevelWasmGasLimit(), m)
 		reserve, share = p.QueueWasmReserve(), p.TxWasmShareBps()
 	}
-	app.wasmBlockBudget().reset(ctx.BlockHeight(), on, total, reserve, share, blockLevel)
+	app.wasmBlockBudget().reset(ctx.BlockHeight(), on, total, reserve, share, blockLevel, app.wasmGasRegister().BaseMultiplier())
 }
 
 // queueWasmAdmit is how much SDK gas a queued call (prepaid sdkGas) may run

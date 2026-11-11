@@ -105,6 +105,19 @@ const (
 	// fail it, and every call after it, for nothing).
 	MinQueueAdmission uint64 = AsyncCallGas / 4
 
+	// MinAsyncGasLimit and MaxAsyncGasLimit bound the async_gas_limit a
+	// sender may choose for an async call into CosmWasm
+	// (crossvm-async-gas-priced). MaxAsyncPrepaid bounds what one async call
+	// may prepay (its limit times the congestion factor): above it the call
+	// is refused at submission (retry with a lower limit, or later) rather
+	// than run a meter whose storage work the end-of-block queue could not
+	// bound. MaxAsyncQueueGasPerBlock bounds the SDK gas all queued calls of
+	// one block may run on together (the bound lane-bounds gave the queue).
+	MinAsyncGasLimit         uint64 = MinQueueAdmission
+	MaxAsyncGasLimit         uint64 = 10_000_000
+	MaxAsyncPrepaid          uint64 = 50_000_000
+	MaxAsyncQueueGasPerBlock uint64 = MaxAsyncCallsPerBlock * AsyncCallGas
+
 	// Congestion pricing (wasm-congestion-pricing): a factor, kept in state,
 	// by which one unit of contract execution costs more than the base
 	// price. After every block it rises by 1/8 when the block used more than
@@ -115,7 +128,13 @@ const (
 	DefaultWasmCongestionMaxFactor uint32 = 1_000
 	DefaultWasmCongestionTargetBps uint32 = 5_000
 	CongestionFactorOne            uint64 = 1_000_000
-	MinMaxBlockLevelWasmGas        uint64 = 1_000_000
+
+	// CongestionHoldBlocks is how many blocks after a block whose
+	// transaction pool was exhausted the factor does not fall (hysteresis):
+	// alternating closed and idle blocks cannot keep it near 1. A block that
+	// exhausts the pool raises the factor by half instead of by 1/8.
+	CongestionHoldBlocks    int64  = 10
+	MinMaxBlockLevelWasmGas uint64 = 1_000_000
 )
 
 // Params defines the parameters for the crossvm module.
@@ -202,26 +221,36 @@ func (p Params) CongestionTargetBps() uint32 {
 }
 
 // NextCongestionFactor is the factor (in millionths) the next block uses,
-// given this block's factor, how much of its wasm budget it used and the
-// params: up by 1/8 above the target, down by 1/9 below it, unchanged at it,
+// and the height of the last block that exhausted its transaction pool,
+// given this block's factor, its wasm budget use, whether its transaction
+// pool was exhausted, its height and the last exhausted height:
+//
+//   - pool exhausted: up by half (and the height is recorded);
+//   - above the target share: up by 1/8;
+//   - below it: down by 1/9 (back by exactly one 1/8 step), but not within
+//     CongestionHoldBlocks of the last exhausted block;
+//   - at it: unchanged;
+//
 // always between CongestionFactorOne and the maximum. Integer arithmetic on
-// the stored value only, so every node computes the same factor.
-func (p Params) NextCongestionFactor(cur, used, total uint64) uint64 {
+// stored values only, so every node computes the same factor.
+func (p Params) NextCongestionFactor(cur, used, total uint64, exhausted bool, height, lastExhausted int64) (uint64, int64) {
 	if cur < CongestionFactorOne {
 		cur = CongestionFactorOne
 	}
 	maxF := uint64(p.CongestionMaxFactor()) * CongestionFactorOne
 	target := uint64(p.CongestionTargetBps())
-	var next uint64
+	next := cur
 	switch {
 	case total == 0:
-		next = cur
+	case exhausted:
+		next = cur + cur/2
+		lastExhausted = height
 	case used*10_000 > total*target:
 		next = cur + cur/8
 	case used*10_000 < total*target:
-		next = cur - cur/9
-	default:
-		next = cur
+		if height-lastExhausted > CongestionHoldBlocks {
+			next = cur - cur/9
+		}
 	}
 	if next < CongestionFactorOne {
 		next = CongestionFactorOne
@@ -229,7 +258,7 @@ func (p Params) NextCongestionFactor(cur, used, total uint64) uint64 {
 	if next > maxF {
 		next = maxF
 	}
-	return next
+	return next, lastExhausted
 }
 
 // TxWasmShareBps is the per-transaction share of the block wasm budget in

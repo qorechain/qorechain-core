@@ -128,12 +128,12 @@ func (app *QoreChainApp) updateWasmCongestion(ctx sdk.Context) {
 		!app.PQCKeeper.ProtocolFeatureEnabled(ctx, pqctypes.FeatureWasmCongestionPricing) {
 		return
 	}
-	used, total := app.wasmBlockBudget().utilisation(ctx)
+	used, total, exhausted := app.wasmBlockBudget().utilisation(ctx)
 	p := app.CrossVMKeeper.GetParams(ctx)
-	cur := app.CrossVMKeeper.WasmCongestionFactor(ctx)
-	next := p.NextCongestionFactor(cur, used, total)
-	if next != cur {
-		app.CrossVMKeeper.SetWasmCongestionFactor(ctx, next)
+	cur, last := app.CrossVMKeeper.WasmCongestion(ctx)
+	next, nextLast := p.NextCongestionFactor(cur, used, total, exhausted, ctx.BlockHeight(), last)
+	if next != cur || nextLast != last {
+		app.CrossVMKeeper.SetWasmCongestion(ctx, next, nextLast)
 	}
 }
 
