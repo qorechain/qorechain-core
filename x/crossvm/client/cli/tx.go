@@ -2,6 +2,8 @@ package cli
 
 import (
 	"encoding/hex"
+	"fmt"
+	"math"
 
 	"github.com/spf13/cobra"
 
@@ -51,6 +53,10 @@ func cmdCrossVMCall() *cobra.Command {
 			}
 			async, _ := cmd.Flags().GetBool("async")
 			asyncGas, _ := cmd.Flags().GetUint64("async-gas-limit")
+			maxFactor, _ := cmd.Flags().GetFloat64("async-max-factor")
+			if maxFactor < 0 || maxFactor > float64(types.MaxWasmCongestionMaxFactor) {
+				return fmt.Errorf("--async-max-factor %v is outside 0..%d", maxFactor, types.MaxWasmCongestionMaxFactor)
+			}
 			// No source-vm argument: the chain derives the origin lane from the
 			// execution context, so asking the caller to name it would only invite a
 			// value the node discards. The field still gets a placeholder, because
@@ -66,6 +72,7 @@ func cmdCrossVMCall() *cobra.Command {
 				Funds:          funds,
 				Async:          async,
 				AsyncGasLimit:  asyncGas,
+				AsyncMaxFactor: uint64(math.Round(maxFactor * float64(types.CongestionFactorOne))),
 			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
@@ -76,6 +83,9 @@ func cmdCrossVMCall() *cobra.Command {
 		"it runs at the end of the block (from v3.2.5 on a prepaid budget of 1,000,000 gas) and the result is not returned")
 	cmd.Flags().Uint64("async-gas-limit", 0, "for an async call into CosmWasm, the contract execution it runs on in base "+
 		"gas units (from v3.2.8; 0 means 500,000); it prepays this times the wasm congestion factor")
+	cmd.Flags().Float64("async-max-factor", 0, "for an async call into CosmWasm, the highest wasm congestion factor it will pay, "+
+		"e.g. 2.5 (from v3.2.8; 0 means twice the factor at submission); its execution is held in escrow at this factor, "+
+		"it runs while the factor is at or below it, and what it does not use is refunded")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }

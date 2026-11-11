@@ -54,6 +54,14 @@ message MsgCrossVMCall {
   // exactly that much execution. Set from the crossvm-async-gas-priced switch; refused for
   // synchronous calls and for other lanes.
   uint64 async_gas_limit = 8;
+  // async_max_factor is, for an async call into CosmWasm, the highest wasm
+  // congestion factor (in millionths, 1,000,000 = 1x) the sender is willing
+  // to pay: the call is held in escrow at async_gas_limit times this factor
+  // and runs while the factor in force is at or below it. Zero means twice
+  // the factor at submission; any value is capped at the chain's maximum
+  // factor. What the call did not use is refunded when it finishes. Set from
+  // the crossvm-async-escrow switch.
+  uint64 async_max_factor = 9;
 }
 message MsgCrossVMCallResponse {
   string message_id = 1 [(gogoproto.customname) = "MessageID"];

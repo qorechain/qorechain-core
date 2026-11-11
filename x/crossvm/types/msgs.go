@@ -40,6 +40,14 @@ func (m *MsgCrossVMCall) ValidateBasic() error {
 			return errorsmod.Wrapf(ErrInvalidMessage, "async_gas_limit %d is outside %d..%d", m.AsyncGasLimit, MinAsyncGasLimit, MaxAsyncGasLimit)
 		}
 	}
+	if m.AsyncMaxFactor != 0 {
+		if !m.Async || m.TargetVM != VMTypeCosmWasm {
+			return errorsmod.Wrap(ErrInvalidMessage, "async_max_factor is for async calls into CosmWasm only")
+		}
+		if max := uint64(MaxWasmCongestionMaxFactor) * CongestionFactorOne; m.AsyncMaxFactor < CongestionFactorOne || m.AsyncMaxFactor > max {
+			return errorsmod.Wrapf(ErrInvalidMessage, "async_max_factor %d is outside %d..%d (millionths)", m.AsyncMaxFactor, CongestionFactorOne, max)
+		}
+	}
 	return nil
 }
 

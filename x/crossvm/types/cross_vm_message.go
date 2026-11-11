@@ -71,6 +71,16 @@ type CrossVMMessage struct {
 	// records unchanged.
 	AsyncGas   uint64 `json:"async_gas,omitempty"`
 	PrepaidGas uint64 `json:"prepaid_gas,omitempty"`
+	// From crossvm-async-escrow: MaxFactor is the highest congestion factor
+	// (millionths) the call runs at; Escrow is what the sender holds in the
+	// queue's escrow account for its prepaid gas while the call is pending
+	// (EscrowGasPrice per gas, in the fee denomination); EscrowFee is what
+	// the finished call paid from it to validators (the rest went back to
+	// the sender). A finished call holds no escrow.
+	MaxFactor      uint64    `json:"max_factor,omitempty"`
+	Escrow         sdk.Coins `json:"escrow,omitempty"`
+	EscrowGasPrice string    `json:"escrow_gas_price,omitempty"`
+	EscrowFee      sdk.Coins `json:"escrow_fee,omitempty"`
 }
 
 func (m CrossVMMessage) Validate() error {
@@ -98,6 +108,12 @@ func (m CrossVMMessage) Validate() error {
 	}
 	if len(m.Payload) == 0 {
 		return fmt.Errorf("payload cannot be empty")
+	}
+	if !m.Escrow.IsValid() || !m.EscrowFee.IsValid() {
+		return fmt.Errorf("invalid escrow")
+	}
+	if !m.Escrow.IsZero() && m.Status != StatusPending {
+		return fmt.Errorf("a finished call cannot hold escrow")
 	}
 	return nil
 }
