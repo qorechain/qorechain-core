@@ -224,7 +224,9 @@ the rollup is not stopped, so after any idle period the rollup resumes with one 
 full batches from checkpoint to checkpoint. During the challenge window anyone may send `MsgChallengeBatch` with a qledger-v1 fraud
 proof (the batch's inputs and a Merkle witness of the accounts they touch); the chain re-executes the batch and,
 if its state root or withdrawals root is wrong, rejects it and every batch built on it, rolls the inbox back and
-pays the submitter's whole bond to the challenger. A proof that does not show fraud fails and changes nothing.
+slashes the submitter's whole bond: half is burned (x/burn source `rollup_slash`; should the burn fail, that half goes
+to the fee collector) and the other half is paid to the challenger, so a submitter that challenges its own fraudulent
+batch still loses half of its bond. A proof that does not show fraud fails and changes nothing.
 Withdrawals are paid from finalized batches only, from the rollup's deposit pool (never from the creator's
 escrow); the rollup cannot be stopped while the pool holds deposits. A bond can be withdrawn
 (`MsgUnbondRollupSubmitter`) a full challenge window after its holder's last batch. From v3.2.8 no new optimistic
@@ -289,7 +291,7 @@ When a rollup is created, it is registered as a `rollup` layer type in the x/mul
 
 ### Burn Integration
 
-Rollup creation burns 1% of the required stake through the x/burn module's `rollup_create` source channel. This is the 10th burn channel in the unified burn accounting system.
+Rollup creation burns 1% of the required stake through the x/burn module's `rollup_create` source channel. This is the 10th burn channel in the unified burn accounting system. From v3.2.8 half of a qledger-v1 submitter bond slashed by an upheld fraud proof is burned through the `rollup_slash` source.
 
 ## Settlement Batch Lifecycle
 
