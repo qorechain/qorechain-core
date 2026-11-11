@@ -7,6 +7,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
+	crossvmtypes "github.com/qorechain/qorechain-core/x/crossvm/types"
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
 
@@ -20,6 +21,9 @@ func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan,
 		}
 	}
 	if err := app.upgradeV3_2_8SVMLaneGoverned(sdkCtx); err != nil {
+		return fromVM, err
+	}
+	if err := app.upgradeV3_2_8PinBridgeTargets(sdkCtx); err != nil {
 		return fromVM, err
 	}
 	return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
@@ -47,4 +51,35 @@ func (app *QoreChainApp) upgradeV3_2_8SVMLaneGoverned(ctx sdk.Context) error {
 		return err
 	}
 	return app.PQCKeeper.EnableProtocolFeature(ctx, pqctypes.FeatureSVMLaneGoverned)
+}
+
+// upgradeV3_2_8PinBridgeTargets carries the EVM bridge allowlist over to
+// crossvm-bridge-code-pin: every entry whose contract exists is pinned to the
+// code ID that contract runs at the upgrade height, so each target the bridge
+// reached before still answers, and a later migration by a non-governance
+// admin no longer changes what it reaches. An entry naming no contract is
+// left unpinned (the bridge call to it fails in the VM, as before). With an
+// empty allowlist (mainnet) nothing is written.
+func (app *QoreChainApp) upgradeV3_2_8PinBridgeTargets(ctx sdk.Context) error {
+	params, changed := app.CrossVMKeeper.GetParams(ctx).PinBridgeTargets(func(contract string) crossvmtypes.BridgeContractState {
+		return app.bridgeContractState(ctx, contract)
+	})
+	if !changed {
+		return nil
+	}
+	return app.CrossVMKeeper.SetParams(ctx, params)
+}
+
+// bridgeContractState reads what the bridge code pin needs to know about a
+// CosmWasm contract from the wasm keeper.
+func (app *QoreChainApp) bridgeContractState(ctx sdk.Context, contract string) crossvmtypes.BridgeContractState {
+	addr, err := sdk.AccAddressFromBech32(contract)
+	if err != nil {
+		return crossvmtypes.BridgeContractState{}
+	}
+	info := app.WasmKeeper.GetContractInfo(ctx, addr)
+	if info == nil {
+		return crossvmtypes.BridgeContractState{}
+	}
+	return crossvmtypes.BridgeContractState{Found: true, CodeID: info.CodeID, Admin: info.Admin}
 }

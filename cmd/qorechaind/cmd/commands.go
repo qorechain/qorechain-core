@@ -68,11 +68,12 @@ type WasmNodeConfig struct {
 }
 
 // DefaultWasmSimulationGasLimit bounds the gas of one tx simulation. With no
-// [wasm] simulation_gas_limit and a block max_gas of -1, wasmd leaves the
+// [wasm] simulation_gas_limit and a block max_gas of -1, wasmd would leave the
 // simulate gas meter infinite, so one request could burn CPU without bound.
-// It is far above any real transaction. Node-local: simulation only, block
-// execution is untouched.
-const DefaultWasmSimulationGasLimit uint64 = 50_000_000
+// The template writes it, and the app applies the same value when the key is
+// absent (app.DefaultWasmSimulationGasLimit). Node-local: simulation only,
+// block execution is untouched.
+const DefaultWasmSimulationGasLimit = app.DefaultWasmSimulationGasLimit
 
 // DefaultWasmTemplate is appended to the app.toml template. The query gas
 // limit and memory cache keep wasmd's defaults.

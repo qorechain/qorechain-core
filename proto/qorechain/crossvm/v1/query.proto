@@ -4,6 +4,8 @@ package qorechain.crossvm.v1;
 option go_package = "github.com/qorechain/qorechain-core/x/crossvm/types";
 
 import "google/api/annotations.proto";
+import "gogoproto/gogo.proto";
+import "qorechain/crossvm/v1/tx.proto";
 
 // Query defines the crossvm module's gRPC query service.
 service Query {
@@ -44,6 +46,11 @@ message QueryParamsResponse {
   // bridge_allowed_targets is the allowlist of the EVM bridge precompile, each
   // entry "<vm>:<contract>". Empty means the bridge reaches nothing.
   repeated string bridge_allowed_targets = 5;
+  // bridge_target_pins lists the code each pinned allowlist entry must run.
+  repeated BridgeTargetPin bridge_target_pins = 6 [(gogoproto.nullable) = false];
+  // max_pending_per_sender is the per-sender bound on queued async calls in
+  // force (the default when the stored value is zero).
+  uint32 max_pending_per_sender = 7;
 }
 
 message QueryPendingMessagesRequest {}

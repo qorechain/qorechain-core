@@ -34,6 +34,13 @@ const (
 	// MaxAsyncCallsPerBlock * AsyncCallGas whatever the queue holds. The rest
 	// stay pending for the next block (and still expire at their timeout).
 	MaxAsyncCallsPerBlock = 50
+
+	// DefaultMaxPendingPerSender is how many async calls one sender may have
+	// queued at a time when params.MaxPendingPerSender is zero, from the
+	// crossvm-queue-sender-cap switch. A tenth of the default queue, so at
+	// least ten distinct senders are needed to fill it; anyone who needs more
+	// in flight can make the calls synchronously.
+	DefaultMaxPendingPerSender uint32 = 100
 )
 
 // Params defines the parameters for the crossvm module.
@@ -50,6 +57,16 @@ type Params struct {
 	// ever activated. omitempty keeps the stored and exported params of every
 	// existing chain byte-identical.
 	BridgeAllowedTargets []string `json:"bridge_allowed_targets,omitempty"`
+
+	// BridgeTargetPins binds allowlist entries to the CosmWasm code their
+	// contract must run (crossvm-bridge-code-pin). omitempty keeps the stored
+	// params of every chain that never set one byte-identical.
+	BridgeTargetPins []BridgeTargetPin `json:"bridge_target_pins,omitempty"`
+
+	// MaxPendingPerSender bounds the async calls one sender may have queued at
+	// a time (crossvm-queue-sender-cap); zero means
+	// DefaultMaxPendingPerSender. omitempty as above.
+	MaxPendingPerSender uint32 `json:"max_pending_per_sender,omitempty"`
 }
 
 func DefaultParams() Params {
@@ -77,7 +94,143 @@ func (p Params) Validate() error {
 			return fmt.Errorf("bridge allowed target %q must be <vm>:<contract>", entry)
 		}
 	}
+	return p.validatePins()
+}
+
+// validatePins holds each pin to an entry of the allowlist, once, with a
+// code ID. Params that carry no pin (every chain before the
+// crossvm-bridge-code-pin switch) pass unchanged.
+func (p Params) validatePins() error {
+	if len(p.BridgeTargetPins) == 0 {
+		return nil
+	}
+	listed := make(map[string]bool, len(p.BridgeAllowedTargets))
+	for _, entry := range p.BridgeAllowedTargets {
+		listed[entry] = true
+	}
+	pinned := make(map[string]bool, len(p.BridgeTargetPins))
+	for _, pin := range p.BridgeTargetPins {
+		if !listed[pin.Target] {
+			return fmt.Errorf("bridge target pin %q names no allowlist entry", pin.Target)
+		}
+		if pinned[pin.Target] {
+			return fmt.Errorf("bridge target %q is pinned twice", pin.Target)
+		}
+		pinned[pin.Target] = true
+		if pin.CodeID == 0 {
+			return fmt.Errorf("bridge target pin %q has no code ID", pin.Target)
+		}
+	}
 	return nil
+}
+
+// BridgeTargetCodePin returns the code ID the allowlist entry is pinned to.
+func (p Params) BridgeTargetCodePin(entry string) (uint64, bool) {
+	for _, pin := range p.BridgeTargetPins {
+		if pin.Target == entry {
+			return pin.CodeID, true
+		}
+	}
+	return 0, false
+}
+
+// PendingPerSenderLimit is the per-sender bound on queued async calls in
+// force: MaxPendingPerSender, or DefaultMaxPendingPerSender when unset.
+func (p Params) PendingPerSenderLimit() uint32 {
+	if p.MaxPendingPerSender == 0 {
+		return DefaultMaxPendingPerSender
+	}
+	return p.MaxPendingPerSender
+}
+
+// BridgeContractState is what the bridge code pin needs to know about the
+// contract an allowlist entry names, read from the CosmWasm keeper.
+type BridgeContractState struct {
+	Found  bool
+	CodeID uint64
+	Admin  string
+}
+
+// BridgeContractLookup reads a contract's state by its bech32 address.
+type BridgeContractLookup func(contract string) BridgeContractState
+
+// adminIsGovOrNone reports whether nobody but governance can migrate a
+// contract with this admin.
+func adminIsGovOrNone(admin, govAuthority string) bool {
+	return admin == "" || admin == govAuthority
+}
+
+// CheckBridgeTargetCode is the call-time half of crossvm-bridge-code-pin, for
+// an entry that BridgeTargetAllowed already matched. A pinned entry is called
+// only while its contract runs the pinned code. An unpinned entry is called
+// only while nobody but governance can migrate its contract (no admin, or
+// governance as admin); a contract that does not exist is left to fail in
+// the VM as before.
+func (p Params) CheckBridgeTargetCode(vm VMType, contract string, st BridgeContractState, govAuthority string) error {
+	entry := string(vm) + ":" + contract
+	if pin, ok := p.BridgeTargetCodePin(entry); ok {
+		if !st.Found {
+			return fmt.Errorf("target %s is pinned to code %d but names no contract", entry, pin)
+		}
+		if st.CodeID != pin {
+			return fmt.Errorf("target %s is pinned to code %d but its contract now runs code %d", entry, pin, st.CodeID)
+		}
+		return nil
+	}
+	if st.Found && !adminIsGovOrNone(st.Admin, govAuthority) {
+		return fmt.Errorf("target %s is not pinned to a code and its admin %s is not governance", entry, st.Admin)
+	}
+	return nil
+}
+
+// ValidateBridgePins is the parameter-update half of crossvm-bridge-code-pin:
+// every allowlist entry names an existing contract, a pin names the code the
+// contract runs now, and an entry whose contract an account other than
+// governance could migrate is pinned. A governance proposal that migrates a
+// pinned contract updates the pin after the migration message.
+func (p Params) ValidateBridgePins(lookup BridgeContractLookup, govAuthority string) error {
+	for _, entry := range p.BridgeAllowedTargets {
+		_, contract, _ := strings.Cut(entry, ":")
+		st := lookup(contract)
+		if !st.Found {
+			return fmt.Errorf("bridge allowed target %q names no contract", entry)
+		}
+		if pin, ok := p.BridgeTargetCodePin(entry); ok {
+			if st.CodeID != pin {
+				return fmt.Errorf("bridge allowed target %q is pinned to code %d but its contract runs code %d", entry, pin, st.CodeID)
+			}
+			continue
+		}
+		if !adminIsGovOrNone(st.Admin, govAuthority) {
+			return fmt.Errorf("bridge allowed target %q has admin %s, which is not governance: pin its code (bridge_target_pins) to allowlist it", entry, st.Admin)
+		}
+	}
+	return nil
+}
+
+// PinBridgeTargets returns p with every unpinned allowlist entry whose
+// contract exists pinned to the code that contract runs now, and whether
+// anything changed. It is the v3.2.8 release step that carries the existing
+// allowlist over to crossvm-bridge-code-pin without closing any target.
+func (p Params) PinBridgeTargets(lookup BridgeContractLookup) (Params, bool) {
+	changed := false
+	pins := append([]BridgeTargetPin(nil), p.BridgeTargetPins...)
+	for _, entry := range p.BridgeAllowedTargets {
+		if _, ok := p.BridgeTargetCodePin(entry); ok {
+			continue
+		}
+		_, contract, _ := strings.Cut(entry, ":")
+		st := lookup(contract)
+		if !st.Found {
+			continue
+		}
+		pins = append(pins, BridgeTargetPin{Target: entry, CodeID: st.CodeID})
+		changed = true
+	}
+	if changed {
+		p.BridgeTargetPins = pins
+	}
+	return p, changed
 }
 
 // BridgeTargetAllowed reports whether the EVM bridge precompile may call
@@ -115,6 +268,9 @@ func (p Params) ValidateUpdate() error {
 	}
 	if len(p.BridgeAllowedTargets) > MaxBridgeAllowedTargets {
 		return fmt.Errorf("bridge allowlist has %d entries, max %d", len(p.BridgeAllowedTargets), MaxBridgeAllowedTargets)
+	}
+	if p.MaxPendingPerSender > p.MaxQueueSize {
+		return fmt.Errorf("max pending per sender %d exceeds the queue size %d", p.MaxPendingPerSender, p.MaxQueueSize)
 	}
 	seen := make(map[string]bool, len(p.BridgeAllowedTargets))
 	for _, entry := range p.BridgeAllowedTargets {

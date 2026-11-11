@@ -79,5 +79,25 @@ message MsgUpdateParams {
   // call, each as "<vm>:<contract>", for example "cosmwasm:qor1...". Empty
   // keeps the bridge shut.
   repeated string bridge_allowed_targets = 6;
+  // bridge_target_pins binds allowlist entries to code: the bridge calls a
+  // pinned entry only while its contract runs the pinned code ID. An entry
+  // whose contract has an admin other than governance must be pinned. Set
+  // from the crossvm-bridge-code-pin switch; below it the update is refused
+  // when this is not empty.
+  repeated BridgeTargetPin bridge_target_pins = 7 [(gogoproto.nullable) = false];
+  // max_pending_per_sender bounds how many async calls one sender may have
+  // queued at a time. Zero means the default. Set from the
+  // crossvm-queue-sender-cap switch; below it the update is refused when this
+  // is not zero.
+  uint32 max_pending_per_sender = 8;
 }
 message MsgUpdateParamsResponse {}
+
+// BridgeTargetPin pins one bridge allowlist entry to a CosmWasm code ID.
+message BridgeTargetPin {
+  // target is the allowlist entry, "<vm>:<contract>", exactly as listed in
+  // bridge_allowed_targets.
+  string target = 1;
+  // code_id is the code the contract must run for the bridge to call it.
+  uint64 code_id = 2 [(gogoproto.customname) = "CodeID"];
+}

@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 
 	"github.com/spf13/cast"
 
@@ -521,8 +520,11 @@ func NewQoreChainApp(
 	wasmStoreKey := storetypes.NewKVStoreKey(wasmtypes.StoreKey)
 	app.MountStores(wasmStoreKey)
 
-	wasmDir := filepath.Join(DefaultNodeHome, "wasm")
-	wasmNodeConfig := wasmtypes.DefaultNodeConfig()
+	// The node's [wasm] app.toml settings and --home (wasm_node_config.go).
+	// Node-local: the VM directory, cache size, smart query and simulation
+	// gas limits change no consensus result.
+	wasmDir := wasmDataDir(appOpts)
+	wasmNodeConfig := readWasmNodeConfig(appOpts)
 
 	app.WasmKeeper = wasmkeeper.NewKeeper(
 		app.appCodec,
@@ -1045,11 +1047,8 @@ func NewQoreChainApp(
 	// Default is 0 (unlimited) if not configured.
 	maxGasWanted := cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted))
 
-	// Read CosmWasm node config from app options.
-	wasmNodeConfig, err := wasm.ReadNodeConfig(appOpts)
-	if err != nil {
-		panic("failed to read wasm node config: " + err.Error())
-	}
+	// The same CosmWasm node config the keeper was built with: the simulation
+	// gas limit is always bounded (boundedSimulationGasLimit).
 	app.setAnteHandler(app.txConfig, maxGasWanted, wasmNodeConfig, wasmStoreKey)
 
 	// SIGN_MODE_TEXTUAL sign documents for wallets without a renderer

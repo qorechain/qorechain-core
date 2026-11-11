@@ -72,6 +72,8 @@ A `MsgCrossVMCall` with `async = true` is queued instead of executed:
    - Pending messages are executed against the target VM
    - Results are emitted as `crossvm_response` events
 
+From the v3.2.8 `crossvm-queue-sender-cap` switch one sender may have at most `max_pending_per_sender` calls queued at a time (default 100, a tenth of the default queue), so a single sender cannot fill the shared queue and keep everyone else off the async path. A call over the bound is refused at submission with `ErrQueueFull`; once the sender's calls have run or timed out it may queue again. Synchronous calls are not affected. Calls queued before the switch do not count against the bound.
+
 ### Address rules and failure handling (from v3.2.7)
 
 From the v3.2.7 `crossvm-address-shapes` switch a call is refused when it is submitted (queued or synchronous, from a transaction or from the `0x0901` bridge) if its target lane cannot represent the sender or the target:
@@ -140,6 +142,8 @@ Each message transitions through these states:
 | `queue_timeout_blocks` | int64 | 100 | Blocks before a message times out |
 | `enabled` | bool | true | Module enable/disable switch |
 | `bridge_allowed_targets` | string[] | empty | Targets the EVM bridge precompile may call, each `cosmwasm:<qor1 contract address>`. Empty keeps the bridge shut. |
+| `bridge_target_pins` | {target, code_id}[] | empty | From v3.2.8: the CosmWasm code ID each pinned allowlist entry must run for the bridge to call it. |
+| `max_pending_per_sender` | uint32 | 0 (= 100) | From v3.2.8: how many async calls one sender may have queued at a time. |
 
 ### Governance
 
@@ -158,6 +162,31 @@ From the v3.2.5 `crossvm-params-update` switch, `MsgUpdateParams` (signed by the
 ```
 
 Allowlist only contracts that have been reviewed: a contract reached through the bridge acts with the EVM caller's identity as sender and runs inside an EVM transaction.
+
+#### Allowlist entries are bound to code (from v3.2.8)
+
+An allowlist entry names a contract address, but what governance reviewed is the contract's code. A contract whose admin is an account can be migrated by that admin to any code it may instantiate, which would put unreviewed code behind a reviewed entry. From the v3.2.8 `crossvm-bridge-code-pin` switch:
+
+- `bridge_target_pins` pins an entry to a code ID. The bridge calls a pinned entry only while its contract runs that code; after a migration the call is refused (`target ... is pinned to code N but its contract now runs code M`).
+- An entry whose contract has an admin other than the governance module account must be pinned. A contract with no admin, or with governance as admin, may be listed unpinned, as before; if its admin is later changed to an account, the bridge refuses it until it is pinned.
+- Every entry must name an existing contract, and a pin must name the code the contract runs when the update executes. To move a pinned contract to new code, put the `MsgMigrateContract` (or the admin's migration) first and then a `MsgUpdateParams` carrying the new code ID; the same proposal can do both.
+- The v3.2.8 upgrade pins every existing entry to the code its contract runs at the upgrade height, so every target that answered before still answers. When resubmitting the parameters, copy `bridge_target_pins` from the params query along with the allowlist.
+
+```json
+{
+  "@type": "/qorechain.crossvm.v1.MsgUpdateParams",
+  "authority": "<gov module address>",
+  "max_message_size": "65536",
+  "max_queue_size": 1000,
+  "queue_timeout_blocks": "100",
+  "enabled": true,
+  "bridge_allowed_targets": ["cosmwasm:qor1..."],
+  "bridge_target_pins": [{"target": "cosmwasm:qor1...", "code_id": "5"}],
+  "max_pending_per_sender": 100
+}
+```
+
+Below their switches `bridge_target_pins` and `max_pending_per_sender` must be left empty; an update that sets them is refused.
 
 ## CLI Commands
 
@@ -230,6 +259,7 @@ Response:
 | `crossvm/msg/{id}` | JSON-encoded CrossVMMessage | Message storage |
 | `crossvm/queue/{id}` | Message ID bytes | Pending queue |
 | `crossvm/params` | JSON-encoded Params | Module parameters |
+| `crossvm/qsender/{sender}/{id}` | `0x01` | From v3.2.8: pending async call indexed by its sender (per-sender bound) |
 
 ## Open-Core Architecture
 
@@ -245,3 +275,5 @@ The cross-VM module follows QoreChain's open-core pattern:
 - Queue timeout prevents message accumulation from stalled VMs
 - The module can be disabled via the `enabled` parameter without chain restart
 - PQC signing is available for cross-VM attestations via the `x/pqc` module integration
+- A CosmWasm contract that calls the EVM (with `MsgCrossVMCall`) appears there as the last 20 bytes of its 32-byte address. Value, tokens and approvals an EVM contract gives to `msg.sender` in such a call are held by the native account with those 20 bytes, which only that contract can move (through the cross-VM module). Finding another key or contract whose address ends in the same 20 bytes takes a 2^160 search, or about 2^80 work for someone who grinds both a CosmWasm instantiate2 salt and an EVM CREATE2 salt to give two of their own contracts the same EVM identity. That only matters to a dApp that trusts such an address as "contract C": EVM contracts that authorize a CosmWasm caller should treat the 20-byte identity as an address, not as proof of which contract it is, and check the call's origin where it matters.
+- A `MsgEthereumTx` executes only as a top-level message of an EVM-lane transaction. From v3.2.2 the handler refuses a context the EVM-lane ante handler did not mark; from the v3.2.8 `evm-dispatch-top-level-only` switch it also counts the transaction's own top-level `MsgEthereumTx`, so a contract reached through the bridge (whose context inherits the mark) cannot dispatch a previously signed Ethereum transaction either.

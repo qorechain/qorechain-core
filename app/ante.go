@@ -337,7 +337,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// is covered from the v3.2.2 plan height (FeatureMultisigSignatureBound).
 		NewMultisigDepthGuardDecorator(multisigBoundFeature(options.PQCKeeper)),
 		// CosmWasm decorators — limit simulation gas and track tx position
-		wasmkeeper.NewLimitSimulationGasDecorator(options.WasmConfig.SimulationGasLimit),
+		// The limit is never nil (boundedSimulationGasLimit), so a simulation
+		// never runs on an infinite meter when the block max_gas is -1.
+		wasmkeeper.NewLimitSimulationGasDecorator(boundedSimulationGasLimit(options.WasmConfig)),
 		// The counter is written in delivery only; a simulation is charged
 		// its gas on a discarded branch (node-local, ante_simulate_gas.go).
 		simulateChargedDecorator{wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService)},

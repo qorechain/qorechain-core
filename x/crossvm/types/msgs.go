@@ -74,5 +74,7 @@ func (m *MsgUpdateParams) Params() Params {
 		QueueTimeoutBlocks:   m.QueueTimeoutBlocks,
 		Enabled:              m.Enabled,
 		BridgeAllowedTargets: m.BridgeAllowedTargets,
+		BridgeTargetPins:     m.BridgeTargetPins,
+		MaxPendingPerSender:  m.MaxPendingPerSender,
 	}
 }
