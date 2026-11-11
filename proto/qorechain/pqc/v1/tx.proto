@@ -177,6 +177,14 @@ message MsgOpenEVMWindow {
   // creation is refused. Optional; absent keeps the window's original scope.
   // Honoured from the evm-pqc-window-targets feature on.
   repeated string allowed_targets = 6;
+  // validators, when non-empty, names the contracts (0x-prefixed 20-byte
+  // addresses) whose check of the account's signature counts for the
+  // account's own actions: a validator module its code consults with a
+  // STATICCALL, or an entry point that validates and then executes it in
+  // separate calls (ERC-4337). It does not narrow where the account's
+  // transactions or code may go. Optional; honoured from the
+  // evm-window-validators feature on.
+  repeated string validators = 7;
 }
 message MsgOpenEVMWindowResponse {
   uint64 expiry_height = 1;

@@ -170,18 +170,39 @@ The standard precompiles are inactive on both networks until governance activate
   did not send, its actions are always checked (key, live window, scope), but it is charged window
   transactions only for what the transaction costs it and it authorised: one per action its code
   takes after its own code had its signature accepted (a wallet executing a signed batch, checking
-  the signature itself, through a proxy implementation or library it DELEGATECALLs, or through a
-  validator it STATICCALLs; a wallet that validates and executes in separate calls, ERC-4337,
-  once the validation call returned; an action beyond what the window has left fails), and at
-  least one when it lost QOR or granted a native allowance, plus the QOR it lost. A stranger
-  calling its code uses nothing, even after replaying an old signature of it in a read-only check
-  (EIP-1271 `isValidSignature` through STATICCALL) or in a callback the account's code made.
+  the signature itself or through a proxy implementation or library it DELEGATECALLs; through a
+  validator module it STATICCALLs, when the window names that module; a wallet that validates and
+  executes in separate calls, ERC-4337, when the window names the entry point; an action beyond
+  what the window has left fails), and at least one when it lost QOR or granted a native
+  allowance, plus the QOR it lost. A stranger calling its code uses nothing, even after replaying
+  an old signature of it in a check of its own (by CALL or STATICCALL), in a read-only call the
+  account's code makes to the stranger, or in a callback.
+- **Validators** (`evm-window-validators`, `--validators a,b,...`, at most 16). The contracts whose
+  check of the account's signature counts for its actions: a validator module the wallet
+  STATICCALLs, or the ERC-4337 entry point that calls the wallet. `--allowed-targets` counts the
+  same way. Validators do not narrow where the account's transactions go.
+- **Value is counted gross for module payouts.** QOR a precompile pays the account during the
+  transaction (a staking reward claim, a module payout) does not offset what it sends; QOR it
+  receives from the transaction's own EVM calls does (a payment it forwards).
+- **Lasting authority changes** (`evm-precompile-authority-refused`). Setting the distribution
+  withdraw address, and creating or editing a validator, are refused through the EVM window
+  whatever it lists; send them as post-quantum signed Cosmos transactions.
+- **Simulations match.** `eth_call` and `eth_estimateGas` run the same in-frame rules and the
+  settlement's decision (node-local; nothing is recorded), so a preview fails where the
+  transaction would.
 
-**Known limit: verifiers without a nonce.** A wallet that lets anyone run its signature check
-in a call that may change state (a public multicall, a public validation entry) with no nonce or
-replay protection lets a stranger replay an old public signature of the account and then have
-the account's code act, which counts against the window's transactions (never its value bound).
-Wallet verifiers must consume a nonce; this is the wallet's responsibility.
+**Known limit: verifiers without a nonce.** A wallet whose own public multicall runs its
+signature check without a nonce and then a public action, in one call, lets a stranger replay an
+old public signature and have that action counted against the window's transactions (never its
+value bound). Wallet verifiers must consume a nonce; this is the wallet's responsibility.
+
+**Known limit: what the transaction count does not bound.** The count applies only to the
+designs above. Actions taken under a signature checked by a validator module the wallet reaches
+with CALL (ERC-7579 modules), by a trusted forwarder (ERC-2771), or by the wallet's own
+arithmetic are checked (live window, scope) but not counted; at least one transaction is charged
+when native QOR is lost, and the value bound always holds. For such wallets name the validators
+you trust (`--validators`), or open scoped (`--allowed-targets`) short windows: the scope, not
+the count, is what bounds tokens.
 
 **Known limit: only `ecrecover` is seen.** The window gates signatures checked through the
 ecrecover precompile (`0x01`). A wallet or contract that verifies secp256k1 in its own code, or

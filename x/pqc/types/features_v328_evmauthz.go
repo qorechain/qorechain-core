@@ -25,7 +25,11 @@ const (
 	// a CALL counts as an action: a STATICCALL changes nothing, and a
 	// DELEGATECALL or CALLCODE runs other code as the account itself, whose
 	// own calls, creations and value are checked in turn. The
-	// end-of-execution settlement stays as the backstop.
+	// end-of-execution settlement stays as the backstop. Value a stateful
+	// precompile pays the account (a reward claim, a module payout) does not
+	// offset what it sends; value received from the execution's EVM calls
+	// does (a payment it forwards). Simulations (eth_call, eth_estimateGas)
+	// run the same rules, node-locally.
 	FeatureEVMDelegatedActorInFrame = "evm-delegated-actor-in-frame"
 
 	// FeatureEVMDelegatedActorScope applies the window's scope (native_only,
@@ -146,6 +150,25 @@ const (
 	// charged, so anyone could use up the window of an account whose
 	// delegated code calls out on an incoming call by calling it repeatedly.
 	FeatureEVMDelegatedActorChargeOnCost = "evm-delegated-actor-charge-on-cost"
+
+	// FeatureEVMWindowValidators adds the optional validators list to
+	// MsgOpenEVMWindow: the contracts whose check of the account's signature
+	// counts for the account's actions under evm-delegated-actor-charge-on-cost
+	// (a validator module its code STATICCALLs, or an ERC-4337 entry point
+	// that validates and then executes it). allowed_targets counts the same
+	// way. A check by an unnamed contract counts for nothing. Below the
+	// switch a request with validators is refused.
+	FeatureEVMWindowValidators = "evm-window-validators"
+
+	// FeatureEVMPrecompileAuthorityRefused refuses, for an account that only
+	// the EVM authorisation window authorises (the EVM-lane sender, or a
+	// delegated account's code), the standard precompile methods that change
+	// a lasting authority of the account rather than move value: the
+	// distribution withdraw address, and creating or editing a validator. A
+	// stolen classical key inside a window could otherwise redirect every
+	// future reward. They stay available as post-quantum signed Cosmos
+	// messages.
+	FeatureEVMPrecompileAuthorityRefused = "evm-precompile-authority-refused"
 )
 
 // V328EVMAuthzFeatures are the v3.2.8 switches for EVM-lane authorisation (delegated actors in frame and in scope, ecrecover, usable keys, native allowances), consent messages being the account's own, and the Prague precompiles.
@@ -159,4 +182,6 @@ var V328EVMAuthzFeatures = []string{
 	FeaturePQCConsentOwnMessage,
 	FeatureEVMPraguePrecompiles,
 	FeatureEVMDelegatedActorChargeOnCost,
+	FeatureEVMWindowValidators,
+	FeatureEVMPrecompileAuthorityRefused,
 }
