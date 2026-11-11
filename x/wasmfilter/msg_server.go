@@ -57,6 +57,7 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 		return nil
 	}
 	bounds := s.f.uploadBounds != nil && s.f.uploadBounds(ctx)
+	compiled := bounds && s.f.compiledSize != nil && s.f.compiledSize(ctx)
 	var declared uint64
 	if bounds {
 		if s.f.uploadPermitted != nil && !s.f.uploadPermitted(ctx, sender) {
@@ -67,7 +68,11 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 			return nil
 		}
 		declared = size
-		need := saturatingMul(size, CompileGasPerByte+UploadStorageGasPerByte+UploadInspectGasPerByte) + UploadGasMargin
+		perByte := uint64(CompileGasPerByte + UploadStorageGasPerByte + UploadInspectGasPerByte)
+		if compiled {
+			perByte += CompiledBytesPerWasmByte * CompiledGasPerByte
+		}
+		need := saturatingMul(size, perByte) + UploadGasMargin
 		if left := ctx.GasMeter().GasRemaining(); left < need {
 			return errorsmod.Wrapf(sdkerrors.ErrOutOfGas,
 				"storing %d bytes of code needs %d gas, %d left", size, need, left)
@@ -98,7 +103,13 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 		if insp.Stats.CustomBytes > MaxUploadCustomBytes {
 			return errorsmod.Wrapf(ErrCodeRefused, "%v: %d bytes, at most %d", ErrCustomSections, insp.Stats.CustomBytes, MaxUploadCustomBytes)
 		}
+		if compiled && insp.Stats.Functions > MaxUploadFunctions {
+			return errorsmod.Wrapf(ErrCodeRefused, "%v: %d, at most %d", ErrTooManyFunctions, insp.Stats.Functions, MaxUploadFunctions)
+		}
 		ctx.GasMeter().ConsumeGas(saturatingMul(uint64(len(insp.Raw)), UploadStorageGasPerByte), "wasm code storage")
+		if compiled {
+			ctx.GasMeter().ConsumeGas(saturatingMul(EstimatedCompiledSize(len(insp.Raw), insp.Stats.Functions), CompiledGasPerByte), "wasm compiled code storage")
+		}
 	}
 	// Compiling the module is validator CPU too: the block wasm budget
 	// charges it by size just before the store.

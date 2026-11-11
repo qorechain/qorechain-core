@@ -203,6 +203,18 @@ const (
 	// all of it back (its queue-slot fee is the processing fee, paid as gas at
 	// submission).
 	FeatureCrossVMAsyncEscrow = "crossvm-async-escrow"
+
+	// FeatureWasmCodeLoadPriced prices loading code: every call to a code
+	// that is not pinned takes wasmfilter.LoadUnits (from its size and
+	// function count) from the block wasm budget and the matching SDK gas at
+	// the price in force, before the call; pinned codes are exempt.
+	FeatureWasmCodeLoadPriced = "wasm-code-load-priced"
+
+	// FeatureWasmUploadCompiledSize refuses uploads of more than 4,096
+	// functions (code already stored is never refused for it) and charges
+	// an upload 2 gas per byte of its estimated compiled size (16 per module
+	// byte plus 256 per function), which every node keeps on disk.
+	FeatureWasmUploadCompiledSize = "wasm-upload-compiled-size"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -227,4 +239,6 @@ var V328WasmAuthzFeatures = []string{
 	FeatureCrossVMAsyncGasPriced,
 	FeatureWasmUploadBounds,
 	FeatureCrossVMAsyncEscrow,
+	FeatureWasmCodeLoadPriced,
+	FeatureWasmUploadCompiledSize,
 }

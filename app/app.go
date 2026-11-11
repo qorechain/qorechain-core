@@ -245,6 +245,7 @@ type QoreChainApp struct {
 	codeFilter          *wasmfilter.Filter     // see wasm_code_filter.go
 	gasRegister         *calibratedGasRegister // see wasm_gas_register.go
 	blockBudget         *blockWasmBudget       // see wasm_block_budget.go
+	wasmStoreKey        *storetypes.KVStoreKey // x/wasm store, for the pinned-code index
 
 	// EVM keepers (QoreChain EVM)
 	FeeMarketKeeper   feemarketkeeper.Keeper
@@ -521,6 +522,7 @@ func NewQoreChainApp(
 	// ==========================================================================
 	wasmStoreKey := storetypes.NewKVStoreKey(wasmtypes.StoreKey)
 	app.MountStores(wasmStoreKey)
+	app.wasmStoreKey = wasmStoreKey
 
 	// The node's [wasm] app.toml settings and --home (wasm_node_config.go).
 	// Node-local: the VM directory, cache size, smart query and simulation

@@ -60,6 +60,8 @@ func unpackUpload(code []byte) ([]byte, bool) {
 type Verdict struct {
 	Err    error
 	Floats error // CheckFloats's result
+	// Size and Functions of the code, for pricing its load.
+	Size, Functions int
 }
 
 // Verdicts caches the verdicts per code checksum. They depend on the bytes
@@ -110,7 +112,29 @@ const (
 	// largest stored on the testnet is 67,089 bytes. Code already stored is
 	// never refused for them.
 	MaxUploadCustomBytes = 128 * 1024
+
+	// From wasm-upload-compiled-size: an upload may define at most
+	// MaxUploadFunctions functions (release contracts have 295 to 828, the
+	// largest testnet code 828; code already stored is never refused for
+	// it), and pays CompiledGasPerByte per byte of its estimated compiled
+	// size, which every node keeps on disk: CompiledBytesPerWasmByte per
+	// module byte plus CompiledBytesPerFunction per function (measured 5 to
+	// 16.3 times the module). An 800 KiB module of 4,096 functions costs
+	// about 44M gas in all, inside the 50M transaction cap.
+	MaxUploadFunctions       = 4_096
+	CompiledBytesPerWasmByte = 16
+	CompiledBytesPerFunction = 256
+	CompiledGasPerByte       = 2
 )
+
+// ErrTooManyFunctions is the refusal of an upload with more functions than
+// MaxUploadFunctions.
+var ErrTooManyFunctions = errors.New("too many functions")
+
+// EstimatedCompiledSize is the compiled size the upload charge assumes.
+func EstimatedCompiledSize(size, functions int) uint64 {
+	return uint64(size)*CompiledBytesPerWasmByte + uint64(functions)*CompiledBytesPerFunction
+}
 
 // ErrCustomSections is the refusal of an upload whose custom sections are
 // too large.

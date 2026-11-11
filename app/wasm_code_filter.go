@@ -1,9 +1,16 @@
 package app
 
 import (
+	"bytes"
+	"encoding/binary"
+
+	storetypes "cosmossdk.io/store/types"
+
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/cosmos/cosmos-sdk/types/module"
 
 	"github.com/CosmWasm/wasmd/x/wasm"
+	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 	"github.com/qorechain/qorechain-core/x/wasmfilter"
@@ -29,7 +36,9 @@ func (app *QoreChainApp) wasmCodeFilter() *wasmfilter.Filter {
 			WithFloatRefusal(app.featureSwitch(pqctypes.FeatureWasmFloatOpsRefused)).
 			WithBudget(app.wasmBlockBudget()).
 			WithDeserCostScale(app.wasmGasRegister().deserCostScale).
-			WithUploadBounds(app.featureSwitch(pqctypes.FeatureWasmUploadBounds), app.wasmUploadPermitted)
+			WithUploadBounds(app.featureSwitch(pqctypes.FeatureWasmUploadBounds), app.wasmUploadPermitted).
+			WithLoadPricing(app.featureSwitch(pqctypes.FeatureWasmCodeLoadPriced), app.wasmCodePinned).
+			WithCompiledSizeCharge(app.featureSwitch(pqctypes.FeatureWasmUploadCompiledSize))
 	}
 	return app.codeFilter
 }
@@ -43,4 +52,28 @@ type wasmCodeFilterAppModule struct {
 
 func (m wasmCodeFilterAppModule) RegisterServices(cfg module.Configurator) {
 	m.AppModule.RegisterServices(wasmfilter.Configurator{Configurator: cfg, F: m.filter})
+}
+
+// wasmCodePinned reports whether a code with this checksum is pinned in
+// ctx's state (x/wasm's pinned-code index, a short list kept by governance).
+// Read off the gas meter: the answer decides a price, it is not itself
+// priced.
+func (app *QoreChainApp) wasmCodePinned(ctx sdk.Context, checksum []byte) bool {
+	if app.wasmStoreKey == nil {
+		return false
+	}
+	free := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	store := free.KVStore(app.wasmStoreKey)
+	iter := storetypes.KVStorePrefixIterator(store, wasmtypes.PinnedCodeIndexPrefix)
+	defer iter.Close()
+	for ; iter.Valid(); iter.Next() {
+		key := iter.Key()[len(wasmtypes.PinnedCodeIndexPrefix):]
+		if len(key) != 8 {
+			continue
+		}
+		if info := app.WasmKeeper.GetCodeInfo(free, binary.BigEndian.Uint64(key)); info != nil && bytes.Equal(info.CodeHash, checksum) {
+			return true
+		}
+	}
+	return false
 }

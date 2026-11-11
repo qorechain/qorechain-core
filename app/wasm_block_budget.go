@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sync"
+	"time"
 
 	errorsmod "cosmossdk.io/errors"
 
@@ -81,6 +82,8 @@ type blockWasmBudget struct {
 	// simMargin is whether simulations add the congestion margin
 	// (wasm-congestion-pricing on), set with the multiplier.
 	simMargin bool
+	// queryLoads bounds code loading by queries (node-local).
+	queryLoads loadAllowance
 }
 
 type wasmTxPayerKey struct{}
@@ -439,4 +442,102 @@ func (b *blockWasmBudget) setSimulationMargin(on bool) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	b.simMargin = on
+}
+
+// QueryLoadUnitsPerSecond is how much code loading (wasmfilter.LoadUnits of
+// unpinned codes) smart queries served by this node may cause per second,
+// all queries together. Node-local: a query that fans out to many unpinned
+// codes cannot make a public RPC node load modules without bound; it fails
+// and can be retried.
+const QueryLoadUnitsPerSecond = 1_000_000
+
+// ChargeSetup charges loading an unpinned code before a call
+// (wasm-code-load-priced): units from the block's budget like the call's own
+// execution (the transaction's share and pool, the queue's, or the
+// block-level counter, refused or aborting as Limit does), and gas at the
+// price in force on ctx's meter. In a query a node-local
+// allowance per second bounds what queries may load.
+func (b *blockWasmBudget) ChargeSetup(ctx sdk.Context, units, gas uint64) error {
+	sdkGas, err := b.takeSetup(ctx, units, gas)
+	if err != nil {
+		return err
+	}
+	ctx.GasMeter().ConsumeGas(sdkGas, "wasm code load")
+	return nil
+}
+
+func (b *blockWasmBudget) takeSetup(ctx sdk.Context, units, gas uint64) (uint64, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	reg := b.reg
+	base, eff := CalibratedWasmGasMultiplier, CalibratedWasmGasMultiplier
+	if reg != nil {
+		base, eff = reg.BaseMultiplier(), reg.Multiplier()
+	}
+	vm := saturatingVMGas(units, base)
+	// The gas at the price in force: gas x base / effective (the congestion
+	// factor).
+	sdkGas := gas
+	if eff > 0 {
+		g := saturatingVMGas(gas, base)
+		sdkGas = g/eff + min64(g%eff, 1)
+	}
+	if !b.counts(ctx) {
+		// A query served by the node: its context is a check-state context
+		// without transaction bytes (CheckTx always carries them).
+		if ctx.IsCheckTx() && len(ctx.TxBytes()) == 0 && ctx.ExecMode() == sdk.ExecModeCheck {
+			if !b.queryLoads.take(units) {
+				return 0, ErrBlockWasmBudget.Wrap("this node's allowance for loading contract code in queries is spent; retry shortly")
+			}
+		}
+		return sdkGas, nil
+	}
+	switch {
+	case len(ctx.TxBytes()) > 0:
+		if key := txKeyOf(ctx); key != b.tx {
+			b.tx, b.txUsed = key, 0
+		}
+		if vm > b.txPool {
+			abortTx("loading this contract's code does not fit in what is left of the block's CosmWasm execution budget; retry in a later block")
+		}
+		if b.txUsed+vm > b.txCap {
+			abortTx("this transaction has used its share of the block's CosmWasm execution budget")
+		}
+		b.txUsed += vm
+		if payer, ok := ctx.Value(wasmTxPayerKey{}).(string); ok && b.payers != nil {
+			b.payers[payer] += vm
+		}
+		b.txPool -= vm
+	case crossvmtypes.IsQueueExecution(ctx):
+		if vm > b.queuePool+b.txPool {
+			return 0, ErrBlockWasmBudget.Wrap("loading this contract's code does not fit in what is left of the block's CosmWasm execution budget")
+		}
+		fromQueue := min64(vm, b.queuePool)
+		b.queuePool -= fromQueue
+		b.txPool -= vm - fromQueue
+	default:
+		if vm > b.blockLevel {
+			return 0, ErrBlockWasmBudget.Wrap("loading this contract's code does not fit in this block's CosmWasm budget for calls outside transactions")
+		}
+		b.blockLevel -= vm
+	}
+	return sdkGas, nil
+}
+
+// loadAllowance is a per-second allowance (node-local, wall clock).
+type loadAllowance struct {
+	second int64
+	used   uint64
+}
+
+func (a *loadAllowance) take(units uint64) bool {
+	now := time.Now().Unix()
+	if now != a.second {
+		a.second, a.used = now, 0
+	}
+	if a.used+units > QueryLoadUnitsPerSecond {
+		return false
+	}
+	a.used += units
+	return true
 }
