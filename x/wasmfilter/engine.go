@@ -1,6 +1,7 @@
 package wasmfilter
 
 import (
+	"fmt"
 	"math"
 	"math/big"
 
@@ -23,6 +24,231 @@ type Filter struct {
 	budget          Budget
 	deserScale      func() (num, den uint64)
 	verdicts        *Verdicts
+	loadPriced      func(sdk.Context) bool
+	pinned          func(ctx sdk.Context, checksum []byte) bool
+	compiledSize    func(sdk.Context) bool
+	shape           func(sdk.Context) bool
+	setupPriced     func(sdk.Context) bool
+}
+
+// CallSetupCharger is a Budget that also charges setting up a call
+// (wasm-call-setup-priced): units from the block's budget like the call's
+// own execution (refused or aborting as Limit does) and gas (SDK gas at the
+// base price, scaled by the price in force) from ctx's meter, the gas first.
+// Outside block execution only the gas is charged.
+type CallSetupCharger interface {
+	ChargeCallSetup(ctx sdk.Context, units, gas uint64) error
+}
+
+// WithCallSetupPricing charges every call its setup (CallSetupUnits, and
+// CallSetupGasPerUnit gas per unit) while on(ctx) is true, pinned codes
+// included: every call gets a fresh instance whatever cache it came from.
+func (f *Filter) WithCallSetupPricing(on func(sdk.Context) bool) *Filter {
+	f.setupPriced = on
+	return f
+}
+
+// CallSetupCost is what setting up one call of a code costs (budget units
+// and gas at the base price), from the filter's verdict for its checksum;
+// code reads the code's bytes when the verdict is not cached. False when
+// the code cannot be read.
+func (f *Filter) CallSetupCost(checksum []byte, code func() ([]byte, error)) (units, gas uint64, ok bool) {
+	known, v := f.verdictFor(checksum, code)
+	if !known {
+		return 0, 0, false
+	}
+	return v.SetupUnits, v.SetupUnits * CallSetupGasPerUnit, true
+}
+
+// CallGrowthCharger is a CallSetupCharger that also charges, after a call,
+// the memory it grew into (wasm-call-setup-priced): gas first (out of gas
+// when the meter cannot cover it), then, in block execution, units from the
+// call's pool; when they do not fit, what is left of that pool (or the
+// transaction's share) is taken and the transaction aborted, or the call
+// refused outside a transaction.
+type CallGrowthCharger interface {
+	ChargeCallGrowth(ctx sdk.Context, units, gas uint64) error
+}
+
+// callSetup is one call's setup charge in progress: the querier handed to
+// the VM (which reports the call's memory size) and what is needed to
+// charge the growth after the call.
+type callSetup struct {
+	ctx     sdk.Context
+	initial uint64
+	q       *pagesQuerier
+}
+
+// pagesQuerier is the querier handed to the VM while call setup is priced:
+// the querier wasmd made, which also takes the call's memory size from the
+// patched VM (wasmvmtypes.MemoryPagesReporter).
+type pagesQuerier struct {
+	wasmvm.Querier
+	pages uint64
+}
+
+func (q *pagesQuerier) ReportMemoryPages(pages uint64) { q.pages = pages }
+
+// chargeCallSetup charges setting up one call, before it runs, and returns
+// the querier to run it with and the state for chargeCallGrowth (nil when
+// call setup is not priced in this context).
+func (e *Engine) chargeCallSetup(checksum wasmvm.Checksum, querier wasmvm.Querier) (wasmvm.Querier, *callSetup, error) {
+	if e.f.setupPriced == nil {
+		return querier, nil, nil
+	}
+	sc, ok := e.f.budget.(CallSetupCharger)
+	if !ok {
+		return querier, nil, nil
+	}
+	ctx, ok := contextOf(querier)
+	if !ok || !e.f.setupPriced(ctx) {
+		return querier, nil, nil
+	}
+	known, v := e.verdict(checksum)
+	if !known {
+		return querier, nil, nil
+	}
+	if err := sc.ChargeCallSetup(ctx, v.SetupUnits, v.SetupUnits*CallSetupGasPerUnit); err != nil {
+		return querier, nil, err
+	}
+	pq := &pagesQuerier{Querier: querier}
+	return pq, &callSetup{ctx: ctx, initial: v.MemoryPages, q: pq}, nil
+}
+
+// afterCall settles one call with the budget, in an order that lets nothing
+// skip a charge for work already done. First the call's own VM gas is
+// recorded (budgetUsed); an abort it raises (a call cut short by the
+// budget) is held. Then the memory the call grew into is charged
+// (chargeCallGrowth: its units, then its gas). Then the held abort is
+// raised, also when the growth charge panicked (out of gas), so a
+// submessage that recovers an out-of-gas cannot swallow it. ext is the
+// call's external gas, read before the growth charge adds to the meter.
+func (e *Engine) afterCall(querier wasmvm.Querier, cs *callSetup, used, ext, limit uint64, clamped bool, err error) error {
+	var held any
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				if !IsBudgetAbort(r) {
+					panic(r)
+				}
+				held = r
+			}
+		}()
+		e.budgetUsed(querier, used, ext, limit, clamped)
+	}()
+	if held != nil {
+		defer panic(held)
+	}
+	return e.chargeCallGrowth(cs, err)
+}
+
+// chargeCallGrowth charges, after a call, the memory it grew into beyond
+// its initial memory (CallGrowthUnits), whether the call succeeded or not;
+// err is the call's own error, returned unless the charge fails.
+func (e *Engine) chargeCallGrowth(cs *callSetup, err error) error {
+	if cs == nil {
+		return err
+	}
+	units := CallGrowthUnits(cs.initial, cs.q.pages)
+	if units == 0 {
+		return err
+	}
+	gc, ok := e.f.budget.(CallGrowthCharger)
+	if !ok {
+		return err
+	}
+	if cerr := gc.ChargeCallGrowth(cs.ctx, units, units*CallSetupGasPerUnit); cerr != nil {
+		return cerr
+	}
+	return err
+}
+
+// WithCompiledSizeCharge turns on, while on(ctx) is true and upload bounds
+// are on, the function cap and the compiled-size charge of uploads
+// (wasm-upload-compiled-size).
+func (f *Filter) WithCompiledSizeCharge(on func(sdk.Context) bool) *Filter {
+	f.compiledSize = on
+	return f
+}
+
+// Loading a code that is not pinned (from the node's disk cache when it is
+// not in memory) is work proportional to the compiled module
+// (ConservativeCompiledSize); wasmd prices it flat. From
+// wasm-code-load-priced every call to an unpinned code takes
+// LoadUnits(compiled) from the block wasm budget and LoadGasPerUnit gas per
+// unit at the price in force, before the call. Calibrated on measured loads
+// (2.7 to 8.8 compiled KB per microsecond on the measuring host, validator
+// hardware about three times slower) against the budget's design bound of
+// 265 ns per unit: about one unit per LoadCompiledBytesPerUnit compiled
+// bytes. The gas makes a cold load cost about as much per nanosecond as
+// executing code (within 2x on the measured shapes).
+const (
+	LoadUnitsBase            = 1_000
+	LoadCompiledBytesPerUnit = 550 // 450 real compiled bytes: real is at most 0.81 of the estimate
+	LoadGasPerUnit           = 18  // at least 1: see gas_per_unit.go
+)
+
+// LoadUnits is what loading one unpinned code of the given conservative
+// compiled size costs, in budget units.
+func LoadUnits(compiled uint64) uint64 {
+	return LoadUnitsBase + compiled/LoadCompiledBytesPerUnit
+}
+
+// SetupCharger is a Budget that also charges loading a code before a call:
+// ChargeSetup takes units from the block's budget and gas (SDK gas at the
+// base price, scaled by the price in force) from ctx's meter; it may refuse
+// (an error) or abort the transaction (BudgetAbort).
+//
+// The charger may charge a code's load once per block: checksum names the
+// code and compiled is its conservative compiled size,
+// for bounding what a block may load before repeats are charged again.
+type SetupCharger interface {
+	ChargeSetup(ctx sdk.Context, checksum []byte, units, gas, compiled uint64) error
+}
+
+// WithLoadPricing prices loading unpinned code (wasm-code-load-priced) while
+// on(ctx) is true; pinned reports whether a checksum is pinned in ctx's
+// state (pinned codes stay in memory and are exempt).
+func (f *Filter) WithLoadPricing(on func(sdk.Context) bool, pinned func(ctx sdk.Context, checksum []byte) bool) *Filter {
+	f.loadPriced, f.pinned = on, pinned
+	return f
+}
+
+// LoadCost is what loading an unpinned code costs (budget units and gas at
+// the base price), from the filter's verdict for its checksum; code reads
+// the code's bytes when the verdict is not cached. False when the code
+// cannot be read.
+func (f *Filter) LoadCost(checksum []byte, code func() ([]byte, error)) (units, gas uint64, ok bool) {
+	known, v := f.verdictFor(checksum, code)
+	if !known {
+		return 0, 0, false
+	}
+	units = LoadUnits(v.Compiled)
+	return units, units * LoadGasPerUnit, true
+}
+
+// chargeLoad charges loading the code of one call, before it runs.
+func (e *Engine) chargeLoad(checksum wasmvm.Checksum, querier wasmvm.Querier) error {
+	if e.f.loadPriced == nil {
+		return nil
+	}
+	sc, ok := e.f.budget.(SetupCharger)
+	if !ok {
+		return nil
+	}
+	ctx, ok := contextOf(querier)
+	if !ok || !e.f.loadPriced(ctx) {
+		return nil
+	}
+	if e.f.pinned != nil && e.f.pinned(ctx, checksum) {
+		return nil
+	}
+	known, v := e.verdict(checksum)
+	if !known {
+		return nil
+	}
+	units := LoadUnits(v.Compiled)
+	return sc.ChargeSetup(ctx, checksum, units, units*LoadGasPerUnit, v.Compiled)
 }
 
 // WithUploadBounds turns on the upload ordering and bounds of
@@ -59,11 +285,21 @@ func consumed(m wasmvm.GasMeter) uint64 {
 }
 
 // UploadCharger is a Budget that also charges storing (compiling) code:
-// ChargeUpload is called with the uncompressed module size before the code
-// is stored, and may refuse it (an error) or abort the transaction
-// (BudgetAbort).
+// ChargeUpload is called with the upload's units (its uncompressed size, or
+// from wasm-upload-compiled-size the larger of that and its conservative
+// compiled size over CompiledBytesPerUploadUnit) before the code is stored,
+// and may refuse it (an error) or abort the transaction (BudgetAbort).
 type UploadCharger interface {
-	ChargeUpload(ctx sdk.Context, wasmBytes int) error
+	ChargeUpload(ctx sdk.Context, units int) error
+}
+
+// UploadFitter is an UploadCharger that can also tell, without taking
+// anything, whether an upload of the given units would be charged now: an
+// error (or a BudgetAbort panic) exactly when ChargeUpload would refuse it.
+// The message server asks before charging an upload's storage gas, so an
+// upload the block cannot compile is refused cheaply.
+type UploadFitter interface {
+	UploadFits(ctx sdk.Context, units int) error
 }
 
 // BudgetAbort is the panic a Budget raises to abort a whole transaction
@@ -149,6 +385,20 @@ func (f *Filter) refusesFloats(ctx sdk.Context) bool {
 	return f.noFloat != nil && f.on(ctx) && f.noFloat(ctx)
 }
 
+// WithShapeBounds makes the filter also refuse, while both on(ctx) and
+// shape(ctx) are true, code over the module shape bounds (CheckShape):
+// storing it, and every call that would run it. shape must read consensus
+// state only and must not charge gas.
+func (f *Filter) WithShapeBounds(shape func(sdk.Context) bool) *Filter {
+	f.shape = shape
+	return f
+}
+
+// refusesShape reports whether the module shape bounds apply in ctx.
+func (f *Filter) refusesShape(ctx sdk.Context) bool {
+	return f.shape != nil && f.on(ctx) && f.shape(ctx)
+}
+
 // New returns a filter that refuses only while on(ctx) is true. on must read
 // consensus state only and must not charge gas.
 func New(on func(sdk.Context) bool) *Filter {
@@ -181,27 +431,37 @@ var _ wasmtypes.WasmEngine = (*Engine)(nil)
 // verdict returns the filter's verdict on a stored code, from the cache or by
 // reading the code's bytes from the VM.
 func (e *Engine) verdict(checksum wasmvm.Checksum) (known bool, v Verdict) {
-	if ok, v := e.f.verdicts.Get(checksum); ok {
+	return e.f.verdictFor(checksum, func() ([]byte, error) { return e.WasmEngine.GetCode(checksum) })
+}
+
+// verdictFor is the cached verdict for a checksum, computed from code() on a
+// miss. A code that cannot be read is not cached (the bytes may arrive, as
+// in a state-sync restore).
+func (f *Filter) verdictFor(checksum []byte, code func() ([]byte, error)) (bool, Verdict) {
+	if ok, v := f.verdicts.Get(checksum); ok {
 		return true, v
 	}
-	code, gerr := e.WasmEngine.GetCode(checksum)
-	if gerr != nil {
-		// The call below fails on its own for a code the node does not hold;
-		// do not cache, the bytes may arrive (state-sync restore).
+	bz, err := code()
+	if err != nil {
 		return false, Verdict{}
 	}
-	v = Verdict{Err: Check(code)}
-	if v.Err == nil {
-		v.Floats = CheckFloats(code)
+	st, cerr := Inspect(bz)
+	v := Verdict{Err: cerr, Size: len(bz), Functions: st.Functions, Compiled: ConservativeCompiledSize(len(bz), st), SetupUnits: CallSetupUnits(st), MemoryPages: uint64(st.MemoryPages)}
+	if v.Err == nil && st.FloatOps > 0 {
+		v.Floats = fmt.Errorf("%w: %d float operators", ErrFloatOpcode, st.FloatOps)
 	}
-	e.f.verdicts.Put(checksum, v)
+	if v.Err == nil {
+		v.Shape = CheckShape(st)
+	}
+	f.verdicts.Put(checksum, v)
 	return true, v
 }
 
 // refuse decides one call. The switch is read only for a failing code, from the
 // sdk.Context wasmd hands the VM inside its querier. A failing code reached
 // without that context is refused: it cannot be shown that the switch is off.
-// Code with float operators fails only while the float switch is on too.
+// Code with float operators fails only while the float switch is on too, and
+// code over the module shape bounds only while their switch is on too.
 func (e *Engine) refuse(checksum wasmvm.Checksum, querier wasmvm.Querier) error {
 	known, v := e.verdict(checksum)
 	if !known {
@@ -209,14 +469,24 @@ func (e *Engine) refuse(checksum wasmvm.Checksum, querier wasmvm.Querier) error 
 	}
 	reason := v.Err
 	if reason == nil {
-		if v.Floats == nil || e.f.noFloat == nil {
-			return nil
+		for _, c := range []struct {
+			err error
+			set bool // the switch is wired at all
+			on  func(sdk.Context) bool
+		}{
+			{v.Floats, e.f.noFloat != nil, e.f.refusesFloats},
+			{v.Shape, e.f.shape != nil, e.f.refusesShape},
+		} {
+			if c.err == nil || !c.set {
+				continue
+			}
+			ctx, ok := contextOf(querier)
+			if ok && !c.on(ctx) {
+				continue
+			}
+			return errorsmod.Wrapf(ErrCodeRefused, "code %X: %v", []byte(checksum), c.err)
 		}
-		ctx, ok := contextOf(querier)
-		if ok && !e.f.refusesFloats(ctx) {
-			return nil
-		}
-		return errorsmod.Wrapf(ErrCodeRefused, "code %X: %v", []byte(checksum), v.Floats)
+		return nil
 	}
 	ctx, ok := contextOf(querier)
 	if ok && !e.f.on(ctx) {
@@ -241,210 +511,345 @@ func (e *Engine) Instantiate(checksum wasmvm.Checksum, env wasmvmtypes.Env, info
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.Instantiate(checksum, env, info, initMsg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.Instantiate(checksum, env, info, initMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) Execute(checksum wasmvm.Checksum, env wasmvmtypes.Env, info wasmvmtypes.MessageInfo, executeMsg []byte, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.ContractResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.Execute(checksum, env, info, executeMsg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.Execute(checksum, env, info, executeMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) Query(checksum wasmvm.Checksum, env wasmvmtypes.Env, queryMsg []byte, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.QueryResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.Query(checksum, env, queryMsg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.Query(checksum, env, queryMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) Migrate(checksum wasmvm.Checksum, env wasmvmtypes.Env, migrateMsg []byte, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.ContractResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.Migrate(checksum, env, migrateMsg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.Migrate(checksum, env, migrateMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) MigrateWithInfo(checksum wasmvm.Checksum, env wasmvmtypes.Env, migrateMsg []byte, migrateInfo wasmvmtypes.MigrateInfo, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.ContractResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.MigrateWithInfo(checksum, env, migrateMsg, migrateInfo, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.MigrateWithInfo(checksum, env, migrateMsg, migrateInfo, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) Sudo(checksum wasmvm.Checksum, env wasmvmtypes.Env, sudoMsg []byte, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.ContractResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.Sudo(checksum, env, sudoMsg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.Sudo(checksum, env, sudoMsg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) Reply(checksum wasmvm.Checksum, env wasmvmtypes.Env, reply wasmvmtypes.Reply, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.ContractResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.Reply(checksum, env, reply, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.Reply(checksum, env, reply, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) IBCChannelOpen(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg wasmvmtypes.IBCChannelOpenMsg, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.IBCChannelOpenResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.IBCChannelOpen(checksum, env, msg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.IBCChannelOpen(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) IBCChannelConnect(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg wasmvmtypes.IBCChannelConnectMsg, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.IBCBasicResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.IBCChannelConnect(checksum, env, msg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.IBCChannelConnect(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) IBCChannelClose(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg wasmvmtypes.IBCChannelCloseMsg, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.IBCBasicResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.IBCChannelClose(checksum, env, msg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.IBCChannelClose(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) IBCPacketReceive(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg wasmvmtypes.IBCPacketReceiveMsg, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.IBCReceiveResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.IBCPacketReceive(checksum, env, msg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.IBCPacketReceive(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) IBCPacketAck(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg wasmvmtypes.IBCPacketAckMsg, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.IBCBasicResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.IBCPacketAck(checksum, env, msg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.IBCPacketAck(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) IBCPacketTimeout(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg wasmvmtypes.IBCPacketTimeoutMsg, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.IBCBasicResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.IBCPacketTimeout(checksum, env, msg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.IBCPacketTimeout(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) IBCSourceCallback(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg wasmvmtypes.IBCSourceCallbackMsg, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.IBCBasicResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.IBCSourceCallback(checksum, env, msg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.IBCSourceCallback(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 func (e *Engine) IBCDestinationCallback(checksum wasmvm.Checksum, env wasmvmtypes.Env, msg wasmvmtypes.IBCDestinationCallbackMsg, store wasmvm.KVStore, goapi wasmvm.GoAPI, querier wasmvm.Querier, gasMeter wasmvm.GasMeter, gasLimit uint64, deserCost wasmvmtypes.UFraction) (*wasmvmtypes.IBCBasicResult, uint64, error) {
 	if err := e.refuse(checksum, querier); err != nil {
 		return nil, 0, err
 	}
+	if err := e.chargeLoad(checksum, querier); err != nil {
+		return nil, 0, err
+	}
+	q, cs, err := e.chargeCallSetup(checksum, querier)
+	if err != nil {
+		return nil, 0, err
+	}
 	limit, clamped, err := e.budgetLimit(querier, gasLimit)
 	if err != nil {
 		return nil, 0, err
 	}
 	ext0 := consumed(gasMeter)
-	res, used, err := e.WasmEngine.IBCDestinationCallback(checksum, env, msg, store, goapi, querier, gasMeter, limit, e.deser(deserCost))
-	e.budgetUsed(querier, used, consumed(gasMeter)-ext0, limit, clamped)
-	return res, used, err
+	res, used, err := e.WasmEngine.IBCDestinationCallback(checksum, env, msg, store, goapi, q, gasMeter, limit, e.deser(deserCost))
+	if err = e.afterCall(querier, cs, used, consumed(gasMeter)-ext0, limit, clamped, err); err != nil {
+		return nil, used, err
+	}
+	return res, used, nil
 }
 
 // StoreCode prices compiling at wasmd's own rate whatever multiplier the

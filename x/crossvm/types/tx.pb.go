@@ -382,7 +382,7 @@ type MsgUpdateParams struct {
 	// max_block_upload_bps is the code-upload pool of a block, in basis
 	// points of the transactions' wasm pool: compiling uploads draws from it,
 	// not from the execution pool, and does not count towards congestion. Zero
-	// means the default (3,750, enough for one maximum-size module); a set
+	// means the default (5,000, enough for the largest release contract); a set
 	// value is 1 to 10,000. Set from the wasm-block-gas-budget switch.
 	MaxBlockUploadBps uint32 `protobuf:"varint,17,opt,name=max_block_upload_bps,json=maxBlockUploadBps,proto3" json:"max_block_upload_bps,omitempty"`
 	// max_queue_timeouts_per_block bounds how many queued calls one block

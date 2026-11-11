@@ -48,15 +48,18 @@ type msgServer struct {
 //     size (bytes after it included) are refused, as are a module
 //     the check refuses, float operators (from their switch) and custom
 //     sections over MaxUploadCustomBytes are refused;
-//  4. the code storage price is charged on the uncompressed size, and only
-//     then the block wasm budget's upload units, when compiling is about to
-//     run.
+//  4. the block's upload pool must have room for the upload's units (the
+//     upload is refused, or its transaction aborted, before any further gas
+//     is charged); then the code storage price is charged on the
+//     uncompressed size, and only then the block wasm budget's upload
+//     units, when compiling is about to run.
 func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byte) error {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 	if !s.f.on(ctx) {
 		return nil
 	}
 	bounds := s.f.uploadBounds != nil && s.f.uploadBounds(ctx)
+	compiled := bounds && s.f.compiledSize != nil && s.f.compiledSize(ctx)
 	var declared uint64
 	if bounds {
 		if s.f.uploadPermitted != nil && !s.f.uploadPermitted(ctx, sender) {
@@ -67,7 +70,11 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 			return nil
 		}
 		declared = size
-		need := saturatingMul(size, CompileGasPerByte+UploadStorageGasPerByte+UploadInspectGasPerByte) + UploadGasMargin
+		perByte := uint64(CompileGasPerByte + UploadStorageGasPerByte + UploadInspectGasPerByte)
+		if compiled {
+			perByte += CompiledBytesPerWasmByte / CompiledBytesPerGas
+		}
+		need := saturatingMul(size, perByte) + UploadGasMargin
 		if left := ctx.GasMeter().GasRemaining(); left < need {
 			return errorsmod.Wrapf(sdkerrors.ErrOutOfGas,
 				"storing %d bytes of code needs %d gas, %d left", size, need, left)
@@ -75,6 +82,7 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 		ctx.GasMeter().ConsumeGas(saturatingMul(size, UploadInspectGasPerByte), "wasm code inspection")
 	}
 	var insp UploadInspection
+	var compiledSize uint64
 	if bounds {
 		// Never more unpacking than was charged, and the declared size is
 		// the real one or the upload is refused.
@@ -94,20 +102,64 @@ func (s *msgServer) checkUpload(goCtx context.Context, sender string, code []byt
 	if s.f.refusesFloats(ctx) && insp.Stats.FloatOps > 0 {
 		return errorsmod.Wrapf(ErrCodeRefused, "%v: %d float operators", ErrFloatOpcode, insp.Stats.FloatOps)
 	}
+	if s.f.refusesShape(ctx) {
+		if err := CheckShape(insp.Stats); err != nil {
+			return errorsmod.Wrap(ErrCodeRefused, err.Error())
+		}
+	}
 	if bounds {
 		if insp.Stats.CustomBytes > MaxUploadCustomBytes {
 			return errorsmod.Wrapf(ErrCodeRefused, "%v: %d bytes, at most %d", ErrCustomSections, insp.Stats.CustomBytes, MaxUploadCustomBytes)
 		}
+		if compiled {
+			if insp.Stats.Functions > MaxUploadFunctions {
+				return errorsmod.Wrapf(ErrCodeRefused, "%v: %d, at most %d", ErrTooManyFunctions, insp.Stats.Functions, MaxUploadFunctions)
+			}
+			compiledSize = ConservativeCompiledSize(len(insp.Raw), insp.Stats)
+			if compiledSize > MaxUploadCompiledSize {
+				return errorsmod.Wrapf(ErrCodeRefused, "%v: about %d bytes, at most %d", ErrCompiledTooLarge, compiledSize, MaxUploadCompiledSize)
+			}
+		}
+		// The block's upload pool is checked before the storage and
+		// compiled-size gas is charged: an upload that cannot be compiled
+		// in this block is refused at the cost of its inspection only.
+		if uf, ok := s.f.budget.(UploadFitter); ok {
+			if err := uf.UploadFits(ctx, uploadUnits(len(insp.Raw), compiledSize, compiled)); err != nil {
+				return err
+			}
+		}
 		ctx.GasMeter().ConsumeGas(saturatingMul(uint64(len(insp.Raw)), UploadStorageGasPerByte), "wasm code storage")
+		if compiled {
+			ctx.GasMeter().ConsumeGas(compiledGas(compiledSize), "wasm compiled code storage")
+		}
 	}
 	// Compiling the module is validator CPU too: the block wasm budget
 	// charges it by size just before the store.
 	if uc, ok := s.f.budget.(UploadCharger); ok {
-		if err := uc.ChargeUpload(ctx, len(insp.Raw)); err != nil {
+		if err := uc.ChargeUpload(ctx, uploadUnits(len(insp.Raw), compiledSize, compiled)); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// uploadUnits is what compiling an upload takes from the block's upload
+// pool: its bytes, and from wasm-upload-compiled-size the larger of its
+// bytes and its conservative compiled size over CompiledBytesPerUploadUnit.
+func uploadUnits(size int, compiledSize uint64, compiled bool) int {
+	units := size
+	if compiled {
+		if c := int(compiledSize / CompiledBytesPerUploadUnit); c > units {
+			units = c
+		}
+	}
+	return units
+}
+
+// compiledGas is the gas an upload pays for its conservative compiled size:
+// one per CompiledBytesPerGas bytes, rounded up.
+func compiledGas(compiledSize uint64) uint64 {
+	return compiledSize/CompiledBytesPerGas + min(compiledSize%CompiledBytesPerGas, 1)
 }
 
 func saturatingMul(a, b uint64) uint64 {

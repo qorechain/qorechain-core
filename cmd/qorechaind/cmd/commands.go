@@ -225,7 +225,7 @@ func initAppConfig(chainID string) (string, interface{}) {
 		},
 		Wasm: WasmNodeConfig{
 			QueryGasLimit:      wasmtypes.DefaultNodeConfig().SmartQueryGasLimit,
-			MemoryCacheSize:    wasmtypes.DefaultNodeConfig().MemoryCacheSize,
+			MemoryCacheSize:    app.MinWasmMemoryCacheMiB,
 			SimulationGasLimit: DefaultWasmSimulationGasLimit,
 		},
 	}

@@ -245,6 +245,7 @@ type QoreChainApp struct {
 	codeFilter          *wasmfilter.Filter     // see wasm_code_filter.go
 	gasRegister         *calibratedGasRegister // see wasm_gas_register.go
 	blockBudget         *blockWasmBudget       // see wasm_block_budget.go
+	wasmStoreKey        *storetypes.KVStoreKey // x/wasm store, for the pinned-code index
 
 	// EVM keepers (QoreChain EVM)
 	FeeMarketKeeper   feemarketkeeper.Keeper
@@ -527,12 +528,16 @@ func NewQoreChainApp(
 	// ==========================================================================
 	wasmStoreKey := storetypes.NewKVStoreKey(wasmtypes.StoreKey)
 	app.MountStores(wasmStoreKey)
+	app.wasmStoreKey = wasmStoreKey
 
 	// The node's [wasm] app.toml settings and --home (wasm_node_config.go).
 	// Node-local: the VM directory, cache size, smart query and simulation
 	// gas limits change no consensus result.
 	wasmDir := wasmDataDir(appOpts)
 	wasmNodeConfig := readWasmNodeConfig(appOpts)
+	// Node-local: queries of codes this node loaded lately (within its
+	// memory cache) load nothing.
+	app.wasmBlockBudget().setRecentLoadCapacity(uint64(wasmNodeConfig.MemoryCacheSize) << 20)
 
 	app.WasmKeeper = wasmkeeper.NewKeeper(
 		app.appCodec,
@@ -1115,6 +1120,12 @@ func NewQoreChainApp(
 		// make this node diverge at its first contract call.
 		if err := app.checkWasmCodePresent(ctx, wasmDir); err != nil {
 			panic("x/wasm: " + err.Error())
+		}
+		// Node-local: load the codes governance pinned into the VM's pinned
+		// cache, as the state says (the load price exempts pinned codes, so
+		// they must really be in memory after a restart).
+		if err := app.WasmKeeper.InitializePinnedCodes(ctx); err != nil {
+			panic("x/wasm: initialize pinned codes: " + err.Error())
 		}
 		// Queries and simulations before the first block use the price of
 		// the latest state.

@@ -188,7 +188,11 @@ const (
 	// storage price is charged on the uncompressed size, and the block wasm
 	// budget's upload units only when compiling is about to run, from a pool
 	// of their own that does not count towards congestion. Code already
-	// stored is never refused for its custom sections.
+	// stored is never refused for its custom sections. The upload pool is
+	// checked before the storage price is charged, so an upload that does
+	// not fit in the block is refused at the cost of its inspection, and
+	// the first upload of a block may take up to
+	// wasmfilter.MaxUploadUnits even past the pool.
 	FeatureWasmUploadBounds = "wasm-upload-bounds"
 
 	// FeatureCrossVMAsyncEscrow holds an async call's prepaid execution in
@@ -203,6 +207,60 @@ const (
 	// all of it back (its queue-slot fee is the processing fee, paid as gas at
 	// submission).
 	FeatureCrossVMAsyncEscrow = "crossvm-async-escrow"
+
+	// FeatureWasmCodeLoadPriced prices loading code: every call to a code
+	// that is not pinned takes wasmfilter.LoadUnits (from its conservative
+	// compiled size) from the block wasm budget and the matching SDK gas at
+	// the price in force, before the call; pinned codes are exempt. In block
+	// execution a code's first call in the block pays the whole load, its
+	// next eight calls nothing and every later call in the
+	// block an eighth of it (the code may have been evicted from a node's
+	// memory cache in between by queries or simulations).
+	FeatureWasmCodeLoadPriced = "wasm-code-load-priced"
+
+	// FeatureWasmUploadCompiledSize refuses uploads of more than 4,096
+	// functions (code already stored is never refused for it) or whose
+	// conservative compiled size (wasmfilter.ConservativeCompiledSize: per
+	// operator class, per operator run deep in the value stack, per
+	// function and signature) is over 32 MiB, and charges an upload 1 gas
+	// per 2 bytes of that size, which every node keeps on disk. An upload
+	// takes the larger of its bytes and a 32nd of that size from the
+	// block's upload pool, so every upload within the caps (at most
+	// 1,048,576 units) fits the default pool of an empty block.
+	FeatureWasmUploadCompiledSize = "wasm-upload-compiled-size"
+
+	// FeatureWasmModuleShapeBounds bounds what the VM sets up again on every
+	// call. Every call instantiates the module afresh, and the work grows
+	// with its exports, globals, element segments (and the function
+	// indices they list) and data segments, which wasmd prices flat; a
+	// module with a hundred thousand of them made one call cost hundreds of
+	// times the CPU of an ordinary one for the same gas; loading and
+	// compiling grow with the declared function types. From this switch an
+	// upload with more than 512 function types, 128 exports, 256 globals,
+	// 16 element segments, 2,500 element entries, 1,024 data segments or an
+	// initial memory of more than 64 pages (4 MiB) is refused (the largest
+	// release or test contract has 35, 24, 3, 1, 260, 149 and 20 pages), and
+	// so is every call of stored code over them, as for code the filter
+	// refuses.
+	FeatureWasmModuleShapeBounds = "wasm-module-shape-bounds"
+
+	// FeatureWasmCallSetupPriced prices what the VM does to set up every
+	// call: a fresh linear memory, the data segments copied into it, and the
+	// operating system's work for every 4 KiB page the call touches for the
+	// first time (1.26 us on Intel c6i, 1.93 us on AMD m6a), none of which
+	// the VM meters. From this switch every call, pinned codes and repeated
+	// calls included, pays before it runs wasmfilter.CallSetupUnits (350,
+	// plus 150 per 64 KiB page of initial memory, plus 9 per data segment)
+	// and after it runs wasmfilter.CallGrowthUnits (150 per page it grew its
+	// memory by, as the patched VM reports), from the block wasm budget like
+	// its execution and as much gas at the price in force. The growth's units
+	// are taken before its gas (an out-of-gas cannot skip them) and before
+	// the call's own VM gas is settled; growth that does not fit takes what
+	// is left of the pool (or the transaction's share), then the gas, and
+	// aborts the transaction, or fails the call outside one. Every call shape
+	// stays within the budget's design bound of 265 ns per unit on AMD. An
+	// ordinary cw20 transfer takes about 3,250 units and gas more than before.
+	FeatureWasmCallSetupPriced = "wasm-call-setup-priced"
 )
 
 // V328WasmAuthzFeatures are the v3.2.8 switches for the CosmWasm lane
@@ -227,4 +285,8 @@ var V328WasmAuthzFeatures = []string{
 	FeatureCrossVMAsyncGasPriced,
 	FeatureWasmUploadBounds,
 	FeatureCrossVMAsyncEscrow,
+	FeatureWasmCodeLoadPriced,
+	FeatureWasmUploadCompiledSize,
+	FeatureWasmModuleShapeBounds,
+	FeatureWasmCallSetupPriced,
 }
