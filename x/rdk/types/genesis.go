@@ -51,9 +51,10 @@ const (
 	DefaultMaxPostedDataBytesPerBlock uint64 = 512 << 10
 	// DefaultPostedDataFeePerByte is 10 uqor per billable byte (10 QOR per MiB).
 	DefaultPostedDataFeePerByte uint64 = 10
-	// DefaultPostedDataRetentionBlocks is about 7.5 days at 3.2 s blocks,
-	// longer than the default 7-day challenge window.
-	DefaultPostedDataRetentionBlocks uint64 = 201600
+	// DefaultPostedDataRetentionBlocks is 7.5 days at 1 s blocks (about 24
+	// days at 3.2 s), longer than the default 7-day challenge window on
+	// every network (PostedDataRetentionFor).
+	DefaultPostedDataRetentionBlocks uint64 = 648000
 
 	// MaxPostedDataHardLimit is the ceiling of max_posted_data_bytes and the
 	// stateless limit MsgPostRollupData.ValidateBasic applies.
@@ -106,6 +107,28 @@ func (p Params) PostedDataRetention() uint64 {
 		return DefaultPostedDataRetentionBlocks
 	}
 	return p.PostedDataRetentionBlocks
+}
+
+// PostedDataRetentionFor is the shortest posted-data retention, in blocks,
+// that covers a challenge window of windowSec seconds. A block is counted as
+// at least one second, the shortest block time any QoreChain network runs
+// (the testnet's), so the commitments of a batch's range are still in state
+// for as long as the batch can be challenged.
+func PostedDataRetentionFor(windowSec uint64) uint64 {
+	return windowSec
+}
+
+// CheckPostedDataRetention refuses a parameter set whose posted-data
+// retention is shorter than a challenge window of windowSec seconds
+// (PostedDataRetentionFor). From v3.2.8 MsgUpdateParams checks it against
+// the longest window in force: default_challenge_window and the window of
+// every rollup that is not stopped.
+func (p Params) CheckPostedDataRetention(windowSec uint64) error {
+	if need := PostedDataRetentionFor(windowSec); p.PostedDataRetention() < need {
+		return ErrInvalidParams.Wrapf("posted_data_retention_blocks %d is shorter than the challenge window (%d s): it must be at least %d",
+			p.PostedDataRetention(), windowSec, need)
+	}
+	return nil
 }
 
 // HasPostedDataParams reports whether any posted-data parameter is set.

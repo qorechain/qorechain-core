@@ -55,8 +55,17 @@ prover chooses must already be below r, or the batch is refused.
 | `withdrawals_root` | the chain (the SHAKE-256 withdrawal tree root that `MsgExecuteWithdrawal` recomputes from the leaves) | no |
 
 So an RDK client computes `withdrawals_root mod r` (and `data_hash mod r`
-for a bound data hash) for its circuit witness and submits the unreduced
-32-byte root; it keeps its own state roots below r. STARK batches check
+for a bound data hash) for its circuit witness and may submit the unreduced
+32-byte root; it keeps its own state roots below r.
+
+The proof commits to the withdrawals root only modulo r, so that is what the
+chain keeps: a Groth16 batch that binds its withdrawals stores
+`withdrawals_root mod r` as 32 big-endian bytes (the `batch` query shows that
+value), and `MsgExecuteWithdrawal` accepts a withdrawal whose Merkle proof
+rebuilds a root equal to the stored one modulo r. The root, root + r and
+root - r therefore settle as the same batch. Withdrawal proofs are built from
+the tree as usual (leaves, siblings, the unreduced root); nothing changes for
+optimistic, qledger-v1 or STARK batches, which keep the exact bytes. STARK batches check
 `prev_state_root` (first batch) and `state_root` against the Goldilocks
 modulus the same way.
 
@@ -169,7 +178,11 @@ rollup may reference a retained post by `data_hash = SHA-256(data)`.
   post is billed at least 1 KiB, paid into the fee collector and split like a
   transaction fee. Gas is charged on top.
 - Retention: commitments are pruned after `posted_data_retention_blocks`
-  (default 201,600). The bytes stay in the block history.
+  (default 648,000). The bytes stay in the block history. The retention must
+  be at least the longest challenge window in force, counted one block per
+  second (`default_challenge_window` and the window of every rollup that is
+  not stopped); a parameter update that leaves it shorter is refused, and the
+  v3.2.8 upgrade raises a shorter stored value.
 
 Based sequencing (`create-rollup --sequencing based`, or governance
 `MsgSetRollupSequencing` for an existing rollup) orders a rollup's
@@ -204,7 +217,11 @@ qledger-v1 model (`x/rdk/qledger`): a uqor account ledger (sparse Merkle tree, S
 and withdrawals (ML-DSA-44 account keys only). Its inputs are its inbox: user posts (one transaction each,
 at most 6 KiB) and deposits (`MsgDepositToRollup`, which the chain appends itself). Any account holding a
 submitter bond (`MsgBondRollupSubmitter`, at least `min_submitter_bond`, default 1,000 QOR) may submit a batch of
-at most 64 inbox entries. During the challenge window anyone may send `MsgChallengeBatch` with a qledger-v1 fraud
+at most 64 inbox entries. A batch of fewer than 64 entries ends at the inbox head or before a post younger than
+20 blocks, or, once the commitments of older unconsumed posts are pruned, at a checkpoint (an inbox sequence that is
+a multiple of 64): the commitment of every checkpoint not yet covered by a finalized batch is kept for as long as
+the rollup is not stopped, so after any idle period the rollup resumes with one batch to the next checkpoint and
+full batches from checkpoint to checkpoint. During the challenge window anyone may send `MsgChallengeBatch` with a qledger-v1 fraud
 proof (the batch's inputs and a Merkle witness of the accounts they touch); the chain re-executes the batch and,
 if its state root or withdrawals root is wrong, rejects it and every batch built on it, rolls the inbox back and
 pays the submitter's whole bond to the challenger. A proof that does not show fraud fails and changes nothing.
@@ -315,7 +332,7 @@ The EndBlocker runs settlement logic each block:
 | `max_posted_data_bytes` | 0 (= 131,072) | Largest `MsgPostRollupData` payload (from v3.2.8) |
 | `max_posted_data_bytes_per_block` | 0 (= 524,288) | Billable bytes all posts of one block may total (from v3.2.8) |
 | `posted_data_fee_per_byte` | 0 (= 10 uqor) | Fee per billable byte, at least 1 KiB billed per post (from v3.2.8) |
-| `posted_data_retention_blocks` | 0 (= 201,600) | Blocks a posted-data commitment stays in state (from v3.2.8) |
+| `posted_data_retention_blocks` | 0 (= 648,000) | Blocks a posted-data commitment stays in state (from v3.2.8); at least the longest challenge window in seconds |
 | `min_submitter_bond` | 0 (= 1,000,000,000 uqor) | Bond a qledger-v1 batch submitter must hold (from v3.2.8) |
 
 ## CLI Commands

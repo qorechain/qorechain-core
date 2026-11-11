@@ -17,7 +17,8 @@ import (
 // Step order: the release features are enabled first, because later steps
 // check them (the SVM zero-lamport report and the custody liability start).
 // Then the params writes: the SVM lane params, the crossvm bridge target pins,
-// and the removal of consent grants inside authz. The queued cross-VM calls
+// the removal of consent grants inside authz and the rdk posted-data
+// retention. The queued cross-VM calls
 // into the EVM are then marked as sent on the account's behalf; no step of
 // this handler migrates the queue, and the marking only sets that flag on
 // records as they stand (their prepaid gas and escrow fields are untouched),
@@ -41,6 +42,9 @@ func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan,
 	if err := app.upgradeV3_2_8RemoveConsentGrants(sdkCtx); err != nil {
 		return fromVM, err
 	}
+	if err := app.upgradeV3_2_8PostedDataRetention(sdkCtx); err != nil {
+		return fromVM, err
+	}
 	app.upgradeV3_2_8CrossVMQueueOnBehalf(sdkCtx)
 	if err := app.upgradeV3_2_8SVMBytecodeOwners(sdkCtx); err != nil {
 		return fromVM, err
@@ -48,6 +52,32 @@ func (app *QoreChainApp) upgradeV3_2_8(ctx context.Context, _ upgradetypes.Plan,
 	app.upgradeV3_2_8SVMZeroLamportReport(sdkCtx)
 	app.upgradeV3_2_8SVMCustodyLiability(sdkCtx)
 	return mergeMissingModuleVersions(fromVM, app.ModuleManager.GetVersionMap()), nil
+}
+
+// rdkRetentionClamper is implemented by the full RDK keeper.
+type rdkRetentionClamper interface {
+	ClampPostedDataRetentionV328(ctx sdk.Context) (uint64, uint64, error)
+}
+
+// upgradeV3_2_8PostedDataRetention raises the rdk posted-data retention to
+// the longest challenge window in force when it is shorter, so from the plan
+// height a batch's range commitments outlive its challenge window
+// (MsgUpdateParams keeps it so). The default retention covers the default
+// window, so a chain on default parameters writes nothing. The stub keeper of
+// a build without the RDK has no retention.
+func (app *QoreChainApp) upgradeV3_2_8PostedDataRetention(ctx sdk.Context) error {
+	c, ok := app.RDKKeeper.(rdkRetentionClamper)
+	if !ok {
+		return nil
+	}
+	from, to, err := c.ClampPostedDataRetentionV328(ctx)
+	if err != nil {
+		return err
+	}
+	if to != from {
+		app.Logger().Info("v3.2.8: rdk posted-data retention raised to the challenge window", "from", from, "to", to)
+	}
+	return nil
 }
 
 // svmBytecodeMigrator is implemented by the full SVM keeper.

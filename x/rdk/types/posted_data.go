@@ -26,7 +26,9 @@ type PostedDataRecord struct {
 	ExpiresAt int64 `json:"expires_at"`
 	// Holds counts the retention periods a qledger-v1 rollup kept the
 	// commitment past its expiry because no finalized batch covered it yet;
-	// at MaxQLedgerPostHolds it is pruned like any other.
+	// at MaxQLedgerPostHolds it is pruned like any other, except a
+	// checkpoint (a sequence that is a multiple of 64), which stays until a
+	// finalized batch covers it or the rollup is stopped.
 	Holds uint32 `json:"holds,omitempty"`
 }
 
