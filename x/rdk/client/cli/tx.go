@@ -250,7 +250,7 @@ func cmdSubmitBatch() *cobra.Command {
 	cmd.Flags().String("data-hash", "", "hex hash of the batch data posted as a DA blob")
 	cmd.Flags().String("withdrawals-root", "", "hex Merkle root of the batch's L2->L1 withdrawals")
 	cmd.Flags().Uint64("tx-count", 0, "number of rollup transactions in the batch")
-	cmd.Flags().Uint64("inbox-end", 0, "based rollups (chain v3.2.8+): the last inbox sequence this batch consumes; --data-hash must then be the inbox range hash ('query rdk inbox')")
+	cmd.Flags().Uint64("inbox-end", 0, "based rollups (chain v3.2.8+): the last inbox sequence this batch consumes; --data-hash must then be the inbox range hash ('query rdk inbox'). A qledger-v1 batch consumes at least one entry and, up to 64, every post older than 20 blocks")
 	cmd.Flags().String("anchor-signature", "", "hex Dilithium signature by the rollup creator over the v2 anchor sign bytes (see 'query rdk anchor-sign-bytes'); the batch is then anchored in x/multilayer")
 	cmd.Flags().String("validator-set-hash", "", "hex validator-set commitment carried in the anchor (covered by the anchor signature)")
 	flags.AddTxFlagsToCmd(cmd)

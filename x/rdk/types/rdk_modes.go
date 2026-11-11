@@ -103,6 +103,10 @@ type SubmitterBond struct {
 	// LastSubmitTime is the block time (unix seconds) of the submitter's
 	// last batch; the bond is locked for a challenge window after it.
 	LastSubmitTime int64 `json:"last_submit_time,omitempty"`
+	// Pending is how many of the submitter's batches on the rollup are
+	// submitted and neither final nor rejected; SubmitBatch refuses a new
+	// one at MaxPendingBatchesPerSubmitter.
+	Pending uint64 `json:"pending,omitempty"`
 }
 
 // IsQLedger reports whether the rollup runs the qledger-v1 execution VM.
