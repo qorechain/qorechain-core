@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/hex"
 	"fmt"
 	"io"
@@ -18,10 +19,15 @@ import (
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
+	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	txtypes "github.com/cosmos/cosmos-sdk/types/tx"
 	signing "github.com/cosmos/cosmos-sdk/types/tx/signing"
+	authsigning "github.com/cosmos/cosmos-sdk/x/auth/signing"
+	authtxconfig "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
 
+	txsigning "cosmossdk.io/x/tx/signing"
+	"cosmossdk.io/x/tx/signing/textual"
 	upgradetypes "cosmossdk.io/x/upgrade/types"
 
 	qpqc "github.com/qorechain/qorechain-pqc/go"
@@ -33,7 +39,8 @@ import (
 // (gen-key, cosign). These require the FFI library and so are only present in
 // the full (validator) build; the community build provides stubs.
 func pqcSignerCommands() []*cobra.Command {
-	return []*cobra.Command{getCmdGenPQCKey(), getCmdCosign(), getCmdRecoverPQCKey(), getCmdRotatePQCKey()}
+	return append([]*cobra.Command{getCmdGenPQCKey(), getCmdCosign(), getCmdRecoverPQCKey(), getCmdRotatePQCKey()},
+		multisigCommands()...)
 }
 
 // deriveDilithiumSeed returns the FIPS-204 seed for a derivation name. "adapter"
@@ -250,7 +257,12 @@ The standard tx flags are honoured: --generate-only prints the signed tx as
 JSON instead of broadcasting it (submit it later with ` + "`tx broadcast`" + `);
 --offline does the same without contacting a node and needs --account-number,
 --sequence and --sign-bytes v1|v2; --dry-run simulates it and prints the gas
-estimate.`,
+estimate.
+
+The classical signature is DIRECT by default. --sign-mode textual signs the
+SIGN_MODE_TEXTUAL screens instead, which is what a Ledger signs (a Ledger
+key gets textual without the flag). amino-json and direct-aux are refused:
+neither can cover the PQC extension.`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			clientCtx, err := client.GetClientTxContext(cmd)
@@ -365,12 +377,18 @@ func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []
 	if err != nil {
 		return err
 	}
+	signMode, err := resolveClassicalSignMode(cmd, clientCtx, fromRec)
+	if err != nil {
+		return err
+	}
 	accNum, seq, err := signerAccountNumberSequence(cmd, clientCtx, fromAddr)
 	if err != nil {
 		return err
 	}
 
-	// AuthInfo: single DIRECT signer (from account's secp256k1 key) + fee.
+	// AuthInfo: single signer (from account's secp256k1 key) in the chosen
+	// classical sign mode + fee. The mode is part of the auth info, so the
+	// PQC signature below covers it.
 	pubAny, err := codectypes.NewAnyWithValue(fromPub)
 	if err != nil {
 		return err
@@ -379,7 +397,7 @@ func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []
 		SignerInfos: []*txtypes.SignerInfo{{
 			PublicKey: pubAny,
 			ModeInfo: &txtypes.ModeInfo{Sum: &txtypes.ModeInfo_Single_{
-				Single: &txtypes.ModeInfo_Single{Mode: signing.SignMode_SIGN_MODE_DIRECT},
+				Single: &txtypes.ModeInfo_Single{Mode: signMode},
 			}},
 			Sequence: seq,
 		}},
@@ -426,18 +444,31 @@ func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []
 		return err
 	}
 
-	// Classical secp256k1 signature over SignDoc{bodyWithExt, authInfo}.
-	signDoc := &txtypes.SignDoc{
-		BodyBytes:     bodyWithExtBytes,
-		AuthInfoBytes: authInfoBytes,
-		ChainId:       clientCtx.ChainID,
-		AccountNumber: accNum,
+	// Classical secp256k1 signature over the FINAL body, the PQC extension
+	// included: SignDoc{bodyWithExt, authInfo} for DIRECT, or the textual
+	// rendering of the same bytes for TEXTUAL. Either way it is made after the
+	// extension is attached; signing first and attaching after changes the
+	// bytes the classical signature covers and the chain refuses it.
+	var classicalSignBytes []byte
+	switch signMode {
+	case signing.SignMode_SIGN_MODE_TEXTUAL:
+		classicalSignBytes, err = textualSignBytes(cmd, clientCtx, bodyWithExtBytes, authInfoBytes, fromAddr, fromPub, accNum, seq)
+		if err != nil {
+			return err
+		}
+	default:
+		signDoc := &txtypes.SignDoc{
+			BodyBytes:     bodyWithExtBytes,
+			AuthInfoBytes: authInfoBytes,
+			ChainId:       clientCtx.ChainID,
+			AccountNumber: accNum,
+		}
+		classicalSignBytes, err = signDoc.Marshal()
+		if err != nil {
+			return err
+		}
 	}
-	signDocBytes, err := signDoc.Marshal()
-	if err != nil {
-		return err
-	}
-	classicalSig, _, err := clientCtx.Keyring.Sign(fromRec.Name, signDocBytes, signing.SignMode_SIGN_MODE_DIRECT)
+	classicalSig, _, err := clientCtx.Keyring.Sign(fromRec.Name, classicalSignBytes, signMode)
 	if err != nil {
 		return fmt.Errorf("classical sign: %w", err)
 	}
@@ -452,6 +483,78 @@ func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []
 		return err
 	}
 	return deliverSignedTx(cmd, clientCtx, txBytes)
+}
+
+// resolveClassicalSignMode picks the sign mode of the classical signature.
+// DIRECT stays the default. TEXTUAL is what a hardware wallet signs (the
+// Ledger Cosmos app has no DIRECT), so it is also chosen for a Ledger key
+// when --sign-mode is not given; the SDK would otherwise pick amino-json for
+// it. Amino JSON and DIRECT_AUX are refused: neither can commit to the PQC
+// extension (the SDK refuses to build an amino JSON sign doc for a body with
+// extension options).
+func resolveClassicalSignMode(cmd *cobra.Command, clientCtx client.Context, rec *keyring.Record) (signing.SignMode, error) {
+	mode := clientCtx.SignModeStr
+	if !cmd.Flags().Changed(flags.FlagSignMode) {
+		mode = ""
+		if rec.GetType() == keyring.TypeLedger {
+			mode = flags.SignModeTextual
+		}
+	}
+	switch mode {
+	case "", flags.SignModeDirect:
+		return signing.SignMode_SIGN_MODE_DIRECT, nil
+	case flags.SignModeTextual:
+		// The screens show amounts in the chain's display denom, read from
+		// the node; rendered without it they differ from what the chain
+		// recomputes and the signature would not verify.
+		if clientCtx.Offline {
+			return 0, fmt.Errorf("--%s textual needs the node for the denom metadata the screens are rendered with, which --%s forbids; use --%s with --%s and --%s instead",
+				flags.FlagSignMode, flags.FlagOffline, flags.FlagGenerateOnly, flags.FlagAccountNumber, flags.FlagSequence)
+		}
+		return signing.SignMode_SIGN_MODE_TEXTUAL, nil
+	default:
+		return 0, fmt.Errorf("--%s %s cannot sign a transaction that carries the PQC hybrid extension; use direct, or textual for a hardware wallet", flags.FlagSignMode, mode)
+	}
+}
+
+// textualCoinMetadata returns the denom metadata source for textual
+// rendering. It is bound to the command's own client context, so --node is
+// honoured (the client TxConfig built in root.go queries the node that was
+// configured before the flags were read). A test replaces it.
+var textualCoinMetadata = func(clientCtx client.Context) textual.CoinMetadataQueryFn {
+	return authtxconfig.NewGRPCCoinMetadataQueryFn(clientCtx)
+}
+
+// textualSignBytes returns the SIGN_MODE_TEXTUAL sign bytes (the ADR-050
+// screens a hardware wallet shows and signs) of the final transaction, as the
+// chain's signature check recomputes them. Coin amounts are rendered with the
+// chain's denom metadata, read from the node.
+func textualSignBytes(cmd *cobra.Command, clientCtx client.Context, body, authInfo []byte, from sdk.AccAddress, pub cryptotypes.PubKey, accNum, seq uint64) ([]byte, error) {
+	unsigned, err := (&txtypes.TxRaw{BodyBytes: body, AuthInfoBytes: authInfo, Signatures: [][]byte{{}}}).Marshal()
+	if err != nil {
+		return nil, err
+	}
+	tx, err := clientCtx.TxConfig.TxDecoder()(unsigned)
+	if err != nil {
+		return nil, fmt.Errorf("decode tx for textual signing: %w", err)
+	}
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	h, err := textual.NewSignModeHandler(textual.SignModeOptions{
+		CoinMetadataQuerier: textualCoinMetadata(clientCtx),
+		FileResolver:        clientCtx.InterfaceRegistry,
+	})
+	if err != nil {
+		return nil, err
+	}
+	bz, err := authsigning.GetSignBytesAdapter(ctx, txsigning.NewHandlerMap(h), signing.SignMode_SIGN_MODE_TEXTUAL,
+		authsigning.SignerData{Address: from.String(), ChainID: clientCtx.ChainID, AccountNumber: accNum, Sequence: seq, PubKey: pub}, tx)
+	if err != nil {
+		return nil, fmt.Errorf("textual sign bytes: %w", err)
+	}
+	return bz, nil
 }
 
 // signerAccountNumberSequence returns the signer's account number and

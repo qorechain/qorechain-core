@@ -200,12 +200,27 @@ var ReleaseV3_2_5ProtocolFeatures = concatFeatures(
 // its plan height.
 var ReleaseV3_2_6ProtocolFeatures = concatFeatures(V326Features)
 
+// ReleaseV3_2_7ProtocolFeatures is what the v3.2.7 release handler enables at
+// its plan height. Each item of the release keeps its list in its own file.
+var ReleaseV3_2_7ProtocolFeatures = concatFeatures(
+	V327EVMWindowFeatures,
+	V327APRFeatures,
+	V327TextualFeatures,
+	V327ZKVKFeatures,
+	V327MultisigFeatures,
+	V327SVMClusterFeatures,
+	V327SVMAddrFeatures,
+	V327EVMSecFeatures,
+	V327CrossVMFeatures,
+	V327PQCGasFeatures,
+)
+
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain
 // enables all of them at genesis, and the release upgrade handler enables
 // them at the plan height. A feature that is not yet released is listed in
 // StagedProtocolFeatures instead: the code is in the binary, the switch stays
 // off on every chain, and a later release's handler turns it on.
-var AllProtocolFeatures = concatFeatures(ReleaseV3_2_0ProtocolFeatures, ReleaseV3_2_2ProtocolFeatures, ReleaseV3_2_3ProtocolFeatures, ReleaseV3_2_4ProtocolFeatures, ReleaseV3_2_5ProtocolFeatures, ReleaseV3_2_6ProtocolFeatures)
+var AllProtocolFeatures = concatFeatures(ReleaseV3_2_0ProtocolFeatures, ReleaseV3_2_2ProtocolFeatures, ReleaseV3_2_3ProtocolFeatures, ReleaseV3_2_4ProtocolFeatures, ReleaseV3_2_5ProtocolFeatures, ReleaseV3_2_6ProtocolFeatures, ReleaseV3_2_7ProtocolFeatures)
 
 // StagedProtocolFeatures are known to this binary and enabled by no path in
 // it. Moving one to AllProtocolFeatures is what releases it.

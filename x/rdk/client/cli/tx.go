@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/hex"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -31,7 +32,65 @@ func GetTxCmd() *cobra.Command {
 		cmdResumeRollup(),
 		cmdStopRollup(),
 		cmdExecuteWithdrawal(),
+		cmdSetVerificationKey(),
 	)
+	return cmd
+}
+
+// readVerificationKeyFile reads a verification key file: the binary key as
+// written (gnark VerifyingKey.WriteTo for a Groth16 key, the 16 QSTK bytes for
+// a STARK key), or the same bytes in hex.
+func readVerificationKeyFile(path string) ([]byte, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	if text := strings.TrimSpace(string(raw)); text != "" {
+		if b, err := hex.DecodeString(strings.TrimPrefix(text, "0x")); err == nil {
+			return b, nil
+		}
+	}
+	return raw, nil
+}
+
+func cmdSetVerificationKey() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "set-verification-key [rollup-id] [key-file]",
+		Short: "Register the ZK verification key of a zk rollup you created (chain v3.2.7+), before its first batch",
+		Long: `Register or replace the ZK verification key of a zk rollup. Only the rollup's
+creator can, and only until the rollup's first batch; after that only governance
+can change it (MsgUpdateVerificationKey).
+
+key-file holds the key in binary or hex: for proof system snark, a Groth16
+BLS12-381 verifying key written by gnark's VerifyingKey.WriteTo for a circuit
+with exactly four public inputs (prev_state_root, state_root, data_hash,
+withdrawals_root); for stark, the 16-byte QSTK key. The chain refuses a key that
+does not decode.`,
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+			vk, err := readVerificationKeyFile(args[1])
+			if err != nil {
+				return err
+			}
+			system, _ := cmd.Flags().GetString("proof-system")
+			msg := &types.MsgSetVerificationKey{
+				Creator:         clientCtx.GetFromAddress().String(),
+				RollupID:        args[0],
+				VerificationKey: vk,
+				ProofSystem:     system,
+			}
+			if err := msg.ValidateBasic(); err != nil {
+				return err
+			}
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+	cmd.Flags().String("proof-system", "", "snark or stark; empty keeps the rollup's proof system")
+	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }
 
@@ -116,10 +175,16 @@ func cmdCreateRollup() *cobra.Command {
 				VmType:      vm,
 				StakeAmount: stake,
 			}
+			if path, _ := cmd.Flags().GetString("verification-key-file"); path != "" {
+				if msg.VerificationKey, err = readVerificationKeyFile(path); err != nil {
+					return err
+				}
+			}
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
 		},
 	}
 	cmd.Flags().String("vm", "", "rollup VM type (evm|cosmwasm|svm|custom); empty = use the profile's default VM")
+	cmd.Flags().String("verification-key-file", "", "zk profiles only (chain v3.2.7+): register this ZK verification key at creation (see set-verification-key)")
 	flags.AddTxFlagsToCmd(cmd)
 	return cmd
 }

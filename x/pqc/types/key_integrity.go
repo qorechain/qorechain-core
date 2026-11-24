@@ -119,6 +119,9 @@ func PQCKeyManagementMsgTypeURLs() []string {
 		sdk.MsgTypeURL(&MsgMigratePQCKey{}),
 		sdk.MsgTypeURL(&MsgRegisterKEMKey{}),
 		sdk.MsgTypeURL(&MsgRemoveKEMKey{}),
+		// The multisig registry (v3.2.7): new, so listing it changes nothing
+		// below the v3.2.7 plan height either.
+		sdk.MsgTypeURL(&MsgRegisterPQCMultisig{}),
 	}
 }
 

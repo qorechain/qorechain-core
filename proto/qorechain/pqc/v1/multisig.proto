@@ -1,0 +1,112 @@
+syntax = "proto3";
+package qorechain.pqc.v1;
+
+option go_package = "github.com/qorechain/qorechain-core/x/pqc/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos_proto/cosmos.proto";
+import "gogoproto/gogo.proto";
+import "google/api/annotations.proto";
+
+// k-of-n hybrid post-quantum multisig (v3.2.7, protocol feature pqc-multisig).
+//
+// A classical multisig account (LegacyAminoPubKey) registers its post-quantum
+// member set: its own n classical members and threshold k, each member
+// represented by the single-signer ML-DSA-87 key registered to that member's
+// own account. From then on every transaction it
+// signs carries, next to its classical multisig signature, a
+// PQCMultisigSignature extension holding at least k member signatures over
+// the multisig sign-bytes (types.MultisigSignBytes). Design:
+// testnet/handoff-v327/multisig-design.md.
+
+// PQCMultisigSignature is a transaction extension option carried in
+// TxBody.extension_options under "/qorechain.pqc.v1.PQCMultisigSignature".
+message PQCMultisigSignature {
+  // algorithm_id is the members' signature algorithm; it must equal the
+  // registered set's (ML-DSA-87 / Dilithium-5 = 1).
+  uint32 algorithm_id = 1 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "AlgorithmID"];
+  // bitmap marks which registered members signed: bit i is byte i/8, bit
+  // i%8 (least significant first). It is exactly ceil(n/8) bytes long and no
+  // bit at or beyond n is set.
+  bytes bitmap = 2;
+  // signatures are the members' signatures in ascending member order, one per
+  // set bit of the bitmap.
+  repeated bytes signatures = 3;
+}
+
+// MultisigMsg is the transaction service of the PQC multisig registry.
+service MultisigMsg {
+  option (cosmos.msg.v1.service) = true;
+
+  // RegisterPQCMultisig registers the post-quantum member set of the sending
+  // multisig account, or replaces it. The first registration is the
+  // bootstrap and may be sent on the classical multisig signature alone; a
+  // replacement must carry k-of-n signatures of the CURRENT set.
+  rpc RegisterPQCMultisig(MsgRegisterPQCMultisig) returns (MsgRegisterPQCMultisigResponse);
+}
+
+// MsgRegisterPQCMultisig registers (or replaces) a multisig account's
+// post-quantum member set.
+message MsgRegisterPQCMultisig {
+  option (cosmos.msg.v1.signer) = "sender";
+
+  // sender is the multisig account itself.
+  string sender = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  uint32 algorithm_id = 2 [(gogoproto.casttype) = "AlgorithmID", (gogoproto.customname) = "AlgorithmID"];
+  // threshold is k, the number of member signatures a transaction needs.
+  uint32 threshold = 3;
+  // public_keys are the n member public keys, in the classical member order:
+  // public_keys[i] must be the single-signer PQC key currently registered to
+  // the account of the multisig's classical member i. No two equal. They are
+  // stated, not looked up, so the classical members sign exactly the keys
+  // they consent to.
+  repeated bytes public_keys = 4;
+  // proofs_of_possession has one entry per member, in the same order. An
+  // entry may be empty when that member's registered key was already proven
+  // (its record's possession_proven); otherwise it is a signature by the key
+  // over types.MultisigMemberPossessionSignBytes.
+  repeated bytes proofs_of_possession = 5;
+}
+
+message MsgRegisterPQCMultisigResponse {
+  // version counts the registrations of this account's set: 1 for the first,
+  // incremented by every replacement.
+  uint64 version = 1;
+}
+
+// MultisigQuery is the query service of the PQC multisig registry.
+service MultisigQuery {
+  // Multisig returns the registered post-quantum member set of an account.
+  rpc Multisig(QueryMultisigRequest) returns (QueryMultisigResponse) {
+    option (google.api.http).get = "/qorechain/pqc/v1/multisig/{address}";
+  }
+}
+
+message QueryMultisigRequest {
+  // address is the bech32 address of the multisig account.
+  string address = 1;
+}
+
+message QueryMultisigResponse {
+  // found reports whether the account has a registered member set.
+  bool found = 1;
+  PQCMultisigView multisig = 2;
+}
+
+// PQCMultisigView is the query-facing view of a registered member set.
+message PQCMultisigView {
+  string address = 1;
+  uint32 algorithm_id = 2;
+  string algorithm_name = 3;
+  uint32 threshold = 4;
+  // public_keys are the members' CURRENT single-signer PQC keys, in member
+  // order (the bitmap order). A member's signature is verified against its
+  // current key, so a member's own rotation takes effect at once; empty for a
+  // member that holds no usable key.
+  repeated bytes public_keys = 5;
+  int64 created_at_height = 6;
+  int64 updated_at_height = 7;
+  uint64 version = 8;
+  // members are the classical members' account addresses, in member order.
+  repeated string members = 9;
+}

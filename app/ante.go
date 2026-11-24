@@ -64,6 +64,9 @@ type HandlerOptions struct {
 	// StakingLockMempoolCheck refuses, in CheckTx only, an undelegation or
 	// redelegation of locked stake (StakingLockMempoolDecorator). Nil is off.
 	StakingLockMempoolCheck func(sdk.Context, sdk.Msg) error
+	// RDKMempoolCheck refuses, in CheckTx only, a zk rollup batch that
+	// execution refuses after the fee (RDKZKBatchMempoolDecorator). Nil is off.
+	RDKMempoolCheck func(sdk.Context, sdk.Msg) error
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
 	// exempts them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
@@ -157,6 +160,17 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 					// Cosmos SDK tx carrying a PQC hybrid signature — route to the
 					// Cosmos SDK path (the hybrid verify decorator runs there).
 					return cosmosHandler(ctx, tx, sim)
+				case pqctypes.MultisigSigTypeURL:
+					// The post-quantum multisig extension (v3.2.7) routes to
+					// the Cosmos SDK path from its switch; below it, it is
+					// refused exactly as any unsupported first option was.
+					if multisigExtensionEnabled(ctx, options.PQCKeeper) {
+						return cosmosHandler(ctx, tx, sim)
+					}
+					return ctx, errorsmod.Wrapf(
+						errortypes.ErrUnknownExtensionOptions,
+						"rejecting tx with unsupported extension option: %s", typeURL,
+					)
 				default:
 					return ctx, errorsmod.Wrapf(
 						errortypes.ErrUnknownExtensionOptions,
@@ -291,6 +305,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// which execution refuses with stakingtier code 13 after the fee is
 		// paid. CheckTx only, no consensus change.
 		NewStakingLockMempoolDecorator(options.StakingLockMempoolCheck),
+		// Mempool-only: from v3.2.7 refuse a zk rollup batch whose rollup has no
+		// usable verification key, which execution refuses with rdk code 21
+		// after the fee is paid. CheckTx only.
+		NewRDKZKBatchMempoolDecorator(options.RDKMempoolCheck),
 		// Runs here, near the front, because the decorator that expands a multisig
 		// signature into event bytes sits much further down (SetPubKey) and the
 		// expansion is exponential in nesting depth. A guard placed after it would
@@ -306,6 +324,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		wasmkeeper.NewTxContractsDecorator(),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
 		// Cheap validators — reject malformed txs before expensive PQC/AI work
+		// The checker admits the multisig extension; below FeaturePQCMultisig
+		// the gate in front of it refuses that extension with the error the
+		// checker gave it before (ante_pqc_multisig.go).
+		multisigExtensionGateDecorator{keeper: options.PQCKeeper},
 		ante.NewExtensionOptionsDecorator(options.ExtensionOptionChecker),
 		ante.NewValidateBasicDecorator(),
 		ante.NewTxTimeoutHeightDecorator(),

@@ -71,6 +71,7 @@ func NewRootCmd() *cobra.Command {
 		autoCliOpts        autocli.AppOptions
 		moduleBasicManager module.BasicManager
 		clientCtx          client.Context
+		txConfigOpts       tx.ConfigOptions
 	)
 
 	if err := depinject.Inject(
@@ -85,6 +86,7 @@ func NewRootCmd() *cobra.Command {
 		&autoCliOpts,
 		&moduleBasicManager,
 		&clientCtx,
+		&txConfigOpts,
 	); err != nil {
 		panic(err)
 	}
@@ -194,6 +196,11 @@ func NewRootCmd() *cobra.Command {
 				return err
 			}
 
+			clientCtx, err = withTextualMetadataFromNode(clientCtx, cmd, txConfigOpts)
+			if err != nil {
+				return err
+			}
+
 			if err := client.SetCmdClientContextHandler(clientCtx, cmd); err != nil {
 				return err
 			}
@@ -223,6 +230,39 @@ func NewRootCmd() *cobra.Command {
 	}
 
 	return rootCmd
+}
+
+// withTextualMetadataFromNode rebuilds the client TxConfig so that
+// SIGN_MODE_TEXTUAL reads the denom metadata its screens are rendered with
+// from the node this command talks to: --node, or the node in the client.toml
+// of the --home in use. The TxConfig made in ProvideClientContext is built
+// before any flag is read, so its metadata source is the node of the default
+// home's client config, and a textual signature rendered from that node (or
+// failing on it) does not match the chain the transaction is for.
+//
+// Only the metadata source changes: the options are the depinject ones the
+// first TxConfig was built from (sign modes, custom signers, resolvers), so
+// every other sign mode produces the same bytes. Offline commands keep the
+// first TxConfig, as before.
+func withTextualMetadataFromNode(clientCtx client.Context, cmd *cobra.Command, opts tx.ConfigOptions) (client.Context, error) {
+	if clientCtx.Offline || clientCtx.Codec == nil {
+		return clientCtx, nil
+	}
+	// The client config was read after the flags and put its own node in
+	// place of --node (the SDK applies --node again when the tx command
+	// reads its flags, after this point). Resolve the node the command will
+	// use, for the metadata queries only; the context handed on is unchanged
+	// apart from its TxConfig.
+	nodeCtx, err := client.ReadPersistentCommandFlags(clientCtx, cmd.Flags())
+	if err != nil {
+		return clientCtx, err
+	}
+	opts.TextualCoinMetadataQueryFn = authtxconfig.NewGRPCCoinMetadataQueryFn(nodeCtx)
+	txConfig, err := tx.NewTxConfigWithOptions(clientCtx.Codec, opts)
+	if err != nil {
+		return clientCtx, err
+	}
+	return clientCtx.WithTxConfig(txConfig), nil
 }
 
 // ProvideClientContext provides a client.Context for dependency injection.

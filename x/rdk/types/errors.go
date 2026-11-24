@@ -48,4 +48,16 @@ var (
 	// ErrSettlementPending is returned from v3.2.5 (FeatureRDKChallengeSettlement)
 	// for a stop while a batch of the rollup is still submitted or challenged.
 	ErrSettlementPending = errorsmod.Register(ModuleName, 36, "rollup has a batch that is not settled yet")
+	// ErrVerificationKeyNotEnabled is returned below v3.2.7
+	// (FeatureRDKZKVerificationKey) for MsgSetVerificationKey,
+	// MsgUpdateVerificationKey and a MsgCreateRollup that carries a key.
+	ErrVerificationKeyNotEnabled = errorsmod.Register(ModuleName, 37, "rdk verification key registration is not enabled at this height")
+	// ErrInvalidVerificationKey is returned from v3.2.7 for a verification key
+	// that does not decode for the rollup's proof system, so it can never
+	// verify a batch.
+	ErrInvalidVerificationKey = errorsmod.Register(ModuleName, 38, "invalid ZK verification key")
+	// ErrVerificationKeyLocked is returned from v3.2.7 when a rollup's creator
+	// tries to change its verification key after the first batch; from then on
+	// only governance can (MsgUpdateVerificationKey).
+	ErrVerificationKeyLocked = errorsmod.Register(ModuleName, 39, "verification key can only be changed by governance after the first batch")
 )

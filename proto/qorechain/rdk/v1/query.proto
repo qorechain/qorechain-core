@@ -78,6 +78,10 @@ message RollupView {
   uint64 challenge_window_sec = 14;
   int64 challenge_bond = 15;
   string proof_system = 16;
+  // has_verification_key is true when the rollup has a ZK verification key
+  // registered (from v3.2.7 a zk rollup can register one). A zk batch of a
+  // rollup without one is refused.
+  bool has_verification_key = 17;
 }
 
 // BatchView is the query-facing view of a settlement batch.

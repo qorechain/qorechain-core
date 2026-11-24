@@ -64,10 +64,12 @@ type SVMKeeper interface {
 	// and the tx must revert. No-op if no resolver is wired or nothing was spent.
 	ChargeAuthenticatorSpend(ctx sdk.Context, scheme string, pubkey []byte, lamportsSpent uint64) error
 
-	// SVMToCosmosAddr converts a 32-byte SVM address to a native address.
-	SVMToCosmosAddr(svmAddr [32]byte) sdk.AccAddress
+	// SVMToCosmosAddr returns the native account of a canonical SVM address
+	// (bytes 20..32 zero) and an error for any other one; it never truncates.
+	SVMToCosmosAddr(svmAddr [32]byte) (sdk.AccAddress, error)
 
-	// CosmosToSVMAddr looks up the SVM address mapped to a native address.
+	// CosmosToSVMAddr returns the canonical SVM address of a 20-byte native
+	// account and an error for any other length; it never truncates.
 	CosmosToSVMAddr(cosmosAddr sdk.AccAddress) ([32]byte, error)
 
 	// CollectRent collects rent from a non-exempt account.

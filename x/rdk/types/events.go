@@ -13,4 +13,7 @@ const (
 	EventDABlobStored     = "da_blob_stored"
 	EventDABlobPruned     = "da_blob_pruned"
 	EventProfileSuggested = "profile_suggested"
+	// EventVerificationKeySet is emitted from v3.2.7 (FeatureRDKZKVerificationKey)
+	// when a rollup's ZK verification key is set, at creation or later.
+	EventVerificationKeySet = "rdk_verification_key_set"
 )

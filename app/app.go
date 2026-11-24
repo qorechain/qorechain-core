@@ -1025,6 +1025,10 @@ func NewQoreChainApp(
 	}
 	app.setAnteHandler(app.txConfig, maxGasWanted, wasmNodeConfig, wasmStoreKey)
 
+	// SIGN_MODE_TEXTUAL sign documents for wallets without a renderer
+	// (textual_query.go). A node-local query.
+	pqctypes.RegisterTextualServer(app.GRPCQueryRouter(), newTextualQueryServer(app))
+
 	// Wire the experimental EVM mempool after the ante handler is set. This
 	// enables the EVM JSON-RPC transaction pool (and nonce-gap support). It is
 	// guarded by the EVM chain config, which x/vm's keeper installs at
@@ -1152,8 +1156,10 @@ func (app *QoreChainApp) setAnteHandler(
 				// dynamic-fee extension used to be allowed here too, but its
 				// type is not registered in this app, so no tx carrying it
 				// decodes (QSR-2026-0577); allowing it was dead code.
+				// The multisig extension (v3.2.7) is admitted here too; the
+				// ante refuses it below its switch (ante_pqc_multisig.go).
 				ExtensionOptionChecker: func(o *codectypes.Any) bool {
-					return o.GetTypeUrl() == pqctypes.HybridSigTypeURL
+					return o.GetTypeUrl() == pqctypes.HybridSigTypeURL || o.GetTypeUrl() == pqctypes.MultisigSigTypeURL
 				},
 				TxFeeChecker: evmante.NewDynamicFeeChecker(&fmDefaults),
 			},
@@ -1161,6 +1167,7 @@ func (app *QoreChainApp) setAnteHandler(
 			PQCKeeper:               app.PQCKeeper,
 			StakingKeeper:           app.StakingKeeper,
 			StakingLockMempoolCheck: app.stakingTierMempoolGate,
+			RDKMempoolCheck:         app.rdkMempoolGate,
 			PQCClient:               app.pqcClient,
 			AIKeeper:                app.AIKeeper,
 			SVMKeeper:               app.SVMKeeper,
@@ -1248,6 +1255,7 @@ func (app *QoreChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
 	apiSvr.Router.Use(dropBinaryTrailers)
 	registerIBCClientV2Gateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
+	registerTextualGateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {
 		panic(err)
 	}

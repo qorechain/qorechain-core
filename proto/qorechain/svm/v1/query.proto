@@ -3,6 +3,8 @@ package qorechain.svm.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/svm/types";
 
+import "google/api/annotations.proto";
+
 // Query defines the gRPC query service for the SVM module.
 service Query {
   // Slot returns the current SVM virtual slot.
@@ -11,6 +13,13 @@ service Query {
   rpc Account(QueryAccountRequest) returns (QueryAccountResponse);
   // Program returns program metadata for a base58 program address.
   rpc Program(QueryProgramRequest) returns (QueryProgramResponse);
+  // ClusterInfo returns the SVM cluster identity wallets use to recognise the
+  // network: the genesis hash getGenesisHash reports and the Wallet Standard
+  // (CAIP-2) chain string. It is derived from the chain id alone and reads no
+  // SVM account or program state.
+  rpc ClusterInfo(QueryClusterInfoRequest) returns (QueryClusterInfoResponse) {
+    option (google.api.http).get = "/qorechain/svm/v1/cluster_info";
+  }
 }
 
 message QuerySlotRequest {}
@@ -52,4 +61,21 @@ message ProgramInfo {
   uint64 deploy_slot = 3;
   uint64 last_deploy_slot = 4;
   string data_account = 5;
+}
+
+message QueryClusterInfoRequest {}
+message QueryClusterInfoResponse {
+  // chain_id is the network's chain id the identity is derived from.
+  string chain_id = 1;
+  // genesis_hash is base58 of SHA-256(domain || chain_id), 32 bytes, as the
+  // SVM JSON-RPC method getGenesisHash returns it.
+  string genesis_hash = 2;
+  // caip2_chain_id is "solana:" plus the first 32 characters of genesis_hash,
+  // the chain string Solana Wallet Standard wallets use.
+  string caip2_chain_id = 3;
+  // derivation describes how genesis_hash is computed.
+  string derivation = 4;
+  // execution_enabled reports whether SVM execution is enabled on this
+  // network. It is false while the SVM lane is disabled.
+  bool execution_enabled = 5;
 }

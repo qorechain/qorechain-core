@@ -28,6 +28,8 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		// Native KEM key registry (v3.2.5).
 		&MsgRegisterKEMKey{},
 		&MsgRemoveKEMKey{},
+		// Post-quantum multisig registry (v3.2.7).
+		&MsgRegisterPQCMultisig{},
 	)
 
 	// PQCHybridSignature is a TX extension option carried in
@@ -39,6 +41,9 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 	// proto-decodes it.
 	registry.RegisterImplementations((*txtypes.TxExtensionOptionI)(nil),
 		&PQCHybridSignature{},
+		// k-of-n member signatures of a multisig account (v3.2.7), under
+		// MultisigSigTypeURL. Accepted by the ante only from FeaturePQCMultisig.
+		&PQCMultisigSignature{},
 	)
 }
 
@@ -57,5 +62,7 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgClearEVMDelegation{}, "pqc/MsgClearEVMDelegation", nil)
 	cdc.RegisterConcrete(&MsgRegisterKEMKey{}, "pqc/MsgRegisterKEMKey", nil)
 	cdc.RegisterConcrete(&MsgRemoveKEMKey{}, "pqc/MsgRemoveKEMKey", nil)
+	cdc.RegisterConcrete(&MsgRegisterPQCMultisig{}, "pqc/MsgRegisterPQCMultisig", nil)
 	cdc.RegisterConcrete(&PQCHybridSignature{}, "pqc/PQCHybridSignature", nil)
+	cdc.RegisterConcrete(&PQCMultisigSignature{}, "pqc/PQCMultisigSignature", nil)
 }
