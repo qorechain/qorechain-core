@@ -312,14 +312,15 @@ const flagSignBytes = "sign-bytes"
 
 func addSignBytesFlag(cmd *cobra.Command) {
 	cmd.Flags().String(flagSignBytes, "auto",
-		"hybrid sign-bytes form: auto (ask the chain whether the "+types.SignBytesV2Upgrade+
+		"hybrid sign-bytes form: auto (ask the chain whether "+types.FeaturePQCSignBytesV2+
+			" is enabled; on a node without that query, whether the "+types.SignBytesV2Upgrade+
 			" upgrade has been applied, or the name it shipped under earlier), v1 or v2")
 }
 
 // resolveSignBytes picks the form to sign. One binary must sign for a network
 // that has upgraded (v2 only) and for one that has not (v1 only): the chain
-// accepts exactly one form at any height, never both. "auto" reads the applied
-// plan from the node the command talks to, so the answer follows that network.
+// accepts exactly one form at any height, never both. "auto" asks the node the
+// command talks to (autoSignBytes), so the answer follows that network.
 func resolveSignBytes(cmd *cobra.Command, clientCtx client.Context) (int, error) {
 	mode, _ := cmd.Flags().GetString(flagSignBytes)
 	switch mode {
@@ -334,19 +335,55 @@ func resolveSignBytes(cmd *cobra.Command, clientCtx client.Context) (int, error)
 	if clientCtx.Offline {
 		return 0, fmt.Errorf("--%s auto asks the node, which --offline forbids; pass --%s v1 or v2", flagSignBytes, flagSignBytes)
 	}
+	pq := types.NewQueryClient(clientCtx)
+	uq := upgradetypes.NewQueryClient(clientCtx)
+	return autoSignBytes(clientCtx.ChainID,
+		func() ([]*types.ProtocolFeatureStatus, error) {
+			res, err := pq.ProtocolFeatures(cmd.Context(), &types.QueryProtocolFeaturesRequest{})
+			if err != nil {
+				return nil, err
+			}
+			return res.Features, nil
+		},
+		func(name string) (int64, error) {
+			res, err := uq.AppliedPlan(cmd.Context(), &upgradetypes.QueryAppliedPlanRequest{Name: name})
+			if err != nil {
+				return 0, err
+			}
+			return res.Height, nil
+		})
+}
+
+// autoSignBytes is the "auto" choice. It reads the chain's protocol features
+// first: the chain verifies exactly the form that pqc-sign-bytes-v2 selects,
+// so v2 when that switch is listed and enabled, v1 when the read succeeds
+// without it. The applied-plan oracle answered v1 on a fresh chain (a devnet
+// or a fork) that reuses a public network's chain-id but enables every switch
+// at genesis, and so verifies v2 from block 1. Only when the features cannot
+// be read (an older node without the query) does it fall back to asking
+// whether the switch's upgrade plan was applied, under every name it shipped
+// under.
+func autoSignBytes(chainID string, features func() ([]*types.ProtocolFeatureStatus, error), appliedHeight func(name string) (int64, error)) (int, error) {
+	if fs, err := features(); err == nil {
+		for _, f := range fs {
+			if f != nil && f.Name == types.FeaturePQCSignBytesV2 && f.Enabled {
+				return 2, nil
+			}
+		}
+		return 1, nil
+	}
 	// Ask for every name the switch has shipped under: a network that took it
 	// under the earlier name keeps that record and no other.
 	applied := make(map[string]int64, len(types.SignBytesV2Upgrades))
-	q := upgradetypes.NewQueryClient(clientCtx)
 	for _, name := range types.SignBytesV2Upgrades {
-		res, err := q.AppliedPlan(cmd.Context(), &upgradetypes.QueryAppliedPlanRequest{Name: name})
+		h, err := appliedHeight(name)
 		if err != nil {
 			return 0, fmt.Errorf("cannot ask the node whether %s is applied (%w); pass --%s v1 or v2",
 				name, err, flagSignBytes)
 		}
-		applied[name] = res.Height
+		applied[name] = h
 	}
-	return types.SignBytesVersionForApplied(clientCtx.ChainID, applied), nil
+	return types.SignBytesVersionForApplied(chainID, applied), nil
 }
 
 func hybridCosignBroadcast(cmd *cobra.Command, clientCtx client.Context, msgs []*codectypes.Any, memo string, timeoutHeight uint64, fee *txtypes.Fee, pqcSk []byte) error {

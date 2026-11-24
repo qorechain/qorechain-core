@@ -47,6 +47,22 @@ type MsgCrossVMCall struct {
 	// ProcessQueue. The default is to execute now and return the answer, which is
 	// what a caller that needs the result requires.
 	Async bool `protobuf:"varint,7,opt,name=async,proto3" json:"async,omitempty"`
+	// async_gas_limit is, for an async call into CosmWasm, the contract
+	// execution it may use, in base gas units (what it would cost with no
+	// congestion). Zero means 500,000; a set value is 250,000 to
+	// 10,000,000, and at most what the queue can run in a block. The call
+	// prepays it times the wasm congestion factor at submission, and runs on
+	// exactly that much execution. Set from the crossvm-async-gas-priced switch; refused for
+	// synchronous calls and for other lanes.
+	AsyncGasLimit uint64 `protobuf:"varint,8,opt,name=async_gas_limit,json=asyncGasLimit,proto3" json:"async_gas_limit,omitempty"`
+	// async_max_factor is, for an async call into CosmWasm, the highest wasm
+	// congestion factor (in millionths, 1,000,000 = 1x) the sender is willing
+	// to pay: the call is held in escrow at async_gas_limit times this factor
+	// and runs while the factor in force is at or below it. Zero means four
+	// times the factor at submission; any value is capped at the chain's
+	// maximum factor, and a value below the factor in force is refused. What the call did not use is refunded when it finishes. Set from
+	// the crossvm-async-escrow switch.
+	AsyncMaxFactor uint64 `protobuf:"varint,9,opt,name=async_max_factor,json=asyncMaxFactor,proto3" json:"async_max_factor,omitempty"`
 }
 
 func (m *MsgCrossVMCall) Reset()         { *m = MsgCrossVMCall{} }
@@ -129,6 +145,20 @@ func (m *MsgCrossVMCall) GetAsync() bool {
 		return m.Async
 	}
 	return false
+}
+
+func (m *MsgCrossVMCall) GetAsyncGasLimit() uint64 {
+	if m != nil {
+		return m.AsyncGasLimit
+	}
+	return 0
+}
+
+func (m *MsgCrossVMCall) GetAsyncMaxFactor() uint64 {
+	if m != nil {
+		return m.AsyncMaxFactor
+	}
+	return 0
 }
 
 type MsgCrossVMCallResponse struct {
@@ -297,6 +327,70 @@ type MsgUpdateParams struct {
 	// call, each as "<vm>:<contract>", for example "cosmwasm:qor1...". Empty
 	// keeps the bridge shut.
 	BridgeAllowedTargets []string `protobuf:"bytes,6,rep,name=bridge_allowed_targets,json=bridgeAllowedTargets,proto3" json:"bridge_allowed_targets,omitempty"`
+	// bridge_target_pins binds allowlist entries to code: the bridge calls a
+	// pinned entry only while its contract runs the pinned code ID. An entry
+	// whose contract has an admin other than governance must be pinned. Set
+	// from the crossvm-bridge-code-pin switch; below it the update is refused
+	// when this is not empty.
+	BridgeTargetPins []BridgeTargetPin `protobuf:"bytes,7,rep,name=bridge_target_pins,json=bridgeTargetPins,proto3" json:"bridge_target_pins"`
+	// max_pending_per_sender bounds how many async calls one sender may have
+	// queued at a time. Zero means the default. Set from the
+	// crossvm-queue-sender-cap switch; below it the update is refused when this
+	// is not zero.
+	MaxPendingPerSender uint32 `protobuf:"varint,8,opt,name=max_pending_per_sender,json=maxPendingPerSender,proto3" json:"max_pending_per_sender,omitempty"`
+	// max_cosmos_tx_gas bounds the gas limit one Cosmos-lane transaction may
+	// declare. Zero means the default (50,000,000); a set value is at least
+	// 10,000,000 and at most 1,000,000,000. Set from the cosmos-tx-gas-cap
+	// switch; below it the update is
+	// refused when this is not zero.
+	MaxCosmosTxGas uint64 `protobuf:"varint,9,opt,name=max_cosmos_tx_gas,json=maxCosmosTxGas,proto3" json:"max_cosmos_tx_gas,omitempty"`
+	// record_retention_blocks is how many blocks the record of a finished
+	// queued call is kept before it is pruned. Zero means the default
+	// (100,000). Set from the crossvm-record-prune switch; below it the update
+	// is refused when this is not zero.
+	RecordRetentionBlocks uint64 `protobuf:"varint,10,opt,name=record_retention_blocks,json=recordRetentionBlocks,proto3" json:"record_retention_blocks,omitempty"`
+	// max_block_wasm_gas bounds the CosmWasm execution (VM gas, counted in SDK
+	// gas units) all transactions of one block may use together. Zero means
+	// the default (3,000,000); a set value is 1,000,000 to 50,000,000. Set from the
+	// wasm-block-gas-budget switch; below it the update is refused when this is
+	// not zero.
+	MaxBlockWasmGas uint64 `protobuf:"varint,11,opt,name=max_block_wasm_gas,json=maxBlockWasmGas,proto3" json:"max_block_wasm_gas,omitempty"`
+	// max_tx_wasm_share_bps is the share of the block wasm budget, in basis
+	// points, one transaction may use. Zero means the default (5,000, half);
+	// a set value is 1 to 10,000. Set from the wasm-block-gas-budget switch.
+	MaxTxWasmShareBps uint32 `protobuf:"varint,12,opt,name=max_tx_wasm_share_bps,json=maxTxWasmShareBps,proto3" json:"max_tx_wasm_share_bps,omitempty"`
+	// max_block_level_wasm_gas bounds the CosmWasm execution of one contract
+	// call made outside a transaction (a governance proposal executed at the
+	// end of the block). Zero means the default (10,000,000); a set value is
+	// 1,000,000 to 100,000,000. Set from the wasm-block-gas-budget switch.
+	MaxBlockLevelWasmGas uint64 `protobuf:"varint,13,opt,name=max_block_level_wasm_gas,json=maxBlockLevelWasmGas,proto3" json:"max_block_level_wasm_gas,omitempty"`
+	// queue_wasm_reserve_bps is the share of the block wasm budget, in basis
+	// points, reserved for the end-of-block async queue (transactions cannot
+	// use it). Zero means the default (2,500); a set value is 1 to 9,000. Set
+	// from the wasm-block-gas-budget switch.
+	QueueWasmReserveBps uint32 `protobuf:"varint,14,opt,name=queue_wasm_reserve_bps,json=queueWasmReserveBps,proto3" json:"queue_wasm_reserve_bps,omitempty"`
+	// wasm_congestion_max_factor bounds the CosmWasm congestion factor (how
+	// many times the base price one unit of contract execution costs). Zero
+	// means the default (20); a set value is 1 to 100. Set from the
+	// wasm-congestion-pricing switch.
+	WasmCongestionMaxFactor uint32 `protobuf:"varint,15,opt,name=wasm_congestion_max_factor,json=wasmCongestionMaxFactor,proto3" json:"wasm_congestion_max_factor,omitempty"`
+	// wasm_congestion_target_bps is the block wasm budget use, in basis
+	// points, above which the factor rises by 1/8 for the next block and below
+	// which it falls by 1/9. Zero means the default (5,000); a set value is 1 to
+	// 10,000. Set from the wasm-congestion-pricing switch.
+	WasmCongestionTargetBps uint32 `protobuf:"varint,16,opt,name=wasm_congestion_target_bps,json=wasmCongestionTargetBps,proto3" json:"wasm_congestion_target_bps,omitempty"`
+	// max_block_upload_bps is the code-upload pool of a block, in basis
+	// points of the transactions' wasm pool: compiling uploads draws from it,
+	// not from the execution pool, and does not count towards congestion. Zero
+	// means the default (5,000, enough for the largest release contract); a set
+	// value is 1 to 10,000. Set from the wasm-block-gas-budget switch.
+	MaxBlockUploadBps uint32 `protobuf:"varint,17,opt,name=max_block_upload_bps,json=maxBlockUploadBps,proto3" json:"max_block_upload_bps,omitempty"`
+	// max_queue_timeouts_per_block bounds how many queued calls one block
+	// times out, oldest first; the rest time out in the following blocks.
+	// Zero means the default (100); a set value is at most 1,000. Set from the
+	// crossvm-queue-height-index switch; below it the update is refused when
+	// this is not zero.
+	MaxQueueTimeoutsPerBlock uint32 `protobuf:"varint,18,opt,name=max_queue_timeouts_per_block,json=maxQueueTimeoutsPerBlock,proto3" json:"max_queue_timeouts_per_block,omitempty"`
 }
 
 func (m *MsgUpdateParams) Reset()         { *m = MsgUpdateParams{} }
@@ -374,6 +468,90 @@ func (m *MsgUpdateParams) GetBridgeAllowedTargets() []string {
 	return nil
 }
 
+func (m *MsgUpdateParams) GetBridgeTargetPins() []BridgeTargetPin {
+	if m != nil {
+		return m.BridgeTargetPins
+	}
+	return nil
+}
+
+func (m *MsgUpdateParams) GetMaxPendingPerSender() uint32 {
+	if m != nil {
+		return m.MaxPendingPerSender
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetMaxCosmosTxGas() uint64 {
+	if m != nil {
+		return m.MaxCosmosTxGas
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetRecordRetentionBlocks() uint64 {
+	if m != nil {
+		return m.RecordRetentionBlocks
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetMaxBlockWasmGas() uint64 {
+	if m != nil {
+		return m.MaxBlockWasmGas
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetMaxTxWasmShareBps() uint32 {
+	if m != nil {
+		return m.MaxTxWasmShareBps
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetMaxBlockLevelWasmGas() uint64 {
+	if m != nil {
+		return m.MaxBlockLevelWasmGas
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetQueueWasmReserveBps() uint32 {
+	if m != nil {
+		return m.QueueWasmReserveBps
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetWasmCongestionMaxFactor() uint32 {
+	if m != nil {
+		return m.WasmCongestionMaxFactor
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetWasmCongestionTargetBps() uint32 {
+	if m != nil {
+		return m.WasmCongestionTargetBps
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetMaxBlockUploadBps() uint32 {
+	if m != nil {
+		return m.MaxBlockUploadBps
+	}
+	return 0
+}
+
+func (m *MsgUpdateParams) GetMaxQueueTimeoutsPerBlock() uint32 {
+	if m != nil {
+		return m.MaxQueueTimeoutsPerBlock
+	}
+	return 0
+}
+
 type MsgUpdateParamsResponse struct {
 }
 
@@ -410,6 +588,74 @@ func (m *MsgUpdateParamsResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_MsgUpdateParamsResponse proto.InternalMessageInfo
 
+// BridgeTargetPin pins one bridge allowlist entry to a CosmWasm code ID.
+type BridgeTargetPin struct {
+	// target is the allowlist entry, "<vm>:<contract>", exactly as listed in
+	// bridge_allowed_targets.
+	Target string `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	// code_id is the code the contract must run for the bridge to call it.
+	CodeID uint64 `protobuf:"varint,2,opt,name=code_id,json=codeId,proto3" json:"code_id,omitempty"`
+	// history_len is the length of the contract's code history (wasmd
+	// ContractCodeHistory) the pin was taken at. Every migration appends to the
+	// history, so a contract migrated away and back to code_id (which lets
+	// other code rewrite its state) no longer matches the pin.
+	HistoryLen uint64 `protobuf:"varint,3,opt,name=history_len,json=historyLen,proto3" json:"history_len,omitempty"`
+}
+
+func (m *BridgeTargetPin) Reset()         { *m = BridgeTargetPin{} }
+func (m *BridgeTargetPin) String() string { return proto.CompactTextString(m) }
+func (*BridgeTargetPin) ProtoMessage()    {}
+func (*BridgeTargetPin) Descriptor() ([]byte, []int) {
+	return fileDescriptor_d8b58efff393ae7e, []int{6}
+}
+func (m *BridgeTargetPin) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *BridgeTargetPin) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_BridgeTargetPin.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *BridgeTargetPin) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_BridgeTargetPin.Merge(m, src)
+}
+func (m *BridgeTargetPin) XXX_Size() int {
+	return m.Size()
+}
+func (m *BridgeTargetPin) XXX_DiscardUnknown() {
+	xxx_messageInfo_BridgeTargetPin.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_BridgeTargetPin proto.InternalMessageInfo
+
+func (m *BridgeTargetPin) GetTarget() string {
+	if m != nil {
+		return m.Target
+	}
+	return ""
+}
+
+func (m *BridgeTargetPin) GetCodeID() uint64 {
+	if m != nil {
+		return m.CodeID
+	}
+	return 0
+}
+
+func (m *BridgeTargetPin) GetHistoryLen() uint64 {
+	if m != nil {
+		return m.HistoryLen
+	}
+	return 0
+}
+
 func init() {
 	proto.RegisterType((*MsgCrossVMCall)(nil), "qorechain.crossvm.v1.MsgCrossVMCall")
 	proto.RegisterType((*MsgCrossVMCallResponse)(nil), "qorechain.crossvm.v1.MsgCrossVMCallResponse")
@@ -417,61 +663,87 @@ func init() {
 	proto.RegisterType((*MsgProcessQueueResponse)(nil), "qorechain.crossvm.v1.MsgProcessQueueResponse")
 	proto.RegisterType((*MsgUpdateParams)(nil), "qorechain.crossvm.v1.MsgUpdateParams")
 	proto.RegisterType((*MsgUpdateParamsResponse)(nil), "qorechain.crossvm.v1.MsgUpdateParamsResponse")
+	proto.RegisterType((*BridgeTargetPin)(nil), "qorechain.crossvm.v1.BridgeTargetPin")
 }
 
 func init() { proto.RegisterFile("qorechain/crossvm/v1/tx.proto", fileDescriptor_d8b58efff393ae7e) }
 
 var fileDescriptor_d8b58efff393ae7e = []byte{
-	// 771 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x54, 0xbb, 0x8e, 0xdb, 0x46,
-	0x14, 0x5d, 0xee, 0x43, 0x2b, 0xcd, 0xca, 0x72, 0x30, 0x10, 0xd6, 0x94, 0x80, 0x48, 0x82, 0xe0,
-	0x20, 0x82, 0x61, 0x91, 0x2b, 0x6f, 0x90, 0xc2, 0x9d, 0xa5, 0x34, 0x2e, 0x08, 0x38, 0xb3, 0x6b,
-	0x01, 0x49, 0x43, 0x8c, 0x38, 0x13, 0x2e, 0x61, 0x91, 0x23, 0xf3, 0x0e, 0x15, 0xc9, 0x55, 0x90,
-	0x2f, 0x48, 0x7e, 0x23, 0x69, 0x5c, 0xa4, 0xcb, 0x0f, 0xb8, 0x34, 0x52, 0xa5, 0x52, 0x02, 0x6d,
-	0xe1, 0x2f, 0x48, 0x93, 0x2a, 0xe0, 0xcc, 0xe8, 0x15, 0x78, 0x93, 0x85, 0x2b, 0xf1, 0xde, 0x73,
-	0x0e, 0x2f, 0xe7, 0xe8, 0xcc, 0x45, 0x1f, 0xbf, 0x14, 0x29, 0x0f, 0xae, 0x68, 0x94, 0xb8, 0x41,
-	0x2a, 0x00, 0xa6, 0xb1, 0x3b, 0xed, 0xb9, 0x72, 0xe6, 0x4c, 0x52, 0x21, 0x05, 0xae, 0xae, 0x61,
-	0xc7, 0xc0, 0xce, 0xb4, 0x57, 0xbf, 0x17, 0x08, 0x88, 0x05, 0xb8, 0x31, 0x84, 0x39, 0x3b, 0x86,
-	0x50, 0xd3, 0xeb, 0x35, 0x0d, 0xf8, 0xaa, 0x72, 0x75, 0x61, 0xa0, 0x86, 0xd1, 0x8c, 0x28, 0x70,
-	0x77, 0xda, 0x1b, 0x71, 0x49, 0x7b, 0x6e, 0x20, 0xa2, 0xc4, 0xe0, 0xd5, 0x50, 0x84, 0x42, 0xeb,
-	0xf2, 0x27, 0xdd, 0x6d, 0xff, 0xb5, 0x8f, 0x2a, 0x1e, 0x84, 0x83, 0x7c, 0xf6, 0xd0, 0x1b, 0xd0,
-	0xf1, 0x18, 0x9f, 0xa1, 0x02, 0xf0, 0x84, 0xf1, 0xd4, 0xb6, 0x5a, 0x56, 0xa7, 0xd4, 0xb7, 0x7f,
-	0xfb, 0xa5, 0x5b, 0x35, 0xa3, 0x9e, 0x30, 0x96, 0x72, 0x80, 0x0b, 0x99, 0x46, 0x49, 0x48, 0x0c,
-	0x0f, 0x9f, 0xa3, 0x12, 0x88, 0x2c, 0x0d, 0xb8, 0x3f, 0x8d, 0xed, 0x7d, 0x25, 0x3a, 0x5d, 0x2e,
-	0x9a, 0xc5, 0x0b, 0xd5, 0x1c, 0x7a, 0x7f, 0x2f, 0x9a, 0x85, 0xa1, 0x77, 0x39, 0x9f, 0x70, 0x52,
-	0xd4, 0xc4, 0x61, 0x9c, 0x8b, 0x24, 0x4d, 0x43, 0x2e, 0x73, 0xd1, 0xc1, 0x46, 0x74, 0xa9, 0x9a,
-	0xbb, 0x22, 0x4d, 0x1c, 0xc6, 0xf8, 0x53, 0x74, 0xd7, 0x88, 0x02, 0x91, 0xc8, 0x94, 0x06, 0xd2,
-	0x3e, 0xcc, 0xa5, 0xa4, 0xa2, 0xdb, 0x03, 0xd3, 0xc5, 0x36, 0x3a, 0x9e, 0xd0, 0xf9, 0x58, 0x50,
-	0x66, 0x1f, 0xb5, 0xac, 0x4e, 0x99, 0xac, 0x4a, 0x4c, 0xd1, 0xd1, 0x37, 0x59, 0xc2, 0xc0, 0x2e,
-	0xb4, 0x0e, 0x3a, 0x27, 0x8f, 0x6a, 0x8e, 0x39, 0x5a, 0xee, 0x9b, 0x63, 0x7c, 0x73, 0x06, 0x22,
-	0x4a, 0xfa, 0x67, 0x6f, 0x16, 0xcd, 0xbd, 0x9f, 0xfe, 0x68, 0x76, 0xc2, 0x48, 0x5e, 0x65, 0x23,
-	0x27, 0x10, 0xb1, 0xb1, 0xdc, 0xfc, 0x74, 0x81, 0xbd, 0x70, 0xe5, 0x7c, 0xc2, 0x41, 0x09, 0x80,
-	0xe8, 0x37, 0xe3, 0x2a, 0x3a, 0xa2, 0x30, 0x4f, 0x02, 0xfb, 0xb8, 0x65, 0x75, 0x8a, 0x44, 0x17,
-	0x8f, 0x4f, 0xbe, 0x7f, 0xf7, 0xfa, 0x81, 0xb1, 0xac, 0xfd, 0xa3, 0x85, 0x4e, 0x77, 0x7d, 0x27,
-	0x1c, 0x26, 0x22, 0x01, 0x8e, 0x1f, 0x22, 0x14, 0x73, 0x00, 0x1a, 0x72, 0x3f, 0x62, 0xe6, 0x3f,
-	0xb8, 0xb3, 0x5c, 0x34, 0x4b, 0x9e, 0xee, 0x3e, 0xfd, 0x82, 0x94, 0x0c, 0xe1, 0x29, 0xc3, 0x75,
-	0x54, 0xe4, 0x33, 0x1e, 0x64, 0x92, 0x33, 0x65, 0x7d, 0x91, 0xac, 0x6b, 0x8c, 0xd1, 0x21, 0xa3,
-	0x92, 0x2a, 0x77, 0xcb, 0x44, 0x3d, 0xe3, 0x1a, 0x2a, 0x86, 0x14, 0xfc, 0x0c, 0x38, 0x53, 0xd6,
-	0x1d, 0x92, 0xe3, 0x90, 0xc2, 0x73, 0xe0, 0xac, 0xfd, 0x15, 0xba, 0xeb, 0x41, 0xf8, 0x2c, 0x15,
-	0x01, 0x07, 0xf8, 0x32, 0xe3, 0x19, 0xc7, 0x9f, 0xa3, 0x12, 0xcd, 0xe4, 0x95, 0x48, 0x23, 0x39,
-	0xff, 0xdf, 0x38, 0x6c, 0xa8, 0x8f, 0x2b, 0xf9, 0x59, 0x37, 0x75, 0xbb, 0x86, 0xee, 0xfd, 0xeb,
-	0xd5, 0xab, 0xe3, 0xb6, 0x7f, 0xde, 0x57, 0x63, 0x9f, 0x4f, 0x18, 0x95, 0xfc, 0x19, 0x4d, 0x69,
-	0x0c, 0x1f, 0x3a, 0x16, 0x77, 0xd0, 0x47, 0x31, 0x9d, 0xf9, 0x2b, 0xfb, 0x20, 0x7a, 0xc5, 0x95,
-	0x29, 0x87, 0xa4, 0x12, 0xd3, 0x99, 0xf1, 0xef, 0x22, 0x7a, 0xc5, 0xf1, 0x7d, 0x94, 0x77, 0xfc,
-	0x97, 0xf9, 0xa7, 0x68, 0x5e, 0x6e, 0xd2, 0x1d, 0x52, 0x8e, 0xe9, 0x4c, 0x7d, 0x9f, 0x62, 0x9d,
-	0xa1, 0xaa, 0x66, 0xc8, 0x28, 0xe6, 0x22, 0x93, 0xfe, 0x68, 0x2c, 0x82, 0x17, 0xa0, 0x8c, 0x3b,
-	0x20, 0x58, 0x61, 0x97, 0x1a, 0xea, 0x2b, 0x24, 0xcf, 0x1d, 0x4f, 0xe8, 0x68, 0xcc, 0x75, 0xee,
-	0x8a, 0x64, 0x55, 0xe2, 0xcf, 0xd0, 0xe9, 0x28, 0x8d, 0x58, 0xc8, 0x7d, 0x3a, 0x1e, 0x8b, 0x6f,
-	0x39, 0xf3, 0x75, 0x64, 0x75, 0x10, 0x4b, 0xa4, 0xaa, 0xd1, 0x27, 0x1a, 0xd4, 0xb7, 0x00, 0x6e,
-	0x30, 0x72, 0xdb, 0xac, 0x95, 0x91, 0x8f, 0x7e, 0xdd, 0x47, 0x07, 0x1e, 0x84, 0x98, 0xa2, 0x93,
-	0xed, 0xeb, 0x7c, 0xdf, 0x79, 0xdf, 0x8a, 0x71, 0x76, 0xc3, 0x57, 0x7f, 0x78, 0x1b, 0xd6, 0x3a,
-	0xa2, 0x0c, 0x95, 0x77, 0x62, 0xf2, 0xc9, 0x8d, 0xea, 0x6d, 0x5a, 0xbd, 0x7b, 0x2b, 0xda, 0xf6,
-	0x94, 0x9d, 0x54, 0xdc, 0x3c, 0x65, 0x9b, 0xf6, 0x1f, 0x53, 0xde, 0x67, 0x5b, 0xfd, 0xe8, 0xbb,
-	0x77, 0xaf, 0x1f, 0x58, 0x7d, 0xef, 0xcd, 0xb2, 0x61, 0xbd, 0x5d, 0x36, 0xac, 0x3f, 0x97, 0x0d,
-	0xeb, 0x87, 0xeb, 0xc6, 0xde, 0xdb, 0xeb, 0xc6, 0xde, 0xef, 0xd7, 0x8d, 0xbd, 0xaf, 0xcf, 0xb7,
-	0xae, 0xff, 0x66, 0x99, 0xaf, 0x9f, 0xba, 0x81, 0x48, 0xb9, 0x3b, 0x5b, 0x6f, 0x77, 0xb5, 0x0f,
-	0x46, 0x05, 0xb5, 0x5e, 0xcf, 0xff, 0x09, 0x00, 0x00, 0xff, 0xff, 0x41, 0xfe, 0xe2, 0xcd, 0xff,
-	0x05, 0x00, 0x00,
+	// 1176 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x56, 0x4d, 0x6f, 0x1b, 0xc5,
+	0x1b, 0x8f, 0x1b, 0xc7, 0x2f, 0x93, 0xc4, 0x6e, 0xe7, 0xef, 0x3a, 0x1b, 0xeb, 0x8f, 0x1d, 0x85,
+	0x16, 0x4c, 0x69, 0xec, 0xa4, 0x41, 0x1c, 0x8a, 0x84, 0x54, 0x1b, 0x51, 0x2a, 0xd5, 0x92, 0xd9,
+	0xa4, 0x41, 0xe5, 0xb2, 0x1a, 0xef, 0x4e, 0xd7, 0xab, 0x7a, 0x77, 0xb6, 0x33, 0x63, 0x77, 0xdd,
+	0x0b, 0x88, 0x4f, 0x00, 0x5f, 0x83, 0x53, 0x0f, 0xdc, 0xf8, 0x00, 0xf4, 0x58, 0x21, 0x21, 0x71,
+	0x32, 0xc8, 0x3d, 0xf4, 0x3b, 0x70, 0x42, 0xf3, 0xcc, 0xf8, 0xad, 0x4a, 0xa0, 0xe2, 0xe4, 0x99,
+	0xe7, 0xf7, 0xfb, 0xcd, 0x33, 0xf3, 0xbc, 0x79, 0xd1, 0x3b, 0x4f, 0x18, 0xa7, 0x6e, 0x9f, 0x04,
+	0x51, 0xd3, 0xe5, 0x4c, 0x88, 0x51, 0xd8, 0x1c, 0x1d, 0x35, 0x65, 0xd2, 0x88, 0x39, 0x93, 0x0c,
+	0x97, 0xe6, 0x70, 0xc3, 0xc0, 0x8d, 0xd1, 0x51, 0x65, 0xc7, 0x65, 0x22, 0x64, 0xa2, 0x19, 0x0a,
+	0x5f, 0xb1, 0x43, 0xe1, 0x6b, 0x7a, 0x65, 0x57, 0x03, 0x0e, 0xec, 0x9a, 0x7a, 0x63, 0xa0, 0xaa,
+	0xd1, 0xf4, 0x88, 0xa0, 0xcd, 0xd1, 0x51, 0x8f, 0x4a, 0x72, 0xd4, 0x74, 0x59, 0x10, 0x19, 0xbc,
+	0xe4, 0x33, 0x9f, 0x69, 0x9d, 0x5a, 0x69, 0xeb, 0xfe, 0x2f, 0xeb, 0xa8, 0xd0, 0x11, 0x7e, 0x5b,
+	0xf9, 0x3e, 0xeb, 0xb4, 0xc9, 0x60, 0x80, 0x0f, 0x51, 0x46, 0xd0, 0xc8, 0xa3, 0xdc, 0x4a, 0xed,
+	0xa5, 0xea, 0xf9, 0x96, 0xf5, 0xeb, 0x4f, 0x07, 0x25, 0xe3, 0xea, 0x8e, 0xe7, 0x71, 0x2a, 0xc4,
+	0x89, 0xe4, 0x41, 0xe4, 0xdb, 0x86, 0x87, 0x8f, 0x51, 0x5e, 0xb0, 0x21, 0x77, 0xa9, 0x33, 0x0a,
+	0xad, 0x4b, 0x20, 0x2a, 0x4f, 0x27, 0xb5, 0xdc, 0x09, 0x18, 0xcf, 0x3a, 0x7f, 0x4d, 0x6a, 0x99,
+	0xb3, 0xce, 0xe9, 0x38, 0xa6, 0x76, 0x4e, 0x13, 0xcf, 0x42, 0x25, 0x92, 0x84, 0xfb, 0x54, 0x2a,
+	0xd1, 0xfa, 0x42, 0x74, 0x0a, 0xc6, 0x55, 0x91, 0x26, 0x9e, 0x85, 0xf8, 0x7d, 0x54, 0x34, 0x22,
+	0x97, 0x45, 0x92, 0x13, 0x57, 0x5a, 0x69, 0x25, 0xb5, 0x0b, 0xda, 0xdc, 0x36, 0x56, 0x6c, 0xa1,
+	0x6c, 0x4c, 0xc6, 0x03, 0x46, 0x3c, 0x6b, 0x63, 0x2f, 0x55, 0xdf, 0xb2, 0x67, 0x5b, 0x4c, 0xd0,
+	0xc6, 0xa3, 0x61, 0xe4, 0x09, 0x2b, 0xb3, 0xb7, 0x5e, 0xdf, 0xbc, 0xb5, 0xdb, 0x30, 0x4f, 0x53,
+	0x71, 0x6b, 0x98, 0xb8, 0x35, 0xda, 0x2c, 0x88, 0x5a, 0x87, 0x2f, 0x26, 0xb5, 0xb5, 0x1f, 0xff,
+	0xa8, 0xd5, 0xfd, 0x40, 0xf6, 0x87, 0xbd, 0x86, 0xcb, 0x42, 0x13, 0x72, 0xf3, 0x73, 0x20, 0xbc,
+	0xc7, 0x4d, 0x39, 0x8e, 0xa9, 0x00, 0x81, 0xb0, 0xf5, 0xc9, 0xb8, 0x84, 0x36, 0x88, 0x18, 0x47,
+	0xae, 0x95, 0xdd, 0x4b, 0xd5, 0x73, 0xb6, 0xde, 0xe0, 0xf7, 0x50, 0x11, 0x16, 0x8e, 0x4f, 0x84,
+	0x33, 0x08, 0xc2, 0x40, 0x5a, 0xb9, 0xbd, 0x54, 0x3d, 0x6d, 0x6f, 0x83, 0xf9, 0x2e, 0x11, 0xf7,
+	0x95, 0x11, 0xd7, 0xd1, 0x65, 0xcd, 0x0b, 0x49, 0xe2, 0x3c, 0x22, 0xae, 0x64, 0xdc, 0xca, 0x03,
+	0xb1, 0x00, 0xf6, 0x0e, 0x49, 0x3e, 0x07, 0xeb, 0xed, 0xcd, 0xef, 0x5e, 0x3f, 0xbf, 0x61, 0x92,
+	0xb0, 0xff, 0x43, 0x0a, 0x95, 0x57, 0x33, 0x69, 0x53, 0x11, 0xb3, 0x48, 0x50, 0x7c, 0x13, 0xa1,
+	0x90, 0x0a, 0x41, 0x7c, 0xea, 0x04, 0x9e, 0xc9, 0xea, 0xf6, 0x74, 0x52, 0xcb, 0x77, 0xb4, 0xf5,
+	0xde, 0x67, 0x76, 0xde, 0x10, 0xee, 0x79, 0xb8, 0x82, 0x72, 0x34, 0xa1, 0xee, 0x50, 0x52, 0x0f,
+	0x92, 0x99, 0xb3, 0xe7, 0x7b, 0x8c, 0x51, 0xda, 0x23, 0x92, 0x40, 0xbe, 0xb6, 0x6c, 0x58, 0xe3,
+	0x5d, 0x94, 0x53, 0x2f, 0x1a, 0x0a, 0xea, 0x41, 0x32, 0xd2, 0x76, 0xd6, 0x27, 0xe2, 0x81, 0xa0,
+	0xde, 0xfe, 0x43, 0x54, 0xec, 0x08, 0xbf, 0xcb, 0x99, 0x4b, 0x85, 0xf8, 0x72, 0x48, 0x87, 0x14,
+	0x7f, 0x8c, 0xf2, 0x64, 0x28, 0xfb, 0x8c, 0x07, 0x72, 0xfc, 0xaf, 0x05, 0xb6, 0xa0, 0xde, 0x2e,
+	0xa8, 0xb7, 0x2e, 0xf6, 0xfb, 0xbb, 0x68, 0xe7, 0x8d, 0xa3, 0x67, 0xcf, 0xdd, 0xff, 0x2d, 0x0b,
+	0x6e, 0x1f, 0xc4, 0x1e, 0x91, 0xb4, 0x4b, 0x38, 0x09, 0xc5, 0x7f, 0x75, 0xab, 0x92, 0xa1, 0xd2,
+	0x30, 0x0b, 0x9f, 0x08, 0x9e, 0x51, 0x08, 0x4a, 0xda, 0x2e, 0x84, 0x24, 0x31, 0xf1, 0x3b, 0x09,
+	0x9e, 0x51, 0x7c, 0x0d, 0x29, 0x8b, 0xf3, 0x44, 0x5d, 0x45, 0xf3, 0x54, 0x90, 0xb6, 0xed, 0xad,
+	0x90, 0x24, 0x70, 0x3f, 0x60, 0x1d, 0xa2, 0x92, 0x66, 0xc8, 0x20, 0xa4, 0x6c, 0x28, 0x9d, 0xde,
+	0x80, 0xb9, 0x8f, 0x05, 0x04, 0x6e, 0xdd, 0xc6, 0x80, 0x9d, 0x6a, 0xa8, 0x05, 0x88, 0xaa, 0x64,
+	0x1a, 0x91, 0xde, 0x80, 0xea, 0x4a, 0xce, 0xd9, 0xb3, 0x2d, 0xfe, 0x08, 0x95, 0x7b, 0x3c, 0xf0,
+	0x7c, 0xea, 0x90, 0xc1, 0x80, 0x3d, 0xa5, 0x9e, 0xa3, 0x9b, 0x40, 0x97, 0x76, 0xde, 0x2e, 0x69,
+	0xf4, 0x8e, 0x06, 0x75, 0x5f, 0x09, 0xfc, 0x10, 0x61, 0xa3, 0x32, 0x9d, 0x14, 0x07, 0x91, 0xb0,
+	0xb2, 0xd0, 0x0c, 0xd7, 0x1b, 0xe7, 0x8d, 0xa3, 0x46, 0x0b, 0xf8, 0xfa, 0x80, 0x6e, 0x10, 0xb5,
+	0xd2, 0xaa, 0x31, 0xec, 0xcb, 0xbd, 0x55, 0xb3, 0xc0, 0xc7, 0xa8, 0xac, 0x42, 0x10, 0xd3, 0xc8,
+	0x0b, 0x22, 0xdf, 0x89, 0x29, 0x77, 0xcc, 0x24, 0xc9, 0x41, 0x28, 0xfe, 0x17, 0x92, 0xa4, 0xab,
+	0xc1, 0x2e, 0xe5, 0x27, 0x7a, 0x78, 0x7c, 0x80, 0xae, 0x28, 0x91, 0x19, 0x6c, 0x32, 0x51, 0xed,
+	0x31, 0xab, 0xf7, 0x90, 0x24, 0x6d, 0xb0, 0x9f, 0x26, 0x77, 0x89, 0x4a, 0xe2, 0x0e, 0xa7, 0x2e,
+	0xe3, 0x9e, 0xc3, 0xa9, 0xa4, 0x91, 0x0c, 0x58, 0x34, 0x8b, 0x1f, 0x02, 0xc1, 0x55, 0x0d, 0xdb,
+	0x33, 0xd4, 0x84, 0xf0, 0x43, 0x84, 0x95, 0x0b, 0xa0, 0x3a, 0x4f, 0x89, 0x08, 0xc1, 0xc7, 0x26,
+	0x48, 0x8a, 0x21, 0x49, 0x80, 0xf6, 0x15, 0x11, 0xa1, 0x72, 0x72, 0x88, 0xae, 0x2a, 0xb2, 0x4c,
+	0x34, 0x53, 0xf4, 0x09, 0xa7, 0x4e, 0x2f, 0x16, 0xd6, 0x16, 0xbc, 0x41, 0x5d, 0xf6, 0x34, 0x51,
+	0xe4, 0x13, 0x85, 0xb4, 0x62, 0x75, 0x2d, 0x6b, 0x71, 0xfc, 0x80, 0x8e, 0xe8, 0x60, 0xe1, 0x64,
+	0x1b, 0x9c, 0x94, 0x66, 0x4e, 0xee, 0x2b, 0x74, 0xe6, 0xe9, 0x18, 0x95, 0x75, 0x2d, 0x00, 0x9b,
+	0x53, 0x41, 0xf9, 0x48, 0xbb, 0x2a, 0xe8, 0x70, 0x01, 0xaa, 0xd8, 0xb6, 0xc6, 0x94, 0xb3, 0x4f,
+	0x50, 0x05, 0xe8, 0x2e, 0x8b, 0x7c, 0x2a, 0x20, 0x04, 0x4b, 0x73, 0xa2, 0x08, 0xc2, 0x1d, 0xc5,
+	0x68, 0xcf, 0x09, 0xf3, 0x81, 0x71, 0x9e, 0xd8, 0x14, 0x81, 0xf2, 0x7a, 0xf9, 0x3c, 0xb1, 0x4e,
+	0xaf, 0xf2, 0xdc, 0x44, 0xa5, 0xc5, 0x33, 0x87, 0xb1, 0x1a, 0xa6, 0x20, 0xbb, 0x32, 0x8f, 0x0b,
+	0x3c, 0xf1, 0x01, 0x20, 0x4a, 0xf0, 0x29, 0xfa, 0xff, 0xa2, 0x23, 0x4c, 0xbd, 0x0b, 0xa8, 0x0a,
+	0x38, 0xc3, 0xc2, 0x20, 0xb4, 0x66, 0xfd, 0x61, 0xca, 0x5e, 0x74, 0x29, 0x87, 0x83, 0x2e, 0x68,
+	0xf9, 0xe5, 0xb6, 0x9e, 0xb7, 0xfc, 0x37, 0xa8, 0xf8, 0x46, 0x91, 0xe2, 0x32, 0xca, 0xe8, 0xb7,
+	0xe9, 0x76, 0xb7, 0xcd, 0x0e, 0xbf, 0x8b, 0xb2, 0x2e, 0xf3, 0x60, 0x12, 0x42, 0x23, 0xb7, 0xd0,
+	0x74, 0x52, 0xcb, 0xb4, 0x99, 0xa7, 0xc6, 0x60, 0x46, 0x41, 0xf7, 0x3c, 0xdc, 0x44, 0x9b, 0xfd,
+	0x40, 0x48, 0xc6, 0xc7, 0xce, 0x80, 0x46, 0xd0, 0xc9, 0xe9, 0x56, 0x61, 0x3a, 0xa9, 0xa1, 0x2f,
+	0xb4, 0xf9, 0x3e, 0x8d, 0x6c, 0xd4, 0x9f, 0xaf, 0x6f, 0xfd, 0x7c, 0x09, 0xad, 0x77, 0x84, 0x8f,
+	0x09, 0xda, 0x5c, 0xfe, 0x2f, 0xbd, 0x76, 0x7e, 0x43, 0xad, 0xce, 0xe9, 0xca, 0xcd, 0xb7, 0x61,
+	0xcd, 0xa7, 0xb9, 0x87, 0xb6, 0x56, 0x26, 0xea, 0xf5, 0x0b, 0xd5, 0xcb, 0xb4, 0xca, 0xc1, 0x5b,
+	0xd1, 0x96, 0xbd, 0xac, 0x0c, 0xd0, 0x8b, 0xbd, 0x2c, 0xd3, 0xfe, 0xc1, 0xcb, 0x79, 0x79, 0xab,
+	0x6c, 0x7c, 0xfb, 0xfa, 0xf9, 0x8d, 0x54, 0xab, 0xf3, 0x62, 0x5a, 0x4d, 0xbd, 0x9c, 0x56, 0x53,
+	0x7f, 0x4e, 0xab, 0xa9, 0xef, 0x5f, 0x55, 0xd7, 0x5e, 0xbe, 0xaa, 0xae, 0xfd, 0xfe, 0xaa, 0xba,
+	0xf6, 0xf5, 0xf1, 0xd2, 0x7f, 0xef, 0xe2, 0x4b, 0x6a, 0xbe, 0x3a, 0x70, 0x19, 0xa7, 0xcd, 0x64,
+	0xfe, 0x69, 0x05, 0x7f, 0xc6, 0xbd, 0x0c, 0x7c, 0xdb, 0x1c, 0xff, 0x1d, 0x00, 0x00, 0xff, 0xff,
+	0x5f, 0x22, 0x10, 0xae, 0x7c, 0x09, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -661,6 +933,16 @@ func (m *MsgCrossVMCall) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.AsyncMaxFactor != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.AsyncMaxFactor))
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.AsyncGasLimit != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.AsyncGasLimit))
+		i--
+		dAtA[i] = 0x40
+	}
 	if m.Async {
 		i--
 		if m.Async {
@@ -848,6 +1130,81 @@ func (m *MsgUpdateParams) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.MaxQueueTimeoutsPerBlock != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.MaxQueueTimeoutsPerBlock))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x90
+	}
+	if m.MaxBlockUploadBps != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.MaxBlockUploadBps))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x88
+	}
+	if m.WasmCongestionTargetBps != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.WasmCongestionTargetBps))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x80
+	}
+	if m.WasmCongestionMaxFactor != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.WasmCongestionMaxFactor))
+		i--
+		dAtA[i] = 0x78
+	}
+	if m.QueueWasmReserveBps != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.QueueWasmReserveBps))
+		i--
+		dAtA[i] = 0x70
+	}
+	if m.MaxBlockLevelWasmGas != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.MaxBlockLevelWasmGas))
+		i--
+		dAtA[i] = 0x68
+	}
+	if m.MaxTxWasmShareBps != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.MaxTxWasmShareBps))
+		i--
+		dAtA[i] = 0x60
+	}
+	if m.MaxBlockWasmGas != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.MaxBlockWasmGas))
+		i--
+		dAtA[i] = 0x58
+	}
+	if m.RecordRetentionBlocks != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.RecordRetentionBlocks))
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.MaxCosmosTxGas != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.MaxCosmosTxGas))
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.MaxPendingPerSender != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.MaxPendingPerSender))
+		i--
+		dAtA[i] = 0x40
+	}
+	if len(m.BridgeTargetPins) > 0 {
+		for iNdEx := len(m.BridgeTargetPins) - 1; iNdEx >= 0; iNdEx-- {
+			{
+				size, err := m.BridgeTargetPins[iNdEx].MarshalToSizedBuffer(dAtA[:i])
+				if err != nil {
+					return 0, err
+				}
+				i -= size
+				i = encodeVarintTx(dAtA, i, uint64(size))
+			}
+			i--
+			dAtA[i] = 0x3a
+		}
+	}
 	if len(m.BridgeAllowedTargets) > 0 {
 		for iNdEx := len(m.BridgeAllowedTargets) - 1; iNdEx >= 0; iNdEx-- {
 			i -= len(m.BridgeAllowedTargets[iNdEx])
@@ -915,6 +1272,46 @@ func (m *MsgUpdateParamsResponse) MarshalToSizedBuffer(dAtA []byte) (int, error)
 	return len(dAtA) - i, nil
 }
 
+func (m *BridgeTargetPin) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *BridgeTargetPin) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *BridgeTargetPin) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.HistoryLen != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.HistoryLen))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.CodeID != 0 {
+		i = encodeVarintTx(dAtA, i, uint64(m.CodeID))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.Target) > 0 {
+		i -= len(m.Target)
+		copy(dAtA[i:], m.Target)
+		i = encodeVarintTx(dAtA, i, uint64(len(m.Target)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintTx(dAtA []byte, offset int, v uint64) int {
 	offset -= sovTx(v)
 	base := offset
@@ -960,6 +1357,12 @@ func (m *MsgCrossVMCall) Size() (n int) {
 	}
 	if m.Async {
 		n += 2
+	}
+	if m.AsyncGasLimit != 0 {
+		n += 1 + sovTx(uint64(m.AsyncGasLimit))
+	}
+	if m.AsyncMaxFactor != 0 {
+		n += 1 + sovTx(uint64(m.AsyncMaxFactor))
 	}
 	return n
 }
@@ -1037,6 +1440,45 @@ func (m *MsgUpdateParams) Size() (n int) {
 			n += 1 + l + sovTx(uint64(l))
 		}
 	}
+	if len(m.BridgeTargetPins) > 0 {
+		for _, e := range m.BridgeTargetPins {
+			l = e.Size()
+			n += 1 + l + sovTx(uint64(l))
+		}
+	}
+	if m.MaxPendingPerSender != 0 {
+		n += 1 + sovTx(uint64(m.MaxPendingPerSender))
+	}
+	if m.MaxCosmosTxGas != 0 {
+		n += 1 + sovTx(uint64(m.MaxCosmosTxGas))
+	}
+	if m.RecordRetentionBlocks != 0 {
+		n += 1 + sovTx(uint64(m.RecordRetentionBlocks))
+	}
+	if m.MaxBlockWasmGas != 0 {
+		n += 1 + sovTx(uint64(m.MaxBlockWasmGas))
+	}
+	if m.MaxTxWasmShareBps != 0 {
+		n += 1 + sovTx(uint64(m.MaxTxWasmShareBps))
+	}
+	if m.MaxBlockLevelWasmGas != 0 {
+		n += 1 + sovTx(uint64(m.MaxBlockLevelWasmGas))
+	}
+	if m.QueueWasmReserveBps != 0 {
+		n += 1 + sovTx(uint64(m.QueueWasmReserveBps))
+	}
+	if m.WasmCongestionMaxFactor != 0 {
+		n += 1 + sovTx(uint64(m.WasmCongestionMaxFactor))
+	}
+	if m.WasmCongestionTargetBps != 0 {
+		n += 2 + sovTx(uint64(m.WasmCongestionTargetBps))
+	}
+	if m.MaxBlockUploadBps != 0 {
+		n += 2 + sovTx(uint64(m.MaxBlockUploadBps))
+	}
+	if m.MaxQueueTimeoutsPerBlock != 0 {
+		n += 2 + sovTx(uint64(m.MaxQueueTimeoutsPerBlock))
+	}
 	return n
 }
 
@@ -1046,6 +1488,25 @@ func (m *MsgUpdateParamsResponse) Size() (n int) {
 	}
 	var l int
 	_ = l
+	return n
+}
+
+func (m *BridgeTargetPin) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.Target)
+	if l > 0 {
+		n += 1 + l + sovTx(uint64(l))
+	}
+	if m.CodeID != 0 {
+		n += 1 + sovTx(uint64(m.CodeID))
+	}
+	if m.HistoryLen != 0 {
+		n += 1 + sovTx(uint64(m.HistoryLen))
+	}
 	return n
 }
 
@@ -1300,6 +1761,44 @@ func (m *MsgCrossVMCall) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.Async = bool(v != 0)
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AsyncGasLimit", wireType)
+			}
+			m.AsyncGasLimit = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AsyncGasLimit |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field AsyncMaxFactor", wireType)
+			}
+			m.AsyncMaxFactor = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.AsyncMaxFactor |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])
@@ -1778,6 +2277,249 @@ func (m *MsgUpdateParams) Unmarshal(dAtA []byte) error {
 			}
 			m.BridgeAllowedTargets = append(m.BridgeAllowedTargets, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BridgeTargetPins", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.BridgeTargetPins = append(m.BridgeTargetPins, BridgeTargetPin{})
+			if err := m.BridgeTargetPins[len(m.BridgeTargetPins)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxPendingPerSender", wireType)
+			}
+			m.MaxPendingPerSender = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxPendingPerSender |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxCosmosTxGas", wireType)
+			}
+			m.MaxCosmosTxGas = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxCosmosTxGas |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RecordRetentionBlocks", wireType)
+			}
+			m.RecordRetentionBlocks = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RecordRetentionBlocks |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxBlockWasmGas", wireType)
+			}
+			m.MaxBlockWasmGas = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxBlockWasmGas |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 12:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxTxWasmShareBps", wireType)
+			}
+			m.MaxTxWasmShareBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxTxWasmShareBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 13:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxBlockLevelWasmGas", wireType)
+			}
+			m.MaxBlockLevelWasmGas = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxBlockLevelWasmGas |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field QueueWasmReserveBps", wireType)
+			}
+			m.QueueWasmReserveBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.QueueWasmReserveBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 15:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WasmCongestionMaxFactor", wireType)
+			}
+			m.WasmCongestionMaxFactor = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.WasmCongestionMaxFactor |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 16:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WasmCongestionTargetBps", wireType)
+			}
+			m.WasmCongestionTargetBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.WasmCongestionTargetBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 17:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxBlockUploadBps", wireType)
+			}
+			m.MaxBlockUploadBps = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxBlockUploadBps |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 18:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxQueueTimeoutsPerBlock", wireType)
+			}
+			m.MaxQueueTimeoutsPerBlock = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxQueueTimeoutsPerBlock |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])
@@ -1828,6 +2570,126 @@ func (m *MsgUpdateParamsResponse) Unmarshal(dAtA []byte) error {
 			return fmt.Errorf("proto: MsgUpdateParamsResponse: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := skipTx(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthTx
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *BridgeTargetPin) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowTx
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: BridgeTargetPin: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: BridgeTargetPin: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Target", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthTx
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthTx
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Target = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field CodeID", wireType)
+			}
+			m.CodeID = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.CodeID |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HistoryLen", wireType)
+			}
+			m.HistoryLen = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowTx
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.HistoryLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipTx(dAtA[iNdEx:])

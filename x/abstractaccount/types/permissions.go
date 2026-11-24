@@ -1,5 +1,7 @@
 package types
 
+import "strings"
+
 // Permission taxonomy for authenticator / session-key scoping (v3.1.84).
 //
 // An authenticator holds a SET of these action-class permissions. A transaction
@@ -76,6 +78,31 @@ func AllPermissions() []string {
 		PermAll, PermSend, PermDelegate, PermWithdraw, PermVote,
 		PermEVM, PermWasm, PermSVM, PermAMM, PermIBC, PermDeploy,
 	}
+}
+
+// PermSVMProgramPrefix scopes a linked key to one SVM program
+// ("svm:program:<base58 program id>"), from svm-relayed-program-scope: a
+// relayed execution may change accounts of that program only if the key
+// holds this permission (or PermAll). It is accepted at registration only
+// with that switch on.
+const PermSVMProgramPrefix = "svm:program:"
+
+// IsSVMProgramPermission reports whether p has the form
+// "svm:program:<base58>" with a base58 body of a 32-byte key's length.
+func IsSVMProgramPermission(p string) bool {
+	if !strings.HasPrefix(p, PermSVMProgramPrefix) {
+		return false
+	}
+	body := p[len(PermSVMProgramPrefix):]
+	if len(body) < 32 || len(body) > 44 {
+		return false
+	}
+	for i := 0; i < len(body); i++ {
+		if !strings.ContainsRune("123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz", rune(body[i])) {
+			return false
+		}
+	}
+	return true
 }
 
 // IsValidPermission reports whether p is a known permission string.

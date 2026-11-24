@@ -17,4 +17,23 @@ type ExecutionResult struct {
 	Logs             []string     `json:"logs"`
 	ModifiedAccounts []SVMAccount `json:"modified_accounts"`
 	Error            string       `json:"error,omitempty"`
+	// PDASigners are the program derived addresses the top-level program
+	// signed for with sol_invoke_signed during this execution, as the runtime
+	// derived them from the program id it holds (svm-cpi-host-privileges).
+	// Empty without that switch. Not part of any encoded output.
+	PDASigners [][32]byte `json:"-"`
+	// Attested is true when the runtime reported the attestation of
+	// svm-cpi-composable: InvokedPrograms (every program that ran, the
+	// top-level one first) and PDAPairs ({program, pda} for every PDA a program
+	// signed for), both from host memory. Not part of any encoded output.
+	Attested        bool          `json:"-"`
+	InvokedPrograms [][32]byte    `json:"-"`
+	PDAPairs        [][2][32]byte `json:"-"`
+	// SeedSigned are accounts a System *WithSeed instruction run through an
+	// invocation derived from a base that signed in the calling frame
+	// (svm-system-with-seed-cpi). Not part of any encoded output.
+	SeedSigned [][32]byte `json:"-"`
+	// SeedBases holds, with RuntimeFlagSeedBases, the base each SeedSigned
+	// account was derived from (same order and length). Not encoded.
+	SeedBases [][32]byte `json:"-"`
 }

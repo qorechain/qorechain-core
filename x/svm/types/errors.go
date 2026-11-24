@@ -26,5 +26,11 @@ var (
 	// ErrUnauthorized guards value movement out of an account that did not
 	// authorise it. Declaring an account WRITABLE is not authorisation; only a
 	// verified signature is. See the settlement pass in the executor.
-	ErrUnauthorized          = errorsmod.Register(ModuleName, 22, "unauthorized account modification")
+	ErrUnauthorized = errorsmod.Register(ModuleName, 22, "unauthorized account modification")
+	// ErrCustodyCapExceeded refuses a transfer that would lift the svm module
+	// account above max_custody_uqor (svm-lane-governed only).
+	ErrCustodyCapExceeded = errorsmod.Register(ModuleName, 23, "svm custody cap exceeded")
+	// ErrSimulationBusy answers a simulation that found every simulation slot
+	// taken (svm-simulation-bounded). Simulations only; never in a block.
+	ErrSimulationBusy = errorsmod.Register(ModuleName, 24, "svm simulation slots busy, retry later")
 )

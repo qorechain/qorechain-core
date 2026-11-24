@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/codec"
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	sdk "github.com/cosmos/cosmos-sdk/types"
@@ -99,6 +100,13 @@ func (s *textualQueryServer) TextualSignDoc(goCtx context.Context, req *pqctypes
 	auth := &txtypes.AuthInfo{}
 	if err := auth.Unmarshal(raw.AuthInfoBytes); err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "auth info: %v", err)
+	}
+	body := &txtypes.TxBody{}
+	if err := body.Unmarshal(raw.BodyBytes); err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "body: %v", err)
+	}
+	if err := textualTxShape(body, auth); err != nil {
+		return nil, err
 	}
 	// Decode the transaction as the chain does, with one empty signature per
 	// signer (signatures are not part of the sign document).
@@ -204,6 +212,16 @@ func (s *textualQueryServer) rawTx(req *pqctypes.QueryTextualSignDocRequest) (*t
 		}
 		return raw, nil
 	case req.TxJson != "":
+		// Check the shape first: the encoder dereferences the body, the auth
+		// info and the fee, and an empty or partial transaction ("{}") used
+		// to crash the handler instead of being refused.
+		var shape txtypes.Tx
+		if err := codec.NewProtoCodec(s.registry).UnmarshalJSON([]byte(req.TxJson), &shape); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "tx_json: %v", err)
+		}
+		if err := textualTxShape(shape.Body, shape.AuthInfo); err != nil {
+			return nil, err
+		}
 		tx, err := s.txConfig.TxJSONDecoder()([]byte(req.TxJson))
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "tx_json: %v", err)
@@ -223,6 +241,28 @@ func (s *textualQueryServer) rawTx(req *pqctypes.QueryTextualSignDocRequest) (*t
 	default:
 		return nil, status.Error(codes.InvalidArgument, "tx_bytes or tx_json is required")
 	}
+}
+
+// textualTxShape refuses a transaction the renderer cannot take: one without
+// a body, messages, auth info, fee or signer infos. The SDK encoder and
+// renderer dereference these, so a partial transaction crashed the handler
+// (HTTP 500) instead of being refused. A signer info without a public key
+// stays allowed (an account whose key is on chain), and the requester's own
+// signer info is checked by textualSignerInfo.
+func textualTxShape(body *txtypes.TxBody, auth *txtypes.AuthInfo) error {
+	switch {
+	case body == nil:
+		return status.Error(codes.InvalidArgument, "the transaction has no body")
+	case len(body.Messages) == 0:
+		return status.Error(codes.InvalidArgument, "the transaction has no messages")
+	case auth == nil:
+		return status.Error(codes.InvalidArgument, "the transaction has no auth_info")
+	case auth.Fee == nil:
+		return status.Error(codes.InvalidArgument, "the auth_info has no fee")
+	case len(auth.SignerInfos) == 0:
+		return status.Error(codes.InvalidArgument, "the auth_info has no signer_infos")
+	}
+	return nil
 }
 
 // textualSignerInfo requires the auth info to name this key as a

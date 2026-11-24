@@ -4,15 +4,20 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"sync"
 
 	"github.com/google/btree"
+
+	abci "github.com/cometbft/cometbft/abci/types"
+	cmttypes "github.com/cometbft/cometbft/types"
 
 	"cosmossdk.io/log"
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkerrors "github.com/cosmos/cosmos-sdk/types/errors"
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 
 	evmtypes "github.com/cosmos/evm/x/vm/types"
@@ -22,9 +27,27 @@ import (
 // matches the default mempool.size in config.toml.
 const DefaultCosmosMempoolMaxTxs = 5000
 
-// cosmosTxPriority is the priority the cosmos/evm mempool gives a Cosmos tx by
-// default (fee in the EVM denom per unit of gas wanted). It is spelled out here
-// so the evicting wrapper ranks entries exactly as the pool does.
+// cosmosPriorityScale lifts the fee from the 6-decimal EVM denom (uqor) to
+// its 18-decimal extended form (aqor) before the division by gas.
+const cosmosPriorityScale = 1_000_000_000_000 // 10^12
+
+// feePerGasPriority is a fee in the EVM denom per unit of gas, counted in
+// 10^-12 of the denom (aqor for uqor). The cosmos/evm default divides the
+// whole-uqor amount, so every price below 1 uqor/gas (the live minimum is
+// 0.1) ranked 0 and an equal-priority pool could never evict for a
+// better-paying tx. Mempool order only: no state, fee or validity depends on
+// it.
+func feePerGasPriority(amount math.Int, gas uint64) math.Int {
+	if gas == 0 {
+		return math.ZeroInt()
+	}
+	return amount.MulRaw(cosmosPriorityScale).Quo(math.NewIntFromUint64(gas))
+}
+
+// cosmosTxPriority is the priority of a Cosmos tx in the app-side pool: fee
+// in the EVM denom per unit of gas wanted, on the 18-decimal scale
+// (feePerGasPriority). The same value is handed to the cosmos/evm pool and to
+// the evicting wrapper, so both rank entries identically.
 func cosmosTxPriority(evmDenom func(ctx sdk.Context) string) sdkmempool.TxPriority[math.Int] {
 	return sdkmempool.TxPriority[math.Int]{
 		GetTxPriority: func(goCtx context.Context, tx sdk.Tx) math.Int {
@@ -37,7 +60,7 @@ func cosmosTxPriority(evmDenom func(ctx sdk.Context) string) sdkmempool.TxPriori
 			if !found {
 				return math.ZeroInt()
 			}
-			return coin.Amount.Quo(math.NewIntFromUint64(feeTx.GetGas()))
+			return feePerGasPriority(coin.Amount, feeTx.GetGas())
 		},
 		Compare: func(a, b math.Int) int {
 			return a.BigInt().Cmp(b.BigInt())
@@ -210,8 +233,22 @@ func (m *evictingMempool) Insert(ctx context.Context, tx sdk.Tx) error {
 	return err
 }
 
-func (m *evictingMempool) Remove(tx sdk.Tx) error {
-	err := m.ExtMempool.Remove(tx)
+// Remove is also what baseapp calls from block execution, for every
+// transaction of the block after its ante handler, and an error other than
+// not-found or a panic there fails the transaction. What the pool does to
+// answer is this node's own business: the EVM pool checks its own view of
+// the latest state, which no other node shares (what it holds, how much it
+// has read). So a panic in the pool is never let out: it is logged and the
+// transaction is left to the pool, which drops it once the block's nonces
+// make it stale. Every other answer is passed on unchanged.
+func (m *evictingMempool) Remove(tx sdk.Tx) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			m.logger.Error("mempool removal failed; the transaction is left to the pool", "panic", fmt.Sprint(r))
+			err = nil
+		}
+	}()
+	err = m.ExtMempool.Remove(tx)
 	if isEVMTx(tx) {
 		return err
 	}
@@ -315,4 +352,40 @@ func (m *evictingMempool) victim(newSender string, p math.Int) (poolKey, poolEnt
 		return false
 	})
 	return best, entry, found
+}
+
+// recoveringCheckTxHandler answers a CheckTx whose handler panicked with a
+// refusal instead of letting the panic out. The EVM pool's handler sends a
+// nonce-gapped transaction to the pool outside baseapp's own recovery, and
+// a panic there (the pool reads its own view of the latest state) left
+// CheckTx and stopped the node. Nothing a refused CheckTx does reaches
+// state.
+//
+// The panic is logged at error level with what an operator needs to find
+// the transaction and the faulty path: the transaction hash (as the RPC
+// reports it), its size, the check type (new or recheck), the panic value
+// and its type, and the stack of the panicking goroutine. A recovered
+// panic is a bug in the pool, not an expected refusal.
+func recoveringCheckTxHandler(inner sdk.CheckTxHandler, logger log.Logger) sdk.CheckTxHandler {
+	return func(runTx sdk.RunTx, req *abci.RequestCheckTx) (res *abci.ResponseCheckTx, err error) {
+		defer func() {
+			if r := recover(); r != nil {
+				var txBytes []byte
+				checkType := abci.CheckTxType_New
+				if req != nil {
+					txBytes, checkType = req.Tx, req.Type
+				}
+				logger.Error("CheckTx handler panicked; the transaction is refused",
+					"tx_hash", fmt.Sprintf("%X", cmttypes.Tx(txBytes).Hash()),
+					"tx_bytes", len(txBytes),
+					"check_type", checkType.String(),
+					"panic", fmt.Sprint(r),
+					"panic_type", fmt.Sprintf("%T", r),
+					"stack", string(debug.Stack()))
+				res, err = sdkerrors.ResponseCheckTxWithEvents(
+					sdkerrors.ErrPanic.Wrapf("mempool: %v", r), 0, 0, nil, false), nil
+			}
+		}()
+		return inner(runTx, req)
+	}
 }

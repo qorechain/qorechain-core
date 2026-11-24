@@ -2,12 +2,12 @@ package app
 
 import (
 	errorsmod "cosmossdk.io/errors"
+	storetypes "cosmossdk.io/store/types"
 
 	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	errortypes "github.com/cosmos/cosmos-sdk/types/errors"
-	"github.com/cosmos/cosmos-sdk/x/authz"
 
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
 )
@@ -58,6 +58,31 @@ var wasmMempoolInstantiateMsgs = map[string]struct{}{
 // switch is off.
 type WasmMempoolGuardDecorator struct {
 	governedDeploy func(sdk.Context) bool
+	uploadAllowed  func(ctx sdk.Context, sender string) bool
+}
+
+// WithUploadPolicy makes the guard follow the chain's upload policy: from
+// FeatureWasmGovernedDeploy an upload message is admitted to the mempool
+// when wasmd's upload access (governance-set x/wasm code_upload_access)
+// allows its sender, as a contract may already dispatch one, and execution
+// applies the access rule, the code filter and the block wasm budget to
+// every route alike. A nil policy keeps uploads refused.
+func (d WasmMempoolGuardDecorator) WithUploadPolicy(uploadAllowed func(ctx sdk.Context, sender string) bool) WasmMempoolGuardDecorator {
+	d.uploadAllowed = uploadAllowed
+	return d
+}
+
+// uploadSender is the account an upload message stores code for.
+func uploadSender(msg sdk.Msg) (string, bool) {
+	switch m := msg.(type) {
+	case *wasmtypes.MsgStoreCode:
+		return m.Sender, true
+	case *wasmtypes.MsgStoreAndInstantiateContract:
+		return m.Authority, true
+	case *wasmtypes.MsgStoreAndMigrateContract:
+		return m.Authority, true
+	}
+	return "", false
 }
 
 func NewWasmMempoolGuardDecorator(governedDeploy func(sdk.Context) bool) WasmMempoolGuardDecorator {
@@ -86,7 +111,14 @@ func (d WasmMempoolGuardDecorator) AnteHandle(
 		return next(ctx, tx, simulate)
 	}
 	allowInstantiate := d.governedDeploy != nil && d.governedDeploy(ctx)
-	if err := rejectWasmMsgs(tx.GetMsgs(), 0, allowInstantiate); err != nil {
+	var allowUpload func(sdk.Msg) bool
+	if allowInstantiate && d.uploadAllowed != nil {
+		allowUpload = func(msg sdk.Msg) bool {
+			sender, ok := uploadSender(msg)
+			return ok && d.uploadAllowed(ctx, sender)
+		}
+	}
+	if err := rejectWasmMsgsWith(tx.GetMsgs(), 0, allowInstantiate, allowUpload); err != nil {
 		return ctx, err
 	}
 	return next(ctx, tx, simulate)
@@ -98,43 +130,52 @@ func rejectBlockedWasmMsgs(msgs []sdk.Msg, depth int) error {
 	return rejectWasmMsgs(msgs, depth, false)
 }
 
-// rejectWasmMsgs walks the message tree, descending into authz MsgExec so the
-// guard cannot be sidestepped by wrapping the payload in a grant. depth bounds
-// the recursion; authz nesting beyond a couple of levels is not legitimate
-// traffic. allowInstantiate admits the instantiate-only messages.
+// rejectWasmMsgs walks the message tree with walkMempoolMsgs, which descends
+// into authz MsgExec and x/group MsgSubmitProposal, so the guard cannot be
+// sidestepped by wrapping the payload in a grant or a group proposal. depth is
+// where the walk starts (0 for a transaction's own messages).
+// allowInstantiate admits the instantiate-only messages.
 func rejectWasmMsgs(msgs []sdk.Msg, depth int, allowInstantiate bool) error {
-	if depth > 4 {
-		return errorsmod.Wrap(errortypes.ErrUnauthorized,
-			"authz nesting too deep to inspect for CosmWasm upload messages")
-	}
-	for _, msg := range msgs {
+	return rejectWasmMsgsWith(msgs, depth, allowInstantiate, nil)
+}
+
+// rejectWasmMsgsWith is rejectWasmMsgs that also admits an upload message
+// allowUpload accepts.
+func rejectWasmMsgsWith(msgs []sdk.Msg, depth int, allowInstantiate bool, allowUpload func(sdk.Msg) bool) error {
+	return walkMempoolMsgsAt(msgs, depth, "CosmWasm upload messages", true, func(msg sdk.Msg) error {
 		url := sdk.MsgTypeURL(msg)
 		_, blocked := wasmMempoolBlockedMsgs[url]
 		if _, inst := wasmMempoolInstantiateMsgs[url]; inst && allowInstantiate {
 			blocked = false
 		}
-		if blocked {
-			if allowInstantiate {
-				return errorsmod.Wrapf(errortypes.ErrUnauthorized,
-					"%s is not accepted by this node: CosmWasm code is stored "+
-						"only through governance", url)
-			}
+		if blocked && allowUpload != nil && allowUpload(msg) {
+			blocked = false
+		}
+		if !blocked {
+			return nil
+		}
+		if allowInstantiate {
 			return errorsmod.Wrapf(errortypes.ErrUnauthorized,
-				"%s is not accepted by this node: CosmWasm code upload and "+
-					"instantiation are suspended pending a security fix", url)
+				"%s is not accepted by this node: CosmWasm code is stored "+
+					"only through governance", url)
 		}
-		if exec, ok := msg.(*authz.MsgExec); ok {
-			inner, err := exec.GetMessages()
-			if err != nil {
-				// An MsgExec whose payload will not unpack cannot be inspected,
-				// so it cannot be shown to be safe.
-				return errorsmod.Wrap(errortypes.ErrUnauthorized,
-					"authz payload could not be unpacked for inspection")
-			}
-			if err := rejectWasmMsgs(inner, depth+1, allowInstantiate); err != nil {
-				return err
-			}
-		}
+		return errorsmod.Wrapf(errortypes.ErrUnauthorized,
+			"%s is not accepted by this node: CosmWasm code upload and "+
+				"instantiation are suspended pending a security fix", url)
+	})
+}
+
+// wasmUploadPermitted reports whether wasmd would let sender store code:
+// the governance authority always, anyone else as x/wasm code_upload_access
+// says. Read off the gas meter.
+func (app *QoreChainApp) wasmUploadPermitted(ctx sdk.Context, sender string) bool {
+	if sender == app.WasmKeeper.GetAuthority() {
+		return true
 	}
-	return nil
+	addr, err := sdk.AccAddressFromBech32(sender)
+	if err != nil {
+		return false
+	}
+	free := ctx.WithGasMeter(storetypes.NewInfiniteGasMeter())
+	return app.WasmKeeper.GetParams(free).CodeUploadAccess.Allowed(addr)
 }

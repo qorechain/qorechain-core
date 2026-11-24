@@ -647,3 +647,24 @@ func TestGenesisRoundTrip(t *testing.T) {
 		t.Fatalf("genesis round-trip: params mismatch")
 	}
 }
+
+func TestGenesisDustValidated(t *testing.T) {
+	gs := DefaultGenesis()
+	var a [32]byte
+	a[0] = 1
+	gs.Dust = []DustEntry{{Address: a, Lamports: 5}}
+	if err := gs.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range [][]DustEntry{
+		{{Address: a, Lamports: LamportsPerUqor}},
+		{{Address: a, Lamports: 0}},
+		{{Address: a, Lamports: 1}, {Address: a, Lamports: 2}},
+		{{Address: [32]byte{31: 1}, Lamports: 1}},
+	} {
+		gs.Dust = bad
+		if gs.Validate() == nil {
+			t.Fatalf("invalid dust %v accepted", bad)
+		}
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	wasmtypes "github.com/CosmWasm/wasmd/x/wasm/types"
 	cmtcfg "github.com/cometbft/cometbft/config"
 	dbm "github.com/cosmos/cosmos-db"
 	"github.com/spf13/cobra"
@@ -54,7 +55,45 @@ type QoreChainConfig struct {
 	SVMRPC  SVMRPCConfig                        `mapstructure:"svm-rpc"`
 
 	QoreChain QoreChainNodeConfig `mapstructure:"qorechain"`
+
+	Wasm WasmNodeConfig `mapstructure:"wasm"`
 }
+
+// WasmNodeConfig is the [wasm] section of app.toml, read by wasmd's
+// ReadNodeConfig. Node-local: query and simulation limits only.
+type WasmNodeConfig struct {
+	QueryGasLimit      uint64 `mapstructure:"query_gas_limit"`
+	MemoryCacheSize    uint32 `mapstructure:"memory_cache_size"`
+	SimulationGasLimit uint64 `mapstructure:"simulation_gas_limit"`
+}
+
+// DefaultWasmSimulationGasLimit bounds the gas of one tx simulation. With no
+// [wasm] simulation_gas_limit and a block max_gas of -1, wasmd would leave the
+// simulate gas meter infinite, so one request could burn CPU without bound.
+// The template writes it, and the app applies the same value when the key is
+// absent (app.DefaultWasmSimulationGasLimit). Node-local: simulation only,
+// block execution is untouched.
+const DefaultWasmSimulationGasLimit = app.DefaultWasmSimulationGasLimit
+
+// DefaultWasmTemplate is appended to the app.toml template. The query gas
+// limit and memory cache keep wasmd's defaults.
+const DefaultWasmTemplate = `
+###############################################################################
+###                                Wasm                                     ###
+###############################################################################
+
+[wasm]
+
+# Smart query gas limit is the max gas to be used in a smart query contract call.
+query_gas_limit = {{ .Wasm.QueryGasLimit }}
+
+# In-memory cache for Wasm contracts, in MiB. Set to 0 to disable.
+memory_cache_size = {{ .Wasm.MemoryCacheSize }}
+
+# Simulation gas limit is the max gas one tx simulation may use. Without it,
+# and with no positive block max_gas, a simulation runs without a gas limit.
+simulation_gas_limit = {{ .Wasm.SimulationGasLimit }}
+`
 
 // QoreChainNodeConfig holds node-local limits on the app-side mempool and on
 // PrepareProposal. They change only what this node keeps in memory and what it
@@ -84,7 +123,8 @@ cosmos-mempool-max-txs = {{ .QoreChain.CosmosMempoolMaxTxs }}
 prepare-proposal-budget = "{{ .QoreChain.PrepareProposalBudget }}"
 
 # PrepareProposal stops after this many candidates in a row that do not fit in
-# the remaining block space. 0 disables the cap.
+# the remaining block bytes (a candidate that misses only on gas does not
+# count). 0 disables the cap.
 prepare-proposal-max-skips = {{ .QoreChain.PrepareProposalMaxSkips }}
 `
 
@@ -183,13 +223,19 @@ func initAppConfig(chainID string) (string, interface{}) {
 			PrepareProposalBudget:   app.DefaultPrepareProposalBudget.String(),
 			PrepareProposalMaxSkips: app.DefaultPrepareProposalMaxSkips,
 		},
+		Wasm: WasmNodeConfig{
+			QueryGasLimit:      wasmtypes.DefaultNodeConfig().SmartQueryGasLimit,
+			MemoryCacheSize:    app.MinWasmMemoryCacheMiB,
+			SimulationGasLimit: DefaultWasmSimulationGasLimit,
+		},
 	}
 
 	// Combine the standard SDK template with the EVM + SVM-RPC config templates
 	customAppTemplate := serverconfig.DefaultConfigTemplate +
 		cosmosevmserverconfig.DefaultEVMConfigTemplate +
 		DefaultSVMRPCTemplate +
-		DefaultQoreChainNodeTemplate
+		DefaultQoreChainNodeTemplate +
+		DefaultWasmTemplate
 
 	return customAppTemplate, qoreConfig
 }
@@ -245,6 +291,7 @@ func initRootCmd(
 	)
 	// A community build refuses to start on a public network unless told to.
 	wireBuildFlavorGuard(rootCmd)
+	wireRPCEVMChainIDPin(rootCmd)
 
 	rootCmd.AddCommand(
 		server.StatusCommand(),

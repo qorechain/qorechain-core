@@ -67,8 +67,22 @@ type HandlerOptions struct {
 	// RDKMempoolCheck refuses, in CheckTx only, a zk rollup batch that
 	// execution refuses after the fee (RDKZKBatchMempoolDecorator). Nil is off.
 	RDKMempoolCheck func(sdk.Context, sdk.Msg) error
+	// CrossVMMaxPayload is the crossvm max_message_size that
+	// CrossVMPayloadMempoolDecorator applies in CheckTx only. Nil is off.
+	CrossVMMaxPayload func(sdk.Context) uint64
+	// CosmosTxGasCap reports the per-transaction gas bound of the Cosmos lane
+	// and whether cosmos-tx-gas-cap is on (CosmosTxGasCapDecorator). Nil is
+	// off.
+	CosmosTxGasCap func(sdk.Context) (uint64, bool)
+	// WasmTxToken numbers the block's transactions for the per-transaction
+	// share of the block wasm budget (WasmTxTokenDecorator). Nil is off.
+	WasmTxToken func(sdk.Context, sdk.Tx) sdk.Context
+	// WasmUploadAllowed reports whether wasmd's upload access allows a
+	// sender; the mempool guard admits that sender's upload messages
+	// (WasmMempoolGuardDecorator.WithUploadPolicy). Nil keeps them refused.
+	WasmUploadAllowed func(ctx sdk.Context, sender string) bool
 	// ExecutingGenesis reports InitChain, where gentxs run (validator admission
-	// exempts them). Nil falls back to height 0.
+	// and the min-gas-price floor exempt them). Nil falls back to height 0.
 	ExecutingGenesis func(sdk.Context) bool
 
 	// EVM keepers — the concrete AccountKeeper is needed because the EVM ante
@@ -228,6 +242,9 @@ func NewAnteHandler(options HandlerOptions) (sdk.AnteHandler, error) {
 // what it was.
 func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
+		// A contract reached through the EVM bridge counts against this
+		// transaction's share of the block wasm budget.
+		NewWasmTxTokenDecorator(options.WasmTxToken),
 		circuitante.NewCircuitBreakerDecorator(options.CircuitKeeper),
 		NewEVMReplayGuardDecorator(options.PQCKeeper),
 		evmante.NewEVMMonoDecorator(
@@ -253,13 +270,23 @@ func newMonoEVMAnteHandler(options HandlerOptions, evmParams *evmtypes.Params, f
 	)
 }
 
-// genesisExemptDecorator wraps an ante decorator and skips it during InitChain
-// (block height 0). Genesis transactions (gentxs) are delivered fee-free, so
-// fee-floor decorators like the min-gas-price check must not run against them.
-type genesisExemptDecorator struct{ inner sdk.AnteDecorator }
+// genesisExemptDecorator wraps an ante decorator and skips it during InitChain.
+// Genesis transactions (gentxs) are delivered fee-free, so fee-floor
+// decorators like the min-gas-price check must not run against them.
+//
+// InitChain is told by executingGenesis (the application's InitChain flag),
+// not by height 0 alone: with initial_height above 1 the genesis context has
+// that height, and the floor refused the chain's own gentxs. Only InitChain
+// behaves differently, and a chain that is already running got through its
+// InitChain with every gentx passing the floor, so skipping it there replays
+// identically. A nil executingGenesis falls back to height 0.
+type genesisExemptDecorator struct {
+	inner            sdk.AnteDecorator
+	executingGenesis func(sdk.Context) bool
+}
 
 func (d genesisExemptDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate bool, next sdk.AnteHandler) (sdk.Context, error) {
-	if ctx.BlockHeight() == 0 {
+	if ctx.BlockHeight() == 0 || (d.executingGenesis != nil && d.executingGenesis(ctx)) {
 		return next(ctx, tx, simulate)
 	}
 	return d.inner.AnteHandle(ctx, tx, simulate, next)
@@ -276,6 +303,8 @@ func (d genesisExemptDecorator) AnteHandle(ctx sdk.Context, tx sdk.Tx, simulate 
 //   - EVM gas wanted tracking
 func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.AnteHandler {
 	return sdk.ChainAnteDecorators(
+		// Numbers the transaction for its share of the block wasm budget.
+		NewWasmTxTokenDecorator(options.WasmTxToken),
 		// Reject MsgEthereumTx on the Cosmos SDK path — must use ExtensionOptionsEthereumTx
 		cosmosante.NewRejectMessagesDecorator(),
 		// Refuse MsgEthereumTx and every vesting-creation message inside authz,
@@ -295,12 +324,19 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// From v3.2.3 an account's own post-quantum key messages cannot be
 		// sent on its behalf through authz either (QSR-2026-0521, 0506).
 		pqcKeyAuthzLimiter(options.PQCKeeper),
+		// From v3.2.8 neither can the EVM window and EIP-7702 consent
+		// messages, the abstract account management messages, the staking
+		// tier early unlock, nor MsgGrant itself.
+		pqcConsentAuthzLimiter(options.PQCKeeper),
 		ante.NewSetUpContextDecorator(),
+		// From cosmos-tx-gas-cap: a declared gas limit above the bound is
+		// refused before any fee is taken.
+		NewCosmosTxGasCapDecorator(options.CosmosTxGasCap),
 		// Mempool-only guard: refuse CosmWasm upload/instantiate into this
 		// node's mempool. CheckTx only, so block validity is unchanged and
 		// this can be rolled out per-node. From v3.2.5 instantiation is
 		// admitted and only upload stays refused (FeatureWasmGovernedDeploy).
-		NewWasmMempoolGuardDecorator(wasmGovernedDeployFeature(options.PQCKeeper)),
+		NewWasmMempoolGuardDecorator(wasmGovernedDeployFeature(options.PQCKeeper)).WithUploadPolicy(options.WasmUploadAllowed),
 		// Mempool-only: refuse an undelegation or redelegation of locked stake,
 		// which execution refuses with stakingtier code 13 after the fee is
 		// paid. CheckTx only, no consensus change.
@@ -309,6 +345,10 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// usable verification key, which execution refuses with rdk code 21
 		// after the fee is paid. CheckTx only.
 		NewRDKZKBatchMempoolDecorator(options.RDKMempoolCheck),
+		// Mempool-only: refuse a cross-VM call whose payload is over
+		// max_message_size, which execution refuses after the fee is paid.
+		// CheckTx only.
+		NewCrossVMPayloadMempoolDecorator(options.CrossVMMaxPayload),
 		// Runs here, near the front, because the decorator that expands a multisig
 		// signature into event bytes sits much further down (SetPubKey) and the
 		// expansion is exponential in nesting depth. A guard placed after it would
@@ -316,7 +356,9 @@ func newCosmosAnteHandler(options HandlerOptions, fmParams *feemarkettypes.Param
 		// is covered from the v3.2.2 plan height (FeatureMultisigSignatureBound).
 		NewMultisigDepthGuardDecorator(multisigBoundFeature(options.PQCKeeper)),
 		// CosmWasm decorators — limit simulation gas and track tx position
-		wasmkeeper.NewLimitSimulationGasDecorator(options.WasmConfig.SimulationGasLimit),
+		// The limit is never nil (boundedSimulationGasLimit), so a simulation
+		// never runs on an infinite meter when the block max_gas is -1.
+		wasmkeeper.NewLimitSimulationGasDecorator(boundedSimulationGasLimit(options.WasmConfig)),
 		// The counter is written in delivery only; a simulation is charged
 		// its gas on a discarded branch (node-local, ante_simulate_gas.go).
 		simulateChargedDecorator{wasmkeeper.NewCountTXDecorator(options.TXCounterStoreService)},
@@ -396,9 +438,9 @@ func newFeeRouter(options HandlerOptions, fmParams *feemarkettypes.Params) sdk.A
 		},
 		Native: []sdk.AnteDecorator{
 			// Use EVM fee market min gas price instead of standard min gas price.
-			// Exempt at genesis (height 0): gentxs are delivered fee-free during
-			// InitChain, but the min-gas-price floor would otherwise reject them.
-			genesisExemptDecorator{minGasPrice},
+			// Exempt during InitChain: gentxs are delivered fee-free, but the
+			// min-gas-price floor would otherwise reject them.
+			genesisExemptDecorator{inner: minGasPrice, executingGenesis: options.ExecutingGenesis},
 			txSizeGas,
 			// Gas abstraction: refuses a non-native fee this path cannot take.
 			NewGasAbstractionDecorator(options.GasAbstractionKeeper),

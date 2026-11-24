@@ -28,6 +28,26 @@ service Msg {
   // UpdateVerificationKey is served from v3.2.7 (rdk-zk-verification-key).
   // Governance only; it may change a rollup's key at any time.
   rpc UpdateVerificationKey(MsgUpdateVerificationKey) returns (MsgUpdateVerificationKeyResponse);
+  // PostRollupData is served from v3.2.8 (rdk-post-rollup-data). It puts a
+  // rollup's data on chain: the payload stays in the transaction, the chain
+  // keeps a commitment and extends the rollup's inbox.
+  rpc PostRollupData(MsgPostRollupData) returns (MsgPostRollupDataResponse);
+  // SetRollupSequencing is served from v3.2.8 (rdk-based-sequencing).
+  // Governance only; it moves an existing rollup to or from based sequencing.
+  rpc SetRollupSequencing(MsgSetRollupSequencing) returns (MsgSetRollupSequencingResponse);
+  // DepositToRollup is served from v3.2.8 (rdk-optimistic-reexec). It moves
+  // uqor into a qledger-v1 rollup's deposit pool and appends a deposit entry
+  // to its inbox.
+  rpc DepositToRollup(MsgDepositToRollup) returns (MsgDepositToRollupResponse);
+  // BondRollupSubmitter and UnbondRollupSubmitter are served from v3.2.8
+  // (rdk-optimistic-reexec): a qledger-v1 rollup takes batches from any
+  // account holding a submitter bond, which an upheld fraud proof pays to
+  // the challenger.
+  rpc BondRollupSubmitter(MsgBondRollupSubmitter) returns (MsgBondRollupSubmitterResponse);
+  rpc UnbondRollupSubmitter(MsgUnbondRollupSubmitter) returns (MsgUnbondRollupSubmitterResponse);
+  // SetRollupMembers is served from v3.2.8 (rdk-private-rollups). The
+  // creator of a private rollup sets its member list.
+  rpc SetRollupMembers(MsgSetRollupMembers) returns (MsgSetRollupMembersResponse);
 }
 
 message MsgCreateRollup {
@@ -42,6 +62,21 @@ message MsgCreateRollup {
   // proof system. Accepted from v3.2.7 (rdk-zk-verification-key); below it a
   // message that carries one is refused.
   bytes verification_key = 6;
+  // sequencing is "" (the rollup's sequencer settles, as before) or "based":
+  // the rollup's transactions are ordered by their inclusion in this chain
+  // (MsgPostRollupData, which anyone may send) and every batch must consume
+  // the inbox in order. Accepted from v3.2.8 (rdk-based-sequencing), for zk
+  // (snark) and based settlement only; below it a message that sets it is
+  // refused.
+  string sequencing = 7;
+  // execution_vm is "" or "qledger-v1" (v3.2.8, rdk-optimistic-reexec): an
+  // optimistic rollup whose batches the chain can re-execute in a fraud
+  // proof. It must be based.
+  string execution_vm = 8;
+  // privacy is "" or "encapsulated" (v3.2.8, rdk-private-rollups): every
+  // post is an ML-KEM-1024 envelope to the rollup's members. zk with a
+  // Groth16 key only.
+  string privacy = 9;
 }
 message MsgCreateRollupResponse {
   string rollup_id = 1 [(gogoproto.customname) = "RollupID"];
@@ -69,6 +104,12 @@ message MsgSubmitBatch {
   // validator_set_hash is the rollup's validator-set commitment carried in
   // the anchor. Optional; covered by anchor_signature.
   bytes validator_set_hash = 11;
+  // inbox_end is, for a based rollup, the sequence number of the last posted
+  // data item this batch consumes; the batch covers the posts after the
+  // rollup's consumed sequence up to it, and data_hash must be their inbox
+  // range commitment. Zero and ignored for every other rollup. Accepted from
+  // v3.2.8 (rdk-based-sequencing); below it a non-zero value is refused.
+  uint64 inbox_end = 12;
 }
 message MsgSubmitBatchResponse {}
 
@@ -157,6 +198,26 @@ message MsgUpdateParams {
   uint64 max_da_blob_size = 6;
   uint64 blob_retention_blocks = 7;
   uint32 max_batches_per_block = 8;
+  // finalized_batch_retention_blocks is how many blocks a finalized batch
+  // keeps its proof before it is compacted; 0 means the default. A non-zero
+  // value is refused before v3.2.8 (rdk-batch-compaction).
+  uint64 finalized_batch_retention_blocks = 9;
+  // The posted-data parameters (v3.2.8, rdk-post-rollup-data). Zero means
+  // the default for each; a non-zero value is refused before the switch.
+  // max_posted_data_bytes caps one MsgPostRollupData payload.
+  uint64 max_posted_data_bytes = 10;
+  // max_posted_data_bytes_per_block caps the billable bytes posted in one
+  // block, all rollups together.
+  uint64 max_posted_data_bytes_per_block = 11;
+  // posted_data_fee_per_byte is the uqor fee per billable byte.
+  uint64 posted_data_fee_per_byte = 12;
+  // posted_data_retention_blocks is how long a posted-data commitment stays
+  // in state.
+  uint64 posted_data_retention_blocks = 13;
+  // min_submitter_bond is the uqor bond a qledger-v1 rollup's batch
+  // submitter must hold (v3.2.8, rdk-optimistic-reexec); 0 means the
+  // default. A non-zero value is refused before the switch.
+  uint64 min_submitter_bond = 14;
 }
 message MsgUpdateParamsResponse {}
 
@@ -195,3 +256,89 @@ message MsgUpdateVerificationKey {
   string proof_system = 4;
 }
 message MsgUpdateVerificationKeyResponse {}
+
+// MsgPostRollupData puts rollup data on chain (v3.2.8, rdk-post-rollup-data).
+// The payload stays in this transaction, which is in the block; the chain
+// stores a commitment (SHA-256 of data, size, poster, height) under the next
+// sequence number of the rollup's inbox and extends the inbox accumulator.
+// The poster pays a fee per billable byte (at least 1 KiB per post) into the
+// fee collector. Who may post: the rollup's sequencer (or its creator when no
+// sequencer address is set); anyone for a based rollup.
+message MsgPostRollupData {
+  option (cosmos.msg.v1.signer) = "poster";
+  string poster = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string rollup_id = 2 [(gogoproto.customname) = "RollupID"];
+  bytes data = 3;
+}
+message MsgPostRollupDataResponse {
+  // sequence is the inbox sequence number the post was given (from 1).
+  uint64 sequence = 1;
+  // data_hash is SHA-256(data), the hash a batch references.
+  bytes data_hash = 2;
+}
+
+// MsgSetRollupSequencing moves a rollup to based sequencing ("based") or back
+// to its sequencer (""). Governance only: authority must be the gov module
+// account. Moving to based starts the inbox at its current head. Served from
+// v3.2.8 (rdk-based-sequencing).
+message MsgSetRollupSequencing {
+  option (cosmos.msg.v1.signer) = "authority";
+  string authority = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string rollup_id = 2 [(gogoproto.customname) = "RollupID"];
+  string sequencing = 3;
+}
+message MsgSetRollupSequencingResponse {}
+
+// MsgDepositToRollup moves amount uqor from depositor into a qledger-v1
+// rollup's deposit pool and credits the L2 account (32-byte qledger-v1
+// account id) through the rollup's inbox. Served from v3.2.8
+// (rdk-optimistic-reexec).
+message MsgDepositToRollup {
+  option (cosmos.msg.v1.signer) = "depositor";
+  string depositor = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string rollup_id = 2 [(gogoproto.customname) = "RollupID"];
+  bytes account = 3;
+  uint64 amount = 4;
+}
+message MsgDepositToRollupResponse {
+  // sequence is the inbox sequence of the deposit entry.
+  uint64 sequence = 1;
+}
+
+// MsgBondRollupSubmitter adds amount uqor to submitter's bond on a
+// qledger-v1 rollup. Served from v3.2.8 (rdk-optimistic-reexec).
+message MsgBondRollupSubmitter {
+  option (cosmos.msg.v1.signer) = "submitter";
+  string submitter = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string rollup_id = 2 [(gogoproto.customname) = "RollupID"];
+  uint64 amount = 3;
+}
+message MsgBondRollupSubmitterResponse {
+  uint64 bond = 1;
+}
+
+// MsgUnbondRollupSubmitter returns submitter's whole bond once a full
+// challenge window has passed since its last batch. Served from v3.2.8
+// (rdk-optimistic-reexec).
+message MsgUnbondRollupSubmitter {
+  option (cosmos.msg.v1.signer) = "submitter";
+  string submitter = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string rollup_id = 2 [(gogoproto.customname) = "RollupID"];
+}
+message MsgUnbondRollupSubmitterResponse {
+  uint64 returned = 1;
+}
+
+// MsgSetRollupMembers sets the member list of a private rollup (each member
+// must publish an ML-KEM-1024 key in the x/pqc KEM registry) and starts a
+// new membership epoch. Signed by the rollup's creator. Served from v3.2.8
+// (rdk-private-rollups).
+message MsgSetRollupMembers {
+  option (cosmos.msg.v1.signer) = "creator";
+  string creator = 1 [(cosmos_proto.scalar) = "cosmos.AddressString"];
+  string rollup_id = 2 [(gogoproto.customname) = "RollupID"];
+  repeated string members = 3;
+}
+message MsgSetRollupMembersResponse {
+  uint64 epoch = 1;
+}

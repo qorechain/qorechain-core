@@ -88,6 +88,19 @@ message SVMParams {
   int64 svm_slot_offset = 7;
   uint32 default_sig_scheme = 8;
   uint32 max_cpi = 9;
+  // max_custody_uqor caps the uqor balance of the svm module account (the
+  // custody backing program, PDA and data-account lamports). 0 means no cap.
+  // Enforced only while the svm-lane-governed protocol feature is on.
+  uint64 max_custody_uqor = 10;
+  // max_custody_hard_uqor is the absolute ceiling on the svm module account's
+  // raw uqor balance (rent reserves, pre-funding and donations included):
+  // with svm-custody-hard-ceiling any operation that would leave the balance
+  // above it is refused. 0 means no ceiling; governance must set one before
+  // opening the lane on any network. It should be well above max_custody_uqor.
+  uint64 max_custody_hard_uqor = 11;
+  // max_account_excess_uqor caps, per store account, the uqor above its
+  // rent-exempt minimum (svm-account-excess-cap); 0 means no cap.
+  uint64 max_account_excess_uqor = 12;
 }
 
 // MsgUpdateParams replaces the SVM runtime parameters wholesale.

@@ -39,6 +39,9 @@ func (c FeeConfig) ToConfig() GasAbstractionConfig {
 			PoolID:           t.PoolId,
 			MinLiquidity:     t.MinLiquidity,
 			MaxDeviationBps:  t.MaxDeviationBps,
+
+			MinForeignLiquidity: t.MinForeignLiquidity,
+			MinPoolAgeBlocks:    t.MinPoolAgeBlocks,
 		})
 	}
 	return out
@@ -64,6 +67,9 @@ func FeeConfigFrom(c GasAbstractionConfig) FeeConfig {
 			PoolId:           t.PoolID,
 			MinLiquidity:     t.MinLiquidity,
 			MaxDeviationBps:  t.MaxDeviationBps,
+
+			MinForeignLiquidity: t.MinForeignLiquidity,
+			MinPoolAgeBlocks:    t.MinPoolAgeBlocks,
 		})
 	}
 	return out

@@ -18,23 +18,33 @@ Include:
 - Potential impact
 - Suggested fix (if any)
 
-We will acknowledge your report within 48 hours and provide a detailed response within 7 days.
+We will acknowledge your report within 48 hours and give a triage decision within 21 days for Critical and High and within 60 days for Medium, Low and Insight.
 
 ## Scope
 
-The following areas are in scope for security reports:
-- Consensus vulnerabilities
-- PQC cryptographic implementation issues
-- Bridge security (circuit breaker bypass, attestation forgery)
-- AI module manipulation (anomaly detection bypass)
-- Privilege escalation
-- Denial of service
+The bug bounty scope is published, and kept current, on the security page at
+https://qorechain.io/security. At the time of writing it covers:
+- Consensus and block production, including staking, slashing and distribution
+- The bank module, locked-coin accounting and escrow accounts
+- The ML-DSA-87 signing path and post-quantum key registration, Go implementation
+- The EVM execution lane
+- Public RPC and API infrastructure
+- The QoreX wallet
+
+Components under active remediation (such as the CosmWasm lane, the bridge
+module and the SVM execution lane) are added to the scope, with an
+announcement, as their remediation lands. Volumetric and denial of service
+testing against production, social engineering, third party dependencies
+without a demonstrated impact on QoreChain, testing on mainnet that affects
+real users or funds, and automated mass submissions are out of scope. Every
+report needs a working proof of concept against a local devnet or the public
+testnet.
 
 ## Disclosure Policy
 
 - We follow responsible disclosure practices
 - Reporters will be credited (unless anonymity is requested)
-- We aim to fix critical vulnerabilities within 30 days
+- We aim to fix critical vulnerabilities within 90 days
 - Public disclosure after fix is deployed to mainnet
 
 ## PQC-Specific Security

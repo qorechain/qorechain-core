@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	sdkmath "cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 	"github.com/ethereum/go-ethereum/common"
 )
 
@@ -66,6 +67,98 @@ type EVMAuthWindow struct {
 	// and admits exactly what it always did.
 	NativeOnly     bool     `json:"native_only,omitempty"`
 	AllowedTargets []string `json:"allowed_targets,omitempty"`
+	// Validators names the contracts whose check of the account's signature
+	// counts for its actions (FeatureEVMWindowValidators). Optional, omitted
+	// when empty; it does not narrow the scope.
+	Validators []string `json:"validators,omitempty"`
+	// StakingValidators names the validators (bech32 operator addresses) the
+	// account's stake may be delegated or redelegated to through the window
+	// (FeatureEVMWindowStakingValidators). Optional, omitted when empty;
+	// empty refuses delegate and redelegate through the window.
+	StakingValidators []string `json:"staking_validators,omitempty"`
+	// IBCReceivers names the IBC destinations ("<source channel>/<receiver>")
+	// native QOR may be sent to through the window with the ICS-20
+	// precompile (FeatureEVMPrecompileMethodAllowlist). Optional, omitted when
+	// empty; empty refuses ICS-20 transfers through the window.
+	IBCReceivers []string `json:"ibc_receivers,omitempty"`
+}
+
+// MaxIBCReceiverLen bounds one ibc_receivers entry.
+const MaxIBCReceiverLen = 256
+
+// ParseIBCReceiver splits an ibc_receivers entry into its source channel and
+// receiver: both non-empty, the channel without '/', no whitespace or comma.
+func ParseIBCReceiver(entry string) (channel, receiver string, err error) {
+	if len(entry) == 0 || len(entry) > MaxIBCReceiverLen {
+		return "", "", fmt.Errorf("%q must be 1 to %d characters", entry, MaxIBCReceiverLen)
+	}
+	if strings.ContainsAny(entry, " \t\r\n,") {
+		return "", "", fmt.Errorf("%q contains whitespace or a comma", entry)
+	}
+	i := strings.IndexByte(entry, '/')
+	if i <= 0 || i == len(entry)-1 {
+		return "", "", fmt.Errorf("%q is not <source channel>/<receiver>", entry)
+	}
+	return entry[:i], entry[i+1:], nil
+}
+
+// NamesIBCReceiver reports whether the window admits an ICS-20 transfer of
+// native QOR over sourceChannel to receiver: the exact pair is listed.
+func (w EVMAuthWindow) NamesIBCReceiver(sourceChannel, receiver string) bool {
+	if sourceChannel == "" || receiver == "" {
+		return false
+	}
+	for _, e := range w.IBCReceivers {
+		if c, r, err := ParseIBCReceiver(e); err == nil && c == sourceChannel && r == receiver {
+			return true
+		}
+	}
+	return false
+}
+
+// NamesStakingValidator reports whether the window admits delegating or
+// redelegating the account's stake to the validator (bech32 operator
+// address). Only the list the post-quantum key set counts; the account's
+// current delegations do not.
+func (w EVMAuthWindow) NamesStakingValidator(validator string) bool {
+	val, err := sdk.ValAddressFromBech32(validator)
+	if err != nil {
+		return false
+	}
+	for _, v := range w.StakingValidators {
+		if named, err := sdk.ValAddressFromBech32(v); err == nil && named.Equals(val) {
+			return true
+		}
+	}
+	return false
+}
+
+// NormalizeStakingValidators returns the list in canonical bech32 form, in
+// the order given. Validate has already refused invalid or repeated entries.
+func NormalizeStakingValidators(in []string) []string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(in))
+	for _, v := range in {
+		if val, err := sdk.ValAddressFromBech32(v); err == nil {
+			out = append(out, val.String())
+		}
+	}
+	return out
+}
+
+// NamesValidator reports whether the window names a as a validator of the
+// account's signature: listed in validators. allowed_targets does not count:
+// a target the account calls (a router, a relay that makes calls for anyone)
+// is not thereby trusted to vouch for its signature.
+func (w EVMAuthWindow) NamesValidator(a common.Address) bool {
+	for _, t := range w.Validators {
+		if common.HexToAddress(t) == a {
+			return true
+		}
+	}
+	return false
 }
 
 // WHY A SCOPE. The value bound counts native QOR only: the value a transaction
@@ -235,6 +328,47 @@ func (m MsgOpenEVMWindow) Validate() error {
 			return fmt.Errorf("allowed_targets lists %s more than once", a.Hex())
 		}
 		seen[a] = true
+	}
+	if len(m.Validators) > MaxEVMWindowTargets {
+		return fmt.Errorf("validators lists %d addresses, the maximum is %d", len(m.Validators), MaxEVMWindowTargets)
+	}
+	seenV := make(map[common.Address]bool, len(m.Validators))
+	for _, t := range m.Validators {
+		a, err := ParseDelegate(t)
+		if err != nil {
+			return fmt.Errorf("validators: %w", err)
+		}
+		if seenV[a] {
+			return fmt.Errorf("validators lists %s more than once", a.Hex())
+		}
+		seenV[a] = true
+	}
+	if len(m.StakingValidators) > MaxEVMWindowTargets {
+		return fmt.Errorf("staking_validators lists %d validators, the maximum is %d", len(m.StakingValidators), MaxEVMWindowTargets)
+	}
+	seenS := make(map[string]bool, len(m.StakingValidators))
+	for _, v := range m.StakingValidators {
+		val, err := sdk.ValAddressFromBech32(v)
+		if err != nil {
+			return fmt.Errorf("staking_validators: %q is not a validator operator address: %w", v, err)
+		}
+		if seenS[val.String()] {
+			return fmt.Errorf("staking_validators lists %s more than once", val.String())
+		}
+		seenS[val.String()] = true
+	}
+	if len(m.IbcReceivers) > MaxEVMWindowTargets {
+		return fmt.Errorf("ibc_receivers lists %d destinations, the maximum is %d", len(m.IbcReceivers), MaxEVMWindowTargets)
+	}
+	seenI := make(map[string]bool, len(m.IbcReceivers))
+	for _, e := range m.IbcReceivers {
+		if _, _, err := ParseIBCReceiver(e); err != nil {
+			return fmt.Errorf("ibc_receivers: %w", err)
+		}
+		if seenI[e] {
+			return fmt.Errorf("ibc_receivers lists %s more than once", e)
+		}
+		seenI[e] = true
 	}
 	return nil
 }

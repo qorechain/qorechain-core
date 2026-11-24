@@ -28,6 +28,47 @@ Batches include a validity proof (SNARK or STARK) that is verified on submission
 - **Finality**: Instant upon proof verification
 - **STARK verifier (v3.1.33+)**: A real, from-scratch transparent STARK verifier lives in `x/rdk/stark` (prime field, Fiat-Shamir transcript, Merkle commitments, FRI low-degree test, AIR + DEEP composition). It is wired into settlement behind an opt-in `QSTK` verification-key gate — rollups configured for STARK verification have their ZK batches cryptographically verified on-chain; others fall back to the optimistic challenge path. (Earlier releases up to v1.3.0 accepted any non-empty proof as a stub.)
 
+#### Groth16 public inputs (canonical inputs, from v3.2.8)
+
+A Groth16 (BLS12-381) batch is verified against four public inputs, in this
+order, each the 32-byte value read as a big-endian integer and reduced modulo
+the scalar field order
+
+```
+r = 0x73eda753299d7d483339d80809a1d80553bda402fffe5bfeffffffff00000001
+input_i = int.from_bytes(value_i, "big") mod r
+values  = prev_state_root, state_root, data_hash, withdrawals_root
+```
+
+(three inputs, without `withdrawals_root`, for a batch submitted before the
+withdrawals binding). The circuit's witness must take the same reduced values.
+
+From `rdk-zk-canonical-inputs` the rule is: a value the chain derives or
+fixes is reduced modulo r by the chain and may be any 32 bytes; a value the
+prover chooses must already be below r, or the batch is refused.
+
+| Value | Who fixes it | Must be below r |
+|---|---|---|
+| `state_root` | the prover | yes |
+| `prev_state_root` | the chain (equals the latest settled `state_root`), except on a rollup's first batch | first batch only |
+| `data_hash` | the chain when bound (a based rollup's inbox range, a posted-data or native-blob commitment), otherwise the prover | only when not bound |
+| `withdrawals_root` | the chain (the SHAKE-256 withdrawal tree root that `MsgExecuteWithdrawal` recomputes from the leaves) | no |
+
+So an RDK client computes `withdrawals_root mod r` (and `data_hash mod r`
+for a bound data hash) for its circuit witness and may submit the unreduced
+32-byte root; it keeps its own state roots below r.
+
+The proof commits to the withdrawals root only modulo r, so that is what the
+chain keeps: a Groth16 batch that binds its withdrawals stores
+`withdrawals_root mod r` as 32 big-endian bytes (the `batch` query shows that
+value, with `withdrawals_root_reduced` true), and `MsgExecuteWithdrawal` accepts a withdrawal whose Merkle proof
+rebuilds a root equal to the stored one modulo r. The root, root + r and
+root - r therefore settle as the same batch. Withdrawal proofs are built from
+the tree as usual (leaves, siblings, the unreduced root); nothing changes for
+optimistic, qledger-v1 or STARK batches, which keep the exact bytes. STARK batches check
+`prev_state_root` (first batch) and `state_root` against the Goldilocks
+modulus the same way.
+
 ### Based Settlement
 
 The host chain's block proposers directly sequence rollup transactions. This is the most decentralized sequencing model, as it inherits the full validator set of the host chain. Based rollups finalize after a short confirmation delay (2 blocks) since L1 finality equals rollup finality.
@@ -120,6 +161,94 @@ IBC-based data availability via Celestia. Stubbed in v1.3.0 — submissions retu
 
 Redundant storage on both native and Celestia backends simultaneously.
 
+### Posted Rollup Data and Based Sequencing (from v3.2.8)
+
+`MsgPostRollupData` (`tx rdk post-data`) puts rollup data on chain. The payload
+stays in the transaction (so it is in the block); the chain keeps a commitment
+(SHA-256 of the data, size, poster, height) under the rollup's next inbox
+sequence and extends the rollup's inbox accumulator. A batch of a native-DA
+rollup may reference a retained post by `data_hash = SHA-256(data)`.
+
+- Who may post: the rollup's sequencer (its creator when no sequencer address
+  is set); anyone on a based rollup.
+- Caps: `max_posted_data_bytes` per post (default 128 KiB, hard ceiling 1 MiB)
+  and `max_posted_data_bytes_per_block` for all rollups together (default
+  512 KiB of billable bytes).
+- Fee: `posted_data_fee_per_byte` uqor (default 10) per billable byte, where a
+  post is billed at least 1 KiB, paid into the fee collector and split like a
+  transaction fee. Gas is charged on top.
+- Retention: commitments are pruned after `posted_data_retention_blocks`
+  (default 648,000). The bytes stay in the block history. The retention must
+  be at least the longest challenge window in force, counted one block per
+  second (`default_challenge_window` and the window of every rollup that is
+  not stopped); a parameter update that leaves it shorter is refused, and the
+  v3.2.8 upgrade raises a shorter stored value.
+
+Based sequencing (`create-rollup --sequencing based`, or governance
+`MsgSetRollupSequencing` for an existing rollup) orders a rollup's
+transactions by their inclusion on this chain. Each post gets the next inbox
+sequence, and every batch of a based rollup sets `inbox_end` and carries as
+`data_hash` the inbox range commitment from the consumed position to
+`inbox_end` (`query rdk inbox` returns it). A based zk rollup proving with
+Groth16 (`defi` profile) accepts batches from any account, since the proof
+binds the roots, the inbox range and the withdrawals root; a based-settlement
+rollup (`gaming`, `enterprise`) keeps its sequencer as the only submitter.
+Optimistic and STARK rollups cannot be based in this release.
+
+The accumulator and range commitment are:
+
+```
+acc_n = SHA-256("qorechain/rdk/inbox/v1" | lp(chain_id) | lp(rollup_id) | acc_{n-1}
+                | be64(n) | be64(height) | lp(poster) | SHA-256(data))
+range = SHA-256("qorechain/rdk/inbox-range/v1" | lp(chain_id) | lp(rollup_id)
+                | be64(from) | be64(to) | acc_from | acc_to)
+```
+
+with `acc_0` = 32 zero bytes and `lp` a 4-byte big-endian length prefix.
+
+
+### Settlement Modes (from v3.2.8)
+
+Three protocol features, all enabled by the v3.2.8 upgrade.
+
+**`rdk-optimistic-reexec`: optimistic rollups with fraud proofs that check execution.**
+An optimistic rollup (`nft`, `custom`) created with `--execution-vm qledger-v1 --sequencing based` runs the
+qledger-v1 model (`x/rdk/qledger`): a uqor account ledger (sparse Merkle tree, SHA-256) with signed transfers
+and withdrawals (ML-DSA-44 account keys only). Its inputs are its inbox: user posts (one transaction each,
+at most 6 KiB) and deposits (`MsgDepositToRollup`, which the chain appends itself). Any account holding a
+submitter bond (`MsgBondRollupSubmitter`, at least `min_submitter_bond`, default 1,000 QOR) may submit a batch of
+at most 64 inbox entries. A batch of fewer than 64 entries ends at the inbox head or before a post younger than
+20 blocks, or, once the commitments of older unconsumed posts are pruned, at a checkpoint (an inbox sequence that is
+a multiple of 64): the commitment of every checkpoint not yet covered by a finalized batch is kept for as long as
+the rollup is not stopped, so after any idle period the rollup resumes with one batch to the next checkpoint and
+full batches from checkpoint to checkpoint. During the challenge window anyone may send `MsgChallengeBatch` with a qledger-v1 fraud
+proof (the batch's inputs and a Merkle witness of the accounts they touch); the chain re-executes the batch and,
+if its state root or withdrawals root is wrong, rejects it and every batch built on it, rolls the inbox back and
+slashes the submitter's whole bond: half is burned (x/burn source `rollup_slash`; should the burn fail, that half goes
+to the fee collector) and the other half is paid to the challenger, so a submitter that challenges its own fraudulent
+batch still loses half of its bond. A proof that does not show fraud fails and changes nothing.
+Withdrawals are paid from finalized batches only, from the rollup's deposit pool (never from the creator's
+escrow); the rollup cannot be stopped while the pool holds deposits. A bond can be withdrawn
+(`MsgUnbondRollupSubmitter`) a full challenge window after its holder's last batch. From v3.2.8 no new optimistic
+rollup can be created without an execution VM; optimistic rollups created before are unchanged (their batches are as
+good as their sequencer).
+
+**`rdk-stark-statement`: the demonstration STARK AIR is refused.** The only AIR the STARK verifier implements
+proves iterated squaring between two 64-bit values, which anyone can prove for any roots and which does not
+constrain withdrawals or data. From v3.2.8 a STARK key cannot be set and a STARK rollup's batches are refused;
+governance can move such a rollup to a Groth16 key. STARK settlement returns with a real rollup statement.
+
+**`rdk-private-rollups`: private rollups.** A `defi` (Groth16) rollup created with `--privacy encapsulated` takes
+only posts that are ML-KEM-1024 envelopes (`x/rdk/privpost`) to its members: the data encrypted once (AES-256-GCM)
+under a fresh key, that key encapsulated to every member's key in the x/pqc KEM registry, with a key commitment so
+all members open the same content. The creator sets the members (`MsgSetRollupMembers`, at most 32, each with a
+registered ML-KEM-1024 key); each change starts a new epoch. The chain checks the envelope's structure and that
+every entry names the member's current key; it never decrypts. Posts, poster, timing, sizes, members, roots and
+withdrawals (recipient and amount) stay public. Use `tx rdk post-private-data` to encrypt and post, and
+`tx rdk decrypt-private-data` (offline) to open a post.
+
+**Based rollups are paused, resumed and stopped by governance only** (from `rdk-based-sequencing`).
+
 ## Gas Models
 
 | Model | Description | Use Case |
@@ -162,7 +291,7 @@ When a rollup is created, it is registered as a `rollup` layer type in the x/mul
 
 ### Burn Integration
 
-Rollup creation burns 1% of the required stake through the x/burn module's `rollup_create` source channel. This is the 10th burn channel in the unified burn accounting system.
+Rollup creation burns 1% of the required stake through the x/burn module's `rollup_create` source channel. This is the 10th burn channel in the unified burn accounting system. From v3.2.8 half of a qledger-v1 submitter bond slashed by an upheld fraud proof is burned through the `rollup_slash` source.
 
 ## Settlement Batch Lifecycle
 
@@ -200,7 +329,13 @@ The EndBlocker runs settlement logic each block:
 | `default_challenge_window` | 604,800 seconds (7 days) | Default optimistic challenge window |
 | `max_da_blob_size` | 2,097,152 bytes (2 MB) | Maximum data availability blob size |
 | `blob_retention_blocks` | 432,000 (~30 days) | Blocks before expired blobs are pruned |
-| `max_batches_per_block` | 10 | Maximum settlement batches per block |
+| `max_batches_per_block` | 10 | Maximum settlement batches one rollup can settle in one block (enforced from v3.2.8) |
+| `finalized_batch_retention_blocks` | 0 (= 432,000, ~30 days) | Blocks a finalized batch keeps its stored proof before it is compacted (from v3.2.8). Compaction removes only the proof; withdrawals against the batch keep working |
+| `max_posted_data_bytes` | 0 (= 131,072) | Largest `MsgPostRollupData` payload (from v3.2.8) |
+| `max_posted_data_bytes_per_block` | 0 (= 524,288) | Billable bytes all posts of one block may total (from v3.2.8) |
+| `posted_data_fee_per_byte` | 0 (= 10 uqor) | Fee per billable byte, at least 1 KiB billed per post (from v3.2.8) |
+| `posted_data_retention_blocks` | 0 (= 648,000) | Blocks a posted-data commitment stays in state (from v3.2.8); at least the longest challenge window in seconds, at most 25,920,000 (ten times the 30-day maximum window at 1 s blocks) |
+| `min_submitter_bond` | 0 (= 1,000,000,000 uqor) | Bond a qledger-v1 batch submitter must hold (from v3.2.8) |
 
 ## CLI Commands
 
@@ -296,6 +431,23 @@ qorechaind query rdk params
 | GET | `/qorechain/rdk/v1/batches/{rollup_id}` | List batches for a rollup |
 | GET | `/qorechain/rdk/v1/blob/{rollup_id}/{blob_index}` | DA blob details |
 | GET | `/qorechain/rdk/v1/params` | Module parameters |
+| GET | `/qorechain/rdk/v1/posted_data/{rollup_id}/{sequence}` | Posted-data commitment (v3.2.8) |
+| GET | `/qorechain/rdk/v1/inbox/{rollup_id}?inbox_end=N` | Inbox head, consumed position and the range data_hash for a based batch (v3.2.8) |
+| GET | `/qorechain/rdk/v1/submitter_bond/{rollup_id}/{submitter}` | A qledger-v1 submitter's bond and when it unlocks (v3.2.8) |
+
+Query fields added for RDK clients in v3.2.8 (read-only):
+
+- `SubmitterBond` returns `pending` (field 4, JSON `pending`): the
+  submitter's batches on the rollup still waiting for finality, 0 when none.
+  It goes up on each batch submitted and down when one is finalized or
+  rejected.
+- The batch view (`batch`, `latest-batch`, `batches`) returns
+  `withdrawals_root_reduced` (field 16, JSON `withdrawals_root_reduced`):
+  true when `withdrawals_root` was stored reduced modulo r, which is a
+  Groth16 batch with `withdrawals_bound` settled with
+  `rdk-zk-canonical-inputs` on. A client then compares the root its Merkle
+  proof rebuilds with the stored one modulo r. False for every other batch,
+  whose root is the submitted bytes.
 
 ## JSON-RPC (`qor_` Namespace)
 
@@ -327,6 +479,16 @@ qorechaind query rdk params
 }
 ```
 
+From v3.2.8 an export also carries `escrow_ledger`, each rollup's share of the
+pooled module escrow (`{"rollup_id": "...", "amount": "<uqor>"}`), and an import
+restores it. A rollup imported without a ledger entry is treated as a legacy
+record: stopping it refunds its recorded escrow (or its stake, whichever is
+smaller; the stake when no escrow figure is recorded).
+
+It also carries `posted_data` (the retained posted-data commitments) and
+`inboxes` (each rollup's inbox head and consumed position); an import rebuilds
+the hash index and the pruning queue from them.
+
 ## Events
 
 | Event | Description |
@@ -342,6 +504,10 @@ qorechaind query rdk params
 | `da_blob_stored` | DA blob stored on native backend |
 | `da_blob_pruned` | Expired DA blob pruned |
 | `profile_suggested` | AI profile recommendation made |
+| `rdk_data_posted` | Rollup data posted (rollup_id, sequence, data_hash, size, billable_bytes, fee, poster, inbox_acc), from v3.2.8 |
+| `rdk_inbox_consumed` | A based batch consumed an inbox range (rollup_id, batch_index, inbox_start, inbox_end), from v3.2.8 |
+| `rdk_sequencing_set` | A rollup was made based at creation or by governance, from v3.2.8 |
+| `rdk_posted_data_pruned` | Expired posted-data commitments pruned this block (count), from v3.2.8 |
 
 ## Security Considerations
 

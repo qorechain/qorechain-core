@@ -50,7 +50,7 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.5 // indirect
 	github.com/btcsuite/btcd/btcutil v1.1.6 // indirect
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0 // indirect
-	github.com/cloudflare/circl v1.6.5 // indirect
+	github.com/cloudflare/circl v1.6.5
 	github.com/crate-crypto/go-eth-kzg v1.3.0 // indirect
 	github.com/crate-crypto/go-ipa v0.0.0-20240724233137-53bbb0ceb27a // indirect
 	github.com/deckarep/golang-set/v2 v2.6.0 // indirect
@@ -84,7 +84,7 @@ require (
 	github.com/pion/transport/v3 v3.0.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/ronanh/intcomp v1.1.1 // indirect
-	github.com/shamaton/msgpack/v2 v2.2.0 // indirect
+	github.com/shamaton/msgpack/v2 v2.4.1 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/supranational/blst v0.3.14 // indirect
 	github.com/tidwall/gjson v1.18.0 // indirect
@@ -115,7 +115,7 @@ require (
 	github.com/99designs/go-keychain v0.0.0-20191008050251-8e49817e8af4 // indirect
 	github.com/99designs/keyring v1.2.2 // indirect
 	github.com/CosmWasm/wasmd v0.60.9
-	github.com/CosmWasm/wasmvm/v2 v2.3.5 // indirect
+	github.com/CosmWasm/wasmvm/v2 v2.3.5
 	github.com/DataDog/datadog-go v4.8.3+incompatible // indirect
 	github.com/DataDog/zstd v1.5.7 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.33.0 // indirect
@@ -171,7 +171,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/getsentry/sentry-go v0.35.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.5 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.6 // indirect
 	github.com/go-kit/kit v0.13.0 // indirect
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect

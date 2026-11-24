@@ -45,6 +45,21 @@ type SettlementBatch struct {
 	// every batch submitted before, so their records keep their bytes and are
 	// judged by the rule they were settled under.
 	WithdrawalsBound bool `json:"withdrawals_bound,omitempty"`
+	// WithdrawalsRootReduced is set on a batch whose WithdrawalsRoot was
+	// stored reduced modulo the BLS12-381 scalar field r: a WithdrawalsBound
+	// Groth16 batch settled with rdk-zk-canonical-inputs on (v3.2.8). False
+	// and omitted for every other batch, so their records keep their bytes.
+	WithdrawalsRootReduced bool `json:"withdrawals_root_reduced,omitempty"`
+	// InboxStart and InboxEnd are, for a batch of a based rollup (from
+	// v3.2.8, FeatureRDKBasedSequencing), the inbox range it consumed: the
+	// posts after InboxStart up to InboxEnd. Zero and omitted for every other
+	// batch, so their records keep their bytes.
+	InboxStart uint64 `json:"inbox_start,omitempty"`
+	InboxEnd   uint64 `json:"inbox_end,omitempty"`
+	// InboxStartAcc is the inbox accumulator at InboxStart, kept so an
+	// upheld fraud proof can roll the inbox back to it (v3.2.8). Omitted when
+	// empty.
+	InboxStartAcc []byte `json:"inbox_start_acc,omitempty"`
 
 	// AnchorSignature and ValidatorSetHash carry MsgSubmitBatch's optional
 	// anchor fields to the x/multilayer anchor written for the batch (from

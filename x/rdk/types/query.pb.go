@@ -37,6 +37,17 @@ type ParamsView struct {
 	MaxDaBlobSize          uint64 `protobuf:"varint,5,opt,name=max_da_blob_size,json=maxDaBlobSize,proto3" json:"max_da_blob_size,omitempty"`
 	BlobRetentionBlocks    uint64 `protobuf:"varint,6,opt,name=blob_retention_blocks,json=blobRetentionBlocks,proto3" json:"blob_retention_blocks,omitempty"`
 	MaxBatchesPerBlock     uint32 `protobuf:"varint,7,opt,name=max_batches_per_block,json=maxBatchesPerBlock,proto3" json:"max_batches_per_block,omitempty"`
+	// finalized_batch_retention_blocks is the effective retention, with the
+	// default filled in for a stored 0.
+	FinalizedBatchRetentionBlocks uint64 `protobuf:"varint,8,opt,name=finalized_batch_retention_blocks,json=finalizedBatchRetentionBlocks,proto3" json:"finalized_batch_retention_blocks,omitempty"`
+	// The posted-data parameters (v3.2.8), effective values with the defaults
+	// filled in for a stored 0.
+	MaxPostedDataBytes         uint64 `protobuf:"varint,9,opt,name=max_posted_data_bytes,json=maxPostedDataBytes,proto3" json:"max_posted_data_bytes,omitempty"`
+	MaxPostedDataBytesPerBlock uint64 `protobuf:"varint,10,opt,name=max_posted_data_bytes_per_block,json=maxPostedDataBytesPerBlock,proto3" json:"max_posted_data_bytes_per_block,omitempty"`
+	PostedDataFeePerByte       uint64 `protobuf:"varint,11,opt,name=posted_data_fee_per_byte,json=postedDataFeePerByte,proto3" json:"posted_data_fee_per_byte,omitempty"`
+	PostedDataRetentionBlocks  uint64 `protobuf:"varint,12,opt,name=posted_data_retention_blocks,json=postedDataRetentionBlocks,proto3" json:"posted_data_retention_blocks,omitempty"`
+	// min_submitter_bond (v3.2.8), effective value.
+	MinSubmitterBond uint64 `protobuf:"varint,13,opt,name=min_submitter_bond,json=minSubmitterBond,proto3" json:"min_submitter_bond,omitempty"`
 }
 
 func (m *ParamsView) Reset()         { *m = ParamsView{} }
@@ -121,6 +132,48 @@ func (m *ParamsView) GetMaxBatchesPerBlock() uint32 {
 	return 0
 }
 
+func (m *ParamsView) GetFinalizedBatchRetentionBlocks() uint64 {
+	if m != nil {
+		return m.FinalizedBatchRetentionBlocks
+	}
+	return 0
+}
+
+func (m *ParamsView) GetMaxPostedDataBytes() uint64 {
+	if m != nil {
+		return m.MaxPostedDataBytes
+	}
+	return 0
+}
+
+func (m *ParamsView) GetMaxPostedDataBytesPerBlock() uint64 {
+	if m != nil {
+		return m.MaxPostedDataBytesPerBlock
+	}
+	return 0
+}
+
+func (m *ParamsView) GetPostedDataFeePerByte() uint64 {
+	if m != nil {
+		return m.PostedDataFeePerByte
+	}
+	return 0
+}
+
+func (m *ParamsView) GetPostedDataRetentionBlocks() uint64 {
+	if m != nil {
+		return m.PostedDataRetentionBlocks
+	}
+	return 0
+}
+
+func (m *ParamsView) GetMinSubmitterBond() uint64 {
+	if m != nil {
+		return m.MinSubmitterBond
+	}
+	return 0
+}
+
 // RollupView is the query-facing view of a rollup config (scalar fields).
 type RollupView struct {
 	RollupId       string `protobuf:"bytes,1,opt,name=rollup_id,json=rollupId,proto3" json:"rollup_id,omitempty"`
@@ -150,6 +203,21 @@ type RollupView struct {
 	// registered (from v3.2.7 a zk rollup can register one). A zk batch of a
 	// rollup without one is refused.
 	HasVerificationKey bool `protobuf:"varint,17,opt,name=has_verification_key,json=hasVerificationKey,proto3" json:"has_verification_key,omitempty"`
+	// sequencing is "" (the rollup's sequencer settles) or "based" (v3.2.8,
+	// rdk-based-sequencing): anyone posts data, batches consume the inbox in
+	// order, and a zk (snark) based rollup accepts batches from anyone.
+	Sequencing string `protobuf:"bytes,18,opt,name=sequencing,proto3" json:"sequencing,omitempty"`
+	// execution_vm (v3.2.8): "qledger-v1" for an optimistic rollup whose
+	// batches a fraud proof re-executes, else empty.
+	ExecutionVm string `protobuf:"bytes,19,opt,name=execution_vm,json=executionVm,proto3" json:"execution_vm,omitempty"`
+	// privacy (v3.2.8): "encapsulated" for a private rollup, else empty.
+	Privacy string `protobuf:"bytes,20,opt,name=privacy,proto3" json:"privacy,omitempty"`
+	// members and members_epoch: a private rollup's member list and epoch.
+	Members      []string `protobuf:"bytes,21,rep,name=members,proto3" json:"members,omitempty"`
+	MembersEpoch uint64   `protobuf:"varint,22,opt,name=members_epoch,json=membersEpoch,proto3" json:"members_epoch,omitempty"`
+	// deposit_pool: uqor deposited into a qledger-v1 rollup and not yet
+	// withdrawn.
+	DepositPool uint64 `protobuf:"varint,23,opt,name=deposit_pool,json=depositPool,proto3" json:"deposit_pool,omitempty"`
 }
 
 func (m *RollupView) Reset()         { *m = RollupView{} }
@@ -304,6 +372,48 @@ func (m *RollupView) GetHasVerificationKey() bool {
 	return false
 }
 
+func (m *RollupView) GetSequencing() string {
+	if m != nil {
+		return m.Sequencing
+	}
+	return ""
+}
+
+func (m *RollupView) GetExecutionVm() string {
+	if m != nil {
+		return m.ExecutionVm
+	}
+	return ""
+}
+
+func (m *RollupView) GetPrivacy() string {
+	if m != nil {
+		return m.Privacy
+	}
+	return ""
+}
+
+func (m *RollupView) GetMembers() []string {
+	if m != nil {
+		return m.Members
+	}
+	return nil
+}
+
+func (m *RollupView) GetMembersEpoch() uint64 {
+	if m != nil {
+		return m.MembersEpoch
+	}
+	return 0
+}
+
+func (m *RollupView) GetDepositPool() uint64 {
+	if m != nil {
+		return m.DepositPool
+	}
+	return 0
+}
+
 // BatchView is the query-facing view of a settlement batch.
 type BatchView struct {
 	RollupId        string `protobuf:"bytes,1,opt,name=rollup_id,json=rollupId,proto3" json:"rollup_id,omitempty"`
@@ -329,6 +439,17 @@ type BatchView struct {
 	// and the chain id, and its withdrawal leaves start with the chain id. False
 	// for a batch settled before the switch, whose leaves are the v1 form.
 	WithdrawalsBound bool `protobuf:"varint,13,opt,name=withdrawals_bound,json=withdrawalsBound,proto3" json:"withdrawals_bound,omitempty"`
+	// inbox_start and inbox_end are, for a batch of a based rollup (v3.2.8),
+	// the inbox range it consumed: the posts after inbox_start up to inbox_end.
+	InboxStart uint64 `protobuf:"varint,14,opt,name=inbox_start,json=inboxStart,proto3" json:"inbox_start,omitempty"`
+	InboxEnd   uint64 `protobuf:"varint,15,opt,name=inbox_end,json=inboxEnd,proto3" json:"inbox_end,omitempty"`
+	// withdrawals_root_reduced is true when withdrawals_root was stored reduced
+	// modulo the BLS12-381 scalar field r: a Groth16 batch with
+	// withdrawals_bound, settled with rdk-zk-canonical-inputs on (v3.2.8). Its
+	// proof commits to the root modulo r, so a withdrawal against it is checked
+	// by comparing roots modulo r. False for every other batch, whose root is
+	// the submitted bytes.
+	WithdrawalsRootReduced bool `protobuf:"varint,16,opt,name=withdrawals_root_reduced,json=withdrawalsRootReduced,proto3" json:"withdrawals_root_reduced,omitempty"`
 }
 
 func (m *BatchView) Reset()         { *m = BatchView{} }
@@ -451,6 +572,27 @@ func (m *BatchView) GetSubmittedTime() int64 {
 func (m *BatchView) GetWithdrawalsBound() bool {
 	if m != nil {
 		return m.WithdrawalsBound
+	}
+	return false
+}
+
+func (m *BatchView) GetInboxStart() uint64 {
+	if m != nil {
+		return m.InboxStart
+	}
+	return 0
+}
+
+func (m *BatchView) GetInboxEnd() uint64 {
+	if m != nil {
+		return m.InboxEnd
+	}
+	return 0
+}
+
+func (m *BatchView) GetWithdrawalsRootReduced() bool {
+	if m != nil {
+		return m.WithdrawalsRootReduced
 	}
 	return false
 }
@@ -1202,6 +1344,538 @@ func (m *QueryBlobResponse) GetBlob() *BlobView {
 	return nil
 }
 
+// PostedDataView is one posted-data commitment (v3.2.8).
+type PostedDataView struct {
+	RollupId string `protobuf:"bytes,1,opt,name=rollup_id,json=rollupId,proto3" json:"rollup_id,omitempty"`
+	Sequence uint64 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+	// data_hash is SHA-256 of the payload, hex.
+	DataHash string `protobuf:"bytes,3,opt,name=data_hash,json=dataHash,proto3" json:"data_hash,omitempty"`
+	Size_    uint64 `protobuf:"varint,4,opt,name=size,proto3" json:"size,omitempty"`
+	Poster   string `protobuf:"bytes,5,opt,name=poster,proto3" json:"poster,omitempty"`
+	// height is the block whose transaction carries the payload.
+	Height int64 `protobuf:"varint,6,opt,name=height,proto3" json:"height,omitempty"`
+	// inbox_acc is the inbox accumulator after this post, hex.
+	InboxAcc string `protobuf:"bytes,7,opt,name=inbox_acc,json=inboxAcc,proto3" json:"inbox_acc,omitempty"`
+	// expires_at_height is the height from which the commitment is pruned.
+	ExpiresAtHeight int64 `protobuf:"varint,8,opt,name=expires_at_height,json=expiresAtHeight,proto3" json:"expires_at_height,omitempty"`
+}
+
+func (m *PostedDataView) Reset()         { *m = PostedDataView{} }
+func (m *PostedDataView) String() string { return proto.CompactTextString(m) }
+func (*PostedDataView) ProtoMessage()    {}
+func (*PostedDataView) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c818fc2efc57e39e, []int{18}
+}
+func (m *PostedDataView) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *PostedDataView) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_PostedDataView.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *PostedDataView) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PostedDataView.Merge(m, src)
+}
+func (m *PostedDataView) XXX_Size() int {
+	return m.Size()
+}
+func (m *PostedDataView) XXX_DiscardUnknown() {
+	xxx_messageInfo_PostedDataView.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PostedDataView proto.InternalMessageInfo
+
+func (m *PostedDataView) GetRollupId() string {
+	if m != nil {
+		return m.RollupId
+	}
+	return ""
+}
+
+func (m *PostedDataView) GetSequence() uint64 {
+	if m != nil {
+		return m.Sequence
+	}
+	return 0
+}
+
+func (m *PostedDataView) GetDataHash() string {
+	if m != nil {
+		return m.DataHash
+	}
+	return ""
+}
+
+func (m *PostedDataView) GetSize_() uint64 {
+	if m != nil {
+		return m.Size_
+	}
+	return 0
+}
+
+func (m *PostedDataView) GetPoster() string {
+	if m != nil {
+		return m.Poster
+	}
+	return ""
+}
+
+func (m *PostedDataView) GetHeight() int64 {
+	if m != nil {
+		return m.Height
+	}
+	return 0
+}
+
+func (m *PostedDataView) GetInboxAcc() string {
+	if m != nil {
+		return m.InboxAcc
+	}
+	return ""
+}
+
+func (m *PostedDataView) GetExpiresAtHeight() int64 {
+	if m != nil {
+		return m.ExpiresAtHeight
+	}
+	return 0
+}
+
+type QueryPostedDataRequest struct {
+	RollupId string `protobuf:"bytes,1,opt,name=rollup_id,json=rollupId,proto3" json:"rollup_id,omitempty"`
+	Sequence uint64 `protobuf:"varint,2,opt,name=sequence,proto3" json:"sequence,omitempty"`
+}
+
+func (m *QueryPostedDataRequest) Reset()         { *m = QueryPostedDataRequest{} }
+func (m *QueryPostedDataRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryPostedDataRequest) ProtoMessage()    {}
+func (*QueryPostedDataRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c818fc2efc57e39e, []int{19}
+}
+func (m *QueryPostedDataRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryPostedDataRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryPostedDataRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryPostedDataRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryPostedDataRequest.Merge(m, src)
+}
+func (m *QueryPostedDataRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryPostedDataRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryPostedDataRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryPostedDataRequest proto.InternalMessageInfo
+
+func (m *QueryPostedDataRequest) GetRollupId() string {
+	if m != nil {
+		return m.RollupId
+	}
+	return ""
+}
+
+func (m *QueryPostedDataRequest) GetSequence() uint64 {
+	if m != nil {
+		return m.Sequence
+	}
+	return 0
+}
+
+type QueryPostedDataResponse struct {
+	PostedData *PostedDataView `protobuf:"bytes,1,opt,name=posted_data,json=postedData,proto3" json:"posted_data,omitempty"`
+}
+
+func (m *QueryPostedDataResponse) Reset()         { *m = QueryPostedDataResponse{} }
+func (m *QueryPostedDataResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryPostedDataResponse) ProtoMessage()    {}
+func (*QueryPostedDataResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c818fc2efc57e39e, []int{20}
+}
+func (m *QueryPostedDataResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryPostedDataResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryPostedDataResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryPostedDataResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryPostedDataResponse.Merge(m, src)
+}
+func (m *QueryPostedDataResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryPostedDataResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryPostedDataResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryPostedDataResponse proto.InternalMessageInfo
+
+func (m *QueryPostedDataResponse) GetPostedData() *PostedDataView {
+	if m != nil {
+		return m.PostedData
+	}
+	return nil
+}
+
+// InboxView is a rollup's inbox (v3.2.8).
+type InboxView struct {
+	RollupId   string `protobuf:"bytes,1,opt,name=rollup_id,json=rollupId,proto3" json:"rollup_id,omitempty"`
+	Sequencing string `protobuf:"bytes,2,opt,name=sequencing,proto3" json:"sequencing,omitempty"`
+	// head_sequence is the sequence of the last post (0 = none yet).
+	HeadSequence uint64 `protobuf:"varint,3,opt,name=head_sequence,json=headSequence,proto3" json:"head_sequence,omitempty"`
+	HeadAcc      string `protobuf:"bytes,4,opt,name=head_acc,json=headAcc,proto3" json:"head_acc,omitempty"`
+	// consumed_sequence is where the next based batch starts.
+	ConsumedSequence uint64 `protobuf:"varint,5,opt,name=consumed_sequence,json=consumedSequence,proto3" json:"consumed_sequence,omitempty"`
+	ConsumedAcc      string `protobuf:"bytes,6,opt,name=consumed_acc,json=consumedAcc,proto3" json:"consumed_acc,omitempty"`
+	// range_end and range_data_hash: the data_hash a based batch with
+	// inbox_end = range_end must carry (hex). Empty when the end's commitment
+	// is no longer retained.
+	RangeEnd      uint64 `protobuf:"varint,7,opt,name=range_end,json=rangeEnd,proto3" json:"range_end,omitempty"`
+	RangeDataHash string `protobuf:"bytes,8,opt,name=range_data_hash,json=rangeDataHash,proto3" json:"range_data_hash,omitempty"`
+}
+
+func (m *InboxView) Reset()         { *m = InboxView{} }
+func (m *InboxView) String() string { return proto.CompactTextString(m) }
+func (*InboxView) ProtoMessage()    {}
+func (*InboxView) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c818fc2efc57e39e, []int{21}
+}
+func (m *InboxView) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *InboxView) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_InboxView.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *InboxView) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InboxView.Merge(m, src)
+}
+func (m *InboxView) XXX_Size() int {
+	return m.Size()
+}
+func (m *InboxView) XXX_DiscardUnknown() {
+	xxx_messageInfo_InboxView.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_InboxView proto.InternalMessageInfo
+
+func (m *InboxView) GetRollupId() string {
+	if m != nil {
+		return m.RollupId
+	}
+	return ""
+}
+
+func (m *InboxView) GetSequencing() string {
+	if m != nil {
+		return m.Sequencing
+	}
+	return ""
+}
+
+func (m *InboxView) GetHeadSequence() uint64 {
+	if m != nil {
+		return m.HeadSequence
+	}
+	return 0
+}
+
+func (m *InboxView) GetHeadAcc() string {
+	if m != nil {
+		return m.HeadAcc
+	}
+	return ""
+}
+
+func (m *InboxView) GetConsumedSequence() uint64 {
+	if m != nil {
+		return m.ConsumedSequence
+	}
+	return 0
+}
+
+func (m *InboxView) GetConsumedAcc() string {
+	if m != nil {
+		return m.ConsumedAcc
+	}
+	return ""
+}
+
+func (m *InboxView) GetRangeEnd() uint64 {
+	if m != nil {
+		return m.RangeEnd
+	}
+	return 0
+}
+
+func (m *InboxView) GetRangeDataHash() string {
+	if m != nil {
+		return m.RangeDataHash
+	}
+	return ""
+}
+
+type QueryInboxRequest struct {
+	RollupId string `protobuf:"bytes,1,opt,name=rollup_id,json=rollupId,proto3" json:"rollup_id,omitempty"`
+	// inbox_end selects the range end for range_data_hash; 0 means the head.
+	InboxEnd uint64 `protobuf:"varint,2,opt,name=inbox_end,json=inboxEnd,proto3" json:"inbox_end,omitempty"`
+}
+
+func (m *QueryInboxRequest) Reset()         { *m = QueryInboxRequest{} }
+func (m *QueryInboxRequest) String() string { return proto.CompactTextString(m) }
+func (*QueryInboxRequest) ProtoMessage()    {}
+func (*QueryInboxRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c818fc2efc57e39e, []int{22}
+}
+func (m *QueryInboxRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryInboxRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryInboxRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryInboxRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryInboxRequest.Merge(m, src)
+}
+func (m *QueryInboxRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryInboxRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryInboxRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryInboxRequest proto.InternalMessageInfo
+
+func (m *QueryInboxRequest) GetRollupId() string {
+	if m != nil {
+		return m.RollupId
+	}
+	return ""
+}
+
+func (m *QueryInboxRequest) GetInboxEnd() uint64 {
+	if m != nil {
+		return m.InboxEnd
+	}
+	return 0
+}
+
+type QueryInboxResponse struct {
+	Inbox *InboxView `protobuf:"bytes,1,opt,name=inbox,proto3" json:"inbox,omitempty"`
+}
+
+func (m *QueryInboxResponse) Reset()         { *m = QueryInboxResponse{} }
+func (m *QueryInboxResponse) String() string { return proto.CompactTextString(m) }
+func (*QueryInboxResponse) ProtoMessage()    {}
+func (*QueryInboxResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c818fc2efc57e39e, []int{23}
+}
+func (m *QueryInboxResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QueryInboxResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QueryInboxResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QueryInboxResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QueryInboxResponse.Merge(m, src)
+}
+func (m *QueryInboxResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QueryInboxResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QueryInboxResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QueryInboxResponse proto.InternalMessageInfo
+
+func (m *QueryInboxResponse) GetInbox() *InboxView {
+	if m != nil {
+		return m.Inbox
+	}
+	return nil
+}
+
+type QuerySubmitterBondRequest struct {
+	RollupId  string `protobuf:"bytes,1,opt,name=rollup_id,json=rollupId,proto3" json:"rollup_id,omitempty"`
+	Submitter string `protobuf:"bytes,2,opt,name=submitter,proto3" json:"submitter,omitempty"`
+}
+
+func (m *QuerySubmitterBondRequest) Reset()         { *m = QuerySubmitterBondRequest{} }
+func (m *QuerySubmitterBondRequest) String() string { return proto.CompactTextString(m) }
+func (*QuerySubmitterBondRequest) ProtoMessage()    {}
+func (*QuerySubmitterBondRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c818fc2efc57e39e, []int{24}
+}
+func (m *QuerySubmitterBondRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QuerySubmitterBondRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QuerySubmitterBondRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QuerySubmitterBondRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QuerySubmitterBondRequest.Merge(m, src)
+}
+func (m *QuerySubmitterBondRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *QuerySubmitterBondRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_QuerySubmitterBondRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QuerySubmitterBondRequest proto.InternalMessageInfo
+
+func (m *QuerySubmitterBondRequest) GetRollupId() string {
+	if m != nil {
+		return m.RollupId
+	}
+	return ""
+}
+
+func (m *QuerySubmitterBondRequest) GetSubmitter() string {
+	if m != nil {
+		return m.Submitter
+	}
+	return ""
+}
+
+type QuerySubmitterBondResponse struct {
+	// amount is the bond in uqor (0 when there is none).
+	Amount uint64 `protobuf:"varint,1,opt,name=amount,proto3" json:"amount,omitempty"`
+	// last_submit_time is the block time (unix seconds) of the submitter's
+	// last batch on the rollup, 0 when none.
+	LastSubmitTime int64 `protobuf:"varint,2,opt,name=last_submit_time,json=lastSubmitTime,proto3" json:"last_submit_time,omitempty"`
+	// unbond_after is the block time from which MsgUnbondRollupSubmitter
+	// succeeds.
+	UnbondAfter int64 `protobuf:"varint,3,opt,name=unbond_after,json=unbondAfter,proto3" json:"unbond_after,omitempty"`
+	// pending is the number of the submitter's batches on the rollup that are
+	// still waiting for finality (submitted, not yet finalized or rejected), 0
+	// when none. A submitter can have at most a fixed number pending at once.
+	Pending uint64 `protobuf:"varint,4,opt,name=pending,proto3" json:"pending,omitempty"`
+}
+
+func (m *QuerySubmitterBondResponse) Reset()         { *m = QuerySubmitterBondResponse{} }
+func (m *QuerySubmitterBondResponse) String() string { return proto.CompactTextString(m) }
+func (*QuerySubmitterBondResponse) ProtoMessage()    {}
+func (*QuerySubmitterBondResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_c818fc2efc57e39e, []int{25}
+}
+func (m *QuerySubmitterBondResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *QuerySubmitterBondResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_QuerySubmitterBondResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalToSizedBuffer(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *QuerySubmitterBondResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_QuerySubmitterBondResponse.Merge(m, src)
+}
+func (m *QuerySubmitterBondResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *QuerySubmitterBondResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_QuerySubmitterBondResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_QuerySubmitterBondResponse proto.InternalMessageInfo
+
+func (m *QuerySubmitterBondResponse) GetAmount() uint64 {
+	if m != nil {
+		return m.Amount
+	}
+	return 0
+}
+
+func (m *QuerySubmitterBondResponse) GetLastSubmitTime() int64 {
+	if m != nil {
+		return m.LastSubmitTime
+	}
+	return 0
+}
+
+func (m *QuerySubmitterBondResponse) GetUnbondAfter() int64 {
+	if m != nil {
+		return m.UnbondAfter
+	}
+	return 0
+}
+
+func (m *QuerySubmitterBondResponse) GetPending() uint64 {
+	if m != nil {
+		return m.Pending
+	}
+	return 0
+}
+
 func init() {
 	proto.RegisterType((*ParamsView)(nil), "qorechain.rdk.v1.ParamsView")
 	proto.RegisterType((*RollupView)(nil), "qorechain.rdk.v1.RollupView")
@@ -1221,105 +1895,157 @@ func init() {
 	proto.RegisterType((*BlobView)(nil), "qorechain.rdk.v1.BlobView")
 	proto.RegisterType((*QueryBlobRequest)(nil), "qorechain.rdk.v1.QueryBlobRequest")
 	proto.RegisterType((*QueryBlobResponse)(nil), "qorechain.rdk.v1.QueryBlobResponse")
+	proto.RegisterType((*PostedDataView)(nil), "qorechain.rdk.v1.PostedDataView")
+	proto.RegisterType((*QueryPostedDataRequest)(nil), "qorechain.rdk.v1.QueryPostedDataRequest")
+	proto.RegisterType((*QueryPostedDataResponse)(nil), "qorechain.rdk.v1.QueryPostedDataResponse")
+	proto.RegisterType((*InboxView)(nil), "qorechain.rdk.v1.InboxView")
+	proto.RegisterType((*QueryInboxRequest)(nil), "qorechain.rdk.v1.QueryInboxRequest")
+	proto.RegisterType((*QueryInboxResponse)(nil), "qorechain.rdk.v1.QueryInboxResponse")
+	proto.RegisterType((*QuerySubmitterBondRequest)(nil), "qorechain.rdk.v1.QuerySubmitterBondRequest")
+	proto.RegisterType((*QuerySubmitterBondResponse)(nil), "qorechain.rdk.v1.QuerySubmitterBondResponse")
 }
 
 func init() { proto.RegisterFile("qorechain/rdk/v1/query.proto", fileDescriptor_c818fc2efc57e39e) }
 
 var fileDescriptor_c818fc2efc57e39e = []byte{
-	// 1483 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x57, 0xcd, 0x6f, 0x14, 0xc7,
-	0x12, 0x67, 0xb0, 0xbd, 0x1f, 0xb5, 0xf8, 0xab, 0x31, 0x66, 0x6c, 0x83, 0x31, 0x03, 0x06, 0xc3,
-	0x03, 0xef, 0xb3, 0x79, 0x8f, 0xf7, 0x38, 0x7a, 0x1d, 0x25, 0x58, 0x04, 0x04, 0x63, 0x44, 0xa4,
-	0x5c, 0x46, 0xbd, 0x33, 0x6d, 0xef, 0xc8, 0x33, 0xd3, 0x4b, 0x77, 0xaf, 0xbd, 0x06, 0x71, 0x49,
-	0x0e, 0xc9, 0x25, 0x52, 0xa4, 0x5c, 0xf2, 0xff, 0x24, 0x87, 0x1c, 0x91, 0x72, 0xc9, 0x25, 0x52,
-	0x84, 0xf3, 0x67, 0xe4, 0x10, 0x75, 0x75, 0xcf, 0x7e, 0x78, 0x59, 0xdb, 0xca, 0x6d, 0xe7, 0x57,
-	0xd5, 0x55, 0xd5, 0xbf, 0xaa, 0xfe, 0x75, 0x2f, 0x5c, 0x79, 0xcd, 0x05, 0x0b, 0x1b, 0x34, 0xce,
-	0xaa, 0x22, 0xda, 0xab, 0xee, 0xaf, 0x55, 0x5f, 0xb7, 0x98, 0x38, 0x5c, 0x6d, 0x0a, 0xae, 0x38,
-	0x99, 0xea, 0x58, 0x57, 0x45, 0xb4, 0xb7, 0xba, 0xbf, 0x36, 0x7f, 0x65, 0x97, 0xf3, 0xdd, 0x84,
-	0x55, 0x69, 0x33, 0xae, 0xd2, 0x2c, 0xe3, 0x8a, 0xaa, 0x98, 0x67, 0xd2, 0xf8, 0x7b, 0x47, 0xe7,
-	0x01, 0x9e, 0x53, 0x41, 0x53, 0xf9, 0x2a, 0x66, 0x07, 0xe4, 0x1a, 0x54, 0x52, 0xda, 0x0e, 0x04,
-	0x4f, 0x92, 0x56, 0x53, 0xba, 0xce, 0x92, 0xb3, 0x32, 0xee, 0x43, 0x4a, 0xdb, 0xbe, 0x41, 0x48,
-	0x15, 0x66, 0xd2, 0x38, 0x0b, 0xa4, 0xa2, 0x7b, 0x2c, 0xd8, 0xe1, 0xc2, 0xba, 0xba, 0xe7, 0x97,
-	0x9c, 0x95, 0x11, 0x7f, 0x3a, 0x8d, 0xb3, 0x6d, 0x6d, 0xfa, 0x94, 0x0b, 0xb3, 0x82, 0x3c, 0x82,
-	0x39, 0xe3, 0x12, 0x84, 0x82, 0x61, 0xea, 0xa0, 0xde, 0x12, 0x59, 0x20, 0xa8, 0x62, 0xee, 0xc8,
-	0x92, 0xb3, 0x52, 0xf6, 0x67, 0x8d, 0xc3, 0xa6, 0xb5, 0xd7, 0x5a, 0x22, 0xf3, 0xa9, 0x62, 0xe4,
-	0xff, 0xe0, 0x46, 0x6c, 0x87, 0xb6, 0x12, 0x15, 0x84, 0x0d, 0x9a, 0x24, 0x2c, 0xdb, 0x65, 0xc1,
-	0x41, 0x9c, 0x45, 0xfc, 0xc0, 0x1d, 0x5d, 0x72, 0x56, 0x46, 0xfd, 0x59, 0x6b, 0xdf, 0xcc, 0xcd,
-	0x5f, 0xa0, 0x95, 0xdc, 0x86, 0x29, 0xbd, 0x8d, 0x88, 0x06, 0xf5, 0x84, 0xd7, 0x03, 0x19, 0xbf,
-	0x61, 0xee, 0x18, 0xae, 0x18, 0x4f, 0x69, 0xfb, 0x13, 0x5a, 0x4b, 0x78, 0x7d, 0x3b, 0x7e, 0xc3,
-	0xc8, 0x3a, 0x5c, 0x42, 0x0f, 0xc1, 0x14, 0xcb, 0x4c, 0x71, 0x09, 0x0f, 0xf7, 0xa4, 0x5b, 0x40,
-	0xef, 0x8b, 0xda, 0xe8, 0xe7, 0xb6, 0x1a, 0x9a, 0xc8, 0x1a, 0x5c, 0xd2, 0xc1, 0xeb, 0x54, 0x85,
-	0x0d, 0x26, 0x83, 0x26, 0x13, 0x66, 0x91, 0x5b, 0x44, 0xb6, 0x48, 0x4a, 0xdb, 0x35, 0x63, 0x7b,
-	0xce, 0x04, 0xae, 0xf1, 0x7e, 0x1f, 0x05, 0x30, 0x7c, 0x20, 0xcb, 0x0b, 0x50, 0xb6, 0x9c, 0xc4,
-	0x11, 0x72, 0x5c, 0xf6, 0x4b, 0x06, 0xd8, 0x8a, 0x88, 0x0b, 0x45, 0x64, 0x8a, 0x0b, 0x24, 0xb5,
-	0xec, 0xe7, 0x9f, 0xda, 0xd2, 0x14, 0x7c, 0x27, 0x4e, 0x72, 0xe2, 0xf2, 0x4f, 0x72, 0x1b, 0x26,
-	0x25, 0x53, 0x2a, 0x61, 0x29, 0xcb, 0x54, 0x90, 0xf2, 0x88, 0x21, 0x41, 0x65, 0x7f, 0xa2, 0x0b,
-	0x3f, 0xe5, 0x11, 0x23, 0x57, 0x01, 0x34, 0x29, 0x34, 0xdc, 0x63, 0x59, 0x84, 0x94, 0x94, 0xfd,
-	0x72, 0x44, 0x6b, 0x06, 0x20, 0x1e, 0x8c, 0xe3, 0x56, 0x02, 0x15, 0xa7, 0x2c, 0x48, 0x73, 0x1a,
-	0x2a, 0x08, 0xbe, 0x8c, 0x53, 0xf6, 0x54, 0xe6, 0xdc, 0xaa, 0xf6, 0xb1, 0x9d, 0x1b, 0x6e, 0x5f,
-	0xb6, 0xf3, 0x4d, 0x93, 0xcb, 0x50, 0xdc, 0x4f, 0x03, 0x75, 0xd8, 0x64, 0x6e, 0x09, 0x13, 0x15,
-	0xf6, 0xd3, 0x97, 0x87, 0x4d, 0x46, 0x66, 0xa1, 0x20, 0x15, 0x55, 0x2d, 0xe9, 0x96, 0x0d, 0x6e,
-	0xbe, 0xc8, 0x75, 0xb8, 0x60, 0xe6, 0x8a, 0xa6, 0xbc, 0x95, 0x29, 0x17, 0x70, 0xa6, 0x2a, 0x88,
-	0x6d, 0x20, 0x44, 0xe6, 0xa0, 0x94, 0xd0, 0x43, 0x26, 0x34, 0x71, 0x15, 0xc3, 0x01, 0x7e, 0x6f,
-	0x45, 0x64, 0x19, 0x26, 0x90, 0x28, 0x16, 0x05, 0x0d, 0x16, 0xef, 0x36, 0x94, 0x7b, 0x01, 0xd7,
-	0x8f, 0x5b, 0xf4, 0x31, 0x82, 0xda, 0x8d, 0xc9, 0x50, 0xf0, 0x83, 0xa0, 0x4e, 0x13, 0x9a, 0x85,
-	0xcc, 0x1d, 0x37, 0xc5, 0x1b, 0xb4, 0x66, 0x40, 0xf2, 0x6f, 0x98, 0x39, 0x3e, 0x73, 0x81, 0x64,
-	0xa1, 0x3b, 0x81, 0xce, 0x24, 0xec, 0x1f, 0xb8, 0x6d, 0x16, 0x62, 0xfe, 0xce, 0x8a, 0x3a, 0xcf,
-	0x22, 0x77, 0xd2, 0xe6, 0xcf, 0xd1, 0x1a, 0xcf, 0x22, 0xbd, 0xc9, 0xa6, 0xe0, 0x7c, 0x27, 0x90,
-	0x87, 0x52, 0xb1, 0xd4, 0x9d, 0xc2, 0x5d, 0x54, 0x10, 0xdb, 0x46, 0x48, 0xe7, 0x6e, 0x50, 0x19,
-	0xec, 0x33, 0x11, 0xef, 0xc4, 0xa1, 0x39, 0x33, 0x7b, 0xec, 0xd0, 0x9d, 0x5e, 0x72, 0x56, 0x4a,
-	0x3e, 0x69, 0x50, 0xf9, 0xaa, 0xc7, 0xf4, 0x84, 0x1d, 0x7a, 0x3f, 0x8f, 0x40, 0x19, 0x67, 0xee,
-	0xf4, 0xf1, 0xba, 0x06, 0x15, 0x9c, 0xdc, 0x20, 0xce, 0x22, 0xd6, 0xc6, 0x11, 0x1b, 0xf5, 0x01,
-	0xa1, 0x2d, 0x8d, 0xe8, 0x11, 0xd1, 0xfd, 0x60, 0x81, 0xe0, 0x5c, 0xd9, 0x41, 0x2b, 0x23, 0xe2,
-	0x73, 0xae, 0xc8, 0x2d, 0x98, 0x6c, 0x0a, 0xb6, 0x1f, 0xf4, 0xf8, 0x98, 0x51, 0x1b, 0xd7, 0xf0,
-	0x76, 0xc7, 0x6f, 0x0e, 0x4a, 0xaa, 0x1d, 0x84, 0xd8, 0x48, 0x73, 0xf4, 0x8a, 0xaa, 0xbd, 0x89,
-	0x4d, 0x5c, 0x80, 0x72, 0x44, 0x15, 0x0d, 0x1a, 0x54, 0x36, 0x70, 0xc2, 0xca, 0x7e, 0x49, 0x03,
-	0x8f, 0xa9, 0x6c, 0xe8, 0xf4, 0x86, 0x1f, 0x1c, 0x9c, 0xa2, 0x49, 0x8f, 0xc8, 0xb1, 0xd9, 0x29,
-	0x0d, 0xcc, 0x4e, 0xab, 0x9e, 0xc6, 0x4a, 0xf7, 0x9f, 0x2a, 0x9c, 0x2c, 0x3d, 0x3b, 0x39, 0xb6,
-	0xa1, 0xb4, 0xcb, 0x4e, 0x9c, 0xd1, 0x24, 0x7e, 0x63, 0x5c, 0xec, 0x78, 0x75, 0xb0, 0x0d, 0x45,
-	0xee, 0xc0, 0xd4, 0x41, 0xac, 0x1a, 0x91, 0xa0, 0x07, 0x34, 0x91, 0x66, 0x77, 0x66, 0xcc, 0x26,
-	0x7b, 0x70, 0xdc, 0xdf, 0x32, 0x4c, 0x74, 0x13, 0xea, 0xe3, 0x92, 0x8f, 0x5b, 0x07, 0xd5, 0xe7,
-	0x85, 0xfc, 0x0b, 0xa6, 0x7b, 0x23, 0xd6, 0x79, 0x2b, 0x8b, 0x70, 0xe2, 0x4a, 0x7e, 0x6f, 0xaa,
-	0x9a, 0xc6, 0xbd, 0x19, 0x20, 0x2f, 0xb4, 0x96, 0x1b, 0x41, 0xf6, 0xd9, 0xeb, 0x16, 0x93, 0xca,
-	0x7b, 0x02, 0x17, 0xfb, 0x50, 0xd9, 0xe4, 0x99, 0x64, 0xe4, 0x3f, 0x50, 0x68, 0x22, 0x82, 0x2d,
-	0xae, 0xac, 0x5f, 0x59, 0x3d, 0x2e, 0xfd, 0xab, 0x5d, 0x61, 0xf7, 0xad, 0xaf, 0xb7, 0x66, 0x53,
-	0x18, 0x35, 0xb2, 0x29, 0x4e, 0x9c, 0x98, 0x4e, 0xfe, 0x7c, 0x49, 0x37, 0xbf, 0xd5, 0xfe, 0xa1,
-	0xf9, 0xbb, 0x92, 0xe7, 0x5b, 0x5f, 0xef, 0x52, 0x5f, 0xb0, 0xce, 0x1e, 0x9f, 0xc1, 0x4c, 0x3f,
-	0x6c, 0x93, 0x3c, 0x84, 0x62, 0xf7, 0x2e, 0x1a, 0x39, 0x35, 0x4b, 0xee, 0xec, 0xbd, 0x80, 0x69,
-	0x8c, 0x87, 0x87, 0xe2, 0x2c, 0xbb, 0x3c, 0xf5, 0x5c, 0x78, 0x9f, 0x59, 0xe6, 0x6c, 0x48, 0x5b,
-	0xe0, 0x1a, 0x8c, 0xa1, 0x8f, 0x25, 0x61, 0x61, 0xb0, 0xbc, 0xce, 0xb9, 0xf4, 0x8d, 0xa7, 0xf7,
-	0x10, 0x2e, 0x63, 0xa0, 0xcf, 0xa9, 0x62, 0x52, 0x9d, 0xb9, 0x42, 0xef, 0x29, 0xb8, 0x83, 0xeb,
-	0xfe, 0x79, 0x19, 0xb1, 0xed, 0x84, 0xbd, 0xab, 0xce, 0x4a, 0x92, 0x54, 0x54, 0xa8, 0x7e, 0x92,
-	0x10, 0x32, 0xe2, 0x31, 0x03, 0x63, 0x49, 0x9c, 0xc6, 0x46, 0x37, 0xc6, 0x7d, 0xf3, 0xe1, 0x25,
-	0xb6, 0xbb, 0x9d, 0x54, 0xb6, 0xea, 0xff, 0x42, 0xd1, 0xde, 0xa2, 0xb6, 0xbb, 0x27, 0xd6, 0x9d,
-	0xfb, 0x6a, 0x89, 0xc8, 0x58, 0xbb, 0xbf, 0x88, 0xb2, 0x46, 0x4c, 0xa3, 0xfe, 0x72, 0xa0, 0xa4,
-	0x2f, 0xf8, 0xd3, 0xb5, 0xf0, 0x2a, 0x00, 0xde, 0xfe, 0x7d, 0x81, 0x34, 0x62, 0x36, 0xb3, 0x08,
-	0x10, 0xf2, 0x34, 0x8d, 0x95, 0xbe, 0x3e, 0xad, 0x12, 0xf6, 0x20, 0x1d, 0x1d, 0xc3, 0xe7, 0x85,
-	0x79, 0x90, 0xa0, 0x8e, 0xe1, 0xcb, 0x62, 0x16, 0x0a, 0xf6, 0x1a, 0x1a, 0x43, 0x5d, 0xb0, 0x5f,
-	0x7a, 0x91, 0x54, 0x5c, 0x18, 0x09, 0xb2, 0xe2, 0x67, 0x80, 0x0d, 0xa5, 0x17, 0x35, 0x45, 0x2b,
-	0x63, 0x11, 0x0a, 0x5f, 0xc9, 0xb7, 0x5f, 0xe4, 0x2e, 0x4c, 0xb3, 0x76, 0x33, 0x16, 0x4c, 0x06,
-	0x54, 0xe5, 0xd7, 0x5b, 0x09, 0xe3, 0x4e, 0x5a, 0xc3, 0x86, 0x32, 0x17, 0x9c, 0xf7, 0x0c, 0xa6,
-	0x0c, 0xd9, 0xf8, 0x74, 0x39, 0x43, 0x53, 0x4f, 0x66, 0xc1, 0xdb, 0xcc, 0x8f, 0x12, 0xc6, 0xb3,
-	0x9d, 0x5b, 0x85, 0x51, 0xed, 0x61, 0xc7, 0x6d, 0xfe, 0x23, 0x6d, 0xb3, 0x0d, 0xf0, 0xd1, 0x6f,
-	0xfd, 0xa7, 0x22, 0x8c, 0x61, 0x14, 0x72, 0x00, 0x05, 0x23, 0x4b, 0xe4, 0xe6, 0xe0, 0xaa, 0x41,
-	0xf5, 0x9b, 0x5f, 0x3e, 0xc5, 0xcb, 0x14, 0xe4, 0x2d, 0x7d, 0xf5, 0xeb, 0x9f, 0x3f, 0x9c, 0x9f,
-	0x27, 0x6e, 0x75, 0xe0, 0x79, 0x6c, 0x94, 0x8f, 0x7c, 0xed, 0x40, 0xc1, 0xbe, 0x49, 0x87, 0x65,
-	0xee, 0x13, 0xc5, 0xa1, 0x99, 0xfb, 0x75, 0xd0, 0xbb, 0x87, 0x99, 0x6f, 0x91, 0x9b, 0x83, 0x99,
-	0x0d, 0xc5, 0xd5, 0xb7, 0x1d, 0xee, 0xdf, 0x91, 0xb7, 0x50, 0xcc, 0x9f, 0xd2, 0x27, 0xc7, 0xef,
-	0x10, 0x70, 0xeb, 0x34, 0x37, 0x5b, 0xc7, 0x75, 0xac, 0x63, 0x81, 0xcc, 0x0d, 0xab, 0x43, 0x92,
-	0xef, 0x1c, 0x18, 0xc3, 0xf3, 0x44, 0x6e, 0x0c, 0x09, 0xda, 0xab, 0x46, 0xf3, 0x37, 0x4f, 0x76,
-	0xb2, 0x79, 0x1f, 0x61, 0xde, 0x07, 0x64, 0x6d, 0x30, 0x2f, 0x1e, 0xd8, 0xde, 0xed, 0x57, 0xdf,
-	0xf6, 0x68, 0xec, 0x3b, 0xf2, 0xa3, 0x03, 0x95, 0x1e, 0x35, 0x23, 0x77, 0x86, 0x24, 0x1c, 0x54,
-	0xca, 0xf9, 0xbb, 0x67, 0x71, 0xb5, 0x15, 0xae, 0x63, 0x85, 0xf7, 0xc8, 0xdd, 0xc1, 0x0a, 0x13,
-	0x74, 0x0f, 0x06, 0x0a, 0x25, 0xdf, 0x38, 0x50, 0xb4, 0x72, 0x35, 0xb4, 0x51, 0xfd, 0xca, 0x39,
-	0xb4, 0x51, 0xc7, 0x54, 0xcf, 0xbb, 0x8f, 0xe5, 0xdc, 0x26, 0xcb, 0x43, 0x08, 0x63, 0xb2, 0xaf,
-	0x92, 0x6f, 0x1d, 0x18, 0xd5, 0xa7, 0x89, 0x78, 0xc3, 0xe2, 0x77, 0x0f, 0xfa, 0xfc, 0x8d, 0x13,
-	0x7d, 0x6c, 0x01, 0xff, 0xc3, 0x02, 0xd6, 0x48, 0xf5, 0x23, 0x05, 0x24, 0xbc, 0x7e, 0xac, 0x61,
-	0x1d, 0x69, 0x78, 0x57, 0xdb, 0xfa, 0xe5, 0xc3, 0xa2, 0xf3, 0xfe, 0xc3, 0xa2, 0xf3, 0xc7, 0x87,
-	0x45, 0xe7, 0xfb, 0xa3, 0xc5, 0x73, 0xef, 0x8f, 0x16, 0xcf, 0xfd, 0x76, 0xb4, 0x78, 0xee, 0xcb,
-	0xea, 0x6e, 0xac, 0x1a, 0xad, 0xfa, 0x6a, 0xc8, 0xd3, 0x9e, 0xa0, 0x9d, 0x5f, 0xf7, 0x43, 0x2e,
-	0x58, 0xb5, 0x8d, 0x59, 0xf4, 0xbb, 0x4e, 0xd6, 0x0b, 0xf8, 0xf7, 0xf3, 0xc1, 0xdf, 0x01, 0x00,
-	0x00, 0xff, 0xff, 0xac, 0x57, 0x00, 0x4d, 0xce, 0x0e, 0x00, 0x00,
+	// 2180 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x58, 0x5b, 0x6f, 0x1c, 0x49,
+	0x15, 0xde, 0x8e, 0xed, 0xb9, 0x9c, 0xc9, 0xf8, 0x52, 0x71, 0x9c, 0xf6, 0x24, 0x71, 0x9c, 0x76,
+	0x9c, 0x38, 0x97, 0xf5, 0xe0, 0xec, 0x12, 0x76, 0x11, 0x12, 0x78, 0x9c, 0xbd, 0x58, 0x4b, 0x56,
+	0x49, 0x3b, 0x0a, 0x12, 0x42, 0x6a, 0xd5, 0x74, 0x97, 0x3d, 0x2d, 0x77, 0x77, 0x4d, 0xba, 0x6b,
+	0xec, 0x99, 0x44, 0x16, 0x12, 0x3c, 0xc0, 0x0b, 0x12, 0x12, 0x42, 0x42, 0x02, 0xc4, 0x1f, 0xe0,
+	0x27, 0xf0, 0x03, 0x90, 0x78, 0x59, 0x89, 0x17, 0x1e, 0x51, 0xc2, 0x3f, 0xe0, 0x95, 0x07, 0x54,
+	0xa7, 0xaa, 0x7b, 0xba, 0x67, 0x3c, 0xb6, 0xe1, 0x6d, 0xea, 0xab, 0x53, 0xe7, 0x9c, 0x3a, 0xb7,
+	0xfa, 0x7a, 0xe0, 0xc6, 0x6b, 0x1e, 0x33, 0xb7, 0x43, 0xfd, 0xa8, 0x19, 0x7b, 0x87, 0xcd, 0xa3,
+	0xad, 0xe6, 0xeb, 0x1e, 0x8b, 0x07, 0x9b, 0xdd, 0x98, 0x0b, 0x4e, 0xe6, 0xb3, 0xdd, 0xcd, 0xd8,
+	0x3b, 0xdc, 0x3c, 0xda, 0x6a, 0xdc, 0x38, 0xe0, 0xfc, 0x20, 0x60, 0x4d, 0xda, 0xf5, 0x9b, 0x34,
+	0x8a, 0xb8, 0xa0, 0xc2, 0xe7, 0x51, 0xa2, 0xe4, 0xad, 0xbf, 0xcd, 0x00, 0x3c, 0xa7, 0x31, 0x0d,
+	0x93, 0x57, 0x3e, 0x3b, 0x26, 0xb7, 0xa0, 0x16, 0xd2, 0xbe, 0x13, 0xf3, 0x20, 0xe8, 0x75, 0x13,
+	0xd3, 0x58, 0x35, 0x36, 0xea, 0x36, 0x84, 0xb4, 0x6f, 0x2b, 0x84, 0x34, 0x61, 0x31, 0xf4, 0x23,
+	0x27, 0x11, 0xf4, 0x90, 0x39, 0xfb, 0x3c, 0xd6, 0xa2, 0xe6, 0xa5, 0x55, 0x63, 0x63, 0xca, 0x5e,
+	0x08, 0xfd, 0x68, 0x4f, 0x6e, 0x7d, 0xce, 0x63, 0x75, 0x82, 0x7c, 0x0a, 0xcb, 0x4a, 0xc4, 0x71,
+	0x63, 0x86, 0xa6, 0x9d, 0x76, 0x2f, 0x8e, 0x9c, 0x98, 0x0a, 0x66, 0x4e, 0xad, 0x1a, 0x1b, 0x55,
+	0x7b, 0x49, 0x09, 0xec, 0xe8, 0xfd, 0x56, 0x2f, 0x8e, 0x6c, 0x2a, 0x18, 0xf9, 0x04, 0x4c, 0x8f,
+	0xed, 0xd3, 0x5e, 0x20, 0x1c, 0xb7, 0x43, 0x83, 0x80, 0x45, 0x07, 0xcc, 0x39, 0xf6, 0x23, 0x8f,
+	0x1f, 0x9b, 0xd3, 0xab, 0xc6, 0xc6, 0xb4, 0xbd, 0xa4, 0xf7, 0x77, 0xd2, 0xed, 0x1f, 0xe1, 0x2e,
+	0xb9, 0x07, 0xf3, 0xf2, 0x1a, 0x1e, 0x75, 0xda, 0x01, 0x6f, 0x3b, 0x89, 0xff, 0x86, 0x99, 0x33,
+	0x78, 0xa2, 0x1e, 0xd2, 0xfe, 0x53, 0xda, 0x0a, 0x78, 0x7b, 0xcf, 0x7f, 0xc3, 0xc8, 0x63, 0xb8,
+	0x8a, 0x12, 0x31, 0x13, 0x2c, 0x52, 0xce, 0x05, 0xdc, 0x3d, 0x4c, 0xcc, 0x12, 0x4a, 0x5f, 0x91,
+	0x9b, 0x76, 0xba, 0xd7, 0xc2, 0x2d, 0xb2, 0x05, 0x57, 0xa5, 0xf2, 0x36, 0x15, 0x6e, 0x87, 0x25,
+	0x4e, 0x97, 0xc5, 0xea, 0x90, 0x59, 0xc6, 0x68, 0x91, 0x90, 0xf6, 0x5b, 0x6a, 0xef, 0x39, 0x8b,
+	0xf1, 0x0c, 0xf9, 0x02, 0x56, 0xf7, 0xfd, 0x88, 0x06, 0xfe, 0x1b, 0xe6, 0xa9, 0x83, 0xe3, 0x16,
+	0x2b, 0x68, 0xf1, 0x66, 0x26, 0x87, 0x3a, 0x26, 0xd8, 0xee, 0xf2, 0x44, 0x30, 0xcf, 0xf1, 0xa8,
+	0xa0, 0x4e, 0x7b, 0x20, 0x58, 0x62, 0x56, 0xf1, 0xb4, 0xb4, 0xfd, 0x1c, 0xf7, 0x9e, 0x52, 0x41,
+	0x5b, 0x72, 0x87, 0xec, 0xc0, 0xad, 0x53, 0x8f, 0xe4, 0x1c, 0x07, 0x3c, 0xdc, 0x18, 0x3f, 0x9c,
+	0x5d, 0xe0, 0x09, 0x98, 0x79, 0x05, 0xfb, 0x8c, 0xa9, 0xe3, 0x03, 0xc1, 0xcc, 0x1a, 0x9e, 0x5e,
+	0xec, 0x66, 0x47, 0x3f, 0x67, 0x4c, 0x1e, 0x1c, 0x08, 0x46, 0xbe, 0x0f, 0x37, 0xf2, 0xe7, 0xc6,
+	0x2e, 0x7d, 0x19, 0xcf, 0x2e, 0x0f, 0xcf, 0x8e, 0x5e, 0xf8, 0x11, 0x10, 0xac, 0xb7, 0x5e, 0x3b,
+	0xf4, 0x85, 0x90, 0x26, 0x79, 0xe4, 0x99, 0x75, 0x3c, 0x36, 0x2f, 0xab, 0x2d, 0xdd, 0x68, 0xf1,
+	0xc8, 0xb3, 0xfe, 0x50, 0x02, 0x50, 0x75, 0x87, 0xd5, 0x7c, 0x1d, 0xaa, 0xba, 0xf6, 0x7c, 0x0f,
+	0x6b, 0xb9, 0x6a, 0x57, 0x14, 0xb0, 0xeb, 0x11, 0x13, 0xca, 0x58, 0x91, 0x3c, 0xc6, 0xe2, 0xad,
+	0xda, 0xe9, 0x52, 0xee, 0x74, 0x63, 0xbe, 0xef, 0x07, 0x69, 0x81, 0xa6, 0x4b, 0x72, 0x0f, 0xe6,
+	0x12, 0x26, 0x44, 0xc0, 0x42, 0x16, 0x09, 0x27, 0xe4, 0x1e, 0xc3, 0x42, 0xac, 0xda, 0xb3, 0x43,
+	0xf8, 0x19, 0xf7, 0x18, 0xb9, 0x09, 0x20, 0x8b, 0x8f, 0xba, 0x87, 0x2c, 0xf2, 0xb0, 0xf4, 0xaa,
+	0x76, 0xd5, 0xa3, 0x2d, 0x05, 0x10, 0x0b, 0xea, 0x18, 0x00, 0x47, 0xf8, 0x21, 0x73, 0xc2, 0xb4,
+	0xdc, 0x6a, 0x08, 0xbe, 0xf4, 0x43, 0xf6, 0x2c, 0x49, 0x6b, 0x58, 0xf4, 0x47, 0x2a, 0x4c, 0xd5,
+	0xf0, 0xcb, 0x7e, 0x96, 0x9b, 0x6b, 0x50, 0x3e, 0x0a, 0x1d, 0x31, 0xe8, 0x32, 0xac, 0xa1, 0xaa,
+	0x5d, 0x3a, 0x0a, 0x5f, 0x0e, 0xba, 0x8c, 0x2c, 0x41, 0x29, 0x11, 0x54, 0xf4, 0x54, 0x75, 0x54,
+	0x6d, 0xbd, 0x22, 0xb7, 0xe1, 0xb2, 0xea, 0x5f, 0x1a, 0xf2, 0x5e, 0x24, 0x30, 0xfd, 0x53, 0x76,
+	0x0d, 0xb1, 0x6d, 0x84, 0xc8, 0x32, 0x54, 0x02, 0x3a, 0x60, 0xb1, 0x0c, 0x5c, 0x4d, 0xc5, 0x00,
+	0xd7, 0xbb, 0x1e, 0x59, 0x87, 0x59, 0x0c, 0x14, 0xf3, 0x9c, 0x0e, 0xf3, 0x0f, 0x3a, 0x02, 0x93,
+	0x38, 0x65, 0xd7, 0x35, 0xfa, 0x25, 0x82, 0x52, 0x8c, 0x25, 0x6e, 0xcc, 0x8f, 0x9d, 0x36, 0x0d,
+	0x68, 0xe4, 0x32, 0x9d, 0xb4, 0xba, 0x42, 0x5b, 0x0a, 0x24, 0xdf, 0x82, 0xc5, 0xd1, 0xde, 0x76,
+	0x12, 0xe6, 0x9a, 0xb3, 0xaa, 0x9e, 0xdd, 0x62, 0x63, 0xef, 0x31, 0x17, 0xed, 0x67, 0x27, 0xb0,
+	0x1a, 0xe6, 0xb4, 0xfd, 0x14, 0x95, 0xa5, 0x20, 0x2f, 0xd9, 0x8d, 0x39, 0xdf, 0x77, 0x92, 0x41,
+	0x22, 0x58, 0x68, 0xce, 0xe3, 0x2d, 0x6a, 0x88, 0xed, 0x21, 0x24, 0x6d, 0x77, 0x68, 0xe2, 0x1c,
+	0xb1, 0xd8, 0xdf, 0xf7, 0x5d, 0x35, 0x9b, 0x0e, 0xd9, 0xc0, 0x5c, 0x58, 0x35, 0x36, 0x2a, 0x36,
+	0xe9, 0xd0, 0xe4, 0x55, 0x6e, 0xeb, 0x2b, 0x36, 0x20, 0x2b, 0x00, 0x09, 0x7b, 0xdd, 0x63, 0x91,
+	0xeb, 0x47, 0x07, 0x26, 0x41, 0x95, 0x39, 0x44, 0x1a, 0x65, 0x7d, 0xe6, 0xf6, 0x50, 0xd5, 0x51,
+	0x68, 0x5e, 0x51, 0x46, 0x33, 0xec, 0x55, 0xa8, 0x8a, 0xcb, 0x3f, 0xa2, 0xee, 0xc0, 0x5c, 0x4c,
+	0x8b, 0x0b, 0x97, 0x72, 0x27, 0x64, 0x61, 0x9b, 0xc5, 0x89, 0x79, 0x75, 0x75, 0x4a, 0xee, 0xe8,
+	0x25, 0x59, 0x83, 0xba, 0xfe, 0xe9, 0xb0, 0x2e, 0x77, 0x3b, 0xe6, 0x12, 0x46, 0xe7, 0xb2, 0x06,
+	0x3f, 0x93, 0x98, 0xb4, 0xed, 0xb1, 0x2e, 0x4f, 0x7c, 0xe1, 0x74, 0x39, 0x0f, 0xcc, 0x6b, 0xaa,
+	0xa4, 0x34, 0xf6, 0x9c, 0xf3, 0xc0, 0xfa, 0xcb, 0x34, 0x54, 0x71, 0xac, 0x9c, 0xdf, 0x1d, 0xb7,
+	0xa0, 0xa6, 0xe6, 0x94, 0x1f, 0x79, 0xac, 0x8f, 0x1d, 0x32, 0x6d, 0x03, 0x42, 0xbb, 0x12, 0x91,
+	0x15, 0x2e, 0xcb, 0x89, 0x39, 0x31, 0xe7, 0x42, 0xf7, 0x49, 0x15, 0x11, 0x9b, 0x73, 0x41, 0xee,
+	0xc2, 0x5c, 0x37, 0x66, 0x47, 0x4e, 0x4e, 0x46, 0x75, 0x4a, 0x5d, 0xc2, 0x7b, 0x99, 0xdc, 0x32,
+	0x54, 0x44, 0xdf, 0x71, 0xb1, 0x0e, 0xd5, 0x84, 0x2e, 0x8b, 0xfe, 0x0e, 0xd6, 0xe0, 0x75, 0xa8,
+	0xe2, 0xd0, 0xe8, 0xd0, 0xa4, 0x83, 0x0d, 0x52, 0xb5, 0x2b, 0x12, 0xf8, 0x92, 0x26, 0x1d, 0x69,
+	0x5e, 0xa5, 0x17, 0xeb, 0xbe, 0xac, 0xcc, 0x23, 0x32, 0x52, 0xfa, 0x95, 0xb1, 0xd2, 0xd7, 0x13,
+	0xc3, 0x73, 0xa8, 0xc0, 0xc6, 0x90, 0xa5, 0x9f, 0x62, 0xdb, 0x42, 0x8a, 0x0c, 0x67, 0x35, 0xcd,
+	0xba, 0x23, 0xc3, 0xb6, 0x05, 0xb9, 0x0f, 0xf3, 0xc7, 0xbe, 0xe8, 0x78, 0x31, 0x3d, 0xa6, 0x41,
+	0xa2, 0x6e, 0xa7, 0xba, 0x64, 0x2e, 0x87, 0xe3, 0xfd, 0xd6, 0x61, 0x76, 0x68, 0x50, 0x76, 0x7b,
+	0xda, 0x2d, 0x19, 0x2a, 0xdb, 0x9d, 0x3c, 0x84, 0x85, 0xbc, 0xc6, 0x36, 0xef, 0xe9, 0x29, 0x57,
+	0xb1, 0xf3, 0xa6, 0x5a, 0x12, 0x97, 0xb9, 0xf1, 0xa3, 0x36, 0xef, 0xcb, 0xe0, 0xc6, 0x42, 0xb7,
+	0x0a, 0x20, 0xb4, 0x27, 0x11, 0x19, 0x39, 0x25, 0xc0, 0x74, 0x77, 0x4c, 0xdb, 0x15, 0x04, 0x3e,
+	0x8b, 0x3c, 0xf9, 0xaa, 0x8e, 0x3a, 0xef, 0xc4, 0xcc, 0xeb, 0xb9, 0xcc, 0xc3, 0x26, 0xa9, 0xd8,
+	0x4b, 0x23, 0x97, 0xb0, 0xd5, 0xae, 0xb5, 0x08, 0xe4, 0x85, 0xa4, 0x1a, 0x8a, 0x2f, 0xd8, 0xb2,
+	0xec, 0x13, 0x61, 0x7d, 0x05, 0x57, 0x0a, 0x68, 0xd2, 0xe5, 0x51, 0xc2, 0xc8, 0xc7, 0x50, 0xea,
+	0x22, 0x82, 0xa5, 0x55, 0x7b, 0x7c, 0x63, 0x73, 0x94, 0x99, 0x6c, 0x0e, 0x79, 0x87, 0xad, 0x65,
+	0xad, 0x2d, 0x6d, 0x42, 0x0d, 0x71, 0x6d, 0xe2, 0xcc, 0x4a, 0xcd, 0xec, 0xa7, 0x47, 0x86, 0xf6,
+	0x35, 0x35, 0x99, 0x68, 0x7f, 0xf8, 0x52, 0xd8, 0x5a, 0xd6, 0xba, 0x5a, 0x50, 0x96, 0xdd, 0xf1,
+	0x6b, 0x58, 0x2c, 0xc2, 0xda, 0xc8, 0x13, 0x28, 0x0f, 0xa9, 0xd2, 0xd4, 0xb9, 0x56, 0x52, 0x61,
+	0xeb, 0x05, 0x2c, 0xa0, 0x3e, 0xfd, 0xc6, 0x9f, 0x7f, 0xcb, 0x73, 0xfb, 0xd1, 0xfa, 0x42, 0x47,
+	0x4e, 0xab, 0xd4, 0x0e, 0x6e, 0xc1, 0x0c, 0xca, 0xe8, 0x20, 0x5c, 0x1f, 0x77, 0x2f, 0x9b, 0x07,
+	0xb6, 0x92, 0xb4, 0x9e, 0xc0, 0x35, 0x54, 0xf4, 0x43, 0x2a, 0x58, 0x22, 0x2e, 0xec, 0xa1, 0xf5,
+	0x0c, 0xcc, 0xf1, 0x73, 0xff, 0xbf, 0x1b, 0xbe, 0xce, 0x84, 0xa6, 0x52, 0x17, 0x0d, 0x12, 0xb6,
+	0x44, 0x31, 0x48, 0x08, 0xa9, 0xa1, 0xb5, 0x08, 0x33, 0x81, 0x1f, 0xfa, 0x6a, 0x5e, 0xd5, 0x6d,
+	0xb5, 0xb0, 0x02, 0x9d, 0xdd, 0xcc, 0x94, 0xf6, 0xfa, 0xdb, 0x50, 0xd6, 0x24, 0x4f, 0x67, 0xf7,
+	0x4c, 0xbf, 0x53, 0x59, 0x39, 0x9a, 0x22, 0xd6, 0x2f, 0x3a, 0x51, 0x95, 0x88, 0x4a, 0xd4, 0x7f,
+	0x0c, 0xa8, 0x48, 0xfe, 0x79, 0xfe, 0x0c, 0xbe, 0x09, 0x80, 0xe4, 0xb4, 0xa0, 0x48, 0x22, 0xea,
+	0x32, 0x2b, 0x00, 0x2e, 0x0f, 0x43, 0x5f, 0x48, 0xd6, 0xa1, 0x27, 0x70, 0x0e, 0xc9, 0xe6, 0x27,
+	0xb2, 0x5f, 0xc5, 0x97, 0x71, 0x7e, 0x22, 0xf1, 0x5d, 0x82, 0x92, 0x7e, 0xbd, 0x67, 0x70, 0x1e,
+	0xe9, 0x95, 0x3c, 0x94, 0x08, 0x1e, 0xab, 0xd1, 0xa7, 0x87, 0xae, 0x02, 0xb6, 0x85, 0x3c, 0xd4,
+	0x8d, 0x7b, 0x11, 0xf3, 0x70, 0xe0, 0x56, 0x6c, 0xbd, 0x22, 0x0f, 0x60, 0x81, 0xf5, 0xbb, 0x7e,
+	0xcc, 0x12, 0x87, 0x8a, 0x94, 0x15, 0x54, 0x50, 0xef, 0x9c, 0xde, 0xd8, 0x16, 0x8a, 0x17, 0x58,
+	0x5f, 0xc3, 0xbc, 0x0a, 0x36, 0x32, 0xeb, 0x0b, 0x24, 0xf5, 0xec, 0x28, 0x58, 0x3b, 0x69, 0x2b,
+	0xa1, 0x3e, 0x9d, 0xb9, 0x4d, 0x98, 0x96, 0x12, 0xba, 0xdc, 0x1a, 0xa7, 0xa4, 0x4d, 0x27, 0xc0,
+	0x46, 0x39, 0xeb, 0xdf, 0x06, 0xcc, 0x0e, 0xa9, 0xef, 0xf9, 0x99, 0x69, 0x40, 0x45, 0xbf, 0xfa,
+	0x4c, 0x7b, 0x94, 0xad, 0x8b, 0xcf, 0xd6, 0xd4, 0xc8, 0xb3, 0x45, 0x60, 0x3a, 0x97, 0x0e, 0xfc,
+	0x8d, 0x51, 0x95, 0xb6, 0x63, 0xcd, 0x13, 0xf5, 0x2a, 0x97, 0xa2, 0xd2, 0x68, 0x8a, 0xd4, 0x74,
+	0xa7, 0xae, 0xab, 0x5f, 0x3e, 0x35, 0xdd, 0xb7, 0x5d, 0xf7, 0x7f, 0x4a, 0xc5, 0x0b, 0x58, 0x52,
+	0x93, 0x3b, 0xc7, 0xbe, 0x2f, 0x90, 0x90, 0x33, 0x2e, 0x6f, 0xfd, 0x44, 0x0f, 0x8f, 0xbc, 0x4a,
+	0x9d, 0x93, 0x6d, 0xa8, 0xe5, 0x3e, 0x05, 0x74, 0x6a, 0x56, 0x4f, 0x79, 0x15, 0x0a, 0x79, 0xb0,
+	0x61, 0xf8, 0x6d, 0x60, 0xfd, 0xf1, 0x12, 0x54, 0x77, 0xe5, 0x4d, 0xcf, 0xcf, 0x50, 0x91, 0xa9,
+	0x5d, 0x1a, 0x63, 0x6a, 0x6b, 0x50, 0xef, 0x30, 0xea, 0x39, 0xd9, 0x4d, 0xa6, 0x14, 0xa5, 0x92,
+	0xe0, 0x5e, 0x9a, 0xca, 0x65, 0xa8, 0xa0, 0x90, 0x0c, 0xb4, 0x62, 0x2f, 0x65, 0xb9, 0x96, 0x71,
+	0x7e, 0x08, 0x0b, 0x2e, 0x8f, 0x92, 0x5e, 0xc8, 0x72, 0x3a, 0x14, 0x81, 0x99, 0x4f, 0x37, 0x32,
+	0x3d, 0xb7, 0xe1, 0x72, 0x26, 0x2c, 0x75, 0xa9, 0xbe, 0xaa, 0xa5, 0x98, 0xd4, 0x27, 0x2f, 0x43,
+	0x25, 0xa3, 0x95, 0x4f, 0xb6, 0xa2, 0xf9, 0x15, 0x04, 0xe4, 0x93, 0x7d, 0x17, 0xe6, 0xd4, 0xe6,
+	0xb0, 0xb0, 0x14, 0xad, 0xa9, 0x23, 0xfc, 0x54, 0x57, 0x97, 0xf5, 0x4c, 0xf7, 0x02, 0xc6, 0xe8,
+	0x42, 0xb9, 0x2c, 0x30, 0x85, 0x4b, 0x45, 0xa6, 0x90, 0x3d, 0x29, 0x5a, 0xdd, 0x70, 0x96, 0xa3,
+	0xc4, 0xe4, 0x59, 0x9e, 0xa5, 0xc8, 0x56, 0x92, 0xd6, 0x2b, 0x58, 0x46, 0x45, 0x85, 0x8f, 0xb5,
+	0x0b, 0xf9, 0x77, 0x03, 0xaa, 0xd9, 0xa7, 0x9f, 0xce, 0xe2, 0x10, 0xb0, 0x7e, 0x6f, 0x40, 0xe3,
+	0x34, 0xc5, 0xda, 0xd3, 0x25, 0x28, 0xe9, 0x2f, 0x1c, 0x03, 0x6f, 0xa6, 0x57, 0x64, 0x03, 0xe6,
+	0x03, 0x9a, 0x08, 0xfd, 0x51, 0xa9, 0x58, 0x99, 0xfa, 0xff, 0x62, 0x56, 0xe2, 0x4a, 0x19, 0xd2,
+	0xb2, 0xdb, 0x70, 0xb9, 0x17, 0xc9, 0x6f, 0x0c, 0x87, 0xee, 0x4b, 0x0f, 0xa6, 0x14, 0x17, 0x54,
+	0xd8, 0xb6, 0x84, 0x90, 0xcf, 0xb3, 0xc8, 0x93, 0x55, 0xa6, 0x9a, 0x3a, 0x5d, 0x3e, 0xfe, 0x6d,
+	0x0d, 0x66, 0xd0, 0x3b, 0x72, 0x0c, 0x25, 0xc5, 0x75, 0xc8, 0x9d, 0xf1, 0x68, 0x8d, 0x53, 0xaa,
+	0xc6, 0xfa, 0x39, 0x52, 0xea, 0x7e, 0xd6, 0xea, 0xcf, 0xfe, 0xfe, 0xaf, 0xdf, 0x5c, 0x6a, 0x10,
+	0xb3, 0x39, 0xf6, 0x97, 0x90, 0xa2, 0x53, 0xe4, 0xe7, 0x06, 0x94, 0xf4, 0xff, 0x30, 0x93, 0x2c,
+	0x17, 0x98, 0xd6, 0x44, 0xcb, 0x45, 0x72, 0x65, 0x3d, 0x42, 0xcb, 0x77, 0xc9, 0x9d, 0x71, 0xcb,
+	0x2a, 0x75, 0xcd, 0xb7, 0x59, 0x4e, 0x4f, 0xc8, 0x5b, 0x28, 0xa7, 0x7f, 0x1f, 0x9d, 0xad, 0x3f,
+	0x0b, 0xc0, 0xdd, 0xf3, 0xc4, 0xb4, 0x1f, 0xb7, 0xd1, 0x8f, 0xeb, 0x64, 0x79, 0x92, 0x1f, 0x09,
+	0xf9, 0x95, 0x01, 0x33, 0xf8, 0x48, 0x93, 0xb5, 0x09, 0x4a, 0xf3, 0x14, 0xa7, 0x71, 0xe7, 0x6c,
+	0x21, 0x6d, 0xf7, 0x53, 0xb4, 0xfb, 0x11, 0xd9, 0x1a, 0xb7, 0x8b, 0x2c, 0x20, 0x7f, 0xfd, 0xe6,
+	0xdb, 0x1c, 0x71, 0x3b, 0x21, 0xbf, 0x33, 0xa0, 0x96, 0xa3, 0x48, 0xe4, 0xfe, 0x04, 0x83, 0xe3,
+	0xf4, 0xab, 0xf1, 0xe0, 0x22, 0xa2, 0xda, 0xc3, 0xc7, 0xe8, 0xe1, 0x23, 0xf2, 0x60, 0xdc, 0xc3,
+	0x00, 0xc5, 0x9d, 0x31, 0x47, 0xc9, 0x2f, 0x0c, 0x28, 0x6b, 0x0e, 0x34, 0x31, 0x51, 0x45, 0x3a,
+	0x36, 0x31, 0x51, 0x23, 0x54, 0xca, 0xfa, 0x10, 0xdd, 0xb9, 0x47, 0xd6, 0x27, 0x04, 0x8c, 0x25,
+	0x05, 0x4f, 0x7e, 0x69, 0xc0, 0xb4, 0x7c, 0xa2, 0x89, 0x35, 0x49, 0xff, 0x90, 0x3d, 0x34, 0xd6,
+	0xce, 0x94, 0xd1, 0x0e, 0x7c, 0x07, 0x1d, 0xd8, 0x22, 0xcd, 0x53, 0x1c, 0x08, 0x78, 0x7b, 0x24,
+	0x61, 0x19, 0xdf, 0x38, 0x21, 0x7f, 0x32, 0x00, 0x86, 0x4f, 0x12, 0xd9, 0x98, 0xd4, 0x9a, 0xa3,
+	0x6f, 0x68, 0xe3, 0xfe, 0x05, 0x24, 0xb5, 0x73, 0xdf, 0x43, 0xe7, 0x9e, 0x90, 0x8f, 0x4f, 0x69,
+	0xe4, 0xe1, 0x93, 0x59, 0xf4, 0x31, 0x7d, 0x74, 0x4e, 0xc8, 0x4f, 0x61, 0x06, 0x27, 0xee, 0xc4,
+	0x02, 0xcf, 0x3f, 0x07, 0x13, 0x0b, 0xbc, 0x30, 0xe4, 0xad, 0x87, 0xe8, 0xd1, 0x3a, 0x59, 0x1b,
+	0xf7, 0x08, 0x47, 0x7a, 0x21, 0x5b, 0x7f, 0x36, 0xa0, 0x5e, 0x98, 0xc0, 0xe4, 0xe1, 0x04, 0x23,
+	0xa7, 0x3d, 0x00, 0x8d, 0x47, 0x17, 0x13, 0xd6, 0x9e, 0xfd, 0x00, 0x3d, 0xfb, 0x2e, 0xf9, 0x64,
+	0xdc, 0xb3, 0xe2, 0x9f, 0x84, 0x23, 0xe1, 0x4a, 0xf7, 0x4e, 0x5a, 0xbb, 0x7f, 0x7d, 0xb7, 0x62,
+	0x7c, 0xf3, 0x6e, 0xc5, 0xf8, 0xe7, 0xbb, 0x15, 0xe3, 0xd7, 0xef, 0x57, 0x3e, 0xf8, 0xe6, 0xfd,
+	0xca, 0x07, 0xff, 0x78, 0xbf, 0xf2, 0xc1, 0x8f, 0x9b, 0x07, 0xbe, 0xe8, 0xf4, 0xda, 0x9b, 0x2e,
+	0x0f, 0x73, 0xda, 0xb3, 0x5f, 0x1f, 0xba, 0x3c, 0x66, 0xcd, 0x3e, 0x9a, 0x13, 0x83, 0x2e, 0x4b,
+	0xda, 0x25, 0xfc, 0x13, 0xfd, 0xa3, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0x6a, 0x04, 0x4c, 0xfa,
+	0x94, 0x17, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -1349,6 +2075,17 @@ type QueryClient interface {
 	Batches(ctx context.Context, in *QueryBatchesRequest, opts ...grpc.CallOption) (*QueryBatchesResponse, error)
 	// Blob returns a data-availability blob's metadata (not its data).
 	Blob(ctx context.Context, in *QueryBlobRequest, opts ...grpc.CallOption) (*QueryBlobResponse, error)
+	// PostedData returns one posted-data commitment (v3.2.8,
+	// rdk-post-rollup-data). The payload is in the transaction of the block at
+	// height.
+	PostedData(ctx context.Context, in *QueryPostedDataRequest, opts ...grpc.CallOption) (*QueryPostedDataResponse, error)
+	// Inbox returns a rollup's inbox: head, consumed position, accumulators and
+	// the data_hash a based batch ending at inbox_end (0 = the head) must carry.
+	Inbox(ctx context.Context, in *QueryInboxRequest, opts ...grpc.CallOption) (*QueryInboxResponse, error)
+	// SubmitterBond returns an account's submitter bond on a qledger-v1
+	// rollup and the earliest block time it can be unbonded (v3.2.8,
+	// rdk-optimistic-reexec).
+	SubmitterBond(ctx context.Context, in *QuerySubmitterBondRequest, opts ...grpc.CallOption) (*QuerySubmitterBondResponse, error)
 }
 
 type queryClient struct {
@@ -1422,6 +2159,33 @@ func (c *queryClient) Blob(ctx context.Context, in *QueryBlobRequest, opts ...gr
 	return out, nil
 }
 
+func (c *queryClient) PostedData(ctx context.Context, in *QueryPostedDataRequest, opts ...grpc.CallOption) (*QueryPostedDataResponse, error) {
+	out := new(QueryPostedDataResponse)
+	err := c.cc.Invoke(ctx, "/qorechain.rdk.v1.Query/PostedData", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) Inbox(ctx context.Context, in *QueryInboxRequest, opts ...grpc.CallOption) (*QueryInboxResponse, error) {
+	out := new(QueryInboxResponse)
+	err := c.cc.Invoke(ctx, "/qorechain.rdk.v1.Query/Inbox", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *queryClient) SubmitterBond(ctx context.Context, in *QuerySubmitterBondRequest, opts ...grpc.CallOption) (*QuerySubmitterBondResponse, error) {
+	out := new(QuerySubmitterBondResponse)
+	err := c.cc.Invoke(ctx, "/qorechain.rdk.v1.Query/SubmitterBond", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // QueryServer is the server API for Query service.
 type QueryServer interface {
 	// Params returns the module parameters.
@@ -1439,6 +2203,17 @@ type QueryServer interface {
 	Batches(context.Context, *QueryBatchesRequest) (*QueryBatchesResponse, error)
 	// Blob returns a data-availability blob's metadata (not its data).
 	Blob(context.Context, *QueryBlobRequest) (*QueryBlobResponse, error)
+	// PostedData returns one posted-data commitment (v3.2.8,
+	// rdk-post-rollup-data). The payload is in the transaction of the block at
+	// height.
+	PostedData(context.Context, *QueryPostedDataRequest) (*QueryPostedDataResponse, error)
+	// Inbox returns a rollup's inbox: head, consumed position, accumulators and
+	// the data_hash a based batch ending at inbox_end (0 = the head) must carry.
+	Inbox(context.Context, *QueryInboxRequest) (*QueryInboxResponse, error)
+	// SubmitterBond returns an account's submitter bond on a qledger-v1
+	// rollup and the earliest block time it can be unbonded (v3.2.8,
+	// rdk-optimistic-reexec).
+	SubmitterBond(context.Context, *QuerySubmitterBondRequest) (*QuerySubmitterBondResponse, error)
 }
 
 // UnimplementedQueryServer can be embedded to have forward compatible implementations.
@@ -1465,6 +2240,15 @@ func (*UnimplementedQueryServer) Batches(ctx context.Context, req *QueryBatchesR
 }
 func (*UnimplementedQueryServer) Blob(ctx context.Context, req *QueryBlobRequest) (*QueryBlobResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Blob not implemented")
+}
+func (*UnimplementedQueryServer) PostedData(ctx context.Context, req *QueryPostedDataRequest) (*QueryPostedDataResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PostedData not implemented")
+}
+func (*UnimplementedQueryServer) Inbox(ctx context.Context, req *QueryInboxRequest) (*QueryInboxResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Inbox not implemented")
+}
+func (*UnimplementedQueryServer) SubmitterBond(ctx context.Context, req *QuerySubmitterBondRequest) (*QuerySubmitterBondResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SubmitterBond not implemented")
 }
 
 func RegisterQueryServer(s grpc1.Server, srv QueryServer) {
@@ -1597,6 +2381,60 @@ func _Query_Blob_Handler(srv interface{}, ctx context.Context, dec func(interfac
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Query_PostedData_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryPostedDataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).PostedData(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qorechain.rdk.v1.Query/PostedData",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).PostedData(ctx, req.(*QueryPostedDataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_Inbox_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QueryInboxRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).Inbox(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qorechain.rdk.v1.Query/Inbox",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).Inbox(ctx, req.(*QueryInboxRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Query_SubmitterBond_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(QuerySubmitterBondRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(QueryServer).SubmitterBond(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/qorechain.rdk.v1.Query/SubmitterBond",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(QueryServer).SubmitterBond(ctx, req.(*QuerySubmitterBondRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var Query_serviceDesc = _Query_serviceDesc
 var _Query_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "qorechain.rdk.v1.Query",
@@ -1630,6 +2468,18 @@ var _Query_serviceDesc = grpc.ServiceDesc{
 			MethodName: "Blob",
 			Handler:    _Query_Blob_Handler,
 		},
+		{
+			MethodName: "PostedData",
+			Handler:    _Query_PostedData_Handler,
+		},
+		{
+			MethodName: "Inbox",
+			Handler:    _Query_Inbox_Handler,
+		},
+		{
+			MethodName: "SubmitterBond",
+			Handler:    _Query_SubmitterBond_Handler,
+		},
 	},
 	Streams:  []grpc.StreamDesc{},
 	Metadata: "qorechain/rdk/v1/query.proto",
@@ -1655,6 +2505,36 @@ func (m *ParamsView) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.MinSubmitterBond != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.MinSubmitterBond))
+		i--
+		dAtA[i] = 0x68
+	}
+	if m.PostedDataRetentionBlocks != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.PostedDataRetentionBlocks))
+		i--
+		dAtA[i] = 0x60
+	}
+	if m.PostedDataFeePerByte != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.PostedDataFeePerByte))
+		i--
+		dAtA[i] = 0x58
+	}
+	if m.MaxPostedDataBytesPerBlock != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.MaxPostedDataBytesPerBlock))
+		i--
+		dAtA[i] = 0x50
+	}
+	if m.MaxPostedDataBytes != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.MaxPostedDataBytes))
+		i--
+		dAtA[i] = 0x48
+	}
+	if m.FinalizedBatchRetentionBlocks != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.FinalizedBatchRetentionBlocks))
+		i--
+		dAtA[i] = 0x40
+	}
 	if m.MaxBatchesPerBlock != 0 {
 		i = encodeVarintQuery(dAtA, i, uint64(m.MaxBatchesPerBlock))
 		i--
@@ -1715,6 +2595,58 @@ func (m *RollupView) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.DepositPool != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.DepositPool))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb8
+	}
+	if m.MembersEpoch != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.MembersEpoch))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xb0
+	}
+	if len(m.Members) > 0 {
+		for iNdEx := len(m.Members) - 1; iNdEx >= 0; iNdEx-- {
+			i -= len(m.Members[iNdEx])
+			copy(dAtA[i:], m.Members[iNdEx])
+			i = encodeVarintQuery(dAtA, i, uint64(len(m.Members[iNdEx])))
+			i--
+			dAtA[i] = 0x1
+			i--
+			dAtA[i] = 0xaa
+		}
+	}
+	if len(m.Privacy) > 0 {
+		i -= len(m.Privacy)
+		copy(dAtA[i:], m.Privacy)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Privacy)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0xa2
+	}
+	if len(m.ExecutionVm) > 0 {
+		i -= len(m.ExecutionVm)
+		copy(dAtA[i:], m.ExecutionVm)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ExecutionVm)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x9a
+	}
+	if len(m.Sequencing) > 0 {
+		i -= len(m.Sequencing)
+		copy(dAtA[i:], m.Sequencing)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Sequencing)))
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x92
+	}
 	if m.HasVerificationKey {
 		i--
 		if m.HasVerificationKey {
@@ -1850,6 +2782,28 @@ func (m *BatchView) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+	if m.WithdrawalsRootReduced {
+		i--
+		if m.WithdrawalsRootReduced {
+			dAtA[i] = 1
+		} else {
+			dAtA[i] = 0
+		}
+		i--
+		dAtA[i] = 0x1
+		i--
+		dAtA[i] = 0x80
+	}
+	if m.InboxEnd != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.InboxEnd))
+		i--
+		dAtA[i] = 0x78
+	}
+	if m.InboxStart != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.InboxStart))
+		i--
+		dAtA[i] = 0x70
+	}
 	if m.WithdrawalsBound {
 		i--
 		if m.WithdrawalsBound {
@@ -2481,6 +3435,370 @@ func (m *QueryBlobResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *PostedDataView) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *PostedDataView) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *PostedDataView) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.ExpiresAtHeight != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.ExpiresAtHeight))
+		i--
+		dAtA[i] = 0x40
+	}
+	if len(m.InboxAcc) > 0 {
+		i -= len(m.InboxAcc)
+		copy(dAtA[i:], m.InboxAcc)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.InboxAcc)))
+		i--
+		dAtA[i] = 0x3a
+	}
+	if m.Height != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Height))
+		i--
+		dAtA[i] = 0x30
+	}
+	if len(m.Poster) > 0 {
+		i -= len(m.Poster)
+		copy(dAtA[i:], m.Poster)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Poster)))
+		i--
+		dAtA[i] = 0x2a
+	}
+	if m.Size_ != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Size_))
+		i--
+		dAtA[i] = 0x20
+	}
+	if len(m.DataHash) > 0 {
+		i -= len(m.DataHash)
+		copy(dAtA[i:], m.DataHash)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.DataHash)))
+		i--
+		dAtA[i] = 0x1a
+	}
+	if m.Sequence != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Sequence))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.RollupId) > 0 {
+		i -= len(m.RollupId)
+		copy(dAtA[i:], m.RollupId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.RollupId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryPostedDataRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryPostedDataRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryPostedDataRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Sequence != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Sequence))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.RollupId) > 0 {
+		i -= len(m.RollupId)
+		copy(dAtA[i:], m.RollupId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.RollupId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryPostedDataResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryPostedDataResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryPostedDataResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.PostedData != nil {
+		{
+			size, err := m.PostedData.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *InboxView) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *InboxView) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *InboxView) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.RangeDataHash) > 0 {
+		i -= len(m.RangeDataHash)
+		copy(dAtA[i:], m.RangeDataHash)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.RangeDataHash)))
+		i--
+		dAtA[i] = 0x42
+	}
+	if m.RangeEnd != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.RangeEnd))
+		i--
+		dAtA[i] = 0x38
+	}
+	if len(m.ConsumedAcc) > 0 {
+		i -= len(m.ConsumedAcc)
+		copy(dAtA[i:], m.ConsumedAcc)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.ConsumedAcc)))
+		i--
+		dAtA[i] = 0x32
+	}
+	if m.ConsumedSequence != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.ConsumedSequence))
+		i--
+		dAtA[i] = 0x28
+	}
+	if len(m.HeadAcc) > 0 {
+		i -= len(m.HeadAcc)
+		copy(dAtA[i:], m.HeadAcc)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.HeadAcc)))
+		i--
+		dAtA[i] = 0x22
+	}
+	if m.HeadSequence != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.HeadSequence))
+		i--
+		dAtA[i] = 0x18
+	}
+	if len(m.Sequencing) > 0 {
+		i -= len(m.Sequencing)
+		copy(dAtA[i:], m.Sequencing)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Sequencing)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.RollupId) > 0 {
+		i -= len(m.RollupId)
+		copy(dAtA[i:], m.RollupId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.RollupId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryInboxRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryInboxRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryInboxRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.InboxEnd != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.InboxEnd))
+		i--
+		dAtA[i] = 0x10
+	}
+	if len(m.RollupId) > 0 {
+		i -= len(m.RollupId)
+		copy(dAtA[i:], m.RollupId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.RollupId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QueryInboxResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QueryInboxResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QueryInboxResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Inbox != nil {
+		{
+			size, err := m.Inbox.MarshalToSizedBuffer(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = encodeVarintQuery(dAtA, i, uint64(size))
+		}
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QuerySubmitterBondRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QuerySubmitterBondRequest) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QuerySubmitterBondRequest) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if len(m.Submitter) > 0 {
+		i -= len(m.Submitter)
+		copy(dAtA[i:], m.Submitter)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.Submitter)))
+		i--
+		dAtA[i] = 0x12
+	}
+	if len(m.RollupId) > 0 {
+		i -= len(m.RollupId)
+		copy(dAtA[i:], m.RollupId)
+		i = encodeVarintQuery(dAtA, i, uint64(len(m.RollupId)))
+		i--
+		dAtA[i] = 0xa
+	}
+	return len(dAtA) - i, nil
+}
+
+func (m *QuerySubmitterBondResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBuffer(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *QuerySubmitterBondResponse) MarshalTo(dAtA []byte) (int, error) {
+	size := m.Size()
+	return m.MarshalToSizedBuffer(dAtA[:size])
+}
+
+func (m *QuerySubmitterBondResponse) MarshalToSizedBuffer(dAtA []byte) (int, error) {
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.Pending != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Pending))
+		i--
+		dAtA[i] = 0x20
+	}
+	if m.UnbondAfter != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.UnbondAfter))
+		i--
+		dAtA[i] = 0x18
+	}
+	if m.LastSubmitTime != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.LastSubmitTime))
+		i--
+		dAtA[i] = 0x10
+	}
+	if m.Amount != 0 {
+		i = encodeVarintQuery(dAtA, i, uint64(m.Amount))
+		i--
+		dAtA[i] = 0x8
+	}
+	return len(dAtA) - i, nil
+}
+
 func encodeVarintQuery(dAtA []byte, offset int, v uint64) int {
 	offset -= sovQuery(v)
 	base := offset
@@ -2519,6 +3837,24 @@ func (m *ParamsView) Size() (n int) {
 	}
 	if m.MaxBatchesPerBlock != 0 {
 		n += 1 + sovQuery(uint64(m.MaxBatchesPerBlock))
+	}
+	if m.FinalizedBatchRetentionBlocks != 0 {
+		n += 1 + sovQuery(uint64(m.FinalizedBatchRetentionBlocks))
+	}
+	if m.MaxPostedDataBytes != 0 {
+		n += 1 + sovQuery(uint64(m.MaxPostedDataBytes))
+	}
+	if m.MaxPostedDataBytesPerBlock != 0 {
+		n += 1 + sovQuery(uint64(m.MaxPostedDataBytesPerBlock))
+	}
+	if m.PostedDataFeePerByte != 0 {
+		n += 1 + sovQuery(uint64(m.PostedDataFeePerByte))
+	}
+	if m.PostedDataRetentionBlocks != 0 {
+		n += 1 + sovQuery(uint64(m.PostedDataRetentionBlocks))
+	}
+	if m.MinSubmitterBond != 0 {
+		n += 1 + sovQuery(uint64(m.MinSubmitterBond))
 	}
 	return n
 }
@@ -2589,6 +3925,30 @@ func (m *RollupView) Size() (n int) {
 	if m.HasVerificationKey {
 		n += 3
 	}
+	l = len(m.Sequencing)
+	if l > 0 {
+		n += 2 + l + sovQuery(uint64(l))
+	}
+	l = len(m.ExecutionVm)
+	if l > 0 {
+		n += 2 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Privacy)
+	if l > 0 {
+		n += 2 + l + sovQuery(uint64(l))
+	}
+	if len(m.Members) > 0 {
+		for _, s := range m.Members {
+			l = len(s)
+			n += 2 + l + sovQuery(uint64(l))
+		}
+	}
+	if m.MembersEpoch != 0 {
+		n += 2 + sovQuery(uint64(m.MembersEpoch))
+	}
+	if m.DepositPool != 0 {
+		n += 2 + sovQuery(uint64(m.DepositPool))
+	}
 	return n
 }
 
@@ -2643,6 +4003,15 @@ func (m *BatchView) Size() (n int) {
 	}
 	if m.WithdrawalsBound {
 		n += 2
+	}
+	if m.InboxStart != 0 {
+		n += 1 + sovQuery(uint64(m.InboxStart))
+	}
+	if m.InboxEnd != 0 {
+		n += 1 + sovQuery(uint64(m.InboxEnd))
+	}
+	if m.WithdrawalsRootReduced {
+		n += 3
 	}
 	return n
 }
@@ -2876,6 +4245,177 @@ func (m *QueryBlobResponse) Size() (n int) {
 	return n
 }
 
+func (m *PostedDataView) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.RollupId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.Sequence != 0 {
+		n += 1 + sovQuery(uint64(m.Sequence))
+	}
+	l = len(m.DataHash)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.Size_ != 0 {
+		n += 1 + sovQuery(uint64(m.Size_))
+	}
+	l = len(m.Poster)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.Height != 0 {
+		n += 1 + sovQuery(uint64(m.Height))
+	}
+	l = len(m.InboxAcc)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.ExpiresAtHeight != 0 {
+		n += 1 + sovQuery(uint64(m.ExpiresAtHeight))
+	}
+	return n
+}
+
+func (m *QueryPostedDataRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.RollupId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.Sequence != 0 {
+		n += 1 + sovQuery(uint64(m.Sequence))
+	}
+	return n
+}
+
+func (m *QueryPostedDataResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.PostedData != nil {
+		l = m.PostedData.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *InboxView) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.RollupId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Sequencing)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.HeadSequence != 0 {
+		n += 1 + sovQuery(uint64(m.HeadSequence))
+	}
+	l = len(m.HeadAcc)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.ConsumedSequence != 0 {
+		n += 1 + sovQuery(uint64(m.ConsumedSequence))
+	}
+	l = len(m.ConsumedAcc)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.RangeEnd != 0 {
+		n += 1 + sovQuery(uint64(m.RangeEnd))
+	}
+	l = len(m.RangeDataHash)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QueryInboxRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.RollupId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	if m.InboxEnd != 0 {
+		n += 1 + sovQuery(uint64(m.InboxEnd))
+	}
+	return n
+}
+
+func (m *QueryInboxResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Inbox != nil {
+		l = m.Inbox.Size()
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QuerySubmitterBondRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.RollupId)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	l = len(m.Submitter)
+	if l > 0 {
+		n += 1 + l + sovQuery(uint64(l))
+	}
+	return n
+}
+
+func (m *QuerySubmitterBondResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if m.Amount != 0 {
+		n += 1 + sovQuery(uint64(m.Amount))
+	}
+	if m.LastSubmitTime != 0 {
+		n += 1 + sovQuery(uint64(m.LastSubmitTime))
+	}
+	if m.UnbondAfter != 0 {
+		n += 1 + sovQuery(uint64(m.UnbondAfter))
+	}
+	if m.Pending != 0 {
+		n += 1 + sovQuery(uint64(m.Pending))
+	}
+	return n
+}
+
 func sovQuery(x uint64) (n int) {
 	return (math_bits.Len64(x|1) + 6) / 7
 }
@@ -3053,6 +4593,120 @@ func (m *ParamsView) Unmarshal(dAtA []byte) error {
 				b := dAtA[iNdEx]
 				iNdEx++
 				m.MaxBatchesPerBlock |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FinalizedBatchRetentionBlocks", wireType)
+			}
+			m.FinalizedBatchRetentionBlocks = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.FinalizedBatchRetentionBlocks |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 9:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxPostedDataBytes", wireType)
+			}
+			m.MaxPostedDataBytes = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxPostedDataBytes |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 10:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MaxPostedDataBytesPerBlock", wireType)
+			}
+			m.MaxPostedDataBytesPerBlock = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MaxPostedDataBytesPerBlock |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 11:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PostedDataFeePerByte", wireType)
+			}
+			m.PostedDataFeePerByte = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PostedDataFeePerByte |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 12:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PostedDataRetentionBlocks", wireType)
+			}
+			m.PostedDataRetentionBlocks = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.PostedDataRetentionBlocks |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 13:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MinSubmitterBond", wireType)
+			}
+			m.MinSubmitterBond = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MinSubmitterBond |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -3548,6 +5202,172 @@ func (m *RollupView) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.HasVerificationKey = bool(v != 0)
+		case 18:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sequencing", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Sequencing = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 19:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExecutionVm", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ExecutionVm = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 20:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Privacy", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Privacy = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 21:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Members", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Members = append(m.Members, string(dAtA[iNdEx:postIndex]))
+			iNdEx = postIndex
+		case 22:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field MembersEpoch", wireType)
+			}
+			m.MembersEpoch = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.MembersEpoch |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 23:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DepositPool", wireType)
+			}
+			m.DepositPool = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.DepositPool |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQuery(dAtA[iNdEx:])
@@ -3937,6 +5757,64 @@ func (m *BatchView) Unmarshal(dAtA []byte) error {
 				}
 			}
 			m.WithdrawalsBound = bool(v != 0)
+		case 14:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InboxStart", wireType)
+			}
+			m.InboxStart = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.InboxStart |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 15:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InboxEnd", wireType)
+			}
+			m.InboxEnd = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.InboxEnd |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 16:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field WithdrawalsRootReduced", wireType)
+			}
+			var v int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				v |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			m.WithdrawalsRootReduced = bool(v != 0)
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQuery(dAtA[iNdEx:])
@@ -5382,6 +7260,1141 @@ func (m *QueryBlobResponse) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *PostedDataView) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: PostedDataView: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: PostedDataView: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RollupId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RollupId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sequence", wireType)
+			}
+			m.Sequence = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Sequence |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field DataHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.DataHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Size_", wireType)
+			}
+			m.Size_ = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Size_ |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 5:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Poster", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Poster = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 6:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+			}
+			m.Height = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Height |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 7:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InboxAcc", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.InboxAcc = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 8:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ExpiresAtHeight", wireType)
+			}
+			m.ExpiresAtHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ExpiresAtHeight |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryPostedDataRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryPostedDataRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryPostedDataRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RollupId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RollupId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sequence", wireType)
+			}
+			m.Sequence = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Sequence |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryPostedDataResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryPostedDataResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryPostedDataResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field PostedData", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.PostedData == nil {
+				m.PostedData = &PostedDataView{}
+			}
+			if err := m.PostedData.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *InboxView) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: InboxView: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: InboxView: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RollupId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RollupId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Sequencing", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Sequencing = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HeadSequence", wireType)
+			}
+			m.HeadSequence = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.HeadSequence |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HeadAcc", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.HeadAcc = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 5:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConsumedSequence", wireType)
+			}
+			m.ConsumedSequence = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.ConsumedSequence |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ConsumedAcc", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ConsumedAcc = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 7:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RangeEnd", wireType)
+			}
+			m.RangeEnd = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.RangeEnd |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 8:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RangeDataHash", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RangeDataHash = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryInboxRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryInboxRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryInboxRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RollupId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RollupId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field InboxEnd", wireType)
+			}
+			m.InboxEnd = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.InboxEnd |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QueryInboxResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QueryInboxResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QueryInboxResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Inbox", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Inbox == nil {
+				m.Inbox = &InboxView{}
+			}
+			if err := m.Inbox.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QuerySubmitterBondRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QuerySubmitterBondRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QuerySubmitterBondRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field RollupId", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.RollupId = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Submitter", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthQuery
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Submitter = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipQuery(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return ErrInvalidLengthQuery
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *QuerySubmitterBondResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowQuery
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: QuerySubmitterBondResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: QuerySubmitterBondResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Amount", wireType)
+			}
+			m.Amount = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Amount |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field LastSubmitTime", wireType)
+			}
+			m.LastSubmitTime = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.LastSubmitTime |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field UnbondAfter", wireType)
+			}
+			m.UnbondAfter = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.UnbondAfter |= int64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Pending", wireType)
+			}
+			m.Pending = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowQuery
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Pending |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		default:
 			iNdEx = preIndex
 			skippy, err := skipQuery(dAtA[iNdEx:])

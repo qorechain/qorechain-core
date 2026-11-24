@@ -62,7 +62,24 @@ type AcceptedFeeToken struct {
 	// considered manipulated and the token refused. It also bounds the
 	// slippage of the float's refill swap.
 	MaxDeviationBps uint32 `json:"max_deviation_bps,omitempty"`
+
+	// MinForeignLiquidity is the foreign-side reserve the pool must hold.
+	// From gasabstraction-depth-age-gate an amm_twap token without it cannot
+	// pay fees. Omitted while empty, so a stored config without it keeps its
+	// bytes.
+	MinForeignLiquidity string `json:"min_foreign_liquidity,omitempty"`
+	// MinPoolAgeBlocks is how many blocks old the pool must be before it may
+	// price fees (gasabstraction-depth-age-gate); MinFeePricingPoolAgeBlocks
+	// applies when it is lower. Omitted while zero.
+	MinPoolAgeBlocks int64 `json:"min_pool_age_blocks,omitempty"`
 }
+
+// MinFeePricingPoolAgeBlocks is the age, in blocks, an x/amm pool must reach
+// before it may price fees under gasabstraction-depth-age-gate, whatever the
+// listing says: about one day at five-second blocks. A new pool's running
+// average starts at its creation price, so it needs a history before it says
+// anything the pool's creator did not set.
+const MinFeePricingPoolAgeBlocks int64 = 17_280
 
 // DefaultGasAbstractionConfig returns default config: native fees only.
 // Foreign tokens are added by governance once a real (ibc/<hash>) denom and a
@@ -156,6 +173,14 @@ func (t AcceptedFeeToken) validateSource(native string) error {
 		}
 		if t.MaxDeviationBps == 0 || t.MaxDeviationBps > 10_000 {
 			return fmt.Errorf("token %s: max_deviation_bps must be in (0, 10000]", t.Denom)
+		}
+		if t.MinForeignLiquidity != "" {
+			if v, ok := math.NewIntFromString(t.MinForeignLiquidity); !ok || !v.IsPositive() {
+				return fmt.Errorf("token %s: min_foreign_liquidity must be a positive integer", t.Denom)
+			}
+		}
+		if t.MinPoolAgeBlocks < 0 {
+			return fmt.Errorf("token %s: min_pool_age_blocks must not be negative", t.Denom)
 		}
 	default:
 		return fmt.Errorf("token %s: unknown price_source %q", t.Denom, t.PriceSource)

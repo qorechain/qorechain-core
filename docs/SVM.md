@@ -185,7 +185,8 @@ qorechaind query svm account <base58-address>
 # Query a deployed program
 qorechaind query svm program <base58-address>
 
-# Query SVM parameters
+# Query the SVM parameters in force (every field, custody ceilings included,
+# in the shape MsgUpdateParams takes; REST: GET /qorechain/svm/v1/params)
 qorechaind query svm params
 
 # Query current SVM slot

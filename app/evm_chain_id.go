@@ -136,6 +136,43 @@ func mustResolveEVMChainID(appOpts servertypes.AppOptions) (uint64, string) {
 // construction, reported as a warning when the node starts.
 var rpcEVMChainIDMismatch string
 
+// rpcEVMChainIDPinned records, for the start-up log, an app.toml evm-chain-id
+// that PinRPCEVMChainID replaced with the keeper's value.
+var rpcEVMChainIDPinned string
+
+// RPCEVMChainIDSetter is the part of the node's configuration (the server
+// context's viper) that PinRPCEVMChainID reads and overrides.
+type RPCEVMChainIDSetter interface {
+	Get(key string) any
+	Set(key string, value any)
+}
+
+// PinRPCEVMChainID makes the JSON-RPC server use the keeper's EVM chain ID.
+// The server reads [evm] evm-chain-id from the node configuration on its own,
+// before the application is built, so an app.toml left with another value by
+// an earlier release (9800 on mainnet, 262144) made eth_chainId and the
+// transactions signed through this node's JSON-RPC carry the wrong chain ID,
+// while the keeper, and so consensus, used the pinned one. It is called by the
+// start command before the server reads its configuration and overrides the
+// in-process value (app.toml on disk is not touched). It changes nothing when
+// the Cosmos chain-id cannot be determined, and returns the replaced value
+// and whether it replaced one. A configuration resolveEVMChainID refuses is
+// left to app construction, which refuses it with its own message.
+func PinRPCEVMChainID(cfg RPCEVMChainIDSetter) (from, to uint64, changed bool) {
+	id, cosmosID, err := resolveEVMChainID(cfg)
+	if err != nil || cosmosID == "" {
+		return 0, 0, false
+	}
+	cur, _ := cast.ToUint64E(cfg.Get(appOptEVMChainID))
+	if cur == id {
+		return cur, id, false
+	}
+	cfg.Set(appOptEVMChainID, id)
+	rpcEVMChainIDPinned = fmt.Sprintf("app.toml %s = %d replaced in-process by %d, the EVM chain ID of %s; fix app.toml",
+		appOptEVMChainID, cur, id, cosmosID)
+	return cur, id, true
+}
+
 // LogStartupIdentity logs, once at node start, the Cosmos chain-id to EVM
 // chain ID mapping this node runs with and the PQC library it loaded.
 func (app *QoreChainApp) LogStartupIdentity(logger log.Logger) {
@@ -149,6 +186,10 @@ func (app *QoreChainApp) LogStartupIdentity(logger log.Logger) {
 			"chain_id", app.evmCosmosChainID, "evm_chain_id", app.evmChainID)
 	default:
 		logger.Info("EVM chain ID from "+EnvEVMChainID, "chain_id", app.evmCosmosChainID, "evm_chain_id", app.evmChainID)
+	}
+	if rpcEVMChainIDPinned != "" {
+		logger.Error("JSON-RPC EVM chain ID did not match this network; the node serves the keeper's value",
+			"problem", rpcEVMChainIDPinned)
 	}
 	if rpcEVMChainIDMismatch != "" {
 		logger.Error("JSON-RPC EVM chain ID does not match this network; eth_chainId and signed EVM transactions sent to this node's JSON-RPC will use the wrong chain ID until app.toml is fixed",

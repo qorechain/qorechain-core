@@ -22,7 +22,9 @@ import (
 // It must never refuse what execution would admit, so it checks only the
 // messages that see the committed state unchanged (rdkMempoolChecks); the
 // keeper side (MempoolCheckMsg) is off below the switch and leaves every case
-// it cannot decide to execution.
+// it cannot decide to execution. From v3.2.8 (FeatureRDKPostRollupData) it
+// also refuses a MsgPostRollupData above the per-post cap or from an account
+// that may not post for the rollup.
 type RDKZKBatchMempoolDecorator struct {
 	check func(sdk.Context, sdk.Msg) error
 }
@@ -46,16 +48,20 @@ func (d RDKZKBatchMempoolDecorator) AnteHandle(
 	return next(ctx, tx, simulate)
 }
 
-// rdkMempoolChecks returns the leading MsgSubmitBatch messages of a
-// transaction. A batch only reads the rollup's verification key, and no batch
-// changes it, so each of them sees the committed key at execution. Everything
-// from the first other message on (a MsgSetVerificationKey earlier in the same
-// transaction changes the key) is left to execution, as is anything wrapped in
-// authz MsgExec.
+// rdkMempoolChecks returns the leading MsgSubmitBatch and MsgPostRollupData
+// messages of a transaction. A batch only reads the rollup's verification
+// key, and no batch or post changes it, so each of them sees the committed key
+// at execution. A post (from v3.2.8, FeatureRDKPostRollupData) is checked
+// only against the per-post cap and the rollup's sequencer, which neither a
+// batch nor a post changes. Everything from the first other message on (a
+// MsgSetVerificationKey earlier in the same transaction changes the key) is
+// left to execution, as is anything wrapped in authz MsgExec.
 func rdkMempoolChecks(msgs []sdk.Msg) []sdk.Msg {
 	var out []sdk.Msg
 	for _, msg := range msgs {
-		if _, ok := msg.(*rdktypes.MsgSubmitBatch); !ok {
+		switch msg.(type) {
+		case *rdktypes.MsgSubmitBatch, *rdktypes.MsgPostRollupData:
+		default:
 			return out
 		}
 		out = append(out, msg)

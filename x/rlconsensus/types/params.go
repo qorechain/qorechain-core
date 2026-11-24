@@ -156,6 +156,57 @@ type Params struct {
 	DefaultBlockTimeMs      int64         `json:"default_block_time_ms"`
 	DefaultBaseGasPrice     string        `json:"default_base_gas_price"`
 	DefaultValidatorSetSize uint64        `json:"default_validator_set_size"`
+
+	// Gas floor band (FeatureRLApplyGasFloor), set by MsgUpdateGasFloorBand.
+	// With GasFloorApplyEnabled false the agent's gas price floor stays in
+	// this module. Omitted when empty, so params stored before the switch keep
+	// their bytes.
+	GasFloorApplyEnabled  bool   `json:"gas_floor_apply_enabled,omitempty"`
+	GasFloorMin           string `json:"gas_floor_min,omitempty"`
+	GasFloorMax           string `json:"gas_floor_max,omitempty"`
+	GasFloorMaxStepChange string `json:"gas_floor_max_step_change,omitempty"`
+}
+
+// MaxGasFloorStepChange is the largest relative change of the x/feemarket
+// minimum gas price one agent step may make, whatever the band says.
+var MaxGasFloorStepChange = math.LegacyMustNewDecFromStr("0.5")
+
+// GasFloorBand is the parsed gas floor band.
+type GasFloorBand struct {
+	Min, Max, MaxStep math.LegacyDec
+}
+
+// ValidateGasFloorBand checks a band: 0 < min <= max and 0 < max_step <= 0.5.
+func ValidateGasFloorBand(minS, maxS, stepS string) (GasFloorBand, error) {
+	minD, err := math.LegacyNewDecFromStr(minS)
+	if err != nil {
+		return GasFloorBand{}, fmt.Errorf("invalid gas floor min: %w", err)
+	}
+	maxD, err := math.LegacyNewDecFromStr(maxS)
+	if err != nil {
+		return GasFloorBand{}, fmt.Errorf("invalid gas floor max: %w", err)
+	}
+	step, err := math.LegacyNewDecFromStr(stepS)
+	if err != nil {
+		return GasFloorBand{}, fmt.Errorf("invalid gas floor max step change: %w", err)
+	}
+	if !minD.IsPositive() || maxD.LT(minD) {
+		return GasFloorBand{}, fmt.Errorf("gas floor band must satisfy 0 < min <= max, got [%s, %s]", minD, maxD)
+	}
+	if !step.IsPositive() || step.GT(MaxGasFloorStepChange) {
+		return GasFloorBand{}, fmt.Errorf("gas floor max step change must be in (0, %s], got %s", MaxGasFloorStepChange, step)
+	}
+	return GasFloorBand{Min: minD, Max: maxD, MaxStep: step}, nil
+}
+
+// GasFloorBandValue returns the band when applying is enabled and the band is
+// valid.
+func (p Params) GasFloorBandValue() (GasFloorBand, bool) {
+	if !p.GasFloorApplyEnabled {
+		return GasFloorBand{}, false
+	}
+	b, err := ValidateGasFloorBand(p.GasFloorMin, p.GasFloorMax, p.GasFloorMaxStepChange)
+	return b, err == nil
 }
 
 // DefaultParams returns a default set of RL consensus parameters.
@@ -214,6 +265,11 @@ func (p Params) Validate() error {
 	}
 	if err := p.RewardWeights.Validate(); err != nil {
 		return err
+	}
+	if p.GasFloorApplyEnabled {
+		if _, err := ValidateGasFloorBand(p.GasFloorMin, p.GasFloorMax, p.GasFloorMaxStepChange); err != nil {
+			return err
+		}
 	}
 	return nil
 }

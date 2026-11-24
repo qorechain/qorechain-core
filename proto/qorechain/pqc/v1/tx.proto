@@ -177,6 +177,29 @@ message MsgOpenEVMWindow {
   // creation is refused. Optional; absent keeps the window's original scope.
   // Honoured from the evm-pqc-window-targets feature on.
   repeated string allowed_targets = 6;
+  // validators, when non-empty, names the contracts (0x-prefixed 20-byte
+  // addresses) whose check of the account's signature counts for the
+  // account's own actions: a validator module its code consults with a
+  // STATICCALL, or an entry point that validates and then executes it in
+  // separate calls (ERC-4337). It does not narrow where the account's
+  // transactions or code may go. Optional; honoured from the
+  // evm-window-validators feature on.
+  repeated string validators = 7;
+  // staking_validators, when non-empty, names the validators (bech32
+  // operator addresses) the account's stake may be delegated or redelegated
+  // to through this window, by its EVM transactions or its EIP-7702 code.
+  // Empty: delegate and redelegate are refused through the window and remain
+  // available as post-quantum signed Cosmos transactions. Optional; honoured
+  // from the evm-window-staking-validators feature on.
+  repeated string staking_validators = 8;
+  // ibc_receivers, when non-empty, names the IBC destinations native QOR may
+  // be sent to through this window with the ICS-20 precompile, each as
+  // "<source channel>/<receiver>" (the channel on this chain and the
+  // receiving address on the other chain). Empty: ICS-20 transfers are
+  // refused through the window and remain available as post-quantum signed
+  // Cosmos transactions. Optional; honoured from the
+  // evm-precompile-method-allowlist feature on.
+  repeated string ibc_receivers = 9;
 }
 message MsgOpenEVMWindowResponse {
   uint64 expiry_height = 1;

@@ -13,6 +13,7 @@ func RegisterInterfaces(registry codectypes.InterfaceRegistry) {
 		&MsgResumeAgent{},
 		&MsgUpdatePolicy{},
 		&MsgUpdateRewardWeights{},
+		&MsgUpdateGasFloorBand{},
 	)
 }
 
@@ -22,4 +23,5 @@ func RegisterLegacyAminoCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgResumeAgent{}, "rlconsensus/MsgResumeAgent", nil)
 	cdc.RegisterConcrete(&MsgUpdatePolicy{}, "rlconsensus/MsgUpdatePolicy", nil)
 	cdc.RegisterConcrete(&MsgUpdateRewardWeights{}, "rlconsensus/MsgUpdateRewardWeights", nil)
+	cdc.RegisterConcrete(&MsgUpdateGasFloorBand{}, "rlconsensus/MsgUpdateGasFloorBand", nil)
 }

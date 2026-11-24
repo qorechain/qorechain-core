@@ -4,6 +4,9 @@ package qorechain.crossvm.v1;
 option go_package = "github.com/qorechain/qorechain-core/x/crossvm/types";
 
 import "google/api/annotations.proto";
+import "gogoproto/gogo.proto";
+import "cosmos/base/query/v1beta1/pagination.proto";
+import "qorechain/crossvm/v1/tx.proto";
 
 // Query defines the crossvm module's gRPC query service.
 service Query {
@@ -44,12 +47,56 @@ message QueryParamsResponse {
   // bridge_allowed_targets is the allowlist of the EVM bridge precompile, each
   // entry "<vm>:<contract>". Empty means the bridge reaches nothing.
   repeated string bridge_allowed_targets = 5;
+  // bridge_target_pins lists the code each pinned allowlist entry must run.
+  repeated BridgeTargetPin bridge_target_pins = 6 [(gogoproto.nullable) = false];
+  // max_pending_per_sender is the per-sender bound on queued async calls in
+  // force (the default when the stored value is zero).
+  uint32 max_pending_per_sender = 7;
+  // max_cosmos_tx_gas is the per-transaction gas bound on the Cosmos lane in
+  // force (the default when the stored value is zero).
+  uint64 max_cosmos_tx_gas = 8;
+  // record_retention_blocks is the retention of finished queued call records
+  // in force (the default when the stored value is zero).
+  uint64 record_retention_blocks = 9;
+  // max_block_wasm_gas is the per-block CosmWasm execution budget in force
+  // (the default when the stored value is zero).
+  uint64 max_block_wasm_gas = 10;
+  // max_tx_wasm_share_bps is the per-transaction share of the block wasm
+  // budget in force, in basis points.
+  uint32 max_tx_wasm_share_bps = 11;
+  // max_block_level_wasm_gas is the bound on one contract call made outside
+  // a transaction in force.
+  uint64 max_block_level_wasm_gas = 12;
+  // queue_wasm_reserve_bps is the queue's reserved share of the block wasm
+  // budget in force, in basis points.
+  uint32 queue_wasm_reserve_bps = 13;
+  // wasm_congestion_max_factor is the bound on the congestion factor in
+  // force.
+  uint32 wasm_congestion_max_factor = 14;
+  // wasm_congestion_target_bps is the congestion target in force.
+  uint32 wasm_congestion_target_bps = 15;
+  // wasm_congestion_factor_micro is the congestion factor the next block
+  // uses, in millionths (1,000,000 is the base price).
+  uint64 wasm_congestion_factor_micro = 16;
+  // max_block_upload_bps is the code-upload pool in force, in basis points
+  // of the transactions' wasm pool.
+  uint32 max_block_upload_bps = 17;
+  // max_queue_timeouts_per_block is how many queued calls one block times
+  // out in force.
+  uint32 max_queue_timeouts_per_block = 18;
 }
 
-message QueryPendingMessagesRequest {}
+// QueryPendingMessagesRequest pages through the queue in key order. A page
+// holds at most 100 messages (the default is 100); payload_hex in the list
+// view is cut to its first 1,024 bytes (use Message for the whole payload).
+message QueryPendingMessagesRequest {
+  cosmos.base.query.v1beta1.PageRequest pagination = 1;
+}
 message QueryPendingMessagesResponse {
   repeated CrossVMMessageView messages = 1;
+  // count is the number of messages in this page.
   uint32 count = 2;
+  cosmos.base.query.v1beta1.PageResponse pagination = 3;
 }
 
 message QueryMessageRequest { string id = 1; }

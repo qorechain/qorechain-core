@@ -23,7 +23,7 @@ type memTx struct {
 	seq     uint64
 	gas     uint64
 	size    int
-	fee     int64 // priority: fee per gas
+	fee     int64 // total fee in uqor; priority is fee per gas (gas 0 counts as 1)
 	invalid bool  // the ante rejects it whatever the state
 	msgs    []sdk.Msg
 }
@@ -53,7 +53,12 @@ func (memTxSigners) GetSigners(tx sdk.Tx) ([]sdkmempool.SignerData, error) {
 func memTxPriority() sdkmempool.TxPriority[math.Int] {
 	return sdkmempool.TxPriority[math.Int]{
 		GetTxPriority: func(_ context.Context, tx sdk.Tx) math.Int {
-			return math.NewInt(tx.(*memTx).fee)
+			t := tx.(*memTx)
+			gas := t.gas
+			if gas == 0 {
+				gas = 1
+			}
+			return feePerGasPriority(math.NewInt(t.fee), gas)
 		},
 		Compare:  func(a, b math.Int) int { return a.BigInt().Cmp(b.BigInt()) },
 		MinValue: math.ZeroInt(),

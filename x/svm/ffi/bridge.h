@@ -13,6 +13,8 @@ void qore_svm_free(void* handle);
 
 // Validation
 int32_t qore_svm_validate_elf(const uint8_t* elf_bytes, size_t elf_len);
+int32_t qore_svm_validate_elf_full(const uint8_t* elf_bytes, size_t elf_len);
+uint64_t qore_svm_known_flags(void);
 
 // Execution — input_data is mutable (program may modify the input region).
 int32_t qore_svm_execute(
@@ -71,6 +73,22 @@ int32_t qore_svm_execute_v2_metered(
     const uint8_t* programs, size_t programs_len,
     uint64_t compute_budget,
     int64_t block_time,
+    uint8_t* result_out, size_t result_cap,
+    size_t* result_len);
+
+// v3 (v3.2.8): native or BPF execution with the v3.2.8 switches as flags
+// (FLAG_* in rust/qoresvm/src/lib.rs). sysvars is 49 bytes (slot, epoch,
+// leader_schedule_epoch, epoch_start_timestamp, lamports_per_byte_year,
+// exemption_threshold bits, all u64/i64 LE, then burn_percent u8), required
+// with FLAG_CONSENSUS_SYSVARS. elf_bytes may be null for a native program.
+int32_t qore_svm_execute_v3(
+    const uint8_t* elf_bytes, size_t elf_len,
+    uint8_t* input_data, size_t input_len,
+    const uint8_t* programs, size_t programs_len,
+    uint64_t compute_budget,
+    int64_t block_time,
+    uint64_t flags,
+    const uint8_t* sysvars, size_t sysvars_len,
     uint8_t* result_out, size_t result_cap,
     size_t* result_len);
 

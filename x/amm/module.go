@@ -39,6 +39,7 @@ func (AppModuleBasic) RegisterInterfaces(reg cdctypes.InterfaceRegistry) {
 		&ammtypes.MsgSwapExactOut{},
 		&ammtypes.MsgPausePool{},
 		&ammtypes.MsgResumePool{},
+		&ammtypes.MsgUpdateParams{},
 	)
 }
 
@@ -88,7 +89,7 @@ func (am AppModule) RegisterServices(cfg module.Configurator) {
 		ammtypes.RegisterQueryServer(cfg.QueryServer(), NewQueryServer(am.keeper))
 	}
 }
-func (am AppModule) ConsensusVersion() uint64                   { return ConsensusVersion }
+func (am AppModule) ConsensusVersion() uint64 { return ConsensusVersion }
 
 // InitGenesis loads the AMM module state from genesis JSON.
 func (am AppModule) InitGenesis(ctx sdk.Context, _ codec.JSONCodec, data json.RawMessage) {

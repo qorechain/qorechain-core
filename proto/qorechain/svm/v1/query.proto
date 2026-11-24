@@ -3,7 +3,9 @@ package qorechain.svm.v1;
 
 option go_package = "github.com/qorechain/qorechain-core/x/svm/types";
 
+import "gogoproto/gogo.proto";
 import "google/api/annotations.proto";
+import "qorechain/svm/v1/tx.proto";
 
 // Query defines the gRPC query service for the SVM module.
 service Query {
@@ -19,6 +21,13 @@ service Query {
   // SVM account or program state.
   rpc ClusterInfo(QueryClusterInfoRequest) returns (QueryClusterInfoResponse) {
     option (google.api.http).get = "/qorechain/svm/v1/cluster_info";
+  }
+  // Params returns the SVM runtime parameters in force, every field of
+  // SVMParams (the custody ceilings included), in the shape MsgUpdateParams
+  // takes: a proposal can start from the response and change only what it
+  // means to change. Read-only; it answers while the SVM lane is disabled.
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/qorechain/svm/v1/params";
   }
 }
 
@@ -78,4 +87,10 @@ message QueryClusterInfoResponse {
   // execution_enabled reports whether SVM execution is enabled on this
   // network. It is false while the SVM lane is disabled.
   bool execution_enabled = 5;
+}
+
+message QueryParamsRequest {}
+message QueryParamsResponse {
+  // params are the parameters in force.
+  SVMParams params = 1 [(gogoproto.nullable) = false];
 }

@@ -5,6 +5,10 @@ const (
 	StoreKey   = ModuleName
 	RouterKey  = ModuleName
 
+	// EscrowAccountName is the module account that holds what pending async
+	// calls prepaid (crossvm-async-escrow). It has no permissions.
+	EscrowAccountName = "crossvm_async_escrow"
+
 	// MessageKeyPrefix is the prefix for cross-VM message storage.
 	MessageKeyPrefix = "msg/"
 

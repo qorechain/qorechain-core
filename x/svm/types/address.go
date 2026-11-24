@@ -34,6 +34,11 @@ var (
 	MemoAddress          = mustBase58Decode("MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr")
 	QorPQCAddress        = mustBase58Decode("QorPQC1111111111111111111111111111111111111")
 	QorAIAddress         = mustBase58Decode("QorAi11111111111111111111111111111111111111")
+	// BPFLoaderAddress owns the bytecode account of every deployed program
+	// (v3.2.8, svm-bytecode-loader-owned), as Solana's upgradeable loader owns
+	// program data. No deployed program can have this id, so no program owns
+	// its own bytecode.
+	BPFLoaderAddress = mustBase58Decode("BPFLoaderUpgradeab1e11111111111111111111111")
 )
 
 func mustBase58Decode(s string) [32]byte {

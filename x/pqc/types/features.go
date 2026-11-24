@@ -215,12 +215,32 @@ var ReleaseV3_2_7ProtocolFeatures = concatFeatures(
 	V327PQCGasFeatures,
 )
 
+// ReleaseV3_2_8ProtocolFeatures is what the v3.2.8 release handler enables at
+// its plan height. Each item of the release keeps its list in its own file.
+var ReleaseV3_2_8ProtocolFeatures = concatFeatures(
+	V328PQCAuthzFeatures,
+	V328AAFeatures,
+	V328EconFeatures,
+	V328RDKFeatures,
+	V328RDKDataFeatures,
+	V328RDKModeFeatures,
+	V328AIFeatures,
+	V328SVMFeatures,
+	V328QSR2Features,
+	V328WasmFilterFeatures,
+	V328AMMRLAIFeatures,
+	V328WasmAuthzFeatures,
+	V328EVMAuthzFeatures,
+	V328SVMAuthzFeatures,
+	V328XVMAuthzFeatures,
+)
+
 // AllProtocolFeatures lists every feature this binary ENABLES: a fresh chain
 // enables all of them at genesis, and the release upgrade handler enables
 // them at the plan height. A feature that is not yet released is listed in
 // StagedProtocolFeatures instead: the code is in the binary, the switch stays
 // off on every chain, and a later release's handler turns it on.
-var AllProtocolFeatures = concatFeatures(ReleaseV3_2_0ProtocolFeatures, ReleaseV3_2_2ProtocolFeatures, ReleaseV3_2_3ProtocolFeatures, ReleaseV3_2_4ProtocolFeatures, ReleaseV3_2_5ProtocolFeatures, ReleaseV3_2_6ProtocolFeatures, ReleaseV3_2_7ProtocolFeatures)
+var AllProtocolFeatures = concatFeatures(ReleaseV3_2_0ProtocolFeatures, ReleaseV3_2_2ProtocolFeatures, ReleaseV3_2_3ProtocolFeatures, ReleaseV3_2_4ProtocolFeatures, ReleaseV3_2_5ProtocolFeatures, ReleaseV3_2_6ProtocolFeatures, ReleaseV3_2_7ProtocolFeatures, ReleaseV3_2_8ProtocolFeatures)
 
 // StagedProtocolFeatures are known to this binary and enabled by no path in
 // it. Moving one to AllProtocolFeatures is what releases it.
@@ -235,7 +255,8 @@ func concatFeatures(lists ...[]string) []string {
 }
 
 // KnownProtocolFeature reports whether this binary knows the feature at all,
-// released or staged.
+// released, staged or chain-scoped. A chain-scoped feature has to be known so
+// that a genesis exported from the chain that enabled it validates.
 func KnownProtocolFeature(name string) bool {
 	for _, f := range AllProtocolFeatures {
 		if f == name {
@@ -243,6 +264,11 @@ func KnownProtocolFeature(name string) bool {
 		}
 	}
 	for _, f := range StagedProtocolFeatures {
+		if f == name {
+			return true
+		}
+	}
+	for _, f := range ChainScopedProtocolFeatures {
 		if f == name {
 			return true
 		}

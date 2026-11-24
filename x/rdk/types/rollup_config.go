@@ -148,6 +148,80 @@ type RollupConfig struct {
 	LayerID       string    `json:"layer_id"`
 	CreatedHeight int64     `json:"created_height"`
 	CreatedAt     time.Time `json:"created_at"`
+	// Sequencing is "" (the rollup's sequencer settles) or SequencingBased
+	// (from v3.2.8, FeatureRDKBasedSequencing). Omitted when empty, so every
+	// record written before keeps its bytes.
+	Sequencing SequencingMode `json:"sequencing,omitempty"`
+	// ExecutionVM is "" or ExecutionVMQLedgerV1 (v3.2.8,
+	// FeatureRDKOptimisticReexec): an optimistic rollup whose batches a
+	// fraud proof re-executes on chain. Omitted when empty.
+	ExecutionVM string `json:"execution_vm,omitempty"`
+	// Privacy is "" or PrivacyEncapsulated (v3.2.8, FeatureRDKPrivateRollups)
+	// with its member list and membership epoch. Omitted when empty.
+	Privacy      string   `json:"privacy,omitempty"`
+	Members      []string `json:"members,omitempty"`
+	MembersEpoch uint64   `json:"members_epoch,omitempty"`
+}
+
+// SequencingMode selects who orders a rollup's transactions and who may
+// settle its batches (v3.2.8). It is separate from SequencerConfig.Mode, a
+// descriptive preset field that the gaming and enterprise presets already set
+// to "based" without any on-chain effect.
+type SequencingMode string
+
+const (
+	// SequencingSequencer is the default: the rollup's sequencer (its creator
+	// when no sequencer address is set) posts data and settles batches.
+	SequencingSequencer SequencingMode = ""
+	// SequencingBased: anyone posts data, the order of the rollup's inbox is
+	// the order of inclusion in this chain, and every batch consumes the inbox
+	// in order. A zk (snark) based rollup accepts batches from anyone.
+	SequencingBased SequencingMode = "based"
+)
+
+// ValidateSequencingMode refuses an unknown sequencing mode.
+func ValidateSequencingMode(m SequencingMode) error {
+	switch m {
+	case SequencingSequencer, SequencingBased:
+		return nil
+	default:
+		return ErrInvalidSequencerMode.Wrapf("sequencing %q: want \"based\" or empty", m)
+	}
+}
+
+// IsBased reports whether the rollup uses based sequencing.
+func (c RollupConfig) IsBased() bool { return c.Sequencing == SequencingBased }
+
+// BasedEligible reports whether the rollup may use based sequencing in this
+// release. A zk rollup proving with Groth16 (snark) may: its proof binds the
+// previous and new state roots, the inbox range and the withdrawals root, so
+// it does not matter who submits it. A based-settlement rollup (no proof) may,
+// keeping its sequencer as the only submitter. An optimistic rollup may not:
+// its fraud proof checks only a hash binding, not the L2 execution, so an
+// open submitter could settle a self-consistent batch with any withdrawals
+// root. A STARK rollup may not: the bound AIR is a demonstration computation
+// that anyone can prove for any withdrawals root. A sovereign rollup does not
+// settle here.
+func (c RollupConfig) BasedEligible() error {
+	switch {
+	case c.SettlementMode == SettlementZK && c.ProofConfig.System == ProofSystemSNARK:
+		return nil
+	case c.SettlementMode == SettlementBased:
+		return nil
+	case c.SettlementMode == SettlementOptimistic && c.ExecutionVM == ExecutionVMQLedgerV1:
+		// v3.2.8 (FeatureRDKOptimisticReexec): the chain re-executes a
+		// fraud proof, and every submitter is bonded.
+		return nil
+	default:
+		return ErrBasedSequencingUnsupported.Wrapf("settlement %s with proof system %s cannot be based in this release",
+			c.SettlementMode, c.ProofConfig.System)
+	}
+}
+
+// PermissionlessBatches reports whether any account may submit the rollup's
+// batches: a based zk rollup proving with Groth16.
+func (c RollupConfig) PermissionlessBatches() bool {
+	return c.IsBased() && c.SettlementMode == SettlementZK && c.ProofConfig.System == ProofSystemSNARK
 }
 
 // Validate checks invariants on the RollupConfig.
@@ -184,5 +258,15 @@ func (c RollupConfig) Validate() error {
 		return fmt.Errorf("sovereign settlement requires none proof system")
 	}
 
-	return nil
+	// Sequencing (v3.2.8): empty on every record written before.
+	if err := ValidateSequencingMode(c.Sequencing); err != nil {
+		return err
+	}
+	if c.IsBased() {
+		if err := c.BasedEligible(); err != nil {
+			return err
+		}
+	}
+	// Execution VM and privacy (v3.2.8): empty on every record written before.
+	return c.validateModes()
 }

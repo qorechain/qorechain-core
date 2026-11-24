@@ -72,6 +72,22 @@ func IsRepairableRecord(acct PQCAccountInfo) bool {
 	return len(acct.PublicKey) == 0 || acct.KeyType == KeyTypeClassicalOnly
 }
 
+// IsDegenerateRecord reports whether a stored record holds a key that
+// IsDegeneratePublicKey flags: one registered before
+// FeaturePQCRegistrationIntegrity refused such keys. Its signatures can be
+// forged by anyone, so from FeaturePQCDegenerateKeyRefused the hybrid check
+// refuses them and the record may be replaced like a repairable one.
+func IsDegenerateRecord(acct PQCAccountInfo) bool {
+	return acct.KeyType != KeyTypeClassicalOnly && IsDegeneratePublicKey(acct.AlgorithmID, acct.PublicKey)
+}
+
+// IsReplaceableRecord is IsRepairableRecord, widened from
+// FeaturePQCDegenerateKeyRefused (degenerateRefused) to a record holding a
+// degenerate key.
+func IsReplaceableRecord(acct PQCAccountInfo, degenerateRefused bool) bool {
+	return IsRepairableRecord(acct) || (degenerateRefused && IsDegenerateRecord(acct))
+}
+
 // ProofOfPossessionSignBytes is what the key being registered signs to prove
 // its owner holds the secret. It names the chain, the algorithm, the account
 // and the key, so a proof made for one account or chain proves nothing for
@@ -122,6 +138,24 @@ func PQCKeyManagementMsgTypeURLs() []string {
 		// The multisig registry (v3.2.7): new, so listing it changes nothing
 		// below the v3.2.7 plan height either.
 		sdk.MsgTypeURL(&MsgRegisterPQCMultisig{}),
+	}
+}
+
+// PQCConsentMsgTypeURLs are the messages that state an account's
+// post-quantum consent to the EVM lane: the EVM window and the EIP-7702
+// delegation consent, given and withdrawn. Their handlers trust the account
+// the message names, so from FeaturePQCConsentAuthzLimiter none of them may be
+// sent on an account's behalf through authz, and from
+// FeaturePQCConsentOuterSigner the handlers refuse unless that account signed
+// the transaction with its post-quantum key. The list is separate from
+// PQCKeyManagementMsgTypeURLs, whose switch is already on and must replay
+// unchanged.
+func PQCConsentMsgTypeURLs() []string {
+	return []string{
+		sdk.MsgTypeURL(&MsgOpenEVMWindow{}),
+		sdk.MsgTypeURL(&MsgCloseEVMWindow{}),
+		sdk.MsgTypeURL(&MsgAuthorizeEVMDelegation{}),
+		sdk.MsgTypeURL(&MsgClearEVMDelegation{}),
 	}
 }
 

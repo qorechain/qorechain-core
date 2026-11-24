@@ -3,7 +3,6 @@ package app
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 
 	"github.com/spf13/cast"
 
@@ -46,6 +45,7 @@ import (
 	authtypes "github.com/cosmos/cosmos-sdk/x/auth/types"
 	authzkeeper "github.com/cosmos/cosmos-sdk/x/authz/keeper"
 	bankkeeper "github.com/cosmos/cosmos-sdk/x/bank/keeper"
+	banktypes "github.com/cosmos/cosmos-sdk/x/bank/types"
 	consensuskeeper "github.com/cosmos/cosmos-sdk/x/consensus/keeper"
 	distrkeeper "github.com/cosmos/cosmos-sdk/x/distribution/keeper"
 	epochskeeper "github.com/cosmos/cosmos-sdk/x/epochs/keeper"
@@ -158,6 +158,7 @@ import (
 
 	pqcmod "github.com/qorechain/qorechain-core/x/pqc"
 	pqctypes "github.com/qorechain/qorechain-core/x/pqc/types"
+	"github.com/qorechain/qorechain-core/x/wasmfilter"
 
 	rlconsensusmod "github.com/qorechain/qorechain-core/x/rlconsensus"
 	rlconsensustypes "github.com/qorechain/qorechain-core/x/rlconsensus/types"
@@ -241,6 +242,10 @@ type QoreChainApp struct {
 	PacketForwardKeeper *packetforwardkeeper.Keeper
 	WasmClientKeeper    ibcwasmkeeper.Keeper
 	rateLimitStore      hostedStoreService
+	codeFilter          *wasmfilter.Filter     // see wasm_code_filter.go
+	gasRegister         *calibratedGasRegister // see wasm_gas_register.go
+	blockBudget         *blockWasmBudget       // see wasm_block_budget.go
+	wasmStoreKey        *storetypes.KVStoreKey // x/wasm store, for the pinned-code index
 
 	// EVM keepers (QoreChain EVM)
 	FeeMarketKeeper   feemarketkeeper.Keeper
@@ -380,6 +385,12 @@ func NewQoreChainApp(
 
 	// Keep panic stack traces in the node log instead of the tx response.
 	app.AddRunTxRecoveryHandler(newQuietPanicRecoveryHandler(logger))
+	// svm-execution-thread-node-fault: a node-local SVM fault during block
+	// execution leaves the transaction instead of becoming its result, so the
+	// node halts before committing a block other nodes computed differently.
+	// Added last, so it runs before the handler above; every other panic is
+	// passed on unchanged.
+	app.AddRunTxRecoveryHandler(svmtypes.NodeFaultRecoveryHandler)
 
 	// Governance hooks (ProposalRewardHook) are installed via depinject —
 	// see ProvideGovHooks. They must NOT be set manually here: the gov module's
@@ -517,9 +528,16 @@ func NewQoreChainApp(
 	// ==========================================================================
 	wasmStoreKey := storetypes.NewKVStoreKey(wasmtypes.StoreKey)
 	app.MountStores(wasmStoreKey)
+	app.wasmStoreKey = wasmStoreKey
 
-	wasmDir := filepath.Join(DefaultNodeHome, "wasm")
-	wasmNodeConfig := wasmtypes.DefaultNodeConfig()
+	// The node's [wasm] app.toml settings and --home (wasm_node_config.go).
+	// Node-local: the VM directory, cache size, smart query and simulation
+	// gas limits change no consensus result.
+	wasmDir := wasmDataDir(appOpts)
+	wasmNodeConfig := readWasmNodeConfig(appOpts)
+	// Node-local: queries of codes this node loaded lately (within its
+	// memory cache) load nothing.
+	app.wasmBlockBudget().setRecentLoadCapacity(uint64(wasmNodeConfig.MemoryCacheSize) << 20)
 
 	app.WasmKeeper = wasmkeeper.NewKeeper(
 		app.appCodec,
@@ -538,6 +556,12 @@ func NewQoreChainApp(
 		wasmtypes.VMConfig{},
 		wasmkeeper.BuiltInCapabilities(),
 		authAddr,
+		// The code filter sits between the keeper and the VM (see
+		// wasm_code_filter.go); it refuses nothing below its protocol feature.
+		wasmkeeper.WithWasmEngineDecorator(app.wasmCodeFilter().DecorateEngine),
+		// The SDK-to-VM gas conversion follows wasm-gas-calibrated, set per
+		// block (wasm_gas_register.go).
+		wasmkeeper.WithGasRegister(app.wasmGasRegister()),
 	)
 
 	// ==========================================================================
@@ -677,6 +701,19 @@ func NewQoreChainApp(
 	// Back wallet-account SVM balances with native QOR so an account holds ONE
 	// balance across Cosmos/EVM/SVM (unified identity + balance). No-op in stub.
 	app.SVMKeeper.SetBankKeeper(app.BankKeeper)
+
+	// SVM custody cap (svm-lane-governed, v3.2.8). Every transfer into the svm
+	// module account, whatever its route (an SVM debit, a plain bank send, an
+	// EVM transfer through precisebank), passes bank's send restriction, so the
+	// cap is enforced at that one point. The restriction is a no-op for any
+	// other recipient and, until the feature is on, for the svm account too: it
+	// reads nothing metered and refuses nothing, so history replays unchanged.
+	// A keeper without the method (the public build's stub) adds nothing.
+	if r, ok := app.SVMKeeper.(interface {
+		CustodyInflowRestriction() banktypes.SendRestrictionFn
+	}); ok {
+		app.BankKeeper.AppendSendRestriction(r.CustodyInflowRestriction())
+	}
 
 	// Wire SVM into CrossVM routing so cross-VM messages can target SVM programs.
 	//
@@ -961,7 +998,7 @@ func NewQoreChainApp(
 		evmerc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
 		evmprecisebank.NewAppModule(app.PreciseBankKeeper, app.BankKeeper, app.AccountKeeper),
 		// CosmWasm module
-		wasm.NewAppModule(app.appCodec, &app.WasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.MsgServiceRouter(), nil),
+		wasmCodeFilterAppModule{AppModule: wasm.NewAppModule(app.appCodec, &app.WasmKeeper, app.StakingKeeper, app.AccountKeeper, app.BankKeeper, app.MsgServiceRouter(), nil), filter: app.wasmCodeFilter()},
 		// QoreChain custom modules
 		NewPQCAppModule(app.PQCKeeper),
 		NewAIAppModule(app.AIKeeper),
@@ -1003,6 +1040,14 @@ func NewQoreChainApp(
 	if err := app.RegisterStreamingServices(appOpts, app.kvStoreKeys()); err != nil {
 		panic(err)
 	}
+	// Node-local listeners (the x/ai node insights): appended after any
+	// configured streaming plugin. They observe finalized blocks and never
+	// change state; an error from one is logged, never fatal.
+	if len(nodeLocalABCIListeners) > 0 {
+		sm := app.StreamingManager()
+		sm.ABCIListeners = append(sm.ABCIListeners, nodeLocalABCIListeners...)
+		app.SetStreamingManager(sm)
+	}
 
 	app.RegisterUpgradeHandlers()
 
@@ -1018,11 +1063,8 @@ func NewQoreChainApp(
 	// Default is 0 (unlimited) if not configured.
 	maxGasWanted := cast.ToUint64(appOpts.Get(srvflags.EVMMaxTxGasWanted))
 
-	// Read CosmWasm node config from app options.
-	wasmNodeConfig, err := wasm.ReadNodeConfig(appOpts)
-	if err != nil {
-		panic("failed to read wasm node config: " + err.Error())
-	}
+	// The same CosmWasm node config the keeper was built with: the simulation
+	// gas limit is always bounded (boundedSimulationGasLimit).
 	app.setAnteHandler(app.txConfig, maxGasWanted, wasmNodeConfig, wasmStoreKey)
 
 	// SIGN_MODE_TEXTUAL sign documents for wallets without a renderer
@@ -1051,6 +1093,18 @@ func NewQoreChainApp(
 		panic(err)
 	}
 
+	// Before Load, so the runtime keeps it: the module PreBlockers, then the
+	// wasm gas multiplier for the block (wasm_gas_register.go).
+	app.SetPreBlocker(app.preBlockerSyncingWasmGas)
+	// A transaction aborted by the block wasm budget fails like any other
+	// (wasm_block_budget.go).
+	app.AddRunTxRecoveryHandler(budgetAbortRecovery)
+	// After every commit, CheckTx and simulations price contract execution
+	// at the congestion factor the next block will use (it was stored by
+	// this block's end), not the one this block used.
+	assertRuntimeKeepsWasmHooks()
+	app.SetPrepareCheckStater(app.syncWasmGasMultiplier)
+
 	if err := app.Load(loadLatest); err != nil {
 		panic(err)
 	}
@@ -1062,6 +1116,20 @@ func NewQoreChainApp(
 		if err := app.WasmClientKeeper.InitializePinnedCodes(ctx); err != nil {
 			panic(fmt.Sprintf("08-wasm: initialize pinned codes: %s", err))
 		}
+		// Node-local: a VM directory without the chain's contract code would
+		// make this node diverge at its first contract call.
+		if err := app.checkWasmCodePresent(ctx, wasmDir); err != nil {
+			panic("x/wasm: " + err.Error())
+		}
+		// Node-local: load the codes governance pinned into the VM's pinned
+		// cache, as the state says (the load price exempts pinned codes, so
+		// they must really be in memory after a restart).
+		if err := app.WasmKeeper.InitializePinnedCodes(ctx); err != nil {
+			panic("x/wasm: initialize pinned codes: " + err.Error())
+		}
+		// Queries and simulations before the first block use the price of
+		// the latest state.
+		app.syncWasmGasMultiplier(ctx)
 	}
 
 	return app
@@ -1109,7 +1177,7 @@ func (app *QoreChainApp) setupEVMMempool(logger log.Logger, cfg MempoolConfig) {
 	// makes room for a better-paying tx instead of refusing everyone.
 	mp := newEvictingMempool(evmMempool, cosmosPriority, logger.With(log.ModuleKey, "mempool"))
 	app.SetMempool(mp)
-	app.SetCheckTxHandler(evmmempool.NewCheckTxHandler(evmMempool))
+	app.SetCheckTxHandler(recoveringCheckTxHandler(evmmempool.NewCheckTxHandler(evmMempool), logger.With(log.ModuleKey, "mempool")))
 
 	// PrepareProposal checks that a candidate fits before running the ante on
 	// it and bounds how long it keeps looking (QSR-2026-0029). It is local to
@@ -1168,6 +1236,10 @@ func (app *QoreChainApp) setAnteHandler(
 			StakingKeeper:           app.StakingKeeper,
 			StakingLockMempoolCheck: app.stakingTierMempoolGate,
 			RDKMempoolCheck:         app.rdkMempoolGate,
+			CrossVMMaxPayload:       app.crossVMMaxPayload,
+			CosmosTxGasCap:          app.cosmosTxGasCap,
+			WasmTxToken:             app.wasmTxToken,
+			WasmUploadAllowed:       app.wasmUploadPermitted,
 			PQCClient:               app.pqcClient,
 			AIKeeper:                app.AIKeeper,
 			SVMKeeper:               app.SVMKeeper,
@@ -1254,6 +1326,8 @@ func (app *QoreChainApp) SimulationManager() *module.SimulationManager {
 func (app *QoreChainApp) RegisterAPIRoutes(apiSvr *api.Server, apiConfig config.APIConfig) {
 	app.App.RegisterAPIRoutes(apiSvr, apiConfig)
 	apiSvr.Router.Use(dropBinaryTrailers)
+	apiSvr.Router.Use(rateLimitRESTAlias)
+	apiSvr.Router.Use(moduleRESTAlias)
 	registerIBCClientV2Gateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	registerTextualGateway(apiSvr.ClientCtx, apiSvr.GRPCGatewayRouter)
 	if err := server.RegisterSwaggerAPI(apiSvr.ClientCtx, apiSvr.Router, apiConfig.Swagger); err != nil {

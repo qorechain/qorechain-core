@@ -3,6 +3,8 @@ package amm
 import (
 	"context"
 
+	errorsmod "cosmossdk.io/errors"
+
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/qorechain/qorechain-core/x/amm/types"
@@ -89,4 +91,33 @@ func (s msgServer) ResumePool(goCtx context.Context, msg *types.MsgResumePool) (
 		return nil, err
 	}
 	return &types.MsgResumePoolResponse{}, nil
+}
+
+// UpdateParamsEnabled answers, per block and from chain state, whether the
+// amm-gov-params switch is on. Wired by the application to the
+// protocol-feature record; unset or false refuses the message, so a chain
+// below the switch behaves as if the message did not exist.
+var UpdateParamsEnabled func(ctx sdk.Context) bool
+
+// UpdateParams replaces the module parameters. Governance only, and only from
+// the amm-gov-params switch. The keeper validates the whole set before it is
+// stored.
+func (s msgServer) UpdateParams(goCtx context.Context, msg *types.MsgUpdateParams) (*types.MsgUpdateParamsResponse, error) {
+	if err := govauth.Assert(msg.Authority); err != nil {
+		return nil, err
+	}
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if UpdateParamsEnabled == nil || !UpdateParamsEnabled(ctx) {
+		return nil, errorsmod.Wrap(types.ErrUnauthorized, "AMM parameter updates are not enabled at this height")
+	}
+	p, err := types.ParamsFromView(msg.Params)
+	if err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidParams, err.Error())
+	}
+	if err := s.keeper.SetParams(ctx, p); err != nil {
+		return nil, errorsmod.Wrap(types.ErrInvalidParams, err.Error())
+	}
+	ctx.EventManager().EmitEvent(sdk.NewEvent(types.EventTypeParamsUpdated,
+		sdk.NewAttribute(types.AttrKeySender, msg.Authority)))
+	return &types.MsgUpdateParamsResponse{}, nil
 }

@@ -61,6 +61,14 @@ func (o *Observation) ToFixedPoint() ([ObservationDimensions]int64, error) {
 		if err != nil {
 			return out, fmt.Errorf("observation[%d]: invalid decimal %q: %w", i, o.Values[i], err)
 		}
+		// The range is checked before the multiplication: LegacyDec.Mul
+		// itself panics once the product passes its bit length, long before
+		// the check on the product below could run. |d| >= (max+1)/scale is
+		// exactly the set of values whose truncated product exceeds max, so
+		// every value accepted before is accepted now, with the same result.
+		if d.Abs().GTE(minRejectedUnscaled) {
+			return out, fmt.Errorf("observation[%d]: value %s exceeds the fixed-point range", i, o.Values[i])
+		}
 		product := d.Mul(scale)
 		if !product.IsInteger() {
 			// Truncate to integer after scaling.
@@ -80,6 +88,11 @@ func (o *Observation) ToFixedPoint() ([ObservationDimensions]int64, error) {
 
 // maxFixedPoint is the largest scaled value that fits an int64.
 var maxFixedPoint = math.LegacyNewDec(int64(9223372036854775807))
+
+// minRejectedUnscaled is the smallest unscaled magnitude whose scaled value
+// does not fit an int64 after truncation: (max int64 + 1) / FixedPointScale,
+// exact in LegacyDec's 18 decimals (92233720368.54775808).
+var minRejectedUnscaled = math.LegacyMustNewDecFromStr("92233720368.54775808")
 
 // Validate performs basic validation of the observation.
 func (o *Observation) Validate() error {

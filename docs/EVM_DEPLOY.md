@@ -111,9 +111,16 @@ several times higher.
 
 **Do not narrow a deploy window.** `--native-only` and `--allowed-targets` refuse
 contract creation. They are for later sessions: once the contract exists,
-`--allowed-targets <contract-address>` limits a window to calls to it, which also
-bounds token transfers (the value bound counts native QOR only, and a token
-transfer carries value zero).
+`--allowed-targets <contract-address>` limits a window to calls to it.
+
+The target list limits which contracts the window may call, not how much they
+move. A listed contract can do anything its code and your approvals allow: a
+token contract can transfer your whole balance of that token, and a contract
+holding an approval of yours can spend up to that approval. max-value does not
+bound any of this, because it counts native QOR only (each transaction's value
+plus its maximum fee) and a token transfer carries value zero. List only
+contracts whose code you trust, and keep token approvals as small as the session
+needs.
 
 `--dry-run` on `cosign` prints the gas estimate. From v3.2.5 a node's estimate
 for a post-quantum signed transaction is what the block charges (before it, the

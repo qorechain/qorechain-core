@@ -12,6 +12,17 @@ P-256).
 > `pqcKeyStatus` and `rlConsensusParams` right after the v3.2.5 upgrade. A call to an inactive
 > address succeeds with empty return data; see [Availability](#availability-build-and-network-status).
 
+## Ethereum precompiles
+
+The Ethereum precompiles `0x01`..`0x09` (ecrecover, hashes, modexp, bn256 pairing, blake2f) are
+always active. The chain runs under the Prague fork rules, and from v3.2.8
+(`evm-prague-precompiles`) the Prague precompiles `0x0a` (KZG point evaluation) and `0x0b`..`0x11`
+(BLS12-381) are served too. Before v3.2.8 a call to `0x0a`..`0x11`, direct or from a contract,
+failed the whole transaction (a recovered node-side panic: code 111222, nothing executed).
+
+From v3.2.8 (`evm-ecrecover-window`) `0x01` honours the post-quantum window of the account it
+recovers; see [EVM_WINDOW.md](EVM_WINDOW.md#delegated-accounts-signatures-and-allowances-from-v328).
+
 ## Address table
 
 | Address (as listed in `active_static_precompiles`) | Name | Gas (precompile itself) | Kind |
@@ -248,6 +259,47 @@ what that bypassed:
 - **`evm-precompile-window-scope`:** the value-moving ones (staking, distribution, ics20, gov) run
   for an account that the EVM authorisation window authorises only when that account's window lists
   the precompile in `allowed_targets`. See [EVM_WINDOW.md](./EVM_WINDOW.md#value-moving-precompiles).
+- **`evm-precompile-authority-refused`** and **`evm-window-staking-validators`** (v3.2.8): for such
+  an account, staking `undelegate`, `createValidator`, `editValidator`, distribution
+  `setWithdrawAddress` and gov `vote`, `voteWeighted`, `cancelProposal` are refused through the
+  window; `delegate` and `redelegate` run only to a validator the window names in
+  `staking_validators`. All of them remain available as post-quantum signed Cosmos transactions.
+- **`evm-precompile-method-allowlist`** (v3.2.8): for such an account every transaction method of a
+  standard precompile, and of the ERC-20 token precompiles, is refused unless a rule admits it
+  (claims paid to the account, staking and reward-pool deposits to named validators, ICS-20 native
+  QOR to named receivers, token moves of native QOR or of a listed token). The table is in
+  [EVM_WINDOW.md](./EVM_WINDOW.md#deny-by-default-per-method-from-v328-evm-precompile-method-allowlist).
+
+From v3.2.8 three more rules apply to every caller, not only to window-bound accounts:
+
+- **Input form** (`evm-precompile-input-canonical`): before anything decodes it, a guarded stateful
+  precompile (the standard ones and QoreChain's own) checks that its input is in canonical ABI form,
+  the form every standard encoder (Solidity, ethers, viem, go-ethereum) produces: each dynamic value
+  starts where the previous one ends and every length fits. Standard precompile input is also capped
+  at 16 KiB by default (governance can change it with `MsgUpdateEVMLimits`); QoreChain's own are not
+  covered by this cap (see the next item for theirs). Every ordinary call
+  fits well under it; a larger governance proposal (a code upload) is submitted as a Cosmos
+  transaction.
+- **Gas per transaction** (`evm-tx-gas-cap`): an EVM transaction may ask for at most 30 million gas
+  by default (governance can change it with `MsgUpdateEVMLimits`).
+- **Input priced and selectors known** (`evm-precompile-input-priced`): every precompile call pays
+  3 gas per 32-byte word of input before the input is copied (plus 100 for a precompile that is not
+  one of Ethereum's; identity, sha256 and ripemd160 already price their input and are unchanged). An
+  unknown method selector is refused before the precompile does any work, as an error that consumes
+  the gas given to the call (so do an over-cap or non-canonical input). Every QoreChain precompile,
+  bank, bech32 and every ERC-20 token precompile refuse an unknown selector (`rlConsensusParams` also
+  accepts an empty input). bech32 accepts at most 1 KiB of input and strings of at most 90
+  characters; `aiRiskScore` at most twice the largest contract init code (96 KiB). `pqcVerify` is not
+  size-capped: it carries whole messages and charges per byte.
+- **EVM gas per Cosmos message** (`evm-tx-total-gas-cap`): every EVM run one top-level message of a
+  Cosmos transaction makes (a cross-VM call, an abstract-account execution, an ERC-20 conversion, the
+  ERC-20 transfer of an incoming IBC packet; a `MsgRecvPacket` carries one packet) shares one budget,
+  the same transaction gas cap, counted on the gas each run used before refunds.
+- **Reading the limits:** `GET /qorechain/pqc/v1/evm_limits` (gRPC `EVMLimitsQuery/EVMLimits`) returns
+  what governance set and the values in force; they are part of the module's genesis export.
+- **View calls** (`evm-precompile-static-readonly`): a stateful precompile reached from inside a
+  `STATICCALL` runs read-only, so its state-changing methods (a transfer, a delegation, a bridge
+  call) are refused there, as any state change below a `STATICCALL` is.
 
 The bank precompile is read-only (`balances`, `totalSupply`, `supplyOf`) and slashing can only
 unjail the caller's own validator, so neither needs a window listing.

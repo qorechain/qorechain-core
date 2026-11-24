@@ -64,6 +64,35 @@ type CrossVMMessage struct {
 	ExecutedHeight int64         `json:"executed_height,omitempty"`
 	Response       []byte        `json:"response,omitempty"`
 	Error          string        `json:"error,omitempty"`
+	// OnBehalf records that the call was sent on the sender's behalf, not by
+	// the sender itself at top level (crossvm-on-behalf-evm-window): a call
+	// into the EVM then runs under the sender's EVM authorisation window.
+	// Set by the message server only; omitempty keeps older records
+	// unchanged.
+	OnBehalf bool `json:"on_behalf,omitempty"`
+	// AsyncGas is the contract execution an async call into CosmWasm runs
+	// on, in base gas units (zero: AsyncCallGas); PrepaidGas is what it paid
+	// for it at submission, that times the congestion factor then (zero:
+	// AsyncCallGas), from crossvm-async-gas-priced. omitempty keeps older
+	// records unchanged.
+	AsyncGas   uint64 `json:"async_gas,omitempty"`
+	PrepaidGas uint64 `json:"prepaid_gas,omitempty"`
+	// From crossvm-async-escrow: MaxFactor is the highest congestion factor
+	// (millionths) the call runs at; Escrow is what the sender holds in the
+	// queue's escrow account for its prepaid gas while the call is pending
+	// (EscrowGasPrice per gas, in the fee denomination); EscrowFee is what
+	// the finished call paid from it to validators (the rest went back to
+	// the sender). A finished call holds no escrow.
+	MaxFactor      uint64    `json:"max_factor,omitempty"`
+	Escrow         sdk.Coins `json:"escrow,omitempty"`
+	EscrowGasPrice string    `json:"escrow_gas_price,omitempty"`
+	EscrowFee      sdk.Coins `json:"escrow_fee,omitempty"`
+	// LoadUnits and LoadGas are what loading the target code costs (budget
+	// units, and gas at the base price; zero for a pinned code), recorded at
+	// submission of an escrowed call into CosmWasm (wasm-code-load-priced)
+	// and included in its prepay and its admission.
+	LoadUnits uint64 `json:"load_units,omitempty"`
+	LoadGas   uint64 `json:"load_gas,omitempty"`
 }
 
 func (m CrossVMMessage) Validate() error {
@@ -91,6 +120,12 @@ func (m CrossVMMessage) Validate() error {
 	}
 	if len(m.Payload) == 0 {
 		return fmt.Errorf("payload cannot be empty")
+	}
+	if !m.Escrow.IsValid() || !m.EscrowFee.IsValid() {
+		return fmt.Errorf("invalid escrow")
+	}
+	if !m.Escrow.IsZero() && m.Status != StatusPending {
+		return fmt.Errorf("a finished call cannot hold escrow")
 	}
 	return nil
 }

@@ -53,3 +53,13 @@ func (k *StubKeeper) InitGenesis(_ sdk.Context, _ types.GenesisState) {}
 func (k *StubKeeper) ExportGenesis(_ sdk.Context) *types.GenesisState {
 	return types.DefaultGenesisState()
 }
+
+func (k *StubKeeper) WasmCongestionFactor(_ sdk.Context) uint64 { return types.CongestionFactorOne }
+
+func (k *StubKeeper) SetWasmCongestionFactor(_ sdk.Context, _ uint64) {}
+
+func (k *StubKeeper) WasmCongestion(_ sdk.Context) (uint64, int64) {
+	return types.CongestionFactorOne, 0
+}
+
+func (k *StubKeeper) SetWasmCongestion(_ sdk.Context, _ uint64, _ int64) {}
