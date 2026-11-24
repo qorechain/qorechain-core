@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.7] - 2026-11-12
+
+A coordinated governance upgrade (plan name `v3.2.7`, applied on mainnet at height 4,164,600 by governance proposal 16). Every consensus change below is guarded by a protocol feature that the v3.2.7 upgrade handler turns on at the plan height (11 features, listed in `ReleaseV3_2_7ProtocolFeatures`); below that height the binary replays history byte-identically.
+
+### Added
+- **Post-quantum multisig (`pqc-multisig`):** k-of-n hybrid multisig accounts, where the post-quantum signer set is tied to the classical multisig members and their current keys.
+- **RDK zk verification keys (`rdk-zk-verification-key`):** a zk rollup registers its verification key, and a batch that cannot be verified is refused early.
+- **EVM window event (`evm-window-used-event`):** a `pqc_evm_window_used` event is emitted when an EVM transaction consumes its authorisation window, including delegated-actor settlement charges.
+- **Hardware and web wallets:** `SIGN_MODE_TEXTUAL` for hardware wallets in `tx pqc cosign`, and a textual sign document query for web wallets.
+- **Staking tiers:** APR queries and REST routes.
+- **SVM:** the cluster genesis hash and the Wallet Standard chain id are served over JSON-RPC, gRPC and REST.
+
+### Changed
+- **Calibrated post-quantum gas (`pqc-verify-gas-calibrated`):** every post-quantum signature verification costs 2,000 gas, measured against secp256k1 on validator hardware.
+- **Cross-VM calls (`crossvm-panic-contained`, `crossvm-address-shapes`):** a failure inside a queued or synchronous cross-VM call is that call's failure and the queue continues; malformed senders and targets, and EVM precompile targets, are refused at submission.
+- **SVM addresses (`svm-addr-canonical-identity`, `svm-addr-map-canonical`):** canonical address conversions between SVM and the other lanes; a 32-byte SVM address is never taken for a 20-byte account.
+- **EVM (`evm-precompile-call-limit-exact`, `evm-internal-gas-accounting`, `evm-selfdestruct-staking-guard`):** the per-transaction limit on stateful precompile calls is exact, a module's internal EVM call is capped at the gas the transaction still has, and a contract that holds delegations cannot self-destruct. These follow the cosmos/evm advisories published in November 2026.
+- **JSON-RPC:** an EVM transaction rolled back at commit gets a failed receipt, and its block stays readable on every method.
+- **CLI:** the erc20 commands write a bech32 sender.
+
+### Notes
+- Upgrade handler: `v3.2.7`. Transaction signing (sign-bytes v2), addresses, decimals, memos and fees are unchanged. A node joining mainnet after the plan height needs v3.2.7 or later.
+
+---
+
 ## [3.2.6] - 2026-11-04
 
 A coordinated governance upgrade (plan name `v3.2.6`, applied on mainnet at height 4,020,000 by governance proposal 15). Every consensus change below is guarded by a protocol feature that the v3.2.6 upgrade handler turns on at the plan height (listed in `ReleaseV3_2_6ProtocolFeatures`); below that height the binary replays history byte-identically.
