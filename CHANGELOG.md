@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.8] - 2026-11-18
+
+A coordinated governance upgrade (plan name `v3.2.8`, applied on mainnet at height 4,273,000 by governance proposal 17). Every consensus change below is guarded by a protocol feature that the v3.2.8 upgrade handler turns on at the plan height (162 features, listed in `ReleaseV3_2_8ProtocolFeatures`, one list per area under `x/pqc/types/features_v328_*.go`); below that height the binary replays history byte-identically.
+
+### Added
+- **RDK settlement modes:** rollup data posting with fees, caps and pruning (`MsgPostRollupData`), based sequencing (a based rollup consumes its inbox in order), qledger-v1 optimistic rollups with bonded submitters and on-chain re-execution fraud proofs, and private rollups with ML-KEM-1024 envelopes. New query fields for clients: a submitter's pending batches and whether a batch's withdrawals root was stored reduced.
+- **AMM governance:** `MsgUpdateParams` for `x/amm`; the AMM honours bank send-enabled.
+- **CosmWasm code filter (`x/wasmfilter`):** a deterministic bytecode check in front of the CosmWasm VM for storing and running code, with the `wasmcodescan` tool. Restore and pin are never refused.
+- **SVM:** a params query (`GET /qorechain/svm/v1/params`, `query svm params`).
+
+### Changed
+- **Consent and account management messages:** the EVM window and EIP-7702 consent messages, the abstract account management messages and the staking tier early unlock must be signed by the account they name and are not accepted through authz. The upgrade removes existing authz grants for these messages. Degenerate post-quantum keys are refused at registration.
+- **Abstract accounts:** creating an account over an existing one is refused, a signed execution that fails after its signature and nonce checks consumes the nonce, a linked key that can move value needs a spending rule, and linking a key requires a signature by that key.
+- **EVM lane:** delegated-actor checks run per call frame, precompile methods are allow-listed per method with canonical, priced inputs, and a per-transaction and total gas cap applies.
+- **CosmWasm lane:** upload bounds checked before unpacking, a module shape limit, a per-block gas budget, and code loading and memory growth priced from measured costs.
+- **Cross-VM calls:** stricter sender rules below the bridge, the account's EVM window applies to calls made on its behalf, the bridge allowlist is pinned to code id, failed sub-calls are charged, and the queue is indexed by height with a bounded size.
+- **Rewards and governance:** only open staking tier locks share the current delegation and an expired lock is paid on its own shares; the staking tier base yield is net of the community tax; the light node monthly bound counts at most 30 days; a passed proposal pays its proposer reward only from its own deposit and cannot leave the governance account unable to settle other deposits.
+- **RL consensus:** the agent observes real chain state, uses relative bounds, and a step guard limits each change.
+- **Gas abstraction:** foreign-token fee pricing requires pool depth and age.
+- **SVM hardening:** signer, owner, CPI depth, PDA seed, sysvar and account rules across the runtime. SVM remains disabled on mainnet.
+- **Mempool:** priority is computed on the 18-decimal fee per gas, CheckTx guards also look inside authz and group proposals, an oversized cross-VM payload is refused before inclusion, and a fault in the node's EVM pool is contained and never changes a block's result.
+- **Node configuration:** a new `app.toml` bounds transaction simulation with `[wasm] simulation_gas_limit`.
+
+### Notes
+- Upgrade handler: `v3.2.8`. Transaction signing (sign-bytes v2), addresses, decimals, memos and fees are unchanged. A node joining mainnet after the plan height needs v3.2.8.
+- The official bundle ships a renamed CosmWasm VM library, `libwasmvmqore_v1`: copy the whole `lib/` folder of the bundle next to the binary.
+
+---
+
 ## [3.2.7] - 2026-11-12
 
 A coordinated governance upgrade (plan name `v3.2.7`, applied on mainnet at height 4,164,600 by governance proposal 16). Every consensus change below is guarded by a protocol feature that the v3.2.7 upgrade handler turns on at the plan height (11 features, listed in `ReleaseV3_2_7ProtocolFeatures`); below that height the binary replays history byte-identically.
